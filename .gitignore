@@ -1,0 +1,11 @@
+# Never commit TaleWorlds binaries or local patched copies.
+TaleWorlds.Native.dll
+TaleWorlds.Native.dll.*
+*.KaiOriginal.bak
+*.KaiPatch.tmp
+
+# Local editor / OS noise
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
