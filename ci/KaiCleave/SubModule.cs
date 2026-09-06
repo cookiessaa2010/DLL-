@@ -1,5 +1,5 @@
 using HarmonyLib;
-using TaleWorlds.Core;
+using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
 
 namespace KaiCleave
