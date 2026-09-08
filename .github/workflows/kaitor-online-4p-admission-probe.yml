@@ -1,0 +1,28 @@
+name: KaiTOR Online Four-Player Admission Probe
+
+on:
+  push:
+    branches:
+      - kaitor-online-4p
+    paths:
+      - 'projects/KaiTOROnline/probes/FourPlayerAdmissionProbe/**'
+      - 'projects/KaiTOROnline/upstream-overlay/source/Coop.Core/Server/Connections/PlayerAdmissionGate.cs'
+      - 'projects/KaiTOROnline/tools/ApplyFourPlayerGate.ps1'
+      - '.github/workflows/kaitor-online-4p-admission-probe.yml'
+  workflow_dispatch:
+
+jobs:
+  admission-gate:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout KaiTOR project
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Exercise hard four-player gate semantics
+        shell: pwsh
+        run: dotnet run --project ./projects/KaiTOROnline/probes/FourPlayerAdmissionProbe/FourPlayerAdmissionProbe.csproj --configuration Release
