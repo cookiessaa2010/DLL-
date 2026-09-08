@@ -10,6 +10,7 @@ on:
       - 'projects/KaiTOROnline/tools/ApplyBannerlord1315MissionsBackport.ps1'
       - 'projects/KaiTOROnline/tools/ApplyBannerlord1315ModuleMetadata.ps1'
       - 'projects/KaiTOROnline/tools/ApplyFourPlayerGate.ps1'
+      - 'projects/KaiTOROnline/tools/AuditManagedAssemblyReferences.ps1'
       - 'projects/KaiTOROnline/upstream-overlay/**'
       - 'projects/KaiTOROnline/probes/Bannerlord1315ApiProbe/**'
       - '.github/workflows/kaitor-online-1315-coopcore-build.yml'
@@ -191,6 +192,10 @@ jobs:
             } | Set-Content -Encoding ASCII (Join-Path $stage 'SHA256SUMS.txt')
 
           "KAITOR_ARTIFACT=$stage" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Audit packaged managed dependency versions
+        shell: pwsh
+        run: ./kaitor/projects/KaiTOROnline/tools/AuditManagedAssemblyReferences.ps1 -Directory (Join-Path $env:KAITOR_ARTIFACT 'Modules/Coop/bin/Win64_Shipping_Client')
 
       - name: Upload KaiTOR bootstrap artifact
         uses: actions/upload-artifact@v4
