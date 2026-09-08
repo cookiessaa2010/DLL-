@@ -8,6 +8,7 @@ on:
       - 'projects/KaiTOROnline/tools/StageBannerlord1315References.ps1'
       - 'projects/KaiTOROnline/tools/ApplyBannerlord1315CompileBackport.ps1'
       - 'projects/KaiTOROnline/tools/ApplyBannerlord1315MissionsBackport.ps1'
+      - 'projects/KaiTOROnline/tools/ApplyBannerlord1315ModuleMetadata.ps1'
       - 'projects/KaiTOROnline/tools/ApplyFourPlayerGate.ps1'
       - 'projects/KaiTOROnline/upstream-overlay/**'
       - 'projects/KaiTOROnline/probes/Bannerlord1315ApiProbe/**'
@@ -81,6 +82,10 @@ jobs:
         shell: pwsh
         run: ./kaitor/projects/KaiTOROnline/tools/ApplyBannerlord1315MissionsBackport.ps1 -UpstreamRoot (Resolve-Path ./upstream)
 
+      - name: Lock module metadata to Bannerlord 1.3.15
+        shell: pwsh
+        run: ./kaitor/projects/KaiTOROnline/tools/ApplyBannerlord1315ModuleMetadata.ps1 -UpstreamRoot (Resolve-Path ./upstream)
+
       - name: Restore legacy Coop packages.config dependencies
         shell: pwsh
         run: nuget restore ./upstream/source/Coop/packages.config -PackagesDirectory ./upstream/source/packages -NonInteractive
@@ -96,6 +101,22 @@ jobs:
       - name: Build Coop against Bannerlord 1.3.15.110062
         shell: pwsh
         run: dotnet build ./upstream/source/Coop/Coop.csproj --configuration Release --no-restore --verbosity minimal -p:KaiTORBannerlord1315=true -p:NuGetAudit=false
+
+      - name: Validate generated module metadata
+        shell: pwsh
+        run: |
+          $subModulePath = Resolve-Path ./upstream/mb2/Modules/Coop/SubModule.xml
+          [xml]$xml = Get-Content $subModulePath -Raw
+          $dependencies = @($xml.Module.DependedModules.DependedModule)
+          if ($dependencies.Count -eq 0) { throw 'Generated SubModule.xml has no dependencies.' }
+          foreach ($dependency in $dependencies) {
+            if ($dependency.DependentVersion -ne 'v1.3.15') {
+              throw "Unexpected dependency version for $($dependency.Id): $($dependency.DependentVersion)"
+            }
+          }
+          $raw = Get-Content $subModulePath -Raw
+          if ($raw -match '\$\{[^}]+\}') { throw 'Unresolved template token remains in generated SubModule.xml.' }
+          Write-Host "Validated $($dependencies.Count) module dependencies at v1.3.15."
 
       - name: Restore server console dependency graph
         shell: pwsh
