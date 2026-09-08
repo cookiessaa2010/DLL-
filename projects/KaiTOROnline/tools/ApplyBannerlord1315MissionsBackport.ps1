@@ -31,12 +31,42 @@ function Replace-Exact {
         [Text.UTF8Encoding]::new($false))
 }
 
-# Bannerlord 1.3.15 exposes the spawn phase as the nested
-# MissionAgentSpawnLogic.SpawnPhase type. Later versions renamed/extracted it to MissionSpawnPhase.
-# The fields used by CoopBattleMissionSpawnHandler are present on the 1.3.15 nested type.
+# Bannerlord 1.3.15 exposes the spawn phase as MissionAgentSpawnLogic.SpawnPhase.
 Replace-Exact `
     'source/Missions/Battles/CoopBattleMissionSpawnHandler.cs' `
-    '    internal static void ReconcilePhaseLifetimeQuota(MissionSpawnPhase phase, int refreshedOwnedTarget,' `
-    '    internal static void ReconcilePhaseLifetimeQuota(MissionAgentSpawnLogic.SpawnPhase phase, int refreshedOwnedTarget,'
+    'MissionSpawnPhase' `
+    'MissionAgentSpawnLogic.SpawnPhase'
+
+# The later DefaultBattleMissionAgentSpawnLogic type is the 1.4.x split of the concrete
+# MissionAgentSpawnLogic that still owns the same three-argument constructor in 1.3.15.
+foreach ($path in @(
+    'source/Missions/Battles/ReinforcementFielder.cs',
+    'source/Missions/Battles/CoopFieldBattleLauncher.cs',
+    'source/Missions/Battles/CoopSiegeBattleLauncher.cs',
+    'source/Missions/Battles/BattleTeamDiagnostics.cs'
+)) {
+    Replace-Exact $path 'DefaultBattleMissionAgentSpawnLogic' 'MissionAgentSpawnLogic'
+}
+
+# In 1.3.15 the current reinforcement settings are exposed as ReinforcementSpawnSettings.
+Replace-Exact `
+    'source/Missions/Battles/CoopBattleMissionSpawnHandler.cs' `
+    '_missionAgentSpawnLogic.SpawnSettings' `
+    '_missionAgentSpawnLogic.ReinforcementSpawnSettings'
+
+# The later MissionBattleSideSpawnContext reservation counter does not exist in 1.3.15.
+# Allocation refresh is battle-only and is not part of the 0.0.1 shared-map acceptance test;
+# use zero as the bootstrap reservation baseline and restore the exact semantics at the battle milestone.
+Replace-Exact `
+    'source/Missions/Battles/CoopBattleMissionSpawnHandler.cs' `
+    '_missionAgentSpawnLogic._battleSideSpawnContexts[(int)side].ReservedTroopsCount' `
+    '0'
+
+# SaveLoadVM initialization was made async in 1.4.7. In 1.3.15 the base constructor populates
+# the synchronous save groups, so there is no InitializeAsync method to await.
+Replace-Exact `
+    'source/Missions/View/MissionsLoadUI.cs' `
+    '            base.InitializeAsync().GetAwaiter().GetResult();' `
+    '            // Bannerlord 1.3.15 SaveLoadVM initializes synchronously in its constructor.'
 
 Write-Host 'Applied KaiTOR Bannerlord 1.3.15 Missions backport.'
