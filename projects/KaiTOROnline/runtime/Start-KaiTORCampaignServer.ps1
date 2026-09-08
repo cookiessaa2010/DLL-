@@ -15,7 +15,7 @@ param(
     [ValidateSet('public', 'friends_only', 'none')]
     [string]$Visibility = 'none',
 
-    [ValidateLength(0, 64)]
+    [ValidateLength(0, 128)]
     [string]$Password = '',
 
     [switch]$ManagedMode,
@@ -56,14 +56,14 @@ function Get-ModuleIdsFromFile {
 function Quote-WindowsArgument {
     param([AllowEmptyString()][string]$Value)
 
-    # Matches the command-line quoting contract used by Bannerlord Coop's
-    # ServerLaunchArguments. Values without whitespace/quotes need no wrapping.
+    # Matches Bannerlord Coop's ServerLaunchArguments quoting contract. Windows parses
+    # backslashes specially only when they precede a quote or the closing quote.
     if ($Value.Length -gt 0 -and $Value -notmatch '[\s"]') {
         return $Value
     }
 
     $builder = [Text.StringBuilder]::new()
-    [void]$builder.Append('"')
+    [void]$builder.Append('"'.Substring(1))
     $backslashes = 0
 
     foreach ($ch in $Value.ToCharArray()) {
@@ -72,11 +72,12 @@ function Quote-WindowsArgument {
             continue
         }
 
-        if ($ch -eq '"') {
+        if ($ch -eq '"'.Substring(1)) {
             if ($backslashes -gt 0) {
                 [void]$builder.Append(('\' * ($backslashes * 2)))
             }
-            [void]$builder.Append('\"')
+            [void]$builder.Append('\')
+            [void]$builder.Append('"'.Substring(1))
             $backslashes = 0
             continue
         }
@@ -91,7 +92,7 @@ function Quote-WindowsArgument {
     if ($backslashes -gt 0) {
         [void]$builder.Append(('\' * ($backslashes * 2)))
     }
-    [void]$builder.Append('"')
+    [void]$builder.Append('"'.Substring(1))
     return $builder.ToString()
 }
 
