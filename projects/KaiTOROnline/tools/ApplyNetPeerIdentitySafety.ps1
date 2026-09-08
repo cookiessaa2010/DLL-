@@ -114,4 +114,16 @@ Replace-Exact `
     '    private readonly Dictionary<NetPeer, long> relayRevocationCounts = new Dictionary<NetPeer, long>();' `
     '    private readonly Dictionary<NetPeer, long> relayRevocationCounts = new Dictionary<NetPeer, long>(ReferenceComparer<NetPeer>.Instance);'
 
-Write-Host 'Applied reference-identity semantics to authoritative NetPeer registries.'
+# Join catch-up bookkeeping also lives across the reconnect boundary. A replacement peer must not
+# inherit the old peer's catch-up start timestamp, nor be considered the same member of the active set.
+Replace-Exact `
+    'source/Coop.Core/Server/Services/Time/OverloadedPeerManager.cs' `
+    '    private readonly Dictionary<NetPeer, DateTime> joinCatchUpStartedUtc = new Dictionary<NetPeer, DateTime>();' `
+    '    private readonly Dictionary<NetPeer, DateTime> joinCatchUpStartedUtc = new Dictionary<NetPeer, DateTime>(ReferenceComparer<NetPeer>.Instance);'
+
+Replace-Exact `
+    'source/Coop.Core/Server/Services/Time/OverloadedPeerManager.cs' `
+    '        var activePeers = new HashSet<NetPeer>(peers);' `
+    '        var activePeers = new HashSet<NetPeer>(peers, ReferenceComparer<NetPeer>.Instance);'
+
+Write-Host 'Applied reference-identity semantics to authoritative NetPeer registries and join catch-up tracking.'
