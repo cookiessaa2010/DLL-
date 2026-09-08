@@ -1,0 +1,31 @@
+name: KaiTOR Online Upstream Patch Check
+
+on:
+  push:
+    branches:
+      - kaitor-online-4p
+    paths:
+      - 'projects/KaiTOROnline/upstream-patches/**'
+      - '.github/workflows/kaitor-online-upstream-patch-check.yml'
+  workflow_dispatch:
+
+jobs:
+  check-upstream-patch:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout KaiTOR project
+        uses: actions/checkout@v4
+        with:
+          path: kaitor
+
+      - name: Checkout pinned Bannerlord Coop source
+        uses: actions/checkout@v4
+        with:
+          repository: Bannerlord-Coop-Team/BannerlordCoop
+          ref: 107d1c29ec3dc2d9f2d3a7836ae1691c2391e00c
+          path: upstream
+
+      - name: Verify four-player patch applies to pinned upstream
+        working-directory: upstream
+        run: git apply --check ../kaitor/projects/KaiTOROnline/upstream-patches/0001-hard-four-player-admission-gate.patch
