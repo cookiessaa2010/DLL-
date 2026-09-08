@@ -17,12 +17,17 @@ function Replace-Exact {
         throw "Missing upstream file: $Path"
     }
 
-    $text = [IO.File]::ReadAllText($fullPath)
-    if (-not $text.Contains($Old)) {
-        throw "Anchor not found in $Path`n--- anchor ---`n$Old"
+    # GitHub/checkout line endings can be LF or CRLF depending on runner settings.
+    # Normalize all three strings to LF before matching so the integration stays deterministic.
+    $text = [IO.File]::ReadAllText($fullPath) -replace "`r`n", "`n"
+    $oldNormalized = $Old -replace "`r`n", "`n"
+    $newNormalized = $New -replace "`r`n", "`n"
+
+    if (-not $text.Contains($oldNormalized)) {
+        throw "Anchor not found in $Path`n--- anchor ---`n$oldNormalized"
     }
 
-    $updated = $text.Replace($Old, $New)
+    $updated = $text.Replace($oldNormalized, $newNormalized)
     [IO.File]::WriteAllText($fullPath, $updated, [Text.UTF8Encoding]::new($false))
 }
 
@@ -87,7 +92,7 @@ $admissionAnchor = @'
             }
 
             ResolveCharacter(peer, obj.What.PlayerId);
-'@ -replace "`n", "`r`n"
+'@
 
 $admissionReplacement = @'
             if (steamBanList.IsBanned(obj.What.PlayerId))
@@ -137,7 +142,7 @@ $admissionReplacement = @'
             }
 
             ResolveCharacter(peer, obj.What.PlayerId);
-'@ -replace "`n", "`r`n"
+'@
 
 Replace-Exact 'source/Coop.Core/Server/Connections/States/ResolveCharacterState.cs' $admissionAnchor $admissionReplacement
 
@@ -160,7 +165,7 @@ public record NetworkClientValidated : IEvent
         Player = player;
     }
 }
-'@ -replace "`n", "`r`n"
+'@
 
 $validationNew = @'
 public record NetworkClientValidated : IEvent
@@ -182,7 +187,7 @@ public record NetworkClientValidated : IEvent
     public static NetworkClientValidated Rejected(string reason) =>
         new(false, null, reason);
 }
-'@ -replace "`n", "`r`n"
+'@
 
 Replace-Exact 'source/Coop.Core/Server/Connections/Messages/NetworkClientValidation.cs' $validationOld $validationNew
 
@@ -190,7 +195,7 @@ $clientAnchor = @'
     internal void Handle_NetworkClientValidated(MessagePayload<NetworkClientValidated> obj)
     {
         if (obj.What.HeroExists)
-'@ -replace "`n", "`r`n"
+'@
 
 $clientReplacement = @'
     internal void Handle_NetworkClientValidated(MessagePayload<NetworkClientValidated> obj)
@@ -205,7 +210,7 @@ $clientReplacement = @'
         }
 
         if (obj.What.HeroExists)
-'@ -replace "`n", "`r`n"
+'@
 
 Replace-Exact 'source/Coop.Core/Client/States/ValidateModuleState.cs' $clientAnchor $clientReplacement
 
