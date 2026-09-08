@@ -1,10 +1,21 @@
 using Coop.Core.Server.Connections;
 using LiteNetLib;
 using System;
-using System.Runtime.CompilerServices;
+using System.Net;
+using System.Reflection;
 
 static class Program
 {
+    private static readonly NetManager PeerManager = new(new EventBasedNetListener());
+    private static readonly ConstructorInfo PeerConstructor = typeof(NetPeer).GetConstructor(
+        BindingFlags.Instance | BindingFlags.NonPublic,
+        binder: null,
+        types: new[] { typeof(NetManager), typeof(IPEndPoint), typeof(int) },
+        modifiers: null)
+        ?? throw new InvalidOperationException("LiteNetLib NetPeer(NetManager, IPEndPoint, int) constructor was not found.");
+
+    private static int nextPeerId;
+
     private static void Main()
     {
         var gate = new PlayerAdmissionGate();
@@ -62,8 +73,12 @@ static class Program
         Console.WriteLine("PASS: KaiTOR hard four-player admission gate semantics validated.");
     }
 
-    private static NetPeer NewPeer() =>
-        (NetPeer)RuntimeHelpers.GetUninitializedObject(typeof(NetPeer));
+    private static NetPeer NewPeer()
+    {
+        var id = ++nextPeerId;
+        var endpoint = new IPEndPoint(IPAddress.Loopback, 30000 + id);
+        return (NetPeer)PeerConstructor.Invoke(new object[] { PeerManager, endpoint, id });
+    }
 
     private static void RequireAccepted(AdmissionDecision decision, bool reconnect, string label)
     {
