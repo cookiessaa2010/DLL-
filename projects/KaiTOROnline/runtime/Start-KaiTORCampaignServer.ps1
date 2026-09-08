@@ -186,7 +186,8 @@ if ($Password) {
 $arguments = ($tokens | ForEach-Object { Quote-WindowsArgument $_ }) -join ' '
 $workingDirectory = Split-Path -Parent $exe
 
-# Never print the password. This is the safe command summary used both interactively and in CI.
+# Never print the password. The safe summary is emitted on the success stream so CI can
+# assert the exact launch contract without observing the real secret.
 $safeTokens = [Collections.Generic.List[string]]::new()
 for ($i = 0; $i -lt $tokens.Count; $i++) {
     if ($tokens[$i] -eq '/cooppassword' -and $i + 1 -lt $tokens.Count) {
@@ -199,26 +200,26 @@ for ($i = 0; $i -lt $tokens.Count; $i++) {
 }
 $safeArguments = ($safeTokens | ForEach-Object { Quote-WindowsArgument $_ }) -join ' '
 
-Write-Host 'KaiTOR Online campaign-server launch contract'
-Write-Host "  Bannerlord: $exe"
-Write-Host "  Target:     $ExpectedVersion"
-Write-Host "  Save:       $SaveName"
-Write-Host "  Visibility: $Visibility"
-Write-Host "  Modules:    $($ModuleIds -join ', ')"
-Write-Host "  Command:    Bannerlord.exe $safeArguments"
-Write-Host '  Coop UDP:   4200 (pinned upstream default; no CLI override in this build)'
+Write-Output 'KaiTOR Online campaign-server launch contract'
+Write-Output "  Bannerlord: $exe"
+Write-Output "  Target:     $ExpectedVersion"
+Write-Output "  Save:       $SaveName"
+Write-Output "  Visibility: $Visibility"
+Write-Output "  Modules:    $($ModuleIds -join ', ')"
+Write-Output "  Command:    Bannerlord.exe $safeArguments"
+Write-Output '  Coop UDP:   4200 (pinned upstream default; no CLI override in this build)'
 
 if ($DryRun) {
-    Write-Host 'DRY RUN: process not started.'
+    Write-Output 'DRY RUN: process not started.'
     return
 }
 
 $process = Start-Process -FilePath $exe -ArgumentList $arguments -WorkingDirectory $workingDirectory -PassThru
-Write-Host "Started Bannerlord campaign-server process PID $($process.Id)."
-Write-Host 'The /coopsave path auto-starts Coop when Bannerlord reaches InitialState and then loads the named save.'
+Write-Output "Started Bannerlord campaign-server process PID $($process.Id)."
+Write-Output 'The /coopsave path auto-starts Coop when Bannerlord reaches InitialState and then loads the named save.'
 
 if ($Wait) {
     $process.WaitForExit()
-    Write-Host "Campaign-server process exited with code $($process.ExitCode)."
+    Write-Output "Campaign-server process exited with code $($process.ExitCode)."
     exit $process.ExitCode
 }
