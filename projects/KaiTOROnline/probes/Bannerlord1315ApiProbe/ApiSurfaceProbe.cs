@@ -1,5 +1,6 @@
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Party;
+using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Library;
 
 namespace KaiTOROnline.Bannerlord1315ApiProbe
@@ -19,7 +20,7 @@ namespace KaiTOROnline.Bannerlord1315ApiProbe
             Clan clan = hero.Clan;
             PartyBase partyBase = party.Party;
             Settlement settlement = party.CurrentSettlement;
-            Vec2 position = party.Position2D;
+            Vec2 position = party.GetPosition2D;
 
             _ = mainHero;
             _ = mainParty;
