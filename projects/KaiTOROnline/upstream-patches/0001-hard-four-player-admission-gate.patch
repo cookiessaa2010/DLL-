@@ -1,0 +1,275 @@
+diff --git a/source/Coop.Core/Server/Connections/PlayerAdmissionGate.cs b/source/Coop.Core/Server/Connections/PlayerAdmissionGate.cs
+new file mode 100644
+--- /dev/null
++++ b/source/Coop.Core/Server/Connections/PlayerAdmissionGate.cs
+@@
++using LiteNetLib;
++using System;
++using System.Collections.Generic;
++
++namespace Coop.Core.Server.Connections;
++
++public interface IPlayerAdmissionGate
++{
++    int ActiveSlots { get; }
++    AdmissionDecision TryAdmit(string controllerId, NetPeer peer);
++    bool Release(NetPeer peer);
++}
++
++public sealed class PlayerAdmissionGate : IPlayerAdmissionGate
++{
++    public const int MaxPlayers = 4;
++
++    private readonly object sync = new();
++    private readonly Dictionary<string, NetPeer> controllerToPeer = new(StringComparer.Ordinal);
++    private readonly Dictionary<NetPeer, string> peerToController = new();
++
++    public int ActiveSlots
++    {
++        get
++        {
++            lock (sync) return controllerToPeer.Count;
++        }
++    }
++
++    public AdmissionDecision TryAdmit(string controllerId, NetPeer peer)
++    {
++        if (string.IsNullOrWhiteSpace(controllerId) || peer == null)
++            return AdmissionDecision.Reject(AdmissionRejectReason.InvalidIdentity);
++
++        lock (sync)
++        {
++            if (peerToController.TryGetValue(peer, out var currentController) &&
++                string.Equals(currentController, controllerId, StringComparison.Ordinal))
++                return AdmissionDecision.Accept();
++
++            if (controllerToPeer.TryGetValue(controllerId, out var oldPeer))
++            {
++                if (!ReferenceEquals(oldPeer, peer))
++                {
++                    peerToController.Remove(oldPeer);
++                    controllerToPeer[controllerId] = peer;
++                    peerToController[peer] = controllerId;
++                    return AdmissionDecision.AcceptReconnect(oldPeer);
++                }
++
++                return AdmissionDecision.Accept();
++            }
++
++            if (controllerToPeer.Count >= MaxPlayers)
++                return AdmissionDecision.Reject(AdmissionRejectReason.ServerFull);
++
++            controllerToPeer.Add(controllerId, peer);
++            peerToController.Add(peer, controllerId);
++            return AdmissionDecision.Accept();
++        }
++    }
++
++    public bool Release(NetPeer peer)
++    {
++        if (peer == null) return false;
++
++        lock (sync)
++        {
++            if (!peerToController.TryGetValue(peer, out var controllerId))
++                return false;
++
++            peerToController.Remove(peer);
++
++            if (controllerToPeer.TryGetValue(controllerId, out var currentPeer) &&
++                ReferenceEquals(currentPeer, peer))
++                controllerToPeer.Remove(controllerId);
++
++            return true;
++        }
++    }
++}
++
++public enum AdmissionRejectReason
++{
++    None = 0,
++    ServerFull = 1,
++    InvalidIdentity = 2
++}
++
++public sealed class AdmissionDecision
++{
++    public bool Accepted { get; private set; }
++    public bool IsReconnect { get; private set; }
++    public NetPeer SupersededPeer { get; private set; }
++    public AdmissionRejectReason RejectReason { get; private set; }
++
++    private AdmissionDecision() { }
++
++    public static AdmissionDecision Accept() =>
++        new() { Accepted = true, RejectReason = AdmissionRejectReason.None };
++
++    public static AdmissionDecision AcceptReconnect(NetPeer oldPeer) =>
++        new()
++        {
++            Accepted = true,
++            IsReconnect = true,
++            SupersededPeer = oldPeer,
++            RejectReason = AdmissionRejectReason.None
++        };
++
++    public static AdmissionDecision Reject(AdmissionRejectReason reason) =>
++        new() { Accepted = false, RejectReason = reason };
++}
+
+diff --git a/source/Coop.Core/Server/Connections/ConnectionModule.cs b/source/Coop.Core/Server/Connections/ConnectionModule.cs
+--- a/source/Coop.Core/Server/Connections/ConnectionModule.cs
++++ b/source/Coop.Core/Server/Connections/ConnectionModule.cs
+@@
+         builder.RegisterType<ExistingPlayerSender>().As<IExistingPlayerSender>().InstancePerLifetimeScope();
++        builder.RegisterType<PlayerAdmissionGate>().As<IPlayerAdmissionGate>().InstancePerLifetimeScope();
+         builder.RegisterType<ConnectionContext>().AsSelf().InstancePerLifetimeScope();
+         builder.RegisterType<ConnectionLogic>().As<IConnectionLogic>().AsSelf();
+         builder.RegisterType<ConnectionCollection>().As<IConnectionCollection>().AsSelf().InstancePerLifetimeScope().AutoActivate();
+
+diff --git a/source/Coop.Core/Server/Connections/ConnectionContext.cs b/source/Coop.Core/Server/Connections/ConnectionContext.cs
+--- a/source/Coop.Core/Server/Connections/ConnectionContext.cs
++++ b/source/Coop.Core/Server/Connections/ConnectionContext.cs
+@@
+         IExistingPlayerSender existingPlayerSender,
+         ISteamBanList steamBanList,
++        IPlayerAdmissionGate playerAdmissionGate,
+         IServerOptionsProvider serverOptionsProvider,
+@@
+         ExistingPlayerSender = existingPlayerSender;
+         SteamBanList = steamBanList;
++        PlayerAdmissionGate = playerAdmissionGate;
+         ServerOptionsProvider = serverOptionsProvider;
+@@
+     public IExistingPlayerSender ExistingPlayerSender { get; }
+     public ISteamBanList SteamBanList { get; }
++    public IPlayerAdmissionGate PlayerAdmissionGate { get; }
+     public IServerOptionsProvider ServerOptionsProvider { get; }
+
+diff --git a/source/Coop.Core/Server/Connections/ConnectionLogic.cs b/source/Coop.Core/Server/Connections/ConnectionLogic.cs
+--- a/source/Coop.Core/Server/Connections/ConnectionLogic.cs
++++ b/source/Coop.Core/Server/Connections/ConnectionLogic.cs
+@@
+-            [typeof(ResolveCharacterState)] = () => new ResolveCharacterState(this, context.MessageBroker, context.Network, context.ModuleValidator, context.PlayerManager, context.PlayerPartyRestorer, context.ObjectManager, context.ModuleInfoProvider, context.ExistingPlayerSender, context.SteamBanList),
++            [typeof(ResolveCharacterState)] = () => new ResolveCharacterState(this, context.MessageBroker, context.Network, context.ModuleValidator, context.PlayerManager, context.PlayerPartyRestorer, context.ObjectManager, context.ModuleInfoProvider, context.ExistingPlayerSender, context.SteamBanList, context.PlayerAdmissionGate),
+
+diff --git a/source/Coop.Core/Server/Connections/States/ResolveCharacterState.cs b/source/Coop.Core/Server/Connections/States/ResolveCharacterState.cs
+--- a/source/Coop.Core/Server/Connections/States/ResolveCharacterState.cs
++++ b/source/Coop.Core/Server/Connections/States/ResolveCharacterState.cs
+@@
+     private readonly IExistingPlayerSender existingPlayerSender;
+     private readonly ISteamBanList steamBanList;
++    private readonly IPlayerAdmissionGate playerAdmissionGate;
+@@
+         IModuleInfoProvider moduleInfoProvider,
+         IExistingPlayerSender existingPlayerSender,
+-        ISteamBanList steamBanList)
++        ISteamBanList steamBanList,
++        IPlayerAdmissionGate playerAdmissionGate)
+@@
+         this.existingPlayerSender = existingPlayerSender;
+         this.steamBanList = steamBanList;
++        this.playerAdmissionGate = playerAdmissionGate;
+@@
+             if (steamBanList.IsBanned(obj.What.PlayerId))
+             {
+@@
+                 return;
+             }
++
++            var admission = playerAdmissionGate.TryAdmit(obj.What.PlayerId, peer);
++            if (!admission.Accepted)
++            {
++                var reason = admission.RejectReason == AdmissionRejectReason.ServerFull
++                    ? "KaiTOR Online server is full (4/4 players)."
++                    : "KaiTOR Online rejected the connection because the player identity is invalid.";
++
++                Logger.Information(
++                    "Rejecting controller {ControllerId}: {Reason}",
++                    obj.What.PlayerId,
++                    reason);
++
++                network.SendImmediate(peer, NetworkClientValidated.Rejected(reason));
++                return;
++            }
++
++            if (admission.IsReconnect && admission.SupersededPeer != null)
++            {
++                Logger.Information(
++                    "Controller {ControllerId} reconnected; replacing peer {OldPeer} with {NewPeer}",
++                    obj.What.PlayerId,
++                    admission.SupersededPeer.Id,
++                    peer.Id);
++
++                try
++                {
++                    admission.SupersededPeer.Disconnect();
++                }
++                catch (Exception disconnectFailure)
++                {
++                    Logger.Warning(
++                        disconnectFailure,
++                        "Failed to disconnect superseded peer {Peer}",
++                        admission.SupersededPeer.Id);
++                }
++            }
+ 
+             ResolveCharacter(peer, obj.What.PlayerId);
+
+diff --git a/source/Coop.Core/Server/Connections/ConnectionCollection.cs b/source/Coop.Core/Server/Connections/ConnectionCollection.cs
+--- a/source/Coop.Core/Server/Connections/ConnectionCollection.cs
++++ b/source/Coop.Core/Server/Connections/ConnectionCollection.cs
+@@
+     internal void PlayerDisconnectedHandler(MessagePayload<PlayerDisconnected> obj)
+     {
+         var playerId = obj.What.PlayerId;
++
++        // Releases only the live session slot. Persistent Player/Hero/Party data stays registered.
++        // A superseded old peer is already absent from the gate and therefore cannot release the
++        // replacement reconnect's slot.
++        connectionContext.PlayerAdmissionGate.Release(playerId);
+ 
+         if (ConnectionStates.TryRemove(playerId, out IConnectionLogic logic))
+
+diff --git a/source/Coop.Core/Server/Connections/Messages/NetworkClientValidation.cs b/source/Coop.Core/Server/Connections/Messages/NetworkClientValidation.cs
+--- a/source/Coop.Core/Server/Connections/Messages/NetworkClientValidation.cs
++++ b/source/Coop.Core/Server/Connections/Messages/NetworkClientValidation.cs
+@@
+ public record NetworkClientValidated : IEvent
+ {
+     [ProtoMember(1)]
+     public bool HeroExists { get; }
+     [ProtoMember(2)]
+     public Player Player { get; }
++    [ProtoMember(3)]
++    public string RejectionReason { get; }
+ 
+-    public NetworkClientValidated(bool heroExists, Player player)
++    public NetworkClientValidated(bool heroExists, Player player, string rejectionReason = null)
+     {
+         HeroExists = heroExists;
+         Player = player;
++        RejectionReason = rejectionReason;
+     }
++
++    public static NetworkClientValidated Rejected(string reason) =>
++        new(false, null, reason);
+ }
+
+diff --git a/source/Coop.Core/Client/States/ValidateModuleState.cs b/source/Coop.Core/Client/States/ValidateModuleState.cs
+--- a/source/Coop.Core/Client/States/ValidateModuleState.cs
++++ b/source/Coop.Core/Client/States/ValidateModuleState.cs
+@@
+     internal void Handle_NetworkClientValidated(MessagePayload<NetworkClientValidated> obj)
+     {
++        if (!string.IsNullOrWhiteSpace(obj.What.RejectionReason))
++        {
++            var message = obj.What.RejectionReason;
++            messageBroker.Publish(this, new SendInformationMessage(message));
++            disconnectReason = message;
++            Logic.Disconnect();
++            return;
++        }
++
+         if (obj.What.HeroExists)
+         {
