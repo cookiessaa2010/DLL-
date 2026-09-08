@@ -1,17 +1,19 @@
-name: KaiTOR Online Upstream Patch Check
+name: KaiTOR Online Upstream Integration Check
 
 on:
   push:
     branches:
       - kaitor-online-4p
     paths:
+      - 'projects/KaiTOROnline/upstream-overlay/**'
       - 'projects/KaiTOROnline/upstream-patches/**'
+      - 'projects/KaiTOROnline/tools/ApplyFourPlayerGate.ps1'
       - '.github/workflows/kaitor-online-upstream-patch-check.yml'
   workflow_dispatch:
 
 jobs:
-  check-upstream-patch:
-    runs-on: ubuntu-latest
+  integrate-four-player-gate:
+    runs-on: windows-latest
 
     steps:
       - name: Checkout KaiTOR project
@@ -26,6 +28,28 @@ jobs:
           ref: 107d1c29ec3dc2d9f2d3a7836ae1691c2391e00c
           path: upstream
 
-      - name: Verify four-player patch applies to pinned upstream
+      - name: Apply KaiTOR four-player integration
+        shell: pwsh
+        run: ./kaitor/projects/KaiTOROnline/tools/ApplyFourPlayerGate.ps1 -UpstreamRoot (Resolve-Path ./upstream)
+
+      - name: Validate generated diff
         working-directory: upstream
-        run: git apply --check ../kaitor/projects/KaiTOROnline/upstream-patches/0001-hard-four-player-admission-gate.patch
+        shell: pwsh
+        run: |
+          git diff --check
+          $diff = git diff -- source/Coop.Core/Server/Connections source/Coop.Core/Client/States/ValidateModuleState.cs
+          if (-not ($diff -match 'MaxPlayers = 4')) { throw 'Four-player gate was not added.' }
+          if (-not ($diff -match 'RejectionReason')) { throw 'Visible admission rejection was not added.' }
+          if (-not ($diff -match 'PlayerAdmissionGate.Release')) { throw 'Disconnect slot release was not added.' }
+
+      - name: Export generated integration diff
+        working-directory: upstream
+        shell: pwsh
+        run: git diff --binary > ../kaitor/projects/KaiTOROnline/generated-four-player-integration.patch
+
+      - name: Upload generated patch
+        uses: actions/upload-artifact@v4
+        with:
+          name: kaitor-four-player-upstream-integration
+          path: kaitor/projects/KaiTOROnline/generated-four-player-integration.patch
+          if-no-files-found: error
