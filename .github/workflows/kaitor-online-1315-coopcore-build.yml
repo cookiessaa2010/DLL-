@@ -51,6 +51,10 @@ jobs:
         shell: pwsh
         run: ./kaitor/projects/KaiTOROnline/tools/ApplyBannerlord1315MissionsBackport.ps1 -UpstreamRoot (Resolve-Path ./upstream)
 
+      - name: Restore legacy Coop packages.config dependencies
+        shell: pwsh
+        run: nuget restore ./upstream/source/Coop/packages.config -PackagesDirectory ./upstream/source/packages -NonInteractive
+
       - name: Restore Coop dependency graph
         shell: pwsh
         run: dotnet restore ./upstream/source/Coop/Coop.csproj -p:KaiTORBannerlord1315=true -p:NuGetAudit=false
