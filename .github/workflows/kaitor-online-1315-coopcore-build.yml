@@ -47,8 +47,8 @@ jobs:
 
       - name: Restore Coop.Core dependency graph
         shell: pwsh
-        run: dotnet restore ./upstream/source/Coop.Core/Coop.Core.csproj -p:KaiTORBannerlord1315=true
+        run: dotnet restore ./upstream/source/Coop.Core/Coop.Core.csproj -p:KaiTORBannerlord1315=true -p:NuGetAudit=false
 
       - name: Build Coop.Core against Bannerlord 1.3.15.110062
         shell: pwsh
-        run: dotnet build ./upstream/source/Coop.Core/Coop.Core.csproj --configuration Release --no-restore --verbosity minimal -p:KaiTORBannerlord1315=true
+        run: dotnet build ./upstream/source/Coop.Core/Coop.Core.csproj --configuration Release --no-restore --verbosity minimal -p:KaiTORBannerlord1315=true -p:NuGetAudit=false
