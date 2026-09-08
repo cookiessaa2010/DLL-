@@ -167,6 +167,7 @@ $removeBlock = @'
     <Compile Remove="Services\Kingdoms\Commands\KingdomDebugCommand.cs" />
     <Compile Remove="Services\Clans\Interfaces\DefaultClanFinanceModelInterface.cs" />
     <Compile Remove="Services\Workshops\Interfaces\WorkshopsCampaignBehaviorInterface.cs" />
+    <Compile Remove="Services\Workshops\Handlers\WorkshopWarehouseHandler.cs" />
 
     <!-- Companion/party-role APIs changed substantially after 1.3.15. -->
     <Compile Remove="Services\Companions\**\*.cs" />
@@ -178,8 +179,13 @@ $removeBlock = @'
     <Compile Remove="Services\MobileParties\Patches\PartyRolesPatches.cs" />
     <Compile Remove="Services\MobileParties\Handlers\PartyRolesHandler.cs" />
 
-    <!-- Captivity/loot/UI helpers are not needed to prove four independent parties on the map. -->
-    <Compile Remove="Services\PlayerCaptivityService\**\*.cs" />
+    <!-- Captivity implementation is not needed for shared-map bootstrap, but its tiny message
+         contracts are retained because several core handlers still subscribe/publish them. -->
+    <Compile Remove="Services\PlayerCaptivityService\Commands\**\*.cs" />
+    <Compile Remove="Services\PlayerCaptivityService\Handlers\**\*.cs" />
+    <Compile Remove="Services\PlayerCaptivityService\Patches\**\*.cs" />
+    <Compile Remove="Services\PlayerCaptivityService\PlayerCaptivityConfig.cs" />
+    <Compile Remove="Services\PlayerCaptivityService\PlayerCaptivityLogger.cs" />
     <Compile Remove="Services\ItemRosters\Patches\AllowItemRostersInGUI.cs" />
     <Compile Remove="Services\Bandits\Patches\BanditInteractionsCampaignBehaviorPatches.cs" />
     <Compile Remove="Services\Inventory\Patches\InventoryLogicPatches.cs" />
@@ -198,6 +204,7 @@ $removeBlock = @'
     <Compile Remove="Services\MapEvents\MainPartyBattleRewardsCache.cs" />
     <Compile Remove="Services\MapEvents\Interfaces\PlayerEncounterInterface.cs" />
     <Compile Remove="Services\MapEvents\Interfaces\MapEventResultsInterface.cs" />
+    <Compile Remove="Services\MapEvents\Handlers\MapEventResultsHandler.cs" />
     <Compile Remove="Services\MapEvents\Handlers\BattleSimulationRunHandler.cs" />
     <Compile Remove="Services\MapEvents\Patches\PlayerEncounterPatches.cs" />
     <Compile Remove="Services\MapEvents\Patches\MapEventPatches.cs" />
