@@ -1,3 +1,6 @@
+using System.Collections.Concurrent;
+using System.Linq;
+using System.Threading.Tasks;
 using KaiTOROnline.ServerCapacity;
 using Xunit;
 
@@ -103,6 +106,23 @@ namespace KaiTOROnline.Tests.ServerCapacity
             Assert.False(result.Accepted);
             Assert.Equal(AdmissionRejectReason.InvalidControllerId, result.RejectReason);
             Assert.Equal(0, gate.ActiveSlots);
+        }
+
+        [Fact]
+        public void ParallelDistinctJoins_NeverExceedFourSlots()
+        {
+            var gate = new PlayerAdmissionGate();
+            var results = new ConcurrentBag<AdmissionResult>();
+
+            Parallel.For(0, 32, i =>
+            {
+                results.Add(gate.TryReserve("p" + i, "c" + i));
+            });
+
+            Assert.Equal(4, gate.ActiveSlots);
+            Assert.Equal(4, results.Count(result => result.Accepted));
+            Assert.Equal(28, results.Count(result =>
+                !result.Accepted && result.RejectReason == AdmissionRejectReason.ServerFull));
         }
     }
 }
