@@ -11,6 +11,23 @@ Experimental The Old Realms multiplayer compatibility project for **Mount & Blad
 - Every connected player owns a full campaign Hero + MobileParty and can act independently on the shared campaign map.
 - Source base: Bannerlord Coop, used under permission granted by its maintainers. Preserve the permission record with the project before public distribution.
 
+## Current development status
+
+Completed foundation work:
+
+- dedicated `kaitor-online-4p` development branch
+- backport audit for Bannerlord 1.3.15.110062
+- concurrency-safe server admission gate with a hard `MaxPlayers = 4`
+- persistent-controller reconnect semantics: reconnect replaces the old network session instead of consuming a fifth slot
+- disconnect releases only the live session slot, not persistent Hero/Party data
+- explicit design for a visible `ServerFull` validation rejection before character creation/save transfer
+- .NET Framework 4.7.2 test project
+- CI coverage for 1..4 joins, rejected fifth join, reconnect, disconnect/reuse, stale disconnect, idempotent validation, invalid identity, and 32-way concurrent join stress
+- CI currently passing
+- staged upstream patch touching the confirmed Coop connection flow (`ResolveCharacterState`, `ConnectionContext`, `ConnectionCollection`, validation message/client state)
+
+The next blocker is the **Bannerlord Coop -> Bannerlord 1.3.15 API backport**, not the four-player capacity logic.
+
 ## 0.0.1 prototype acceptance criteria
 
 The first prototype is intentionally small. It is successful when:
