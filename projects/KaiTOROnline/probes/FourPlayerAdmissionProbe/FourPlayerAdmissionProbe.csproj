@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <AssemblyName>KaiTOROnline.FourPlayerAdmissionProbe</AssemblyName>
+    <RootNamespace>KaiTOROnline.FourPlayerAdmissionProbe</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="LiteNetLib" Version="1.3.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\upstream-overlay\source\Coop.Core\Server\Connections\PlayerAdmissionGate.cs"
+             Link="PlayerAdmissionGate.cs" />
+  </ItemGroup>
+</Project>
