@@ -125,11 +125,31 @@ jobs:
           Copy-Item ./upstream/mb2/Modules/Coop (Join-Path $stage 'Modules/Coop') -Recurse -Force
           Copy-Item ./upstream/source/ServerConsole/bin/Release/net6.0/* (Join-Path $stage 'ServerConsole') -Recurse -Force
 
-          # Never publish TaleWorlds game assemblies as part of the bootstrap artifact.
-          $gameDlls = Get-ChildItem $stage -Recurse -File -Filter 'TaleWorlds*.dll'
-          if ($gameDlls) {
-            $gameDlls | ForEach-Object { Write-Host "Forbidden game assembly: $($_.FullName)" }
-            throw 'Packaging guard found TaleWorlds game assemblies.'
+          # The compile-only mb2 tree is populated from Bannerlord.ReferenceAssemblies. The legacy
+          # Coop deploy step copies some of those references into the module output. They are only
+          # build inputs and must never be redistributed. Strip every filename that exists in the
+          # staged Bannerlord reference root, not just TaleWorlds-prefixed assemblies.
+          $referenceRoot = Resolve-Path ./upstream/mb2/bin/Win64_Shipping_Client
+          $referenceNames = @{}
+          Get-ChildItem $referenceRoot -File | ForEach-Object { $referenceNames[$_.Name.ToLowerInvariant()] = $true }
+
+          $stripped = 0
+          Get-ChildItem $stage -Recurse -File | ForEach-Object {
+            if ($referenceNames.ContainsKey($_.Name.ToLowerInvariant())) {
+              Remove-Item $_.FullName -Force
+              $stripped++
+            }
+          }
+          Write-Host "Stripped $stripped Bannerlord reference assembly file(s) from distributable staging."
+
+          # Defense in depth: no staged Bannerlord reference name and no TaleWorlds assembly may survive.
+          $forbidden = Get-ChildItem $stage -Recurse -File | Where-Object {
+            $referenceNames.ContainsKey($_.Name.ToLowerInvariant()) -or
+            ($_.Name -like 'TaleWorlds*.dll')
+          }
+          if ($forbidden) {
+            $forbidden | ForEach-Object { Write-Host "Forbidden game assembly: $($_.FullName)" }
+            throw 'Packaging guard found Bannerlord game/reference assemblies.'
           }
 
           @(
@@ -137,6 +157,7 @@ jobs:
             'Target: Mount & Blade II Bannerlord 1.3.15.110062',
             'Admission limit: 4 simultaneous players',
             'Purpose: runtime/bootstrap testing before TOR integration',
+            'Game assemblies are NOT included; use an existing legal Bannerlord 1.3.15.110062 installation.',
             "Source commit: $env:GITHUB_SHA"
           ) | Set-Content -Encoding UTF8 (Join-Path $stage 'BUILD.txt')
 
