@@ -32,6 +32,7 @@ Set-StrictMode -Version Latest
 
 $ExpectedVersion = '1.3.15.110062'
 $DefaultModuleList = Join-Path $PSScriptRoot 'modules.vanilla-1.3.15.txt'
+$RuntimePreflight = Join-Path $PSScriptRoot 'Test-KaiTORRuntimePreflight.ps1'
 
 function Get-ModuleIdsFromFile {
     param([Parameter(Mandatory = $true)][string]$Path)
@@ -150,16 +151,22 @@ if (-not ($ModuleIds -contains 'Coop')) {
     throw "The module list must contain 'Coop'."
 }
 
-$missingModules = @()
-foreach ($id in $ModuleIds) {
-    $subModule = Join-Path $root ("Modules\{0}\SubModule.xml" -f $id)
-    if (-not (Test-Path -LiteralPath $subModule -PathType Leaf)) {
-        $missingModules += $id
-    }
+# The launcher must never bypass the stricter runtime contract. This validates the exact
+# module set that will be placed in Bannerlord's _MODULES_ token, including Coop metadata
+# and the managed runtime assemblies produced by the 1.3.15 backport build.
+if (-not (Test-Path -LiteralPath $RuntimePreflight -PathType Leaf)) {
+    throw "KaiTOR runtime preflight script is missing: $RuntimePreflight"
 }
-if ($missingModules.Count -gt 0) {
-    throw "Missing module(s) under '$root\Modules': $($missingModules -join ', '). Install/copy them before starting the server."
+$preflightArgs = @{
+    BannerlordRoot = $root
+    ModuleIds = $ModuleIds
+    SkipVersionCheck = $SkipVersionCheck
 }
+$preflightOutput = @(& $RuntimePreflight @preflightArgs)
+if (-not ($preflightOutput -match 'KaiTOR Online runtime preflight: PASS')) {
+    throw 'KaiTOR runtime preflight did not report PASS; refusing to launch the campaign server.'
+}
+Write-Output 'Runtime preflight: PASS (launch authorized).'
 
 $moduleToken = Build-ModuleToken -Ids $ModuleIds
 $tokens = [Collections.Generic.List[string]]::new()
