@@ -7,6 +7,7 @@ on:
     paths:
       - 'projects/KaiTOROnline/tools/StageBannerlord1315References.ps1'
       - 'projects/KaiTOROnline/tools/ApplyBannerlord1315CompileBackport.ps1'
+      - 'projects/KaiTOROnline/tools/ApplyBannerlord1315MissionsBackport.ps1'
       - 'projects/KaiTOROnline/probes/Bannerlord1315ApiProbe/**'
       - '.github/workflows/kaitor-online-1315-coopcore-build.yml'
   workflow_dispatch:
@@ -44,6 +45,10 @@ jobs:
       - name: Apply GameInterface 1.3.15 compile backport
         shell: pwsh
         run: ./kaitor/projects/KaiTOROnline/tools/ApplyBannerlord1315CompileBackport.ps1 -UpstreamRoot (Resolve-Path ./upstream)
+
+      - name: Apply Missions 1.3.15 backport
+        shell: pwsh
+        run: ./kaitor/projects/KaiTOROnline/tools/ApplyBannerlord1315MissionsBackport.ps1 -UpstreamRoot (Resolve-Path ./upstream)
 
       - name: Restore Coop.Core dependency graph
         shell: pwsh
