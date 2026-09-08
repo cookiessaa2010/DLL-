@@ -32,10 +32,34 @@ jobs:
           ref: 107d1c29ec3dc2d9f2d3a7836ae1691c2391e00c
           path: upstream
 
-      - name: Setup .NET
+      - name: Setup .NET 8 SDK and .NET 6 runtime
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: |
+            8.0.x
+            6.0.x
+
+      - name: Pin build commands to .NET 8 SDK
+        shell: pwsh
+        run: |
+          $sdk = dotnet --list-sdks |
+            ForEach-Object { ($_ -split ' ')[0] } |
+            Where-Object { $_ -like '8.0.*' } |
+            Select-Object -Last 1
+          if (-not $sdk) { throw 'No .NET 8 SDK installed.' }
+
+          $globalJson = @{
+            sdk = @{
+              version = $sdk
+              rollForward = 'latestPatch'
+              allowPrerelease = $false
+            }
+          } | ConvertTo-Json -Depth 4
+          [IO.File]::WriteAllText((Join-Path (Get-Location) 'global.json'), $globalJson, [Text.UTF8Encoding]::new($false))
+
+          $selected = dotnet --version
+          Write-Host "Pinned SDK: $selected"
+          if ($selected -notlike '8.0.*') { throw "Expected .NET 8 SDK, got $selected" }
 
       - name: Restore Bannerlord 1.3.15 reference packages
         shell: pwsh
@@ -80,3 +104,56 @@ jobs:
       - name: Build server console against backported Coop graph
         shell: pwsh
         run: dotnet build ./upstream/source/ServerConsole/ServerConsole.csproj --configuration Release --no-restore --verbosity minimal -p:NuGetAudit=false
+
+      - name: Smoke-test server console startup and clean shutdown
+        shell: pwsh
+        run: |
+          $server = Resolve-Path ./upstream/source/ServerConsole/bin/Release/net6.0/ServerConsole.dll
+          $output = 'STOP' | dotnet $server 2>&1 | Out-String
+          Write-Host $output
+          if ($LASTEXITCODE -ne 0) { throw "ServerConsole exited with code $LASTEXITCODE" }
+          if ($output -notmatch 'Server started on port') { throw 'ServerConsole did not reach listening startup.' }
+
+      - name: Assemble KaiTOR 0.0.1 bootstrap artifact
+        shell: pwsh
+        run: |
+          $stage = Join-Path $env:RUNNER_TEMP 'KaiTOROnline-0.0.1-bootstrap'
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          New-Item -ItemType Directory -Force -Path (Join-Path $stage 'Modules') | Out-Null
+          New-Item -ItemType Directory -Force -Path (Join-Path $stage 'ServerConsole') | Out-Null
+
+          Copy-Item ./upstream/mb2/Modules/Coop (Join-Path $stage 'Modules/Coop') -Recurse -Force
+          Copy-Item ./upstream/source/ServerConsole/bin/Release/net6.0/* (Join-Path $stage 'ServerConsole') -Recurse -Force
+
+          # Never publish TaleWorlds game assemblies as part of the bootstrap artifact.
+          $gameDlls = Get-ChildItem $stage -Recurse -File -Filter 'TaleWorlds*.dll'
+          if ($gameDlls) {
+            $gameDlls | ForEach-Object { Write-Host "Forbidden game assembly: $($_.FullName)" }
+            throw 'Packaging guard found TaleWorlds game assemblies.'
+          }
+
+          @(
+            'KaiTOR Online 0.0.1 bootstrap',
+            'Target: Mount & Blade II Bannerlord 1.3.15.110062',
+            'Admission limit: 4 simultaneous players',
+            'Purpose: runtime/bootstrap testing before TOR integration',
+            "Source commit: $env:GITHUB_SHA"
+          ) | Set-Content -Encoding UTF8 (Join-Path $stage 'BUILD.txt')
+
+          Get-ChildItem $stage -Recurse -File |
+            Sort-Object FullName |
+            ForEach-Object {
+              $hash = Get-FileHash $_.FullName -Algorithm SHA256
+              $relative = [IO.Path]::GetRelativePath($stage, $_.FullName)
+              "$($hash.Hash)  $relative"
+            } | Set-Content -Encoding ASCII (Join-Path $stage 'SHA256SUMS.txt')
+
+          "KAITOR_ARTIFACT=$stage" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Upload KaiTOR bootstrap artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: KaiTOROnline-0.0.1-bootstrap-Bannerlord-1.3.15.110062
+          path: ${{ env.KAITOR_ARTIFACT }}
+          if-no-files-found: error
+          retention-days: 7
