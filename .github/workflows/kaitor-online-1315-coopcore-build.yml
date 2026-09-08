@@ -14,7 +14,7 @@ on:
       - '.github/workflows/kaitor-online-1315-coopcore-build.yml'
   workflow_dispatch:
 
-# Shared-map bootstrap gate: compile upward through Coop with the tested hard 4-player admission gate applied.
+# Shared-map bootstrap gate: compile upward through Coop and its server console with the tested hard 4-player admission gate applied.
 jobs:
   build-coop-against-1315:
     runs-on: windows-latest
@@ -72,3 +72,11 @@ jobs:
       - name: Build Coop against Bannerlord 1.3.15.110062
         shell: pwsh
         run: dotnet build ./upstream/source/Coop/Coop.csproj --configuration Release --no-restore --verbosity minimal -p:KaiTORBannerlord1315=true -p:NuGetAudit=false
+
+      - name: Restore server console dependency graph
+        shell: pwsh
+        run: dotnet restore ./upstream/source/ServerConsole/ServerConsole.csproj -p:NuGetAudit=false
+
+      - name: Build server console against backported Coop graph
+        shell: pwsh
+        run: dotnet build ./upstream/source/ServerConsole/ServerConsole.csproj --configuration Release --no-restore --verbosity minimal -p:NuGetAudit=false
