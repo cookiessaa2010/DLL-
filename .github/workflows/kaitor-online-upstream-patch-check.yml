@@ -8,6 +8,7 @@ on:
       - 'projects/KaiTOROnline/upstream-overlay/**'
       - 'projects/KaiTOROnline/upstream-patches/**'
       - 'projects/KaiTOROnline/tools/ApplyFourPlayerGate.ps1'
+      - 'projects/KaiTOROnline/tools/ApplyNetPeerIdentitySafety.ps1'
       - '.github/workflows/kaitor-online-upstream-patch-check.yml'
   workflow_dispatch:
 
@@ -32,6 +33,10 @@ jobs:
         shell: pwsh
         run: ./kaitor/projects/KaiTOROnline/tools/ApplyFourPlayerGate.ps1 -UpstreamRoot (Resolve-Path ./upstream)
 
+      - name: Apply NetPeer reference-identity hardening
+        shell: pwsh
+        run: ./kaitor/projects/KaiTOROnline/tools/ApplyNetPeerIdentitySafety.ps1 -UpstreamRoot (Resolve-Path ./upstream)
+
       - name: Validate generated diff
         working-directory: upstream
         shell: pwsh
@@ -40,10 +45,13 @@ jobs:
           # includes it without staging any real content into the checked-out upstream tree.
           git add -N source/Coop.Core/Server/Connections/PlayerAdmissionGate.cs
           git diff --check
-          $diff = git diff -- source/Coop.Core/Server/Connections source/Coop.Core/Client/States/ValidateModuleState.cs
+          $diff = git diff -- source/Coop.Core/Server/Connections source/Coop.Core/Server/Services/Instances source/GameInterface/Services/Players source/Coop.Core/Client/States/ValidateModuleState.cs
           if (-not ($diff -match 'MaxPlayers = 4')) { throw 'Four-player gate was not added.' }
           if (-not ($diff -match 'RejectionReason')) { throw 'Visible admission rejection was not added.' }
           if (-not ($diff -match 'PlayerAdmissionGate.Release')) { throw 'Disconnect slot release was not added.' }
+          if (-not ($diff -match 'ReferenceComparer<NetPeer>.Instance')) { throw 'NetPeer reference-identity hardening was not added.' }
+          if (-not ($diff -match 'peerToPlayer = new\(ReferenceComparer<NetPeer>.Instance\)')) { throw 'PlayerManager peer map is not reference-safe.' }
+          if (-not ($diff -match 'ConnectionStates .*ReferenceComparer<NetPeer>.Instance')) { throw 'Connection state peer map is not reference-safe.' }
 
       - name: Export generated integration diff
         working-directory: upstream
