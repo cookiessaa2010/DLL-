@@ -49,10 +49,12 @@ foreach ($path in @(
 }
 
 # In 1.3.15 the current reinforcement settings are exposed as ReinforcementSpawnSettings.
-Replace-Exact `
-    'source/Missions/Battles/CoopBattleMissionSpawnHandler.cs' `
-    '_missionAgentSpawnLogic.SpawnSettings' `
-    '_missionAgentSpawnLogic.ReinforcementSpawnSettings'
+foreach ($path in @(
+    'source/Missions/Battles/CoopBattleMissionSpawnHandler.cs',
+    'source/Missions/Battles/ReinforcementFielder.cs'
+)) {
+    Replace-Exact $path '.SpawnSettings' '.ReinforcementSpawnSettings'
+}
 
 # The later MissionBattleSideSpawnContext reservation counter does not exist in 1.3.15.
 # Allocation refresh is battle-only and is not part of the 0.0.1 shared-map acceptance test;
