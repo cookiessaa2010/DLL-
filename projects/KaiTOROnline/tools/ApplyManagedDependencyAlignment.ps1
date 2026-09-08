@@ -44,6 +44,7 @@ $packageUpgrades = [ordered]@{
     'System.Buffers' = @('4.6.0', '4.6.1')
     'System.IO.Pipelines' = @('9.0.2', '10.0.8')
     'System.Memory' = @('4.6.0', '4.6.3')
+    'System.Numerics.Vectors' = @('4.6.0', '4.6.1')
     'System.Runtime.CompilerServices.Unsafe' = @('6.1.0', '6.1.2')
     'System.Text.Encodings.Web' = @('9.0.2', '10.0.8')
     'System.Text.Json' = @('9.0.2', '10.0.8')
@@ -67,6 +68,7 @@ $legacyReferences = @(
     @('System.Buffers', '4.6.0', '4.6.1', 'net462'),
     @('System.IO.Pipelines', '9.0.2', '10.0.8', 'net462'),
     @('System.Memory', '4.6.0', '4.6.3', 'net462'),
+    @('System.Numerics.Vectors', '4.6.0', '4.6.1', 'net462'),
     @('System.Runtime.CompilerServices.Unsafe', '6.1.0', '6.1.2', 'net462'),
     @('System.Text.Encodings.Web', '9.0.2', '10.0.8', 'net462'),
     @('System.Text.Json', '9.0.2', '10.0.8', 'net462'),
