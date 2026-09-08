@@ -1,0 +1,49 @@
+name: KaiTOR Online 1.3.15 GameInterface Backport Build
+
+on:
+  push:
+    branches:
+      - kaitor-online-4p
+    paths:
+      - 'projects/KaiTOROnline/tools/StageBannerlord1315References.ps1'
+      - 'projects/KaiTOROnline/probes/Bannerlord1315ApiProbe/**'
+      - '.github/workflows/kaitor-online-1315-gameinterface-build.yml'
+  workflow_dispatch:
+
+jobs:
+  build-gameinterface-against-1315:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout KaiTOR project
+        uses: actions/checkout@v4
+        with:
+          path: kaitor
+
+      - name: Checkout pinned Bannerlord Coop source
+        uses: actions/checkout@v4
+        with:
+          repository: Bannerlord-Coop-Team/BannerlordCoop
+          ref: 107d1c29ec3dc2d9f2d3a7836ae1691c2391e00c
+          path: upstream
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore Bannerlord 1.3.15 reference packages
+        shell: pwsh
+        run: dotnet restore ./kaitor/projects/KaiTOROnline/probes/Bannerlord1315ApiProbe/Bannerlord1315ApiProbe.csproj
+
+      - name: Stage exact 1.3.15 references into Coop mb2 layout
+        shell: pwsh
+        run: ./kaitor/projects/KaiTOROnline/tools/StageBannerlord1315References.ps1 -UpstreamRoot (Resolve-Path ./upstream)
+
+      - name: Restore GameInterface
+        shell: pwsh
+        run: dotnet restore ./upstream/source/GameInterface/GameInterface.csproj
+
+      - name: Build GameInterface against Bannerlord 1.3.15.110062
+        shell: pwsh
+        run: dotnet build ./upstream/source/GameInterface/GameInterface.csproj --configuration Release --no-restore --verbosity minimal
