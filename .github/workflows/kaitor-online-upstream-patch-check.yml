@@ -36,6 +36,9 @@ jobs:
         working-directory: upstream
         shell: pwsh
         run: |
+          # PlayerAdmissionGate.cs is a new untracked file. Mark it intent-to-add so git diff
+          # includes it without staging any real content into the checked-out upstream tree.
+          git add -N source/Coop.Core/Server/Connections/PlayerAdmissionGate.cs
           git diff --check
           $diff = git diff -- source/Coop.Core/Server/Connections source/Coop.Core/Client/States/ValidateModuleState.cs
           if (-not ($diff -match 'MaxPlayers = 4')) { throw 'Four-player gate was not added.' }
