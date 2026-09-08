@@ -1,0 +1,30 @@
+name: KaiTOR Online 4P Gate CI
+
+on:
+  push:
+    branches:
+      - kaitor-online-4p
+    paths:
+      - 'projects/KaiTOROnline/src/ServerCapacity/**'
+      - 'projects/KaiTOROnline/tests/ServerCapacity/**'
+      - '.github/workflows/kaitor-online-gate-ci.yml'
+  workflow_dispatch:
+
+jobs:
+  test-server-capacity:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore projects/KaiTOROnline/tests/ServerCapacity/KaiTOROnline.ServerCapacity.Tests.csproj
+
+      - name: Test
+        run: dotnet test projects/KaiTOROnline/tests/ServerCapacity/KaiTOROnline.ServerCapacity.Tests.csproj --configuration Release --no-restore --logger "console;verbosity=normal"
