@@ -62,37 +62,39 @@ function Quote-WindowsArgument {
         return $Value
     }
 
+    $quoteChar = [char]34
+    $backslashChar = [char]92
+    $backslash = [string]$backslashChar
     $builder = [Text.StringBuilder]::new()
-    [void]$builder.Append('"'.Substring(1))
+    [void]$builder.Append($quoteChar)
     $backslashes = 0
 
     foreach ($ch in $Value.ToCharArray()) {
-        if ($ch -eq '\') {
+        if ($ch -eq $backslashChar) {
             $backslashes++
             continue
         }
 
-        if ($ch -eq '"'.Substring(1)) {
-            if ($backslashes -gt 0) {
-                [void]$builder.Append(('\' * ($backslashes * 2)))
-            }
-            [void]$builder.Append('\')
-            [void]$builder.Append('"'.Substring(1))
+        if ($ch -eq $quoteChar) {
+            # Backslashes before a literal quote are doubled, plus one escapes the quote.
+            [void]$builder.Append(($backslash * (($backslashes * 2) + 1)))
+            [void]$builder.Append($quoteChar)
             $backslashes = 0
             continue
         }
 
         if ($backslashes -gt 0) {
-            [void]$builder.Append(('\' * $backslashes))
+            [void]$builder.Append(($backslash * $backslashes))
             $backslashes = 0
         }
         [void]$builder.Append($ch)
     }
 
+    # Backslashes before the closing quote must be doubled.
     if ($backslashes -gt 0) {
-        [void]$builder.Append(('\' * ($backslashes * 2)))
+        [void]$builder.Append(($backslash * ($backslashes * 2)))
     }
-    [void]$builder.Append('"'.Substring(1))
+    [void]$builder.Append($quoteChar)
     return $builder.ToString()
 }
 
