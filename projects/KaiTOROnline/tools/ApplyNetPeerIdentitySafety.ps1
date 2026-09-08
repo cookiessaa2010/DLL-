@@ -31,11 +31,51 @@ function Replace-Exact {
         [Text.UTF8Encoding]::new($false))
 }
 
-# LiteNetLib.NetPeer ultimately derives from IPEndPoint, so its inherited value equality is endpoint-based.
-# Reconnect bookkeeping must distinguish the old NetPeer object from the replacement NetPeer even when both
-# represent the same remote endpoint. The upstream tree already provides Common.Network.ReferenceComparer<T>
-# and uses it in several hot-path peer maps; apply the same rule to the remaining authoritative registries
-# that own connection/player/mission membership.
+# The pinned Coop commit predates Common.Network.ReferenceComparer<T>, while newer upstream
+# already uses that helper for peer-keyed registries. Backport the tiny identity comparer into
+# the staged checkout so reconnect hardening can use one consistent comparer across projects.
+$referenceComparerPath = Join-Path $UpstreamRoot 'source/Common/Network/ReferenceComparer.cs'
+if (-not (Test-Path $referenceComparerPath)) {
+    $referenceComparerDirectory = Split-Path -Parent $referenceComparerPath
+    New-Item -ItemType Directory -Force -Path $referenceComparerDirectory | Out-Null
+
+    $referenceComparerSource = @'
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+
+namespace Common.Network
+{
+    /// <summary>Compares reference types strictly by object identity.</summary>
+    public sealed class ReferenceComparer<T> : IEqualityComparer<T> where T : class
+    {
+        public static readonly ReferenceComparer<T> Instance = new ReferenceComparer<T>();
+
+        private ReferenceComparer()
+        {
+        }
+
+        public bool Equals(T x, T y) => ReferenceEquals(x, y);
+
+        public int GetHashCode(T obj) => obj == null ? 0 : RuntimeHelpers.GetHashCode(obj);
+    }
+}
+'@
+
+    [IO.File]::WriteAllText(
+        $referenceComparerPath,
+        $referenceComparerSource,
+        [Text.UTF8Encoding]::new($false))
+
+    Write-Host 'Backported Common.Network.ReferenceComparer<T> into pinned Coop source.'
+}
+else {
+    Write-Host 'Pinned Coop source already provides Common.Network.ReferenceComparer<T>; reusing it.'
+}
+
+# LiteNetLib.NetPeer ultimately derives from IPEndPoint, so inherited value equality can collapse
+# two different peer objects that represent the same endpoint. Reconnect bookkeeping must instead
+# distinguish the old NetPeer object from its replacement. Apply reference identity to authoritative
+# registries that own connection/player/mission membership.
 
 Replace-Exact `
     'source/Coop.Core/Server/Connections/ConnectionCollection.cs' `
