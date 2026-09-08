@@ -61,19 +61,48 @@ jobs:
           if ($output -notmatch 'runtime preflight: PASS') { throw 'Preflight did not reach PASS.' }
           if ($output -notmatch 'Coop.dll, Coop.Core.dll, GameInterface.dll') { throw 'Preflight did not validate core Coop runtime assemblies.' }
 
-      - name: Validate missing managed assembly is rejected
+      - name: Validate campaign launcher is gated by runtime preflight
+        shell: pwsh
+        run: |
+          $output = ./projects/KaiTOROnline/runtime/Start-KaiTORCampaignServer.ps1 `
+            -BannerlordRoot $env:KAITOR_FAKE_ROOT `
+            -SaveName 'KaiTOR-CI-Save' `
+            -SkipVersionCheck `
+            -DryRun 2>&1 | Out-String
+          Write-Host $output
+          if ($output -notmatch 'Runtime preflight: PASS \(launch authorized\)') { throw 'Launcher bypassed or failed the runtime preflight gate.' }
+          if ($output -notmatch 'DRY RUN: process not started') { throw 'Launcher dry-run contract did not complete.' }
+          if ($output -notmatch '/coopsave KaiTOR-CI-Save') { throw 'Launcher did not preserve the Coop save launch contract.' }
+
+      - name: Validate missing managed assembly is rejected by preflight and launcher
         shell: pwsh
         run: |
           Remove-Item -LiteralPath (Join-Path $env:KAITOR_FAKE_ROOT 'Modules/Coop/bin/Win64_Shipping_Client/Coop.Core.dll') -Force
-          $failed = $false
+
+          $preflightFailed = $false
           try {
             ./projects/KaiTOROnline/runtime/Test-KaiTORRuntimePreflight.ps1 `
               -BannerlordRoot $env:KAITOR_FAKE_ROOT `
               -SkipVersionCheck | Out-Null
           }
           catch {
-            $failed = $true
+            $preflightFailed = $true
             Write-Host $_.Exception.Message
             if ($_.Exception.Message -notmatch 'Coop.Core.dll') { throw }
           }
-          if (-not $failed) { throw 'Preflight accepted a runtime missing Coop.Core.dll.' }
+          if (-not $preflightFailed) { throw 'Preflight accepted a runtime missing Coop.Core.dll.' }
+
+          $launcherFailed = $false
+          try {
+            ./projects/KaiTOROnline/runtime/Start-KaiTORCampaignServer.ps1 `
+              -BannerlordRoot $env:KAITOR_FAKE_ROOT `
+              -SaveName 'KaiTOR-CI-Save' `
+              -SkipVersionCheck `
+              -DryRun | Out-Null
+          }
+          catch {
+            $launcherFailed = $true
+            Write-Host $_.Exception.Message
+            if ($_.Exception.Message -notmatch 'Coop.Core.dll') { throw }
+          }
+          if (-not $launcherFailed) { throw 'Campaign launcher accepted a runtime missing Coop.Core.dll.' }
