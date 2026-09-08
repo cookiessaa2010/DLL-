@@ -1,6 +1,7 @@
 using LiteNetLib;
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 namespace Coop.Core.Server.Connections
 {
@@ -26,7 +27,7 @@ namespace Coop.Core.Server.Connections
         private readonly Dictionary<string, NetPeer> controllerToPeer =
             new Dictionary<string, NetPeer>(StringComparer.Ordinal);
         private readonly Dictionary<NetPeer, string> peerToController =
-            new Dictionary<NetPeer, string>();
+            new Dictionary<NetPeer, string>(NetPeerReferenceComparer.Instance);
 
         public int ActiveSlots
         {
@@ -93,6 +94,27 @@ namespace Coop.Core.Server.Connections
                 }
 
                 return true;
+            }
+        }
+
+        /// <summary>
+        /// NetPeer derives from IPEndPoint, whose equality is endpoint/value based. A fast reconnect
+        /// can legitimately create a new NetPeer for the same remote endpoint. Slot ownership must
+        /// therefore compare peer objects by identity, otherwise the reconnect can be mistaken for
+        /// the superseded connection and a late disconnect can release the wrong live slot.
+        /// </summary>
+        private sealed class NetPeerReferenceComparer : IEqualityComparer<NetPeer>
+        {
+            public static readonly NetPeerReferenceComparer Instance = new NetPeerReferenceComparer();
+
+            public bool Equals(NetPeer x, NetPeer y)
+            {
+                return ReferenceEquals(x, y);
+            }
+
+            public int GetHashCode(NetPeer obj)
+            {
+                return RuntimeHelpers.GetHashCode(obj);
             }
         }
     }
