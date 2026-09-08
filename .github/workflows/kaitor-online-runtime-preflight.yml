@@ -1,0 +1,79 @@
+name: KaiTOR Online Runtime Preflight
+
+on:
+  push:
+    branches:
+      - kaitor-online-4p
+    paths:
+      - 'projects/KaiTOROnline/runtime/**'
+      - '.github/workflows/kaitor-online-runtime-preflight.yml'
+  workflow_dispatch:
+
+jobs:
+  runtime-preflight-contract:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout KaiTOR project
+        uses: actions/checkout@v4
+
+      - name: Build fake 1.3.15 runtime layout
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP 'fake-bannerlord-1315-preflight'
+          $bin = Join-Path $root 'bin/Win64_Shipping_Client'
+          New-Item -ItemType Directory -Force -Path $bin | Out-Null
+          Set-Content -LiteralPath (Join-Path $bin 'Bannerlord.exe') -Value 'CI placeholder' -Encoding ASCII
+
+          foreach ($module in @('Native', 'SandBoxCore', 'Sandbox', 'CustomBattle', 'StoryMode')) {
+            $dir = Join-Path $root ("Modules/{0}" -f $module)
+            New-Item -ItemType Directory -Force -Path $dir | Out-Null
+            Set-Content -LiteralPath (Join-Path $dir 'SubModule.xml') -Value '<Module />' -Encoding UTF8
+          }
+
+          $coop = Join-Path $root 'Modules/Coop'
+          $coopBin = Join-Path $coop 'bin/Win64_Shipping_Client'
+          New-Item -ItemType Directory -Force -Path $coopBin | Out-Null
+          @'
+          <Module>
+            <DependedModules>
+              <DependedModule Id="Native" DependentVersion="v1.3.15" />
+              <DependedModule Id="SandBoxCore" DependentVersion="v1.3.15" />
+              <DependedModule Id="Sandbox" DependentVersion="v1.3.15" />
+              <DependedModule Id="CustomBattle" DependentVersion="v1.3.15" />
+              <DependedModule Id="StoryMode" DependentVersion="v1.3.15" />
+            </DependedModules>
+          </Module>
+          '@ | Set-Content -LiteralPath (Join-Path $coop 'SubModule.xml') -Encoding UTF8
+
+          foreach ($assembly in @('Coop.dll', 'Coop.Core.dll', 'GameInterface.dll')) {
+            Set-Content -LiteralPath (Join-Path $coopBin $assembly) -Value 'CI placeholder' -Encoding ASCII
+          }
+
+          "KAITOR_FAKE_ROOT=$root" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Validate runtime preflight success contract
+        shell: pwsh
+        run: |
+          $output = ./projects/KaiTOROnline/runtime/Test-KaiTORRuntimePreflight.ps1 `
+            -BannerlordRoot $env:KAITOR_FAKE_ROOT `
+            -SkipVersionCheck 2>&1 | Out-String
+          Write-Host $output
+          if ($output -notmatch 'runtime preflight: PASS') { throw 'Preflight did not reach PASS.' }
+          if ($output -notmatch 'Coop.dll, Coop.Core.dll, GameInterface.dll') { throw 'Preflight did not validate core Coop runtime assemblies.' }
+
+      - name: Validate missing managed assembly is rejected
+        shell: pwsh
+        run: |
+          Remove-Item -LiteralPath (Join-Path $env:KAITOR_FAKE_ROOT 'Modules/Coop/bin/Win64_Shipping_Client/Coop.Core.dll') -Force
+          $failed = $false
+          try {
+            ./projects/KaiTOROnline/runtime/Test-KaiTORRuntimePreflight.ps1 `
+              -BannerlordRoot $env:KAITOR_FAKE_ROOT `
+              -SkipVersionCheck | Out-Null
+          }
+          catch {
+            $failed = $true
+            Write-Host $_.Exception.Message
+            if ($_.Exception.Message -notmatch 'Coop.Core.dll') { throw }
+          }
+          if (-not $failed) { throw 'Preflight accepted a runtime missing Coop.Core.dll.' }
