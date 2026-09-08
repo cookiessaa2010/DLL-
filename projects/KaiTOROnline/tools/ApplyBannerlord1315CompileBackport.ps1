@@ -165,7 +165,6 @@ $removeBlock = @'
     <Compile Remove="Services\Kingdoms\Patches\CoopKingdomDecisionProposalBehaviorPatch.cs" />
     <Compile Remove="Services\Kingdoms\Handlers\TradeAgreementsHandler.cs" />
     <Compile Remove="Services\Kingdoms\Commands\KingdomDebugCommand.cs" />
-    <Compile Remove="Services\Clans\Interfaces\DefaultClanFinanceModelInterface.cs" />
     <Compile Remove="Services\Workshops\Interfaces\WorkshopsCampaignBehaviorInterface.cs" />
     <Compile Remove="Services\Workshops\Handlers\WorkshopWarehouseHandler.cs" />
 
@@ -198,19 +197,18 @@ $removeBlock = @'
     <Compile Remove="Services\HeroDevelopers\Patches\ResetSkillsPatches.cs" />
     <Compile Remove="Services\Heroes\Patches\HeroFieldPatches.cs" />
 
-    <!-- Battle/encounter result pipeline is a later milestone. -->
+    <!-- Battle/encounter result pipeline is a later milestone. Shared utility contracts that are
+         also referenced by campaign-map registries stay compiled until a 1.3.15-specific adapter
+         proves they must be replaced. -->
     <Compile Remove="Services\MapEventParties\MapEventPartySync.cs" />
     <Compile Remove="Services\MapEventComponents\Handlers\RaidProductionRewardsHandler.cs" />
-    <Compile Remove="Services\MapEvents\MainPartyBattleRewardsCache.cs" />
     <Compile Remove="Services\MapEvents\Interfaces\PlayerEncounterInterface.cs" />
     <Compile Remove="Services\MapEvents\Interfaces\MapEventResultsInterface.cs" />
     <Compile Remove="Services\MapEvents\Handlers\MapEventResultsHandler.cs" />
     <Compile Remove="Services\MapEvents\Handlers\BattleSimulationRunHandler.cs" />
     <Compile Remove="Services\MapEvents\Patches\PlayerEncounterPatches.cs" />
-    <Compile Remove="Services\MapEvents\Patches\MapEventPatches.cs" />
     <Compile Remove="Services\MapEvents\Patches\BattleModeEncounterOptionsPatch.cs" />
     <Compile Remove="Services\MapEventSides\Patches\MapEventSideDestructionPatches.cs" />
-    <Compile Remove="Services\SiegeEvents\Patches\SiegeAftermathPatches.cs" />
 
     <!-- Battle-only hooks using post-1.3.15 spawn APIs; battle networking is out of scope for 0.0.1. -->
     <Compile Remove="Services\MapEvents\Patches\BattleSpawnDiagnosticPatch.cs" />
