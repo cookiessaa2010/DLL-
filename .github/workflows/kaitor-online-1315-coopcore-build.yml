@@ -13,12 +13,17 @@ on:
       - 'projects/KaiTOROnline/tools/ApplyFourPlayerGate.ps1'
       - 'projects/KaiTOROnline/tools/ApplyNetPeerIdentitySafety.ps1'
       - 'projects/KaiTOROnline/tools/AuditManagedAssemblyReferences.ps1'
+      - 'projects/KaiTOROnline/runtime/**'
+      - 'projects/KaiTOROnline/DEDICATED_CAMPAIGN_SERVER.md'
+      - 'projects/KaiTOROnline/FOUR_PLAYER_PERSISTENCE_AUDIT.md'
       - 'projects/KaiTOROnline/upstream-overlay/**'
       - 'projects/KaiTOROnline/probes/Bannerlord1315ApiProbe/**'
       - '.github/workflows/kaitor-online-1315-coopcore-build.yml'
   workflow_dispatch:
 
-# Shared-map bootstrap gate: compile upward through Coop and its server console with the tested hard 4-player admission gate applied.
+# Shared-map bootstrap gate: compile upward through Coop and validate the standalone Bannerlord
+# campaign-server launch contract. ServerConsole is auxiliary rendezvous/NAT infrastructure, not
+# the authoritative campaign simulation process.
 jobs:
   build-coop-against-1315:
     runs-on: windows-latest
@@ -64,6 +69,51 @@ jobs:
           $selected = dotnet --version
           Write-Host "Pinned SDK: $selected"
           if ($selected -notlike '8.0.*') { throw "Expected .NET 8 SDK, got $selected" }
+
+      - name: Validate standalone campaign-server launch contract
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP 'fake-bannerlord-1315'
+          $bin = Join-Path $root 'bin/Win64_Shipping_Client'
+          New-Item -ItemType Directory -Force -Path $bin | Out-Null
+          Set-Content -LiteralPath (Join-Path $bin 'Bannerlord.exe') -Value 'CI placeholder' -Encoding ASCII
+
+          $modules = @('Native', 'SandBoxCore', 'Sandbox', 'CustomBattle', 'StoryMode', 'Coop')
+          foreach ($module in $modules) {
+            $moduleDir = Join-Path $root ("Modules/{0}" -f $module)
+            New-Item -ItemType Directory -Force -Path $moduleDir | Out-Null
+            Set-Content -LiteralPath (Join-Path $moduleDir 'SubModule.xml') -Value '<Module />' -Encoding ASCII
+          }
+
+          $launcher = Resolve-Path ./kaitor/projects/KaiTOROnline/runtime/Start-KaiTORCampaignServer.ps1
+          $output = & $launcher `
+            -BannerlordRoot $root `
+            -SaveName 'KaiTOR CI Save' `
+            -SkipVersionCheck `
+            -DryRun 2>&1 | Out-String
+          Write-Host $output
+
+          if ($output -notmatch '/singleplayer') { throw 'Launcher omitted /singleplayer.' }
+          if ($output -notmatch '/server') { throw 'Launcher omitted /server.' }
+          if ($output -notmatch '_MODULES_\*Native\*SandBoxCore\*Sandbox\*CustomBattle\*StoryMode\*Coop\*_MODULES_') {
+            throw 'Launcher module token does not match the vanilla 1.3.15 baseline.'
+          }
+          if ($output -notmatch '/coopsave\s+"KaiTOR CI Save"') { throw 'Launcher did not quote the save name.' }
+          if ($output -notmatch '/coopvisibility\s+none') { throw 'Launcher did not default to private visibility.' }
+          if ($output -match '/coopowner') { throw 'Manual launcher unexpectedly marked the process as managed.' }
+          if ($output -notmatch 'DRY RUN: process not started') { throw 'Dry-run guard was not exercised.' }
+
+          $managed = & $launcher `
+            -BannerlordRoot $root `
+            -SaveName 'KaiTOR Managed CI' `
+            -SkipVersionCheck `
+            -ManagedMode `
+            -Password 'secret-ci-value' `
+            -DryRun 2>&1 | Out-String
+          Write-Host $managed
+          if ($managed -notmatch '/coopowner\s+\d+') { throw 'ManagedMode did not emit /coopowner.' }
+          if ($managed -notmatch '/cooppassword\s+<redacted>') { throw 'Password redaction marker missing.' }
+          if ($managed -match 'secret-ci-value') { throw 'Launcher leaked the password into console output.' }
 
       - name: Restore Bannerlord 1.3.15 reference packages
         shell: pwsh
@@ -127,17 +177,23 @@ jobs:
           }
           $raw = Get-Content $subModulePath -Raw
           if ($raw -match '\$\{[^}]+\}') { throw 'Unresolved template token remains in generated SubModule.xml.' }
-          Write-Host "Validated $($dependencies.Count) module dependencies at v1.3.15."
+          if ($raw -notmatch 'DedicatedServerType" value="none"') {
+            throw 'Unexpected dedicated-server metadata; review no-render assumptions before packaging.'
+          }
+          if ($raw -notmatch 'IsNoRenderModeElement" value="false"') {
+            throw 'Unexpected no-render metadata; review runtime topology before packaging.'
+          }
+          Write-Host "Validated $($dependencies.Count) module dependencies at v1.3.15 and explicit rendered-process server metadata."
 
       - name: Restore server console dependency graph
         shell: pwsh
         run: dotnet restore ./upstream/source/ServerConsole/ServerConsole.csproj -p:NuGetAudit=false
 
-      - name: Build server console against backported Coop graph
+      - name: Build auxiliary server console
         shell: pwsh
         run: dotnet build ./upstream/source/ServerConsole/ServerConsole.csproj --configuration Release --no-restore --verbosity minimal -p:NuGetAudit=false
 
-      - name: Smoke-test server console startup and clean shutdown
+      - name: Smoke-test auxiliary rendezvous server console
         shell: pwsh
         run: |
           $server = Resolve-Path ./upstream/source/ServerConsole/bin/Release/net6.0/ServerConsole.dll
@@ -153,9 +209,14 @@ jobs:
           New-Item -ItemType Directory -Force -Path $stage | Out-Null
           New-Item -ItemType Directory -Force -Path (Join-Path $stage 'Modules') | Out-Null
           New-Item -ItemType Directory -Force -Path (Join-Path $stage 'ServerConsole') | Out-Null
+          New-Item -ItemType Directory -Force -Path (Join-Path $stage 'Runtime') | Out-Null
+          New-Item -ItemType Directory -Force -Path (Join-Path $stage 'Docs') | Out-Null
 
           Copy-Item ./upstream/mb2/Modules/Coop (Join-Path $stage 'Modules/Coop') -Recurse -Force
           Copy-Item ./upstream/source/ServerConsole/bin/Release/net6.0/* (Join-Path $stage 'ServerConsole') -Recurse -Force
+          Copy-Item ./kaitor/projects/KaiTOROnline/runtime/* (Join-Path $stage 'Runtime') -Force
+          Copy-Item ./kaitor/projects/KaiTOROnline/DEDICATED_CAMPAIGN_SERVER.md (Join-Path $stage 'Docs/DEDICATED_CAMPAIGN_SERVER.md') -Force
+          Copy-Item ./kaitor/projects/KaiTOROnline/FOUR_PLAYER_PERSISTENCE_AUDIT.md (Join-Path $stage 'Docs/FOUR_PLAYER_PERSISTENCE_AUDIT.md') -Force
 
           # The compile-only mb2 tree is populated from Bannerlord.ReferenceAssemblies. The legacy
           # Coop deploy step copies some of those references into the module output. They are only
@@ -188,7 +249,10 @@ jobs:
             'KaiTOR Online 0.0.1 bootstrap',
             'Target: Mount & Blade II Bannerlord 1.3.15.110062',
             'Admission limit: 4 simultaneous players',
-            'Purpose: runtime/bootstrap testing before TOR integration',
+            'Campaign authority: separate Bannerlord.exe /server process loading the authoritative save',
+            'ServerConsole: auxiliary rendezvous/NAT/listing service; NOT the campaign world server',
+            'Native no-render/headless mode: NOT YET VERIFIED (module metadata currently opts out)',
+            'Purpose: vanilla four-client runtime/bootstrap testing before TOR integration',
             'Game assemblies are NOT included; use an existing legal Bannerlord 1.3.15.110062 installation.',
             "Source commit: $env:GITHUB_SHA"
           ) | Set-Content -Encoding UTF8 (Join-Path $stage 'BUILD.txt')
