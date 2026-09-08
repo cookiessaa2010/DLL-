@@ -37,6 +37,20 @@ Replace-Exact `
     '        public void Initialize(CampaignVec2 position, bool isVisible) { }' `
     '        public void Initialize(CampaignVec2 position, int battleSizeValue, bool isVisible) { }'
 
+# The upstream SDK-style GameInterface project still carries legacy GUID/Name metadata on its
+# Common ProjectReference. Newer hosted MSBuild rejects that metadata when the KaiTOR global
+# property is supplied. SDK projects do not require it, so normalize the reference for this staged
+# backport build.
+Replace-Exact `
+    'source/GameInterface/GameInterface.csproj' `
+    @'
+    <ProjectReference Include="..\Common\Common.csproj">
+      <Project>{e474a5b5-3f73-46cb-b68c-e8fa5199950b}</Project>
+      <Name>Common</Name>
+    </ProjectReference>
+'@ `
+    '    <ProjectReference Include="..\Common\Common.csproj" />'
+
 # The current Coop development branch contains synchronization/diagnostic patches for APIs that
 # were introduced after Bannerlord 1.3.15. They are deliberately disabled for the first 1.3.15
 # campaign-map prototype. This is a compile/bootstrap backport, not a claim that these features are
