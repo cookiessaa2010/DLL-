@@ -138,6 +138,119 @@ Replace-Exact `
 '@ `
     ''
 
+# Trade agreements were introduced after 1.3.15. Keep the native tribute/call-to-war income path,
+# but omit only the two trade-agreement members that do not exist on the 1.3.15 finance model.
+Replace-Exact `
+    'source/GameInterface/Services/Clans/Interfaces/DefaultClanFinanceModelInterface.cs' `
+    @'
+        if (!clan.IsUnderMercenaryService)
+        {
+            model.AddIncomeFromTribute(clan, ref goldChange, applyWithdrawals, includeDetails);
+            model.AddIncomeFromCallToWarAgrements(clan, ref goldChange, applyWithdrawals);
+            if (clan.Kingdom != null && model.TradeAgreementsBehavior != null)
+            {
+                model.AddIncomeFromTradeAgreements(clan, ref goldChange, applyWithdrawals, includeDetails);
+            }
+        }
+'@ `
+    @'
+        if (!clan.IsUnderMercenaryService)
+        {
+            model.AddIncomeFromTribute(clan, ref goldChange, applyWithdrawals, includeDetails);
+            model.AddIncomeFromCallToWarAgrements(clan, ref goldChange, applyWithdrawals);
+        }
+'@
+
+# The newer co-op result pipeline split result commits into methods that 1.3.15 does not expose.
+# Battles are a later KaiTOR milestone, so retain XP as the only directly available commit phase while
+# keeping the clan-safety helper for callers/tests.
+Replace-Exact `
+    'source/GameInterface/Services/MapEvents/Patches/MapEventPatches.cs' `
+    @'
+    private static readonly Action<MapEventParty>[] CommitResultPhases =
+    {
+        party => party.CommitXpGain(),
+        CommitRenownChanges,
+        party => party.CommitInfluenceChanges(),
+        party => party.CommitMoraleChanges(),
+        party => party.CommitGoldChanges()
+    };
+
+    private static void CommitRenownChanges(MapEventParty party)
+    {
+        Hero leaderHero = party.Party.LeaderHero;
+        if (CanCommitRenownChanges(leaderHero))
+        {
+            party.CommitRenownChanges();
+            return;
+        }
+
+        if (party.GainedRenown <= 0f)
+            return;
+
+        Logger.Error(
+            "Skipped {Renown} renown for map event party {PartyId} because leader hero {HeroId} has no clan",
+            party.GainedRenown,
+            party.Party.Id,
+            leaderHero.StringId);
+    }
+
+    internal static bool CanCommitRenownChanges(Hero leaderHero) =>
+        leaderHero == null || leaderHero.Clan != null;
+'@ `
+    @'
+    private static readonly Action<MapEventParty>[] CommitResultPhases =
+    {
+        party => party.CommitXpGain()
+    };
+
+    internal static bool CanCommitRenownChanges(Hero leaderHero) =>
+        leaderHero == null || leaderHero.Clan != null;
+'@
+
+# 1.3.15 has no explicit simulation-setup invalidation API; leader replacement followed by the native
+# leader modifier recache is sufficient for the bootstrap path.
+Replace-Exact `
+    'source/GameInterface/Services/MapEvents/Patches/MapEventPatches.cs' `
+    '            side.InvalidateSimulationSetup();' `
+    '            // Bannerlord 1.3.15 has no MapEventSide.InvalidateSimulationSetup().'
+
+# 1.3.15 stores raw map-event reward values rather than the later ExplainedNumber properties.
+Replace-Exact `
+    'source/GameInterface/Services/MapEvents/MainPartyBattleRewardsCache.cs' `
+    @'
+        _snapshot = new Snapshot(mapEvent, mapEventParty.GainedRenownExplained, mapEventParty.GainedInfluenceExplained,
+            mapEventParty.GainedMoraleExplained, contributionRate);
+'@ `
+    @'
+        _snapshot = new Snapshot(
+            mapEvent,
+            new ExplainedNumber(mapEventParty.GainedRenown, false, null),
+            new ExplainedNumber(mapEventParty.GainedInfluence, false, null),
+            new ExplainedNumber(mapEventParty.MoraleChange, false, null),
+            contributionRate);
+'@
+
+# The public helper used by the newer siege aftermath implementation does not exist in 1.3.15.
+# Keep an empty contribution table during the 0.0.1 shared-map bootstrap; real siege result semantics
+# are restored when the battle milestone is backported.
+Replace-Exact `
+    'source/GameInterface/Services/SiegeEvents/Patches/SiegeAftermathPatches.cs' `
+    @'
+        var contributions = new Dictionary<MobileParty, float>();
+        foreach (var item in __instance.GetLootPercentagesOfPartiesOnSideForSiegeAftermath(mapEvent, battleSide))
+        {
+            if (item.Item1.IsMobile && !contributions.ContainsKey(item.Item1.MobileParty))
+            {
+                contributions.Add(item.Item1.MobileParty, item.Item2);
+            }
+        }
+'@ `
+    @'
+        // Bannerlord 1.3.15 exposes no equivalent public contribution helper.
+        var contributions = new Dictionary<MobileParty, float>();
+'@
+
 # The upstream SDK-style GameInterface project still carries legacy GUID/Name metadata on its
 # Common ProjectReference. Newer hosted MSBuild rejects that metadata when the KaiTOR global
 # property is supplied. SDK projects do not require it, so normalize the reference for this staged
