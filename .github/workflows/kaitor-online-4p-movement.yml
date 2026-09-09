@@ -83,10 +83,17 @@ jobs:
           $badPath = "$env:RUNNER_TEMP/kaitor-movement/stationary.json"
           $bad | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $badPath -Encoding UTF8
 
-          & ./projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerMovement.ps1 `
-            -BeforeSnapshotPath "$env:RUNNER_TEMP/kaitor-movement/before.json" `
-            -AfterSnapshotPath $badPath
-          if ($LASTEXITCODE -eq 0) {
+          $rejected = $false
+          try {
+            & ./projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerMovement.ps1 `
+              -BeforeSnapshotPath "$env:RUNNER_TEMP/kaitor-movement/before.json" `
+              -AfterSnapshotPath $badPath
+          }
+          catch {
+            $rejected = $true
+            Write-Host "Expected rejection: $($_.Exception.Message)"
+          }
+          if (-not $rejected) {
             throw 'Movement validator accepted a stationary MobileParty.'
           }
           Write-Host 'Stationary-party rejection: PASS'
@@ -99,10 +106,17 @@ jobs:
           $badPath = "$env:RUNNER_TEMP/kaitor-movement/identity-swap.json"
           $bad | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $badPath -Encoding UTF8
 
-          & ./projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerMovement.ps1 `
-            -BeforeSnapshotPath "$env:RUNNER_TEMP/kaitor-movement/before.json" `
-            -AfterSnapshotPath $badPath
-          if ($LASTEXITCODE -eq 0) {
+          $rejected = $false
+          try {
+            & ./projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerMovement.ps1 `
+              -BeforeSnapshotPath "$env:RUNNER_TEMP/kaitor-movement/before.json" `
+              -AfterSnapshotPath $badPath
+          }
+          catch {
+            $rejected = $true
+            Write-Host "Expected rejection: $($_.Exception.Message)"
+          }
+          if (-not $rejected) {
             throw 'Movement validator accepted a MobileParty identity swap.'
           }
           Write-Host 'Identity-swap rejection: PASS'
@@ -118,10 +132,17 @@ jobs:
           $badPath = "$env:RUNNER_TEMP/kaitor-movement/lockstep.json"
           $before | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $badPath -Encoding UTF8
 
-          & ./projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerMovement.ps1 `
-            -BeforeSnapshotPath "$env:RUNNER_TEMP/kaitor-movement/before.json" `
-            -AfterSnapshotPath $badPath
-          if ($LASTEXITCODE -eq 0) {
+          $rejected = $false
+          try {
+            & ./projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerMovement.ps1 `
+              -BeforeSnapshotPath "$env:RUNNER_TEMP/kaitor-movement/before.json" `
+              -AfterSnapshotPath $badPath
+          }
+          catch {
+            $rejected = $true
+            Write-Host "Expected rejection: $($_.Exception.Message)"
+          }
+          if (-not $rejected) {
             throw 'Movement validator accepted four identical movement vectors as independent movement.'
           }
           Write-Host 'Lockstep-only rejection: PASS'
