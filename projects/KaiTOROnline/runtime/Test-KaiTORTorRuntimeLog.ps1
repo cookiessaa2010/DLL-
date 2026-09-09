@@ -48,10 +48,12 @@ $fatalPatterns = @(
     @{ Name = 'module load failure'; Pattern = '(?im)(?:failed|failure|error)\s+(?:to\s+)?load\s+(?:the\s+)?module\b' },
     @{ Name = 'TOR module initialization failure'; Pattern = '(?im)TOR_(?:Armory|Environment|Core)[^\r\n]{0,160}(?:failed|failure|fatal|exception)' },
     @{ Name = 'managed type load incompatibility'; Pattern = '(?im)\b(?:System\.)?TypeLoadException\b' },
+    @{ Name = 'managed reflection type load incompatibility'; Pattern = '(?im)\b(?:System\.Reflection\.)?ReflectionTypeLoadException\b' },
     @{ Name = 'managed missing method incompatibility'; Pattern = '(?im)\b(?:System\.)?MissingMethodException\b' },
     @{ Name = 'managed missing field incompatibility'; Pattern = '(?im)\b(?:System\.)?MissingFieldException\b' },
     @{ Name = 'managed file load incompatibility'; Pattern = '(?im)\b(?:System\.IO\.)?FileLoadException\b' },
-    @{ Name = 'managed bad image incompatibility'; Pattern = '(?im)\b(?:System\.)?BadImageFormatException\b' }
+    @{ Name = 'managed bad image incompatibility'; Pattern = '(?im)\b(?:System\.)?BadImageFormatException\b' },
+    @{ Name = 'Harmony patch incompatibility'; Pattern = '(?im)\b(?:HarmonyLib\.)?HarmonyException\b|\bHarmony\b[^\r\n]{0,120}\b(?:patch|patching)\b[^\r\n]{0,120}\b(?:failed|failure|exception)\b' }
 )
 
 foreach ($fatal in $fatalPatterns) {
