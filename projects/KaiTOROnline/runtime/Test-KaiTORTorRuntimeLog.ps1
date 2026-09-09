@@ -36,7 +36,12 @@ $fatalPatterns = @(
     @{ Name = 'unhandled exception'; Pattern = '(?im)\bunhandled\s+exception\b' },
     @{ Name = 'managed assembly load failure'; Pattern = '(?im)could\s+not\s+load\s+(?:file\s+or\s+)?assembly' },
     @{ Name = 'module load failure'; Pattern = '(?im)(?:failed|failure|error)\s+(?:to\s+)?load\s+(?:the\s+)?module\b' },
-    @{ Name = 'TOR module initialization failure'; Pattern = '(?im)TOR_Core[^\r\n]{0,160}(?:failed|failure|fatal|exception)' }
+    @{ Name = 'TOR module initialization failure'; Pattern = '(?im)TOR_Core[^\r\n]{0,160}(?:failed|failure|fatal|exception)' },
+    @{ Name = 'managed type load incompatibility'; Pattern = '(?im)\b(?:System\.)?TypeLoadException\b' },
+    @{ Name = 'managed missing method incompatibility'; Pattern = '(?im)\b(?:System\.)?MissingMethodException\b' },
+    @{ Name = 'managed missing field incompatibility'; Pattern = '(?im)\b(?:System\.)?MissingFieldException\b' },
+    @{ Name = 'managed file load incompatibility'; Pattern = '(?im)\b(?:System\.IO\.)?FileLoadException\b' },
+    @{ Name = 'managed bad image incompatibility'; Pattern = '(?im)\b(?:System\.)?BadImageFormatException\b' }
 )
 
 foreach ($fatal in $fatalPatterns) {
