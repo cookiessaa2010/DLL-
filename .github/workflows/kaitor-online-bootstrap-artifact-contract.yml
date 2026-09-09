@@ -214,3 +214,105 @@ jobs:
           }
 
           Write-Host 'PASS: packaged TOR live acceptance runner executes successfully with its packaged sibling validators.'
+
+      - name: Smoke-test packaged TOR live capture helper
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP 'kaitor-packaged-capture-smoke'
+          New-Item -ItemType Directory -Path $root -Force | Out-Null
+          @'
+          Module TOR_Core loaded
+          Module Coop loaded
+          '@ | Set-Content -LiteralPath (Join-Path $root 'runtime.log') -Encoding UTF8
+          Set-Content -LiteralPath (Join-Path $root 'server-output.log') -Value 'server ready' -Encoding UTF8
+
+          function New-Player {
+            param([string]$Id, [double]$X, [double]$Y)
+            [pscustomobject]@{
+              controllerId = "controller-$Id"
+              heroId = "hero-$Id"
+              mobilePartyId = "party-$Id"
+              clanId = "clan-$Id"
+              characterObjectId = "character-$Id"
+              connected = $true
+              partyResolved = $true
+              partyActive = $true
+              mapEventId = ''
+              positionX = $X
+              positionY = $Y
+            }
+          }
+
+          $before = [pscustomobject]@{
+            activeAdmissionSlots = 4
+            playerRegistryCount = 4
+            players = @(
+              New-Player A 10 10
+              New-Player B 20 20
+              New-Player C 30 30
+              New-Player D 40 40
+            )
+          }
+          $after = [pscustomobject]@{
+            activeAdmissionSlots = 4
+            playerRegistryCount = 4
+            players = @(
+              New-Player A 11 10
+              New-Player B 20 22
+              New-Player C 28 31
+              New-Player D 43 38
+            )
+          }
+
+          $beforeLine = "KAITOR_4P_SNAPSHOT_JSON=$($before | ConvertTo-Json -Depth 8 -Compress)"
+          $afterLine = "KAITOR_4P_SNAPSHOT_JSON=$($after | ConvertTo-Json -Depth 8 -Compress)"
+          Set-Content -LiteralPath (Join-Path $root 'before-line.txt') -Value $beforeLine -Encoding UTF8
+          Set-Content -LiteralPath (Join-Path $root 'after-line.txt') -Value $afterLine -Encoding UTF8
+
+          $job = Start-Job -ScriptBlock {
+            param($Output,$Before,$After)
+            Start-Sleep -Milliseconds 500
+            Get-Content -LiteralPath $Before | Add-Content -LiteralPath $Output
+            Start-Sleep -Milliseconds 200
+            Get-Content -LiteralPath $After | Add-Content -LiteralPath $Output
+          } -ArgumentList (Join-Path $root 'server-output.log'),(Join-Path $root 'before-line.txt'),(Join-Path $root 'after-line.txt')
+
+          try {
+            & './artifact/Runtime/Capture-KaiTORTorLiveSession.ps1' `
+              -RuntimeLogPath (Join-Path $root 'runtime.log') `
+              -CommandOutputPath (Join-Path $root 'server-output.log') `
+              -OutputDirectory (Join-Path $root 'captured') `
+              -TimeoutSeconds 10 `
+              -PollMilliseconds 100
+          }
+          finally {
+            Wait-Job $job | Out-Null
+            Receive-Job $job | Out-Host
+            Remove-Job $job -Force
+          }
+
+          foreach ($outputFile in @('snapshot-command-before.txt','snapshot-command-after.txt','snapshot-before.json','snapshot-after.json')) {
+            if (-not (Test-Path -LiteralPath (Join-Path $root "captured/$outputFile") -PathType Leaf)) {
+              throw "Packaged live capture helper did not produce $outputFile"
+            }
+          }
+
+          Set-Content -LiteralPath (Join-Path $root 'timeout-output.log') -Value 'server ready' -Encoding UTF8
+          $rejected = $false
+          try {
+            & './artifact/Runtime/Capture-KaiTORTorLiveSession.ps1' `
+              -RuntimeLogPath (Join-Path $root 'runtime.log') `
+              -CommandOutputPath (Join-Path $root 'timeout-output.log') `
+              -OutputDirectory (Join-Path $root 'timeout') `
+              -TimeoutSeconds 1 `
+              -PollMilliseconds 100
+          }
+          catch {
+            $rejected = $true
+            Write-Host "Expected packaged capture timeout: $($_.Exception.Message)"
+          }
+          if (-not $rejected) {
+            throw 'Packaged live capture helper accepted a session without any snapshot output.'
+          }
+
+          Write-Host 'PASS: packaged TOR live capture helper handles sequential snapshots and rejects timeout.'
