@@ -125,3 +125,49 @@ jobs:
             if ($_.Exception.Message -notmatch 'TOR module initialization failure') { throw }
           }
           if (-not $failed) { throw 'Runtime log with TOR initialization exception was incorrectly accepted.' }
+
+      - name: Reject TOR reflection type load incompatibility
+        shell: pwsh
+        run: |
+          $log = Join-Path $env:RUNNER_TEMP 'kaitor-tor-runtime-reflection-load.log'
+          @'
+          Module loader: TOR_Armory initialized
+          Module loader: TOR_Environment initialized
+          Module loader: TOR_Core.dll initialized
+          Module loader: Coop.Core.dll initialized
+          Campaign server entered running state
+          System.Reflection.ReflectionTypeLoadException: Unable to load one or more of the requested types.
+          '@ | Set-Content -LiteralPath $log -Encoding UTF8
+          $failed = $false
+          try {
+            ./projects/KaiTOROnline/runtime/Test-KaiTORTorRuntimeLog.ps1 -LogPath $log | Out-Null
+          }
+          catch {
+            $failed = $true
+            Write-Host $_.Exception.Message
+            if ($_.Exception.Message -notmatch 'reflection type load incompatibility') { throw }
+          }
+          if (-not $failed) { throw 'Runtime log with ReflectionTypeLoadException was incorrectly accepted.' }
+
+      - name: Reject TOR Harmony patch incompatibility
+        shell: pwsh
+        run: |
+          $log = Join-Path $env:RUNNER_TEMP 'kaitor-tor-runtime-harmony.log'
+          @'
+          Module loader: TOR_Armory initialized
+          Module loader: TOR_Environment initialized
+          Module loader: TOR_Core.dll initialized
+          Module loader: Coop.Core.dll initialized
+          Campaign server entered running state
+          HarmonyLib.HarmonyException: Patching exception in method TOR_Core campaign behavior patch.
+          '@ | Set-Content -LiteralPath $log -Encoding UTF8
+          $failed = $false
+          try {
+            ./projects/KaiTOROnline/runtime/Test-KaiTORTorRuntimeLog.ps1 -LogPath $log | Out-Null
+          }
+          catch {
+            $failed = $true
+            Write-Host $_.Exception.Message
+            if ($_.Exception.Message -notmatch 'Harmony patch incompatibility') { throw }
+          }
+          if (-not $failed) { throw 'Runtime log with Harmony patch failure was incorrectly accepted.' }
