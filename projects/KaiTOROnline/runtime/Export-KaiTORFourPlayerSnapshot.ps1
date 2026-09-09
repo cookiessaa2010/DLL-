@@ -60,8 +60,8 @@ if (-not $SkipValidation) {
         throw "KaiTOR snapshot validator not found: $validator"
     }
 
+    # PowerShell script failures propagate as terminating errors because this script
+    # runs with ErrorActionPreference=Stop. Do not inspect $LASTEXITCODE here: it is
+    # reserved for native executables and may contain a stale value from earlier work.
     & $validator -SnapshotPath $OutputPath -Phase $Phase
-    if ($LASTEXITCODE -ne 0) {
-        throw "KaiTOR four-player snapshot validation failed with exit code $LASTEXITCODE."
-    }
 }
