@@ -1,28 +1,33 @@
 using Common.Commands;
 using Coop.Core.Server.Connections;
+using GameInterface.Services.ObjectManager;
 using GameInterface.Services.Players;
 using Newtonsoft.Json;
 using System;
 using System.Linq;
+using TaleWorlds.CampaignSystem.Party;
 
 namespace Coop.Core.Server.Commands
 {
     /// <summary>
-    /// Emits the authoritative four-player campaign identity snapshot consumed by
-    /// Test-KaiTORFourPlayerSnapshot.ps1. Diagnostics only; it does not mutate admission
-    /// or persistent player state.
+    /// Emits the authoritative four-player campaign identity and movement snapshot consumed by
+    /// KaiTOR runtime validators. Diagnostics only; it does not mutate admission or persistent
+    /// player state.
     /// </summary>
     public sealed class KaiTORFourPlayerSnapshotCommand : ICoopCommand
     {
         private readonly IPlayerManager playerManager;
         private readonly IPlayerAdmissionGate admissionGate;
+        private readonly IObjectManager objectManager;
 
         public KaiTORFourPlayerSnapshotCommand(
             IPlayerManager playerManager,
-            IPlayerAdmissionGate admissionGate)
+            IPlayerAdmissionGate admissionGate,
+            IObjectManager objectManager)
         {
             this.playerManager = playerManager;
             this.admissionGate = admissionGate;
+            this.objectManager = objectManager;
         }
 
         public string Prefix => "coop.debug.kaitor";
@@ -35,14 +40,23 @@ namespace Coop.Core.Server.Commands
         {
             var players = playerManager.Players
                 .OrderBy(player => player.ControllerId, StringComparer.Ordinal)
-                .Select(player => new
+                .Select(player =>
                 {
-                    controllerId = player.ControllerId,
-                    heroId = player.HeroId,
-                    mobilePartyId = player.MobilePartyId,
-                    clanId = player.ClanId,
-                    characterObjectId = player.CharacterObjectId,
-                    connected = playerManager.IsConnected(player),
+                    var partyResolved = objectManager.TryGetObject(player.MobilePartyId, out MobileParty party);
+                    return new
+                    {
+                        controllerId = player.ControllerId,
+                        heroId = player.HeroId,
+                        mobilePartyId = player.MobilePartyId,
+                        clanId = player.ClanId,
+                        characterObjectId = player.CharacterObjectId,
+                        connected = playerManager.IsConnected(player),
+                        partyResolved,
+                        partyActive = partyResolved && party.IsActive,
+                        mapEventId = partyResolved ? party.MapEvent?.StringId : null,
+                        positionX = partyResolved ? (float?)party.Position2D.X : null,
+                        positionY = partyResolved ? (float?)party.Position2D.Y : null,
+                    };
                 })
                 .ToArray();
 
