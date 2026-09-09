@@ -57,7 +57,7 @@ function Wait-ForNewSnapshotRecord {
     while ([DateTime]::UtcNow -lt $deadline) {
         $records = @(Get-SnapshotRecords -Path $CommandOutputPath)
         if ($records.Count -gt $ExistingCount) {
-            return [string]$records[-1]
+            return [string]$records[$ExistingCount]
         }
         Start-Sleep -Milliseconds $PollMilliseconds
     }
@@ -74,10 +74,13 @@ $beforeRecord = Wait-ForNewSnapshotRecord -ExistingCount $initialCount -Stage 'B
 [IO.File]::WriteAllText($beforeOutput, $beforeRecord + [Environment]::NewLine, [Text.UTF8Encoding]::new($false))
 Write-Output 'BEFORE snapshot captured.'
 
-$beforeCount = @(Get-SnapshotRecords -Path $CommandOutputPath).Count
+# Wait for the record immediately after the captured BEFORE record. Do not resample
+# the current count here: the AFTER record may already have arrived between polls.
+# Using the stable expected index prevents a fast second command from being skipped.
+$expectedAfterIndex = $initialCount + 1
 Write-Output 'Now move all four player parties independently on the campaign map.'
 Write-Output 'AFTER: run coop.debug.kaitor.snapshot4p again on the authoritative server.'
-$afterRecord = Wait-ForNewSnapshotRecord -ExistingCount $beforeCount -Stage 'AFTER'
+$afterRecord = Wait-ForNewSnapshotRecord -ExistingCount $expectedAfterIndex -Stage 'AFTER'
 [IO.File]::WriteAllText($afterOutput, $afterRecord + [Environment]::NewLine, [Text.UTF8Encoding]::new($false))
 Write-Output 'AFTER snapshot captured.'
 
