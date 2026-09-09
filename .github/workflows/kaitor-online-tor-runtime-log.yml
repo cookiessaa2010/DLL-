@@ -1,0 +1,91 @@
+name: KaiTOR Online TOR Runtime Log Acceptance
+
+on:
+  push:
+    branches:
+      - kaitor-online-4p
+    paths:
+      - 'projects/KaiTOROnline/runtime/Test-KaiTORTorRuntimeLog.ps1'
+      - '.github/workflows/kaitor-online-tor-runtime-log.yml'
+  workflow_dispatch:
+
+jobs:
+  tor-runtime-log-contract:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout KaiTOR project
+        uses: actions/checkout@v4
+
+      - name: Validate accepted TOR campaign runtime log
+        shell: pwsh
+        run: |
+          $log = Join-Path $env:RUNNER_TEMP 'kaitor-tor-runtime-pass.log'
+          @'
+          [12:00:00] Module loader: Native initialized
+          [12:00:01] Module loader: TOR_Armory initialized
+          [12:00:02] Module loader: TOR_Environment initialized
+          [12:00:03] Module loader: TOR_Core.dll initialized
+          [12:00:04] Module loader: Coop.Core.dll initialized
+          [12:00:05] Campaign server entered running state
+          '@ | Set-Content -LiteralPath $log -Encoding UTF8
+
+          $output = ./projects/KaiTOROnline/runtime/Test-KaiTORTorRuntimeLog.ps1 -LogPath $log 3>&1 | Out-String
+          Write-Host $output
+          if ($output -notmatch 'TOR_Core runtime evidence: PASS') { throw 'TOR_Core evidence was not accepted.' }
+          if ($output -notmatch 'Coop runtime evidence: PASS') { throw 'Coop evidence was not accepted.' }
+          if ($output -notmatch 'KaiTOR Online TOR runtime log acceptance: PASS') { throw 'TOR runtime log acceptance did not report PASS.' }
+
+      - name: Reject runtime log without TOR_Core
+        shell: pwsh
+        run: |
+          $log = Join-Path $env:RUNNER_TEMP 'kaitor-tor-runtime-missing.log'
+          "Module loader: Coop.Core.dll initialized`nCampaign server entered running state" | Set-Content -LiteralPath $log -Encoding UTF8
+          $failed = $false
+          try {
+            ./projects/KaiTOROnline/runtime/Test-KaiTORTorRuntimeLog.ps1 -LogPath $log | Out-Null
+          }
+          catch {
+            $failed = $true
+            Write-Host $_.Exception.Message
+            if ($_.Exception.Message -notmatch 'TOR_Core') { throw }
+          }
+          if (-not $failed) { throw 'Runtime log without TOR_Core was incorrectly accepted.' }
+
+      - name: Reject TOR managed assembly load failure
+        shell: pwsh
+        run: |
+          $log = Join-Path $env:RUNNER_TEMP 'kaitor-tor-runtime-failure.log'
+          @'
+          Module loader: TOR_Core.dll initialized
+          Module loader: Coop.Core.dll initialized
+          Could not load file or assembly TOR_Core, Version=1.3.15.0
+          '@ | Set-Content -LiteralPath $log -Encoding UTF8
+          $failed = $false
+          try {
+            ./projects/KaiTOROnline/runtime/Test-KaiTORTorRuntimeLog.ps1 -LogPath $log | Out-Null
+          }
+          catch {
+            $failed = $true
+            Write-Host $_.Exception.Message
+            if ($_.Exception.Message -notmatch 'managed assembly load failure') { throw }
+          }
+          if (-not $failed) { throw 'Runtime log with managed load failure was incorrectly accepted.' }
+
+      - name: Reject TOR initialization exception
+        shell: pwsh
+        run: |
+          $log = Join-Path $env:RUNNER_TEMP 'kaitor-tor-runtime-exception.log'
+          @'
+          Module loader: TOR_Core.dll initialized
+          Module loader: Coop.Core.dll initialized
+          TOR_Core initialization fatal exception while creating campaign behavior
+          '@ | Set-Content -LiteralPath $log -Encoding UTF8
+          $failed = $false
+          try {
+            ./projects/KaiTOROnline/runtime/Test-KaiTORTorRuntimeLog.ps1 -LogPath $log | Out-Null
+          }
+          catch {
+            $failed = $true
+            Write-Host $_.Exception.Message
+          }
+          if (-not $failed) { throw 'Runtime log with TOR initialization exception was incorrectly accepted.' }
