@@ -18,10 +18,12 @@ if ([string]::IsNullOrWhiteSpace($text)) {
     throw "KaiTOR TOR runtime log is empty: $resolved"
 }
 
-# This validator intentionally looks for durable module/runtime evidence rather than
-# one exact TaleWorlds log sentence. Bannerlord/TOR wording can vary between builds,
-# but a usable TOR campaign process must expose both TOR_Core and Coop in its runtime log.
+# Look for durable module/runtime evidence rather than one exact TaleWorlds log sentence.
+# The live TOR acceptance must prove that the complete minimal TOR stack from
+# modules.tor-1.3.15.txt reached the campaign process together with Coop.
 $requiredEvidence = @(
+    @{ Name = 'TOR_Armory'; Pattern = '(?im)\bTOR_Armory(?:\.dll)?\b' },
+    @{ Name = 'TOR_Environment'; Pattern = '(?im)\bTOR_Environment(?:\.dll)?\b' },
     @{ Name = 'TOR_Core'; Pattern = '(?im)\bTOR_Core(?:\.dll)?\b' },
     @{ Name = 'Coop'; Pattern = '(?im)\bCoop(?:\.Core)?(?:\.dll)?\b' }
 )
@@ -36,7 +38,7 @@ $fatalPatterns = @(
     @{ Name = 'unhandled exception'; Pattern = '(?im)\bunhandled\s+exception\b' },
     @{ Name = 'managed assembly load failure'; Pattern = '(?im)could\s+not\s+load\s+(?:file\s+or\s+)?assembly' },
     @{ Name = 'module load failure'; Pattern = '(?im)(?:failed|failure|error)\s+(?:to\s+)?load\s+(?:the\s+)?module\b' },
-    @{ Name = 'TOR module initialization failure'; Pattern = '(?im)TOR_Core[^\r\n]{0,160}(?:failed|failure|fatal|exception)' },
+    @{ Name = 'TOR module initialization failure'; Pattern = '(?im)TOR_(?:Armory|Environment|Core)[^\r\n]{0,160}(?:failed|failure|fatal|exception)' },
     @{ Name = 'managed type load incompatibility'; Pattern = '(?im)\b(?:System\.)?TypeLoadException\b' },
     @{ Name = 'managed missing method incompatibility'; Pattern = '(?im)\b(?:System\.)?MissingMethodException\b' },
     @{ Name = 'managed missing field incompatibility'; Pattern = '(?im)\b(?:System\.)?MissingFieldException\b' },
@@ -50,13 +52,15 @@ foreach ($fatal in $fatalPatterns) {
     }
 }
 
-$torIndex = $text.IndexOf('TOR_Core', [System.StringComparison]::OrdinalIgnoreCase)
-$coopIndex = $text.IndexOf('Coop', [System.StringComparison]::OrdinalIgnoreCase)
+$offsets = [ordered]@{}
+foreach ($evidence in $requiredEvidence) {
+    $offsets[$evidence.Name] = $text.IndexOf($evidence.Name, [System.StringComparison]::OrdinalIgnoreCase)
+}
 
 Write-Output "Runtime log: $resolved"
-Write-Output 'TOR_Core runtime evidence: PASS'
-Write-Output 'Coop runtime evidence: PASS'
-if ($torIndex -ge 0 -and $coopIndex -ge 0) {
-    Write-Output ("First evidence offsets: TOR_Core={0}, Coop={1}" -f $torIndex, $coopIndex)
+foreach ($evidence in $requiredEvidence) {
+    Write-Output "$($evidence.Name) runtime evidence: PASS"
 }
+Write-Output ("First evidence offsets: TOR_Armory={0}, TOR_Environment={1}, TOR_Core={2}, Coop={3}" -f `
+    $offsets.TOR_Armory, $offsets.TOR_Environment, $offsets.TOR_Core, $offsets.Coop)
 Write-Output 'KaiTOR Online TOR runtime log acceptance: PASS'
