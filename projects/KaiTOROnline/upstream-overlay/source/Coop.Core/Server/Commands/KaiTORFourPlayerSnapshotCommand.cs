@@ -54,8 +54,8 @@ namespace Coop.Core.Server.Commands
                         partyResolved,
                         partyActive = partyResolved && party.IsActive,
                         mapEventId = partyResolved ? party.MapEvent?.StringId : null,
-                        positionX = partyResolved ? (float?)party.Position2D.X : null,
-                        positionY = partyResolved ? (float?)party.Position2D.Y : null,
+                        positionX = partyResolved ? (float?)party.Position.X : null,
+                        positionY = partyResolved ? (float?)party.Position.Y : null,
                     };
                 })
                 .ToArray();
