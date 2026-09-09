@@ -143,3 +143,74 @@ jobs:
           }
 
           Write-Host 'PASS: packaged bootstrap contains TOR live-capture/acceptance tooling, 4P shared-map diagnostics, exact Bannerlord/TOR targets, and the tested 4-player contract.'
+
+      - name: Smoke-test packaged TOR live acceptance runner
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP 'kaitor-packaged-runtime-smoke'
+          New-Item -ItemType Directory -Path $root -Force | Out-Null
+
+          @'
+          [Module] TOR_Core initialized
+          Loaded managed assembly TOR_Core.dll
+          [Module] Coop initialized
+          Loaded managed assembly Coop.Core.dll
+          Campaign server ready
+          '@ | Set-Content -LiteralPath (Join-Path $root 'runtime.log') -Encoding UTF8
+
+          function New-Player {
+            param([string]$Id, [double]$X, [double]$Y)
+            [pscustomobject]@{
+              controllerId = "controller-$Id"
+              heroId = "hero-$Id"
+              mobilePartyId = "party-$Id"
+              clanId = "clan-$Id"
+              characterObjectId = "character-$Id"
+              connected = $true
+              partyResolved = $true
+              partyActive = $true
+              mapEventId = ''
+              positionX = $X
+              positionY = $Y
+            }
+          }
+
+          $before = [pscustomobject]@{
+            activeAdmissionSlots = 4
+            playerRegistryCount = 4
+            players = @(
+              New-Player A 10.0 10.0
+              New-Player B 20.0 20.0
+              New-Player C 30.0 30.0
+              New-Player D 40.0 40.0
+            )
+          }
+          $after = [pscustomobject]@{
+            activeAdmissionSlots = 4
+            playerRegistryCount = 4
+            players = @(
+              New-Player A 11.0 10.0
+              New-Player B 20.0 21.5
+              New-Player C 28.0 31.0
+              New-Player D 42.5 38.0
+            )
+          }
+
+          "server> KAITOR_4P_SNAPSHOT_JSON=$($before | ConvertTo-Json -Depth 8 -Compress)" |
+            Set-Content -LiteralPath (Join-Path $root 'before-command.log') -Encoding UTF8
+          "server> KAITOR_4P_SNAPSHOT_JSON=$($after | ConvertTo-Json -Depth 8 -Compress)" |
+            Set-Content -LiteralPath (Join-Path $root 'after-command.log') -Encoding UTF8
+
+          & './artifact/Runtime/Invoke-KaiTORTorLiveAcceptance.ps1' `
+            -RuntimeLogPath (Join-Path $root 'runtime.log') `
+            -BeforeCommandOutputPath (Join-Path $root 'before-command.log') `
+            -AfterCommandOutputPath (Join-Path $root 'after-command.log') `
+            -OutputDirectory (Join-Path $root 'accepted')
+
+          foreach ($outputFile in @('snapshot-before.json', 'snapshot-after.json')) {
+            if (-not (Test-Path -LiteralPath (Join-Path $root "accepted/$outputFile") -PathType Leaf)) {
+              throw "Packaged TOR live acceptance runner did not produce $outputFile"
+            }
+          }
+
+          Write-Host 'PASS: packaged TOR live acceptance runner executes successfully with its packaged sibling validators.'
