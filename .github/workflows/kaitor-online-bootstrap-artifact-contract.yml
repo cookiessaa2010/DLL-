@@ -110,7 +110,8 @@ jobs:
             'Capture-KaiTORTorLiveSession.ps1',
             'Start-KaiTORTorCampaignServer.ps1',
             'modules.vanilla-1.3.15.txt',
-            'modules.tor-1.3.15.txt'
+            'modules.tor-1.3.15.txt',
+            'TOR_RUNTIME_CONTRACT.txt'
           )) {
             $path = Join-Path './artifact/Runtime' $runtimeFile
             if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
@@ -119,21 +120,26 @@ jobs:
           }
 
           $build = Get-Content './artifact/BUILD.txt' -Raw
-          foreach ($requiredBuildMarker in @(
-            'Admission limit:\s*4 simultaneous players',
-            'Bannerlord 1\.3\.15\.110062',
-            'The Old Realms 1\.3\.15',
-            'Bannerlord\.exe /singleplayer /server',
-            'DedicatedServerType=none',
-            'four independent authoritative MobileParty'
-          )) {
-            if ($build -notmatch $requiredBuildMarker) {
-              throw "Bootstrap BUILD.txt is missing required current runtime contract marker: $requiredBuildMarker"
-            }
+          if ($build -notmatch 'Admission limit:\s*4 simultaneous players') {
+            throw 'Bootstrap BUILD.txt no longer records the tested 4-player admission contract.'
+          }
+          if ($build -notmatch 'Bannerlord 1\.3\.15\.110062') {
+            throw 'Bootstrap BUILD.txt target version drifted from Bannerlord 1.3.15.110062.'
           }
 
-          if ($build -match 'before TOR integration') {
-            throw 'Bootstrap BUILD.txt still describes the obsolete pre-TOR integration phase.'
+          $torContract = Get-Content './artifact/Runtime/TOR_RUNTIME_CONTRACT.txt' -Raw
+          foreach ($requiredTorMarker in @(
+            'The Old Realms 1\.3\.15',
+            'Admission limit:\s*4 simultaneous players',
+            'Bannerlord\.exe /singleplayer /server',
+            'DedicatedServerType=none',
+            'TOR_Core \+ Coop load evidence',
+            'four independent persistent controller/Hero/Clan/MobileParty/CharacterObject graphs',
+            'all four authoritative MobileParty'
+          )) {
+            if ($torContract -notmatch $requiredTorMarker) {
+              throw "Packaged TOR runtime contract is missing required marker: $requiredTorMarker"
+            }
           }
 
           Write-Host 'PASS: packaged bootstrap contains TOR live-capture/acceptance tooling, 4P shared-map diagnostics, exact Bannerlord/TOR targets, and the tested 4-player contract.'
