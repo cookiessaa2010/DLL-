@@ -6,6 +6,7 @@ on:
       - kaitor-online-4p
     paths:
       - 'projects/KaiTOROnline/tools/ApplySharedMapDiagnostics.ps1'
+      - 'projects/KaiTOROnline/tools/ApplyFourPlayerMovementOwnership.ps1'
       - 'projects/KaiTOROnline/upstream-overlay/source/Coop.Core/Server/Commands/KaiTORFourPlayerSnapshotCommand.cs'
       - '.github/workflows/kaitor-online-shared-map-diagnostics.yml'
   workflow_dispatch:
@@ -80,3 +81,30 @@ jobs:
           if ($command -notmatch 'admissionGate\.ActiveSlots') { throw 'Snapshot is not reading the real four-player admission gate.' }
           if ($module -notmatch 'RegisterType<KaiTORFourPlayerSnapshotCommand>') { throw 'Snapshot command is not registered in ServerModule.' }
           Write-Host 'KaiTOR shared-map runtime snapshot command: PASS'
+
+      - name: Verify server-authoritative party ownership gate is staged
+        shell: pwsh
+        run: |
+          $handlerPath = './upstream/source/Coop.Core/Server/Services/MobileParties/PacketHandlers/PartyAIBehaviorPacketHandler.cs'
+          $handler = Get-Content $handlerPath -Raw
+
+          if ($handler -notmatch 'IPlayerManager playerManager') {
+            throw 'Movement packet handler is missing IPlayerManager ownership resolution.'
+          }
+          if ($handler -notmatch 'playerManager\.TryGetPlayer\(peer, out var player\)') {
+            throw 'Movement packet handler does not resolve the authenticated player from NetPeer.'
+          }
+          if ($handler -notmatch 'Compact\(data\.MobilePartyId, typeof\(MobileParty\)\)') {
+            throw 'Movement packet handler does not normalize the requested MobileParty id.'
+          }
+          if ($handler -notmatch 'Compact\(player\.MobilePartyId, typeof\(MobileParty\)\)') {
+            throw 'Movement packet handler does not normalize the registered owner MobileParty id.'
+          }
+          if ($handler -notmatch 'string\.Equals\(requestedPartyId, ownedPartyId, System\.StringComparison\.Ordinal\)') {
+            throw 'Movement packet handler does not reject cross-player MobileParty commands.'
+          }
+          if ($handler -notmatch 'data\.OriginControllerId = player\.ControllerId') {
+            throw 'Movement packet handler still trusts the client-supplied controller identity.'
+          }
+
+          Write-Host 'KaiTOR server-authoritative movement ownership staging: PASS'
