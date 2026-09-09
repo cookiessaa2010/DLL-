@@ -28,6 +28,10 @@ jobs:
           New-Item -ItemType Directory -Path $root -Force | Out-Null
 
           @'
+          [Module] TOR_Armory initialized
+          Loaded managed assembly TOR_Armory.dll
+          [Module] TOR_Environment initialized
+          Loaded managed assembly TOR_Environment.dll
           [Module] TOR_Core initialized
           Loaded managed assembly TOR_Core.dll
           [Module] Coop initialized
@@ -104,31 +108,36 @@ jobs:
           }
           Write-Host 'One-command TOR live acceptance pipeline: PASS'
 
-      - name: Reject missing TOR runtime evidence
+      - name: Reject incomplete TOR runtime evidence
         shell: pwsh
         run: |
           $root = "$env:RUNNER_TEMP/kaitor-tor-4p"
           @'
+          [Module] TOR_Armory initialized
+          Loaded managed assembly TOR_Armory.dll
+          [Module] TOR_Core initialized
+          Loaded managed assembly TOR_Core.dll
           [Module] Coop initialized
           Loaded managed assembly Coop.Core.dll
           Campaign server ready
-          '@ | Set-Content -LiteralPath "$root/no-tor.log" -Encoding UTF8
+          '@ | Set-Content -LiteralPath "$root/incomplete-tor.log" -Encoding UTF8
 
           $rejected = $false
           try {
             & ./projects/KaiTOROnline/runtime/Test-KaiTORTorFourPlayerRuntime.ps1 `
-              -LogPath "$root/no-tor.log" `
+              -LogPath "$root/incomplete-tor.log" `
               -BeforeSnapshotPath "$root/before.json" `
               -AfterSnapshotPath "$root/after.json"
           }
           catch {
             $rejected = $true
             Write-Host "Expected rejection: $($_.Exception.Message)"
+            if ($_.Exception.Message -notmatch 'TOR_Environment') { throw }
           }
           if (-not $rejected) {
-            throw 'Combined runtime validator accepted a process with no TOR_Core evidence.'
+            throw 'Combined runtime validator accepted an incomplete TOR module stack.'
           }
-          Write-Host 'Missing-TOR rejection: PASS'
+          Write-Host 'Incomplete-TOR rejection: PASS'
 
       - name: Reject TOR runtime with stationary player party
         shell: pwsh
