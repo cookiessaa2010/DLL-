@@ -1,0 +1,122 @@
+name: KaiTOR Online TOR Live Capture Helper
+
+on:
+  push:
+    branches:
+      - kaitor-online-4p
+    paths:
+      - 'projects/KaiTOROnline/runtime/Capture-KaiTORTorLiveSession.ps1'
+      - 'projects/KaiTOROnline/runtime/Invoke-KaiTORTorLiveAcceptance.ps1'
+      - 'projects/KaiTOROnline/runtime/Export-KaiTORFourPlayerSnapshot.ps1'
+      - 'projects/KaiTOROnline/runtime/Test-KaiTORTorFourPlayerRuntime.ps1'
+      - 'projects/KaiTOROnline/runtime/Test-KaiTORTorRuntimeLog.ps1'
+      - 'projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerSnapshot.ps1'
+      - 'projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerMovement.ps1'
+      - '.github/workflows/kaitor-online-tor-live-capture.yml'
+  workflow_dispatch:
+
+jobs:
+  validate-live-capture-helper:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build synthetic live capture fixtures
+        shell: pwsh
+        run: |
+          $dir = "$env:RUNNER_TEMP/kaitor-live-capture"
+          New-Item -ItemType Directory -Force -Path $dir | Out-Null
+          @'
+          Module TOR_Core loaded
+          Module Coop loaded
+          '@ | Set-Content -LiteralPath "$dir/runtime.log" -Encoding UTF8
+          Set-Content -LiteralPath "$dir/server-output.log" -Value 'server ready' -Encoding UTF8
+
+          function New-Player([string]$Id,[double]$X,[double]$Y) {
+            [pscustomobject]@{
+              controllerId = "controller-$Id"
+              heroId = "hero-$Id"
+              mobilePartyId = "party-$Id"
+              clanId = "clan-$Id"
+              characterObjectId = "character-$Id"
+              connected = $true
+              partyResolved = $true
+              partyActive = $true
+              mapEventId = ''
+              positionX = $X
+              positionY = $Y
+            }
+          }
+          $before = [pscustomobject]@{
+            activeAdmissionSlots = 4
+            playerRegistryCount = 4
+            players = @(
+              New-Player A 10 10
+              New-Player B 20 20
+              New-Player C 30 30
+              New-Player D 40 40
+            )
+          }
+          $after = [pscustomobject]@{
+            activeAdmissionSlots = 4
+            playerRegistryCount = 4
+            players = @(
+              New-Player A 11 10
+              New-Player B 20 22
+              New-Player C 28 31
+              New-Player D 43 38
+            )
+          }
+          $beforeJson = $before | ConvertTo-Json -Depth 8 -Compress
+          $afterJson = $after | ConvertTo-Json -Depth 8 -Compress
+          Set-Content -LiteralPath "$dir/before-line.txt" -Value "KAITOR_4P_SNAPSHOT_JSON=$beforeJson" -Encoding UTF8
+          Set-Content -LiteralPath "$dir/after-line.txt" -Value "KAITOR_4P_SNAPSHOT_JSON=$afterJson" -Encoding UTF8
+
+      - name: Accept two sequential live snapshot records
+        shell: pwsh
+        run: |
+          $dir = "$env:RUNNER_TEMP/kaitor-live-capture"
+          $job = Start-Job -ScriptBlock {
+            param($Output,$Before,$After)
+            Start-Sleep -Milliseconds 700
+            Get-Content -LiteralPath $Before | Add-Content -LiteralPath $Output
+            Start-Sleep -Milliseconds 700
+            Get-Content -LiteralPath $After | Add-Content -LiteralPath $Output
+          } -ArgumentList "$dir/server-output.log","$dir/before-line.txt","$dir/after-line.txt"
+          try {
+            ./projects/KaiTOROnline/runtime/Capture-KaiTORTorLiveSession.ps1 `
+              -RuntimeLogPath "$dir/runtime.log" `
+              -CommandOutputPath "$dir/server-output.log" `
+              -OutputDirectory "$dir/result" `
+              -TimeoutSeconds 10 `
+              -PollMilliseconds 100
+          }
+          finally {
+            Wait-Job $job | Out-Null
+            Receive-Job $job | Out-Host
+            Remove-Job $job -Force
+          }
+
+      - name: Reject capture timeout when no snapshot arrives
+        shell: pwsh
+        run: |
+          $dir = "$env:RUNNER_TEMP/kaitor-live-capture"
+          Set-Content -LiteralPath "$dir/empty-output.log" -Value 'server ready' -Encoding UTF8
+          $rejected = $false
+          try {
+            ./projects/KaiTOROnline/runtime/Capture-KaiTORTorLiveSession.ps1 `
+              -RuntimeLogPath "$dir/runtime.log" `
+              -CommandOutputPath "$dir/empty-output.log" `
+              -OutputDirectory "$dir/timeout-result" `
+              -TimeoutSeconds 1 `
+              -PollMilliseconds 100
+          }
+          catch {
+            $rejected = $true
+            Write-Host "Expected rejection: $($_.Exception.Message)"
+          }
+          if (-not $rejected) {
+            throw 'Live capture helper accepted a session without snapshot output.'
+          }
+          Write-Host 'Capture-timeout rejection: PASS'
