@@ -57,10 +57,20 @@ foreach ($evidence in $requiredEvidence) {
     $offsets[$evidence.Name] = $text.IndexOf($evidence.Name, [System.StringComparison]::OrdinalIgnoreCase)
 }
 
+$expectedOrder = @('TOR_Armory', 'TOR_Environment', 'TOR_Core', 'Coop')
+for ($i = 1; $i -lt $expectedOrder.Count; $i++) {
+    $previous = $expectedOrder[$i - 1]
+    $current = $expectedOrder[$i]
+    if ($offsets[$previous] -ge $offsets[$current]) {
+        throw "KaiTOR TOR runtime module order invalid: expected $previous before $current."
+    }
+}
+
 Write-Output "Runtime log: $resolved"
 foreach ($evidence in $requiredEvidence) {
     Write-Output "$($evidence.Name) runtime evidence: PASS"
 }
 Write-Output ("First evidence offsets: TOR_Armory={0}, TOR_Environment={1}, TOR_Core={2}, Coop={3}" -f `
     $offsets.TOR_Armory, $offsets.TOR_Environment, $offsets.TOR_Core, $offsets.Coop)
+Write-Output 'TOR runtime module order: PASS'
 Write-Output 'KaiTOR Online TOR runtime log acceptance: PASS'
