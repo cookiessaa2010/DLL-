@@ -1,0 +1,99 @@
+name: KaiTOR Online Bootstrap Artifact Contract
+
+on:
+  workflow_run:
+    workflows:
+      - KaiTOR Online 1.3.15 Coop Backport Build
+    types:
+      - completed
+  push:
+    branches:
+      - kaitor-online-4p
+    paths:
+      - '.github/workflows/kaitor-online-bootstrap-artifact-contract.yml'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  verify-bootstrap-artifact:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'kaitor-online-4p')
+    runs-on: windows-latest
+
+    steps:
+      - name: Resolve full-build run
+        id: run
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          if ($env:EVENT_NAME -eq 'workflow_run') {
+            $runId = $env:EVENT_RUN_ID
+          }
+          else {
+            $runId = gh run list `
+              --repo $env:GITHUB_REPOSITORY `
+              --workflow 'KaiTOR Online 1.3.15 Coop Backport Build' `
+              --branch 'kaitor-online-4p' `
+              --status success `
+              --limit 1 `
+              --json databaseId `
+              --jq '.[0].databaseId'
+          }
+
+          if (-not $runId) { throw 'No successful KaiTOR full-build run is available for artifact validation.' }
+          "run_id=$runId" >> $env:GITHUB_OUTPUT
+          Write-Host "Validating bootstrap artifact from full-build run $runId"
+
+      - name: Download bootstrap artifact
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ steps.run.outputs.run_id }}
+        run: |
+          New-Item -ItemType Directory -Force -Path artifact | Out-Null
+          gh run download $env:RUN_ID `
+            --repo $env:GITHUB_REPOSITORY `
+            --name 'KaiTOROnline-0.0.1-bootstrap-Bannerlord-1.3.15.110062' `
+            --dir artifact
+
+      - name: Validate packaged shared-map diagnostics contract
+        shell: pwsh
+        run: |
+          $coopCore = Resolve-Path './artifact/Modules/Coop/bin/Win64_Shipping_Client/Coop.Core.dll'
+          $bytes = [IO.File]::ReadAllBytes($coopCore)
+          $utf16 = [Text.Encoding]::Unicode.GetString($bytes)
+
+          foreach ($marker in @('snapshot4p', 'KAITOR_4P_SNAPSHOT_JSON=')) {
+            if (-not $utf16.Contains($marker)) {
+              throw "Packaged Coop.Core.dll is missing required shared-map diagnostic marker: $marker"
+            }
+          }
+
+          foreach ($runtimeFile in @(
+            'Export-KaiTORFourPlayerSnapshot.ps1',
+            'Test-KaiTORFourPlayerSnapshot.ps1',
+            'Test-KaiTORRuntimePreflight.ps1',
+            'Start-KaiTORCampaignServer.ps1'
+          )) {
+            $path = Join-Path './artifact/Runtime' $runtimeFile
+            if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+              throw "Bootstrap artifact is missing required runtime file: $runtimeFile"
+            }
+          }
+
+          $build = Get-Content './artifact/BUILD.txt' -Raw
+          if ($build -notmatch 'Admission limit:\s*4 simultaneous players') {
+            throw 'Bootstrap BUILD.txt no longer records the tested 4-player admission contract.'
+          }
+          if ($build -notmatch 'Bannerlord 1\.3\.15\.110062') {
+            throw 'Bootstrap BUILD.txt target version drifted from Bannerlord 1.3.15.110062.'
+          }
+
+          Write-Host 'PASS: packaged bootstrap contains the live 4P snapshot command, runtime validators, 4-player contract, and exact Bannerlord target.'
