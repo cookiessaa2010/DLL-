@@ -34,6 +34,14 @@ foreach ($evidence in $requiredEvidence) {
     }
 }
 
+# Seeing assemblies in the log is not enough to prove a usable campaign server.
+# Require an explicit ready/running transition so a startup that stops after
+# module discovery/initialization cannot be reported as a successful TOR run.
+$serverRunningPattern = '(?im)\bcampaign\s+server\b[^\r\n]{0,120}\b(?:entered\s+running\s+state|running|ready)\b'
+if ($text -notmatch $serverRunningPattern) {
+    throw "KaiTOR TOR runtime evidence missing: campaign server running state was not observed in $resolved"
+}
+
 $fatalPatterns = @(
     @{ Name = 'unhandled exception'; Pattern = '(?im)\bunhandled\s+exception\b' },
     @{ Name = 'managed assembly load failure'; Pattern = '(?im)could\s+not\s+load\s+(?:file\s+or\s+)?assembly' },
@@ -70,6 +78,7 @@ Write-Output "Runtime log: $resolved"
 foreach ($evidence in $requiredEvidence) {
     Write-Output "$($evidence.Name) runtime evidence: PASS"
 }
+Write-Output 'Campaign server running state: PASS'
 Write-Output ("First evidence offsets: TOR_Armory={0}, TOR_Environment={1}, TOR_Core={2}, Coop={3}" -f `
     $offsets.TOR_Armory, $offsets.TOR_Environment, $offsets.TOR_Core, $offsets.Coop)
 Write-Output 'TOR runtime module order: PASS'
