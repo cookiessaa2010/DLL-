@@ -125,6 +125,7 @@ jobs:
           Loaded managed assembly TOR_Core.dll
           [Module] Coop initialized
           Loaded managed assembly Coop.Core.dll
+          Campaign server ready
           System.MissingMethodException: Method not found: 'TaleWorlds.CampaignSystem.Campaign.get_Current()'.
           '@ | Set-Content -LiteralPath $faultLog -Encoding UTF8
 
