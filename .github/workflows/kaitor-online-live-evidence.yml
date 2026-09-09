@@ -32,6 +32,10 @@ jobs:
           "root=$root" >> $env:GITHUB_ENV
 
           @'
+          [Module] TOR_Armory initialized
+          Loaded managed assembly TOR_Armory.dll
+          [Module] TOR_Environment initialized
+          Loaded managed assembly TOR_Environment.dll
           [Module] TOR_Core initialized
           Loaded managed assembly TOR_Core.dll
           [Module] Coop initialized
@@ -113,6 +117,10 @@ jobs:
         run: |
           $faultLog = Join-Path $env:root 'runtime-managed-fault.log'
           @'
+          [Module] TOR_Armory initialized
+          Loaded managed assembly TOR_Armory.dll
+          [Module] TOR_Environment initialized
+          Loaded managed assembly TOR_Environment.dll
           [Module] TOR_Core initialized
           Loaded managed assembly TOR_Core.dll
           [Module] Coop initialized
