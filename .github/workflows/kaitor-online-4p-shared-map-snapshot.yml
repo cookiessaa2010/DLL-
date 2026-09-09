@@ -5,6 +5,7 @@ on:
     branches:
       - kaitor-online-4p
     paths:
+      - 'projects/KaiTOROnline/runtime/Export-KaiTORFourPlayerSnapshot.ps1'
       - 'projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerSnapshot.ps1'
       - '.github/workflows/kaitor-online-4p-shared-map-snapshot.yml'
   workflow_dispatch:
@@ -37,6 +38,25 @@ jobs:
           & ./projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerSnapshot.ps1 `
             -SnapshotPath "$env:RUNNER_TEMP\kaitor-four-online.json" `
             -Phase four-online
+
+      - name: Export snapshot after stale native exit code
+        shell: pwsh
+        run: |
+          $payload = Get-Content -LiteralPath "$env:RUNNER_TEMP\kaitor-four-online.json" -Raw | ConvertFrom-Json | ConvertTo-Json -Depth 8 -Compress
+          "server> KAITOR_4P_SNAPSHOT_JSON=$payload" | Set-Content -LiteralPath "$env:RUNNER_TEMP\kaitor-command-output.log" -Encoding UTF8
+
+          & cmd.exe /c exit 7
+          if ($LASTEXITCODE -ne 7) { throw 'Failed to establish stale native exit-code fixture.' }
+
+          & ./projects/KaiTOROnline/runtime/Export-KaiTORFourPlayerSnapshot.ps1 `
+            -InputPath "$env:RUNNER_TEMP\kaitor-command-output.log" `
+            -OutputPath "$env:RUNNER_TEMP\kaitor-exported.json" `
+            -Phase four-online
+
+          if (-not (Test-Path -LiteralPath "$env:RUNNER_TEMP\kaitor-exported.json" -PathType Leaf)) {
+            throw 'Snapshot exporter did not create its normalized JSON output.'
+          }
+          Write-Host 'Snapshot exporter ignores stale native LASTEXITCODE: PASS'
 
       - name: Accept freed live slot while preserving persistent registration
         shell: pwsh
