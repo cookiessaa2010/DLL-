@@ -1,0 +1,90 @@
+name: KaiTOR Online 4P Lifecycle Continuity
+
+on:
+  push:
+    branches:
+      - kaitor-online-4p
+    paths:
+      - 'projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerLifecycle.ps1'
+      - 'projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerSnapshot.ps1'
+      - '.github/workflows/kaitor-online-4p-lifecycle.yml'
+  workflow_dispatch:
+
+jobs:
+  validate-lifecycle:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout KaiTOR project
+        uses: actions/checkout@v4
+
+      - name: Build lifecycle fixtures
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path fixtures | Out-Null
+
+          function New-Player {
+            param([string]$Id, [bool]$Connected)
+            [ordered]@{
+              controllerId = "controller-$Id"
+              heroId = "hero-$Id"
+              mobilePartyId = "party-$Id"
+              clanId = "clan-$Id"
+              characterObjectId = "character-$Id"
+              connected = $Connected
+            }
+          }
+
+          $onlinePlayers = @(
+            New-Player A $true
+            New-Player B $true
+            New-Player C $true
+            New-Player D $true
+          )
+          $online = [ordered]@{ activeAdmissionSlots = 4; playerRegistryCount = 4; players = $onlinePlayers }
+          $online | ConvertTo-Json -Depth 8 | Set-Content fixtures/four-online.json -Encoding utf8
+
+          $freedPlayers = @(
+            New-Player A $true
+            New-Player B $true
+            New-Player C $true
+            New-Player D $false
+          )
+          $freed = [ordered]@{ activeAdmissionSlots = 3; playerRegistryCount = 4; players = $freedPlayers }
+          $freed | ConvertTo-Json -Depth 8 | Set-Content fixtures/slot-freed.json -Encoding utf8
+
+          $reconnected = [ordered]@{ activeAdmissionSlots = 4; playerRegistryCount = 4; players = $onlinePlayers }
+          $reconnected | ConvertTo-Json -Depth 8 | Set-Content fixtures/reconnected.json -Encoding utf8
+          $reconnected | ConvertTo-Json -Depth 8 | Set-Content fixtures/restarted.json -Encoding utf8
+
+      - name: Validate preserved controller-to-campaign identity graph
+        shell: pwsh
+        run: |
+          ./projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerLifecycle.ps1 `
+            -FourOnlineSnapshotPath ./fixtures/four-online.json `
+            -SlotFreedSnapshotPath ./fixtures/slot-freed.json `
+            -ReconnectedSnapshotPath ./fixtures/reconnected.json `
+            -RestartedSnapshotPath ./fixtures/restarted.json
+
+      - name: Reject identity drift across reconnect
+        shell: pwsh
+        run: |
+          $bad = Get-Content ./fixtures/reconnected.json -Raw | ConvertFrom-Json
+          $bad.players[3].mobilePartyId = 'party-D-REPLACED'
+          $bad | ConvertTo-Json -Depth 8 | Set-Content ./fixtures/reconnected-bad.json -Encoding utf8
+
+          $failed = $false
+          try {
+            ./projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerLifecycle.ps1 `
+              -FourOnlineSnapshotPath ./fixtures/four-online.json `
+              -SlotFreedSnapshotPath ./fixtures/slot-freed.json `
+              -ReconnectedSnapshotPath ./fixtures/reconnected-bad.json
+          }
+          catch {
+            $failed = $true
+            Write-Host "Expected rejection: $($_.Exception.Message)"
+          }
+
+          if (-not $failed) {
+            throw 'Lifecycle validator accepted a replaced MobileParty identity across reconnect.'
+          }
