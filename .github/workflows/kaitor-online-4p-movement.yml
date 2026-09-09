@@ -1,0 +1,127 @@
+name: KaiTOR Online 4P Movement Acceptance
+
+on:
+  push:
+    branches:
+      - kaitor-online-4p
+    paths:
+      - 'projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerMovement.ps1'
+      - 'projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerSnapshot.ps1'
+      - '.github/workflows/kaitor-online-4p-movement.yml'
+  workflow_dispatch:
+
+jobs:
+  validate-four-party-movement:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build authoritative movement fixtures
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path "$env:RUNNER_TEMP/kaitor-movement" -Force | Out-Null
+
+          function New-Player {
+            param(
+              [string]$Id,
+              [double]$X,
+              [double]$Y
+            )
+            [pscustomobject]@{
+              controllerId = "controller-$Id"
+              heroId = "hero-$Id"
+              mobilePartyId = "party-$Id"
+              clanId = "clan-$Id"
+              characterObjectId = "character-$Id"
+              connected = $true
+              partyResolved = $true
+              partyActive = $true
+              mapEventId = ''
+              positionX = $X
+              positionY = $Y
+            }
+          }
+
+          $before = [pscustomobject]@{
+            activeAdmissionSlots = 4
+            playerRegistryCount = 4
+            players = @(
+              New-Player A 10.0 10.0
+              New-Player B 20.0 20.0
+              New-Player C 30.0 30.0
+              New-Player D 40.0 40.0
+            )
+          }
+          $after = [pscustomobject]@{
+            activeAdmissionSlots = 4
+            playerRegistryCount = 4
+            players = @(
+              New-Player A 11.0 10.0
+              New-Player B 20.0 21.5
+              New-Player C 28.0 31.0
+              New-Player D 42.5 38.0
+            )
+          }
+
+          $before | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath "$env:RUNNER_TEMP/kaitor-movement/before.json" -Encoding UTF8
+          $after | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath "$env:RUNNER_TEMP/kaitor-movement/after.json" -Encoding UTF8
+
+      - name: Validate four independent authoritative movements
+        shell: pwsh
+        run: |
+          ./projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerMovement.ps1 `
+            -BeforeSnapshotPath "$env:RUNNER_TEMP/kaitor-movement/before.json" `
+            -AfterSnapshotPath "$env:RUNNER_TEMP/kaitor-movement/after.json"
+
+      - name: Reject stationary party
+        shell: pwsh
+        run: |
+          $bad = Get-Content -LiteralPath "$env:RUNNER_TEMP/kaitor-movement/after.json" -Raw | ConvertFrom-Json
+          $bad.players[2].positionX = 30.0
+          $bad.players[2].positionY = 30.0
+          $badPath = "$env:RUNNER_TEMP/kaitor-movement/stationary.json"
+          $bad | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $badPath -Encoding UTF8
+
+          & ./projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerMovement.ps1 `
+            -BeforeSnapshotPath "$env:RUNNER_TEMP/kaitor-movement/before.json" `
+            -AfterSnapshotPath $badPath
+          if ($LASTEXITCODE -eq 0) {
+            throw 'Movement validator accepted a stationary MobileParty.'
+          }
+          Write-Host 'Stationary-party rejection: PASS'
+
+      - name: Reject identity swap during movement
+        shell: pwsh
+        run: |
+          $bad = Get-Content -LiteralPath "$env:RUNNER_TEMP/kaitor-movement/after.json" -Raw | ConvertFrom-Json
+          $bad.players[1].mobilePartyId = 'party-A'
+          $badPath = "$env:RUNNER_TEMP/kaitor-movement/identity-swap.json"
+          $bad | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $badPath -Encoding UTF8
+
+          & ./projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerMovement.ps1 `
+            -BeforeSnapshotPath "$env:RUNNER_TEMP/kaitor-movement/before.json" `
+            -AfterSnapshotPath $badPath
+          if ($LASTEXITCODE -eq 0) {
+            throw 'Movement validator accepted a MobileParty identity swap.'
+          }
+          Write-Host 'Identity-swap rejection: PASS'
+
+      - name: Reject lockstep-only movement
+        shell: pwsh
+        run: |
+          $before = Get-Content -LiteralPath "$env:RUNNER_TEMP/kaitor-movement/before.json" -Raw | ConvertFrom-Json
+          foreach ($player in $before.players) {
+            $player.positionX = [double]$player.positionX + 1.0
+            $player.positionY = [double]$player.positionY + 1.0
+          }
+          $badPath = "$env:RUNNER_TEMP/kaitor-movement/lockstep.json"
+          $before | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $badPath -Encoding UTF8
+
+          & ./projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerMovement.ps1 `
+            -BeforeSnapshotPath "$env:RUNNER_TEMP/kaitor-movement/before.json" `
+            -AfterSnapshotPath $badPath
+          if ($LASTEXITCODE -eq 0) {
+            throw 'Movement validator accepted four identical movement vectors as independent movement.'
+          }
+          Write-Host 'Lockstep-only rejection: PASS'
