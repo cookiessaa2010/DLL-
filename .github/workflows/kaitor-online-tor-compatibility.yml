@@ -1,0 +1,143 @@
+name: KaiTOR Online TOR 1.3.15 Compatibility
+
+on:
+  push:
+    branches:
+      - kaitor-online-4p
+    paths:
+      - 'projects/KaiTOROnline/runtime/Test-KaiTORTorCompatibility.ps1'
+      - 'projects/KaiTOROnline/runtime/Test-KaiTORRuntimePreflight.ps1'
+      - 'projects/KaiTOROnline/runtime/modules.tor-1.3.15.txt'
+      - '.github/workflows/kaitor-online-tor-compatibility.yml'
+  workflow_dispatch:
+
+jobs:
+  tor-compatibility-contract:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout KaiTOR project
+        uses: actions/checkout@v4
+
+      - name: Build synthetic Bannerlord plus TOR 1.3.15 layout
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP 'fake-kaitor-tor-1315'
+          $bin = Join-Path $root 'bin/Win64_Shipping_Client'
+          New-Item -ItemType Directory -Force -Path $bin | Out-Null
+          Set-Content -LiteralPath (Join-Path $bin 'Bannerlord.exe') -Value 'CI placeholder' -Encoding ASCII
+
+          foreach ($module in @('Native', 'SandBoxCore', 'Sandbox', 'CustomBattle', 'StoryMode', 'TOR_Armory', 'TOR_Environment')) {
+            $dir = Join-Path $root ("Modules/{0}" -f $module)
+            New-Item -ItemType Directory -Force -Path $dir | Out-Null
+            @"
+          <Module>
+            <Id value="$module" />
+            <Version value="v1.3.15" />
+          </Module>
+          "@ | Set-Content -LiteralPath (Join-Path $dir 'SubModule.xml') -Encoding UTF8
+          }
+
+          $tor = Join-Path $root 'Modules/TOR_Core'
+          $torBin = Join-Path $tor 'bin/Win64_Shipping_Client'
+          New-Item -ItemType Directory -Force -Path $torBin | Out-Null
+          @'
+          <Module>
+            <Name value="The Old Realms - Core (War in the Mountains)" />
+            <Id value="TOR_Core" />
+            <Version value="v1.3.15" />
+            <DependedModules>
+              <DependedModule Id="Native" DependentVersion="v1.3.15" />
+              <DependedModule Id="SandBoxCore" DependentVersion="v1.3.15" />
+              <DependedModule Id="Sandbox" DependentVersion="v1.3.15" />
+              <DependedModule Id="TOR_Armory" DependentVersion="v1.3.15" />
+              <DependedModule Id="TOR_Environment" DependentVersion="v1.3.15" />
+            </DependedModules>
+            <SubModules>
+              <SubModule>
+                <DLLName value="TOR_Core.dll" />
+                <Tags>
+                  <Tag key="DedicatedServerType" value="none" />
+                  <Tag key="IsNoRenderModeElement" value="false" />
+                </Tags>
+              </SubModule>
+            </SubModules>
+          </Module>
+          '@ | Set-Content -LiteralPath (Join-Path $tor 'SubModule.xml') -Encoding UTF8
+          Set-Content -LiteralPath (Join-Path $torBin 'TOR_Core.dll') -Value 'CI placeholder' -Encoding ASCII
+
+          $coop = Join-Path $root 'Modules/Coop'
+          $coopBin = Join-Path $coop 'bin/Win64_Shipping_Client'
+          New-Item -ItemType Directory -Force -Path $coopBin | Out-Null
+          @'
+          <Module>
+            <Id value="Coop" />
+            <Version value="v1.3.15" />
+            <DependedModules>
+              <DependedModule Id="Native" DependentVersion="v1.3.15" />
+              <DependedModule Id="SandBoxCore" DependentVersion="v1.3.15" />
+              <DependedModule Id="Sandbox" DependentVersion="v1.3.15" />
+              <DependedModule Id="CustomBattle" DependentVersion="v1.3.15" />
+              <DependedModule Id="StoryMode" DependentVersion="v1.3.15" />
+            </DependedModules>
+          </Module>
+          '@ | Set-Content -LiteralPath (Join-Path $coop 'SubModule.xml') -Encoding UTF8
+          foreach ($assembly in @('Coop.dll', 'Coop.Core.dll', 'GameInterface.dll')) {
+            Set-Content -LiteralPath (Join-Path $coopBin $assembly) -Value 'CI placeholder' -Encoding ASCII
+          }
+
+          "KAITOR_TOR_FAKE_ROOT=$root" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Validate complete TOR module set through KaiTOR runtime preflight
+        shell: pwsh
+        run: |
+          $output = ./projects/KaiTOROnline/runtime/Test-KaiTORRuntimePreflight.ps1 `
+            -BannerlordRoot $env:KAITOR_TOR_FAKE_ROOT `
+            -ModuleListPath ./projects/KaiTOROnline/runtime/modules.tor-1.3.15.txt `
+            -SkipVersionCheck 2>&1 | Out-String
+          Write-Host $output
+          if ($output -notmatch 'runtime preflight: PASS') { throw 'TOR module set failed the base KaiTOR runtime preflight.' }
+          if ($output -notmatch 'TOR_Armory, TOR_Environment, TOR_Core, Coop') { throw 'TOR module ordering contract was not preserved.' }
+
+      - name: Validate TOR 1.3.15 metadata contract
+        shell: pwsh
+        run: |
+          $output = ./projects/KaiTOROnline/runtime/Test-KaiTORTorCompatibility.ps1 `
+            -BannerlordRoot $env:KAITOR_TOR_FAKE_ROOT 3>&1 2>&1 | Out-String
+          Write-Host $output
+          if ($output -notmatch 'TOR compatibility preflight: PASS') { throw 'TOR compatibility preflight did not reach PASS.' }
+          if ($output -notmatch 'TOR_Core version:\s+v1.3.15') { throw 'TOR version was not validated.' }
+          if ($output -notmatch 'DedicatedServerType:\s+none') { throw 'Known TOR dedicated-server metadata was not surfaced.' }
+
+      - name: Validate native dedicated metadata claim is rejected
+        shell: pwsh
+        run: |
+          $failed = $false
+          try {
+            ./projects/KaiTOROnline/runtime/Test-KaiTORTorCompatibility.ps1 `
+              -BannerlordRoot $env:KAITOR_TOR_FAKE_ROOT `
+              -RequireDedicatedServerMetadata | Out-Null
+          }
+          catch {
+            $failed = $true
+            Write-Host $_.Exception.Message
+            if ($_.Exception.Message -notmatch 'DedicatedServerType=none') { throw }
+          }
+          if (-not $failed) { throw 'TOR metadata incorrectly claimed native dedicated-server compatibility.' }
+
+      - name: Validate mixed TOR version is rejected
+        shell: pwsh
+        run: |
+          $armory = Join-Path $env:KAITOR_TOR_FAKE_ROOT 'Modules/TOR_Armory/SubModule.xml'
+          (Get-Content -LiteralPath $armory -Raw).Replace('v1.3.15', 'v1.3.14') | Set-Content -LiteralPath $armory -Encoding UTF8
+
+          $failed = $false
+          try {
+            ./projects/KaiTOROnline/runtime/Test-KaiTORTorCompatibility.ps1 `
+              -BannerlordRoot $env:KAITOR_TOR_FAKE_ROOT | Out-Null
+          }
+          catch {
+            $failed = $true
+            Write-Host $_.Exception.Message
+            if ($_.Exception.Message -notmatch "TOR_Armory.*v1.3.14.*v1.3.15") { throw }
+          }
+          if (-not $failed) { throw 'TOR compatibility preflight accepted a mixed-version TOR install.' }
