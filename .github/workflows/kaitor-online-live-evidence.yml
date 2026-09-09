@@ -108,6 +108,32 @@ jobs:
           & './projects/KaiTOROnline/runtime/Test-KaiTORLiveAcceptanceEvidence.ps1' -EvidenceDirectory $accepted
           Write-Host 'PASS: live acceptance produces a self-contained, hash-verified TOR 4P evidence bundle.'
 
+      - name: Reject managed TOR compatibility faults in runtime log
+        shell: pwsh
+        run: |
+          $faultLog = Join-Path $env:root 'runtime-managed-fault.log'
+          @'
+          [Module] TOR_Core initialized
+          Loaded managed assembly TOR_Core.dll
+          [Module] Coop initialized
+          Loaded managed assembly Coop.Core.dll
+          System.MissingMethodException: Method not found: 'TaleWorlds.CampaignSystem.Campaign.get_Current()'.
+          '@ | Set-Content -LiteralPath $faultLog -Encoding UTF8
+
+          $rejected = $false
+          try {
+            & './projects/KaiTOROnline/runtime/Test-KaiTORTorRuntimeLog.ps1' -LogPath $faultLog | Out-Null
+          }
+          catch {
+            $rejected = $true
+            Write-Host "Expected managed compatibility rejection: $($_.Exception.Message)"
+            if ($_.Exception.Message -notmatch 'missing method incompatibility') { throw }
+          }
+          if (-not $rejected) {
+            throw 'TOR runtime log validator accepted a MissingMethodException compatibility fault.'
+          }
+          Write-Host 'PASS: TOR runtime validator rejects managed API compatibility faults.'
+
       - name: Reject tampered evidence against manifest
         shell: pwsh
         run: |
