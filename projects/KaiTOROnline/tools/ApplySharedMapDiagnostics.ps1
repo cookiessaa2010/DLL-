@@ -51,5 +51,10 @@ Replace-Exact `
     '        builder.RegisterModule<ConnectionModule>();' `
     "        builder.RegisterModule<ConnectionModule>();`n        builder.RegisterType<KaiTORFourPlayerSnapshotCommand>().As<ICoopCommand>().InstancePerDependency();"
 
+# Shared-map diagnostics are only useful if each remote controller is authoritative over its own
+# party and cannot submit behavior for another player's MobileParty. Keep this core gate in the
+# same full-build staging path so every packaged Coop.Core carries it.
+& (Join-Path $PSScriptRoot 'ApplyFourPlayerMovementOwnership.ps1') -UpstreamRoot $UpstreamRoot
+
 Write-Host 'KaiTOR shared-map diagnostics applied successfully.'
 Write-Host 'Server command: coop.debug.kaitor.snapshot4p'
