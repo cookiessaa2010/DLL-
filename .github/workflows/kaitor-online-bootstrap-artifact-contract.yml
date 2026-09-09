@@ -66,12 +66,32 @@ jobs:
       - name: Validate packaged shared-map diagnostics contract
         shell: pwsh
         run: |
+          function Test-ByteSequence {
+            param(
+              [byte[]]$Haystack,
+              [byte[]]$Needle
+            )
+
+            if ($Needle.Length -eq 0 -or $Haystack.Length -lt $Needle.Length) { return $false }
+            for ($i = 0; $i -le ($Haystack.Length - $Needle.Length); $i++) {
+              $match = $true
+              for ($j = 0; $j -lt $Needle.Length; $j++) {
+                if ($Haystack[$i + $j] -ne $Needle[$j]) {
+                  $match = $false
+                  break
+                }
+              }
+              if ($match) { return $true }
+            }
+            return $false
+          }
+
           $coopCore = Resolve-Path './artifact/Modules/Coop/bin/Win64_Shipping_Client/Coop.Core.dll'
           $bytes = [IO.File]::ReadAllBytes($coopCore)
-          $utf16 = [Text.Encoding]::Unicode.GetString($bytes)
 
           foreach ($marker in @('snapshot4p', 'KAITOR_4P_SNAPSHOT_JSON=')) {
-            if (-not $utf16.Contains($marker)) {
+            $utf16Needle = [Text.Encoding]::Unicode.GetBytes($marker)
+            if (-not (Test-ByteSequence -Haystack $bytes -Needle $utf16Needle)) {
               throw "Packaged Coop.Core.dll is missing required shared-map diagnostic marker: $marker"
             }
           }
