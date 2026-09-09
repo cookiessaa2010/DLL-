@@ -1,0 +1,135 @@
+name: KaiTOR Online Live Acceptance Evidence
+
+on:
+  push:
+    branches:
+      - kaitor-online-4p
+    paths:
+      - 'projects/KaiTOROnline/runtime/Invoke-KaiTORTorLiveAcceptance.ps1'
+      - 'projects/KaiTOROnline/runtime/Export-KaiTORFourPlayerSnapshot.ps1'
+      - 'projects/KaiTOROnline/runtime/Test-KaiTORTorFourPlayerRuntime.ps1'
+      - 'projects/KaiTOROnline/runtime/Test-KaiTORTorRuntimeLog.ps1'
+      - 'projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerSnapshot.ps1'
+      - 'projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerMovement.ps1'
+      - '.github/workflows/kaitor-online-live-evidence.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  evidence-bundle:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build four-player TOR fixture
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP 'kaitor-live-evidence'
+          New-Item -ItemType Directory -Path $root -Force | Out-Null
+          "root=$root" >> $env:GITHUB_ENV
+
+          @'
+          [Module] TOR_Core initialized
+          Loaded managed assembly TOR_Core.dll
+          [Module] Coop initialized
+          Loaded managed assembly Coop.Core.dll
+          Campaign server ready
+          '@ | Set-Content -LiteralPath (Join-Path $root 'runtime-source.log') -Encoding UTF8
+
+          function New-Player {
+            param([string]$Id, [double]$X, [double]$Y)
+            [pscustomobject]@{
+              controllerId = "controller-$Id"
+              heroId = "hero-$Id"
+              mobilePartyId = "party-$Id"
+              clanId = "clan-$Id"
+              characterObjectId = "character-$Id"
+              connected = $true
+              partyResolved = $true
+              partyActive = $true
+              mapEventId = ''
+              positionX = $X
+              positionY = $Y
+            }
+          }
+
+          $before = [pscustomobject]@{
+            activeAdmissionSlots = 4
+            playerRegistryCount = 4
+            players = @(
+              New-Player A 10 10
+              New-Player B 20 20
+              New-Player C 30 30
+              New-Player D 40 40
+            )
+          }
+          $after = [pscustomobject]@{
+            activeAdmissionSlots = 4
+            playerRegistryCount = 4
+            players = @(
+              New-Player A 11 10
+              New-Player B 20 22
+              New-Player C 28 31
+              New-Player D 43 38
+            )
+          }
+
+          "server> KAITOR_4P_SNAPSHOT_JSON=$($before | ConvertTo-Json -Depth 8 -Compress)" |
+            Set-Content -LiteralPath (Join-Path $root 'before-source.log') -Encoding UTF8
+          "server> KAITOR_4P_SNAPSHOT_JSON=$($after | ConvertTo-Json -Depth 8 -Compress)" |
+            Set-Content -LiteralPath (Join-Path $root 'after-source.log') -Encoding UTF8
+
+      - name: Accept and persist evidence bundle
+        shell: pwsh
+        run: |
+          & './projects/KaiTOROnline/runtime/Invoke-KaiTORTorLiveAcceptance.ps1' `
+            -RuntimeLogPath (Join-Path $env:root 'runtime-source.log') `
+            -BeforeCommandOutputPath (Join-Path $env:root 'before-source.log') `
+            -AfterCommandOutputPath (Join-Path $env:root 'after-source.log') `
+            -OutputDirectory (Join-Path $env:root 'accepted')
+
+          $accepted = Join-Path $env:root 'accepted'
+          foreach ($file in @(
+            'runtime.log',
+            'snapshot-command-before.txt',
+            'snapshot-command-after.txt',
+            'snapshot-before.json',
+            'snapshot-after.json',
+            'acceptance.json'
+          )) {
+            if (-not (Test-Path -LiteralPath (Join-Path $accepted $file) -PathType Leaf)) {
+              throw "Live acceptance evidence bundle is missing $file"
+            }
+          }
+
+          $manifest = Get-Content -LiteralPath (Join-Path $accepted 'acceptance.json') -Raw | ConvertFrom-Json
+          if ($manifest.schema -ne 'kaitor-online-live-acceptance/v1') { throw 'Unexpected live acceptance manifest schema.' }
+          if ($manifest.result -ne 'PASS') { throw 'Live acceptance manifest did not record PASS.' }
+          if ($manifest.target.bannerlord -ne '1.3.15.110062') { throw 'Manifest Bannerlord target drifted.' }
+          if ($manifest.target.theOldRealms -ne '1.3.15') { throw 'Manifest TOR target drifted.' }
+          if ([int]$manifest.target.simultaneousPlayers -ne 4) { throw 'Manifest 4-player contract drifted.' }
+          if ($manifest.target.campaignProcess -ne 'Bannerlord.exe /singleplayer /server') { throw 'Manifest campaign process drifted.' }
+
+          foreach ($property in @('runtimeLog','beforeCommandOutput','afterCommandOutput','beforeSnapshot','afterSnapshot')) {
+            $entry = $manifest.evidence.$property
+            $path = Join-Path $accepted $entry.file
+            $actual = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($actual -ne $entry.sha256) { throw "Evidence hash mismatch for $property" }
+            if ((Get-Item -LiteralPath $path).Length -ne [long]$entry.bytes) { throw "Evidence length mismatch for $property" }
+          }
+
+          Write-Host 'PASS: live acceptance produces a self-contained, hash-verified TOR 4P evidence bundle.'
+
+      - name: Reject tampered evidence against manifest
+        shell: pwsh
+        run: |
+          $accepted = Join-Path $env:root 'accepted'
+          $manifest = Get-Content -LiteralPath (Join-Path $accepted 'acceptance.json') -Raw | ConvertFrom-Json
+          Add-Content -LiteralPath (Join-Path $accepted $manifest.evidence.afterSnapshot.file) -Value 'tamper'
+          $actual = (Get-FileHash -LiteralPath (Join-Path $accepted $manifest.evidence.afterSnapshot.file) -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -eq $manifest.evidence.afterSnapshot.sha256) {
+            throw 'Tampered evidence unexpectedly preserved its manifest hash.'
+          }
+          Write-Host 'PASS: manifest detects post-acceptance evidence tampering.'
