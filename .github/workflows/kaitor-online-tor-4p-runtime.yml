@@ -1,0 +1,135 @@
+name: KaiTOR Online TOR 4P Runtime Acceptance
+
+on:
+  push:
+    branches:
+      - kaitor-online-4p
+    paths:
+      - 'projects/KaiTOROnline/runtime/Test-KaiTORTorFourPlayerRuntime.ps1'
+      - 'projects/KaiTOROnline/runtime/Test-KaiTORTorRuntimeLog.ps1'
+      - 'projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerSnapshot.ps1'
+      - 'projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerMovement.ps1'
+      - '.github/workflows/kaitor-online-tor-4p-runtime.yml'
+  workflow_dispatch:
+
+jobs:
+  validate-tor-four-player-runtime:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build combined TOR and four-player fixtures
+        shell: pwsh
+        run: |
+          $root = "$env:RUNNER_TEMP/kaitor-tor-4p"
+          New-Item -ItemType Directory -Path $root -Force | Out-Null
+
+          @'
+          [Module] TOR_Core initialized
+          Loaded managed assembly TOR_Core.dll
+          [Module] Coop initialized
+          Loaded managed assembly Coop.Core.dll
+          Campaign server ready
+          '@ | Set-Content -LiteralPath "$root/runtime.log" -Encoding UTF8
+
+          function New-Player {
+            param([string]$Id, [double]$X, [double]$Y)
+            [pscustomobject]@{
+              controllerId = "controller-$Id"
+              heroId = "hero-$Id"
+              mobilePartyId = "party-$Id"
+              clanId = "clan-$Id"
+              characterObjectId = "character-$Id"
+              connected = $true
+              partyResolved = $true
+              partyActive = $true
+              mapEventId = ''
+              positionX = $X
+              positionY = $Y
+            }
+          }
+
+          $before = [pscustomobject]@{
+            activeAdmissionSlots = 4
+            playerRegistryCount = 4
+            players = @(
+              New-Player A 10.0 10.0
+              New-Player B 20.0 20.0
+              New-Player C 30.0 30.0
+              New-Player D 40.0 40.0
+            )
+          }
+          $after = [pscustomobject]@{
+            activeAdmissionSlots = 4
+            playerRegistryCount = 4
+            players = @(
+              New-Player A 11.0 10.0
+              New-Player B 20.0 21.5
+              New-Player C 28.0 31.0
+              New-Player D 42.5 38.0
+            )
+          }
+
+          $before | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath "$root/before.json" -Encoding UTF8
+          $after | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath "$root/after.json" -Encoding UTF8
+
+      - name: Accept TOR runtime with four independent authoritative parties
+        shell: pwsh
+        run: |
+          ./projects/KaiTOROnline/runtime/Test-KaiTORTorFourPlayerRuntime.ps1 `
+            -LogPath "$env:RUNNER_TEMP/kaitor-tor-4p/runtime.log" `
+            -BeforeSnapshotPath "$env:RUNNER_TEMP/kaitor-tor-4p/before.json" `
+            -AfterSnapshotPath "$env:RUNNER_TEMP/kaitor-tor-4p/after.json"
+
+      - name: Reject missing TOR runtime evidence
+        shell: pwsh
+        run: |
+          $root = "$env:RUNNER_TEMP/kaitor-tor-4p"
+          @'
+          [Module] Coop initialized
+          Loaded managed assembly Coop.Core.dll
+          Campaign server ready
+          '@ | Set-Content -LiteralPath "$root/no-tor.log" -Encoding UTF8
+
+          $rejected = $false
+          try {
+            & ./projects/KaiTOROnline/runtime/Test-KaiTORTorFourPlayerRuntime.ps1 `
+              -LogPath "$root/no-tor.log" `
+              -BeforeSnapshotPath "$root/before.json" `
+              -AfterSnapshotPath "$root/after.json"
+          }
+          catch {
+            $rejected = $true
+            Write-Host "Expected rejection: $($_.Exception.Message)"
+          }
+          if (-not $rejected) {
+            throw 'Combined runtime validator accepted a process with no TOR_Core evidence.'
+          }
+          Write-Host 'Missing-TOR rejection: PASS'
+
+      - name: Reject TOR runtime with stationary player party
+        shell: pwsh
+        run: |
+          $root = "$env:RUNNER_TEMP/kaitor-tor-4p"
+          $bad = Get-Content -LiteralPath "$root/after.json" -Raw | ConvertFrom-Json
+          $bad.players[3].positionX = 40.0
+          $bad.players[3].positionY = 40.0
+          $badPath = "$root/stationary.json"
+          $bad | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $badPath -Encoding UTF8
+
+          $rejected = $false
+          try {
+            & ./projects/KaiTOROnline/runtime/Test-KaiTORTorFourPlayerRuntime.ps1 `
+              -LogPath "$root/runtime.log" `
+              -BeforeSnapshotPath "$root/before.json" `
+              -AfterSnapshotPath $badPath
+          }
+          catch {
+            $rejected = $true
+            Write-Host "Expected rejection: $($_.Exception.Message)"
+          }
+          if (-not $rejected) {
+            throw 'Combined runtime validator accepted TOR with a stationary MobileParty.'
+          }
+          Write-Host 'Stationary-party rejection: PASS'
