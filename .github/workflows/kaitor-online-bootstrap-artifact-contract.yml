@@ -39,7 +39,7 @@ jobs:
           else {
             $runId = gh run list `
               --repo $env:GITHUB_REPOSITORY `
-              --workflow 'KaiTOR Online 1.3.15 Coop Backport Build' `
+              --workflow 'kaitor-online-1315-coopcore-build.yml' `
               --branch 'kaitor-online-4p' `
               --status success `
               --limit 1 `
