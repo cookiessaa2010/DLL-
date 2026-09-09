@@ -1,0 +1,86 @@
+name: KaiTOR Online 4P Shared Map Snapshot
+
+on:
+  push:
+    branches:
+      - kaitor-online-4p
+    paths:
+      - 'projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerSnapshot.ps1'
+      - '.github/workflows/kaitor-online-4p-shared-map-snapshot.yml'
+  workflow_dispatch:
+
+jobs:
+  validate-four-player-snapshot:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create valid four-player runtime fixture
+        shell: pwsh
+        run: |
+          @'
+          {
+            "activeAdmissionSlots": 4,
+            "playerRegistryCount": 4,
+            "players": [
+              {"controllerId":"A","heroId":"hero-A","mobilePartyId":"party-A","clanId":"clan-A","characterObjectId":"char-A","connected":true},
+              {"controllerId":"B","heroId":"hero-B","mobilePartyId":"party-B","clanId":"clan-B","characterObjectId":"char-B","connected":true},
+              {"controllerId":"C","heroId":"hero-C","mobilePartyId":"party-C","clanId":"clan-C","characterObjectId":"char-C","connected":true},
+              {"controllerId":"D","heroId":"hero-D","mobilePartyId":"party-D","clanId":"clan-D","characterObjectId":"char-D","connected":true}
+            ]
+          }
+          '@ | Set-Content -LiteralPath "$env:RUNNER_TEMP\kaitor-four-online.json" -Encoding UTF8
+
+      - name: Accept four distinct online player graphs
+        shell: pwsh
+        run: |
+          & ./projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerSnapshot.ps1 `
+            -SnapshotPath "$env:RUNNER_TEMP\kaitor-four-online.json" `
+            -Phase four-online
+
+      - name: Accept freed live slot while preserving persistent registration
+        shell: pwsh
+        run: |
+          $snapshot = Get-Content "$env:RUNNER_TEMP\kaitor-four-online.json" -Raw | ConvertFrom-Json
+          $snapshot.activeAdmissionSlots = 3
+          $snapshot.players[2].connected = $false
+          $snapshot | ConvertTo-Json -Depth 5 | Set-Content "$env:RUNNER_TEMP\kaitor-slot-freed.json" -Encoding UTF8
+          & ./projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerSnapshot.ps1 `
+            -SnapshotPath "$env:RUNNER_TEMP\kaitor-slot-freed.json" `
+            -Phase slot-freed
+
+      - name: Reject duplicate MobileParty identity
+        shell: pwsh
+        run: |
+          $snapshot = Get-Content "$env:RUNNER_TEMP\kaitor-four-online.json" -Raw | ConvertFrom-Json
+          $snapshot.players[3].mobilePartyId = $snapshot.players[0].mobilePartyId
+          $snapshot | ConvertTo-Json -Depth 5 | Set-Content "$env:RUNNER_TEMP\kaitor-duplicate-party.json" -Encoding UTF8
+          $failed = $false
+          try {
+            & ./projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerSnapshot.ps1 `
+              -SnapshotPath "$env:RUNNER_TEMP\kaitor-duplicate-party.json" `
+              -Phase four-online
+          }
+          catch {
+            $failed = $true
+            Write-Host "Expected rejection: $($_.Exception.Message)"
+          }
+          if (-not $failed) { throw 'Validator accepted duplicate MobileParty identity.' }
+
+      - name: Reject admission count above four
+        shell: pwsh
+        run: |
+          $snapshot = Get-Content "$env:RUNNER_TEMP\kaitor-four-online.json" -Raw | ConvertFrom-Json
+          $snapshot.activeAdmissionSlots = 5
+          $snapshot | ConvertTo-Json -Depth 5 | Set-Content "$env:RUNNER_TEMP\kaitor-five-slots.json" -Encoding UTF8
+          $failed = $false
+          try {
+            & ./projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerSnapshot.ps1 `
+              -SnapshotPath "$env:RUNNER_TEMP\kaitor-five-slots.json" `
+              -Phase four-online
+          }
+          catch {
+            $failed = $true
+            Write-Host "Expected rejection: $($_.Exception.Message)"
+          }
+          if (-not $failed) { throw 'Validator accepted activeAdmissionSlots > 4.' }
