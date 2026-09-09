@@ -47,12 +47,12 @@ foreach ($property in $requiredEvidence) {
 
     $fileName = [string]$entry.file
     if ([string]::IsNullOrWhiteSpace($fileName) -or $fileName -ne [IO.Path]::GetFileName($fileName)) {
-        throw "Unsafe evidence filename in acceptance manifest for $property: $fileName"
+        throw "Unsafe evidence filename in acceptance manifest for ${property}: $fileName"
     }
 
     $path = Join-Path $root $fileName
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
-        throw "Acceptance evidence file missing for $property: $path"
+        throw "Acceptance evidence file missing for ${property}: $path"
     }
 
     $item = Get-Item -LiteralPath $path
