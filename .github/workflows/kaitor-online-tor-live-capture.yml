@@ -28,6 +28,8 @@ jobs:
           $dir = "$env:RUNNER_TEMP/kaitor-live-capture"
           New-Item -ItemType Directory -Force -Path $dir | Out-Null
           @'
+          Module TOR_Armory loaded
+          Module TOR_Environment loaded
           Module TOR_Core loaded
           Module Coop loaded
           '@ | Set-Content -LiteralPath "$dir/runtime.log" -Encoding UTF8
