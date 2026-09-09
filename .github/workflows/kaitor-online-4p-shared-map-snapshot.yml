@@ -57,6 +57,7 @@ jobs:
             throw 'Snapshot exporter did not create its normalized JSON output.'
           }
           Write-Host 'Snapshot exporter ignores stale native LASTEXITCODE: PASS'
+          $global:LASTEXITCODE = 0
 
       - name: Accept freed live slot while preserving persistent registration
         shell: pwsh
