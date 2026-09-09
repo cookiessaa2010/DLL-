@@ -139,6 +139,39 @@ jobs:
           }
           Write-Host 'Incomplete-TOR rejection: PASS'
 
+      - name: Reject out-of-order TOR runtime evidence
+        shell: pwsh
+        run: |
+          $root = "$env:RUNNER_TEMP/kaitor-tor-4p"
+          @'
+          [Module] TOR_Armory initialized
+          Loaded managed assembly TOR_Armory.dll
+          [Module] TOR_Core initialized
+          Loaded managed assembly TOR_Core.dll
+          [Module] TOR_Environment initialized
+          Loaded managed assembly TOR_Environment.dll
+          [Module] Coop initialized
+          Loaded managed assembly Coop.Core.dll
+          Campaign server ready
+          '@ | Set-Content -LiteralPath "$root/out-of-order-tor.log" -Encoding UTF8
+
+          $rejected = $false
+          try {
+            & ./projects/KaiTOROnline/runtime/Test-KaiTORTorFourPlayerRuntime.ps1 `
+              -LogPath "$root/out-of-order-tor.log" `
+              -BeforeSnapshotPath "$root/before.json" `
+              -AfterSnapshotPath "$root/after.json"
+          }
+          catch {
+            $rejected = $true
+            Write-Host "Expected rejection: $($_.Exception.Message)"
+            if ($_.Exception.Message -notmatch 'module order invalid') { throw }
+          }
+          if (-not $rejected) {
+            throw 'Combined runtime validator accepted an out-of-order TOR module stack.'
+          }
+          Write-Host 'TOR module-order rejection: PASS'
+
       - name: Reject TOR runtime with stationary player party
         shell: pwsh
         run: |
