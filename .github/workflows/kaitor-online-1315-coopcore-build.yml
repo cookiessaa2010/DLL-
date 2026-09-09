@@ -85,6 +85,18 @@ jobs:
             Set-Content -LiteralPath (Join-Path $moduleDir 'SubModule.xml') -Value '<Module />' -Encoding ASCII
           }
 
+          # The launcher now runs the strict runtime preflight even in DryRun mode. Keep the
+          # synthetic launch-contract tree realistic enough to satisfy that gate rather than
+          # weakening production validation for tests.
+          $coopDir = Join-Path $root 'Modules/Coop'
+          $coopXml = '<Module><DependedModules><DependedModule Id="Native" DependentVersion="v1.3.15" /></DependedModules></Module>'
+          Set-Content -LiteralPath (Join-Path $coopDir 'SubModule.xml') -Value $coopXml -Encoding ASCII
+          $coopBin = Join-Path $coopDir 'bin/Win64_Shipping_Client'
+          New-Item -ItemType Directory -Force -Path $coopBin | Out-Null
+          foreach ($assembly in @('Coop.dll', 'Coop.Core.dll', 'GameInterface.dll')) {
+            Set-Content -LiteralPath (Join-Path $coopBin $assembly) -Value 'CI placeholder' -Encoding ASCII
+          }
+
           $launcher = Resolve-Path ./kaitor/projects/KaiTOROnline/runtime/Start-KaiTORCampaignServer.ps1
           $output = & $launcher `
             -BannerlordRoot $root `
