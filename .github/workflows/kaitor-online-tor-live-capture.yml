@@ -32,6 +32,7 @@ jobs:
           Module TOR_Environment loaded
           Module TOR_Core loaded
           Module Coop loaded
+          Campaign server entered running state
           '@ | Set-Content -LiteralPath "$dir/runtime.log" -Encoding UTF8
           Set-Content -LiteralPath "$dir/server-output.log" -Value 'server ready' -Encoding UTF8
 
