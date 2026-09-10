@@ -5,6 +5,7 @@ using GameInterface.Services.Players;
 using Newtonsoft.Json;
 using System;
 using System.Linq;
+using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Party;
 
 namespace Coop.Core.Server.Commands
@@ -43,6 +44,7 @@ namespace Coop.Core.Server.Commands
                 .Select(player =>
                 {
                     var partyResolved = objectManager.TryGetObject(player.MobilePartyId, out MobileParty party);
+                    var heroResolved = objectManager.TryGetObject(player.HeroId, out Hero hero);
                     return new
                     {
                         controllerId = player.ControllerId,
@@ -51,6 +53,10 @@ namespace Coop.Core.Server.Commands
                         clanId = player.ClanId,
                         characterObjectId = player.CharacterObjectId,
                         connected = playerManager.IsConnected(player),
+                        heroResolved,
+                        heroIsDead = heroResolved && hero.IsDead,
+                        heroIsPrisoner = heroResolved && hero.IsPrisoner,
+                        prisonerPartyId = heroResolved ? hero.PartyBelongedToAsPrisoner?.StringId : null,
                         partyResolved,
                         partyActive = partyResolved && party.IsActive,
                         mapEventId = partyResolved ? party.MapEvent?.StringId : null,
