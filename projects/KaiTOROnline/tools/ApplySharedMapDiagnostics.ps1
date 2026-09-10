@@ -62,7 +62,7 @@ Replace-Exact `
 
 # Mission teardown is also a client-originated command. Require the requesting peer to resolve to
 # a registered player whose authoritative MobileParty is part of the exact MapEvent before a live
-# battle can be finalized, so players remaining on the campaign map cannot tear down another fight.
+# battle can be finalized. The 1.3.15 implementation proves membership through InvolvedParties.
 & (Join-Path $PSScriptRoot 'ApplyFourPlayerMissionFinalizeOwnership.ps1') -UpstreamRoot $UpstreamRoot
 
 # Fail staging before compilation if either edge of the partial-battle contract regresses: mission
