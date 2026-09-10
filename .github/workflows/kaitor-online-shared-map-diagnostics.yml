@@ -8,6 +8,9 @@ on:
       - 'projects/KaiTOROnline/tools/ApplySharedMapDiagnostics.ps1'
       - 'projects/KaiTOROnline/tools/ApplyFourPlayerMovementOwnership.ps1'
       - 'projects/KaiTOROnline/tools/ApplyFourPlayerEncounterOwnership.ps1'
+      - 'projects/KaiTOROnline/tools/ApplyFourPlayerMissionFinalizeOwnership.ps1'
+      - 'projects/KaiTOROnline/tools/ApplyFourPlayerBattleLeaveOwnership.ps1'
+      - 'projects/KaiTOROnline/tools/TestFourPlayerMissionIsolationStaging.ps1'
       - 'projects/KaiTOROnline/upstream-overlay/source/Coop.Core/Server/Commands/KaiTORFourPlayerSnapshotCommand.cs'
       - '.github/workflows/kaitor-online-shared-map-diagnostics.yml'
   workflow_dispatch:
