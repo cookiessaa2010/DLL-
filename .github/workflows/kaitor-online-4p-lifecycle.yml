@@ -6,6 +6,7 @@ on:
       - kaitor-online-4p
     paths:
       - 'projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerLifecycle.ps1'
+      - 'projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerRestartReconnect.ps1'
       - 'projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerSnapshot.ps1'
       - '.github/workflows/kaitor-online-4p-lifecycle.yml'
   workflow_dispatch:
@@ -24,7 +25,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path fixtures | Out-Null
 
           function New-Player {
-            param([string]$Id, [bool]$Connected)
+            param([string]$Id, [bool]$Connected, [double]$X, [double]$Y)
             [ordered]@{
               controllerId = "controller-$Id"
               heroId = "hero-$Id"
@@ -32,30 +33,52 @@ jobs:
               clanId = "clan-$Id"
               characterObjectId = "character-$Id"
               connected = $Connected
+              partyResolved = $true
+              partyActive = $Connected
+              mapEventId = ''
+              positionX = $X
+              positionY = $Y
             }
           }
 
-          $onlinePlayers = @(
-            New-Player A $true
-            New-Player B $true
-            New-Player C $true
-            New-Player D $true
-          )
-          $online = [ordered]@{ activeAdmissionSlots = 4; playerRegistryCount = 4; players = $onlinePlayers }
+          function New-Snapshot {
+            param([string[]]$ConnectedIds)
+
+            $connected = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+            foreach ($id in $ConnectedIds) { [void]$connected.Add($id) }
+
+            $players = @(
+              New-Player A ($connected.Contains('A')) 101.25 201.5
+              New-Player B ($connected.Contains('B')) 302.75 402.0
+              New-Player C ($connected.Contains('C')) 503.5 604.25
+              New-Player D ($connected.Contains('D')) 705.0 806.75
+            )
+
+            return [ordered]@{
+              activeAdmissionSlots = $ConnectedIds.Count
+              playerRegistryCount = 4
+              players = $players
+            }
+          }
+
+          $online = New-Snapshot @('A','B','C','D')
           $online | ConvertTo-Json -Depth 8 | Set-Content fixtures/four-online.json -Encoding utf8
 
-          $freedPlayers = @(
-            New-Player A $true
-            New-Player B $true
-            New-Player C $true
-            New-Player D $false
-          )
-          $freed = [ordered]@{ activeAdmissionSlots = 3; playerRegistryCount = 4; players = $freedPlayers }
+          $freed = New-Snapshot @('A','B','C')
           $freed | ConvertTo-Json -Depth 8 | Set-Content fixtures/slot-freed.json -Encoding utf8
 
-          $reconnected = [ordered]@{ activeAdmissionSlots = 4; playerRegistryCount = 4; players = $onlinePlayers }
+          $reconnected = New-Snapshot @('A','B','C','D')
           $reconnected | ConvertTo-Json -Depth 8 | Set-Content fixtures/reconnected.json -Encoding utf8
           $reconnected | ConvertTo-Json -Depth 8 | Set-Content fixtures/restarted.json -Encoding utf8
+
+          # Full server restart starts with four persistent registrations but no live NetPeers.
+          (New-Snapshot @()) | ConvertTo-Json -Depth 8 | Set-Content fixtures/after-restart.json -Encoding utf8
+
+          # Intentionally reconnect in a different order from A/B/C/D: D -> B -> A -> C.
+          (New-Snapshot @('D')) | ConvertTo-Json -Depth 8 | Set-Content fixtures/reconnect-1.json -Encoding utf8
+          (New-Snapshot @('D','B')) | ConvertTo-Json -Depth 8 | Set-Content fixtures/reconnect-2.json -Encoding utf8
+          (New-Snapshot @('D','B','A')) | ConvertTo-Json -Depth 8 | Set-Content fixtures/reconnect-3.json -Encoding utf8
+          (New-Snapshot @('D','B','A','C')) | ConvertTo-Json -Depth 8 | Set-Content fixtures/reconnect-4.json -Encoding utf8
 
       - name: Validate preserved controller-to-campaign identity graph
         shell: pwsh
@@ -65,6 +88,20 @@ jobs:
             -SlotFreedSnapshotPath ./fixtures/slot-freed.json `
             -ReconnectedSnapshotPath ./fixtures/reconnected.json `
             -RestartedSnapshotPath ./fixtures/restarted.json
+
+      - name: Validate restart and out-of-order reconnect state
+        shell: pwsh
+        run: |
+          ./projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerRestartReconnect.ps1 `
+            -BeforeRestartSnapshotPath ./fixtures/four-online.json `
+            -AfterRestartSnapshotPath ./fixtures/after-restart.json `
+            -ReconnectSnapshotPaths @(
+              './fixtures/reconnect-1.json',
+              './fixtures/reconnect-2.json',
+              './fixtures/reconnect-3.json',
+              './fixtures/reconnect-4.json'
+            ) `
+            -ExpectedReconnectOrder @('controller-D','controller-B','controller-A','controller-C')
 
       - name: Reject identity drift across reconnect
         shell: pwsh
@@ -87,4 +124,58 @@ jobs:
 
           if (-not $failed) {
             throw 'Lifecycle validator accepted a replaced MobileParty identity across reconnect.'
+          }
+
+      - name: Reject position drift across server restart
+        shell: pwsh
+        run: |
+          $bad = Get-Content ./fixtures/after-restart.json -Raw | ConvertFrom-Json
+          $bad.players[1].positionX = [double]$bad.players[1].positionX + 25.0
+          $bad | ConvertTo-Json -Depth 8 | Set-Content ./fixtures/after-restart-position-bad.json -Encoding utf8
+
+          $failed = $false
+          try {
+            ./projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerRestartReconnect.ps1 `
+              -BeforeRestartSnapshotPath ./fixtures/four-online.json `
+              -AfterRestartSnapshotPath ./fixtures/after-restart-position-bad.json `
+              -ReconnectSnapshotPaths @(
+                './fixtures/reconnect-1.json',
+                './fixtures/reconnect-2.json',
+                './fixtures/reconnect-3.json',
+                './fixtures/reconnect-4.json'
+              ) `
+              -ExpectedReconnectOrder @('controller-D','controller-B','controller-A','controller-C')
+          }
+          catch {
+            $failed = $true
+            Write-Host "Expected rejection: $($_.Exception.Message)"
+          }
+
+          if (-not $failed) {
+            throw 'Restart/reconnect validator accepted authoritative party position drift.'
+          }
+
+      - name: Reject reconnect-order mismatch
+        shell: pwsh
+        run: |
+          $failed = $false
+          try {
+            ./projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerRestartReconnect.ps1 `
+              -BeforeRestartSnapshotPath ./fixtures/four-online.json `
+              -AfterRestartSnapshotPath ./fixtures/after-restart.json `
+              -ReconnectSnapshotPaths @(
+                './fixtures/reconnect-1.json',
+                './fixtures/reconnect-2.json',
+                './fixtures/reconnect-3.json',
+                './fixtures/reconnect-4.json'
+              ) `
+              -ExpectedReconnectOrder @('controller-A','controller-B','controller-C','controller-D')
+          }
+          catch {
+            $failed = $true
+            Write-Host "Expected rejection: $($_.Exception.Message)"
+          }
+
+          if (-not $failed) {
+            throw 'Restart/reconnect validator accepted a reconnect sequence that did not match observed live peers.'
           }
