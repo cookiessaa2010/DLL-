@@ -67,7 +67,8 @@ $new = @'
             }
 
             if (!objectManager.TryGetObject<MobileParty>(requestingPlayer.MobilePartyId, out var requestingParty)
-                || mapEvent.FindMapEventParty(requestingParty.Party) == null)
+                || mapEvent.InvolvedParties == null
+                || !mapEvent.InvolvedParties.Contains(requestingParty.Party))
             {
                 Logger.Warning("Rejecting finalize of {MapEventId} from non-participant {ControllerId}",
                     payload.What.MapEventId, requestingPlayer.ControllerId);
