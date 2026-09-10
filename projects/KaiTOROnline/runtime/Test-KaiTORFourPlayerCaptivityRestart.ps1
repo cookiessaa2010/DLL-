@@ -31,8 +31,14 @@ function Assert-FourPersistentRegistrations($Snapshot, [string]$Name) {
     if (@($Snapshot.players).Count -ne 4 -or [int]$Snapshot.playerRegistryCount -ne 4) {
         throw "$Name must preserve exactly four persistent player registrations."
     }
-    if ([int]$Snapshot.activeAdmissionSlots -gt 4) {
+
+    $connectedCount = @($Snapshot.players | Where-Object { [bool]$_.connected }).Count
+    $activeSlots = [int]$Snapshot.activeAdmissionSlots
+    if ($activeSlots -gt 4) {
         throw "$Name exceeds the four-player admission limit."
+    }
+    if ($activeSlots -ne $connectedCount) {
+        throw "$Name admission slot accounting mismatch: activeAdmissionSlots=$activeSlots but connectedPlayers=$connectedCount."
     }
 }
 
@@ -132,4 +138,5 @@ Write-Output 'KaiTOR four-player captivity restart/reconnect lifecycle: PASS'
 Write-Output "  Controller: $ControllerId"
 Write-Output '  Captivity persisted through disconnect, save/restart, and reconnect'
 Write-Output '  Captive MobileParty remained inactive until authoritative release'
-Write-Output '  Four-player registration cap and unaffected player graphs were preserved'
+Write-Output '  Admission slots matched connected peers while preserving the four-player cap'
+Write-Output '  Four-player persistent registrations and unaffected player graphs were preserved'
