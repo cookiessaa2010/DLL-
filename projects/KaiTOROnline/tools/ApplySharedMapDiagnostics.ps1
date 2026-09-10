@@ -62,9 +62,14 @@ Replace-Exact `
 # regain authoritative leadership through the existing restorer.
 & (Join-Path $PSScriptRoot 'ApplyFourPlayerDefeatLifecycleSafety.ps1') -UpstreamRoot $UpstreamRoot
 
+# Successor/first-character creation must remain bound to the controller identity already admitted
+# for this exact NetPeer. The PlayerId repeated in NetworkTransferNewHero is client-supplied data.
+& (Join-Path $PSScriptRoot 'ApplyFourPlayerSuccessorIdentitySafety.ps1') -UpstreamRoot $UpstreamRoot
+
 & (Join-Path $PSScriptRoot 'TestFourPlayerMissionIsolationStaging.ps1') -UpstreamRoot $UpstreamRoot
 & (Join-Path $PSScriptRoot 'TestFourPlayerTimeAuthorityStaging.ps1') -UpstreamRoot $UpstreamRoot
 & (Join-Path $PSScriptRoot 'TestFourPlayerDefeatLifecycleStaging.ps1') -UpstreamRoot $UpstreamRoot
+& (Join-Path $PSScriptRoot 'TestFourPlayerSuccessorIdentityStaging.ps1') -UpstreamRoot $UpstreamRoot
 
 Write-Host 'KaiTOR shared-map diagnostics applied successfully.'
 Write-Host 'Server command: coop.debug.kaitor.snapshot4p'
