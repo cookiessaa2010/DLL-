@@ -241,3 +241,5 @@ jobs:
           }
 
           Write-Host 'KaiTOR four-player save/restart/reconnect persistence path: PASS'
+
+      # Keep this workflow path-sensitive: changes to any ownership patcher above must exercise staging + compile.
