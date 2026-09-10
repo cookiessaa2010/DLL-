@@ -51,43 +51,20 @@ Replace-Exact `
     '        builder.RegisterModule<ConnectionModule>();' `
     "        builder.RegisterModule<ConnectionModule>();`n        builder.RegisterType<KaiTORFourPlayerSnapshotCommand>().As<ICoopCommand>().InstancePerDependency();"
 
-# Shared-map diagnostics are only useful if each remote controller is authoritative over its own
-# party and cannot submit behavior for another player's MobileParty. Keep this core gate in the
-# same full-build staging path so every packaged Coop.Core carries it.
 & (Join-Path $PSScriptRoot 'ApplyFourPlayerMovementOwnership.ps1') -UpstreamRoot $UpstreamRoot
-
-# Encounter/conversation ids are client supplied too. Bind every request to the authenticated
-# peer's persistent MobileParty before vanilla PlayerEncounter/MapEvent creation can run.
 & (Join-Path $PSScriptRoot 'ApplyFourPlayerEncounterOwnership.ps1') -UpstreamRoot $UpstreamRoot
-
-# Mission teardown is also a client-originated command. Require the requesting peer to resolve to
-# a registered player whose authoritative MobileParty is part of the exact MapEvent before a live
-# battle can be finalized. The 1.3.15 implementation proves membership through InvolvedParties.
 & (Join-Path $PSScriptRoot 'ApplyFourPlayerMissionFinalizeOwnership.ps1') -UpstreamRoot $UpstreamRoot
-
-# Leaving a still-live battle is a separate client-originated path from finalization. Reject a
-# NetworkRequestLeaveBattle unless its NetPeer owns the exact PartyId being removed, otherwise one
-# campaign-map client could eject another player's party from an active mission/MapEvent.
 & (Join-Path $PSScriptRoot 'ApplyFourPlayerBattleLeaveOwnership.ps1') -UpstreamRoot $UpstreamRoot
-
-# Campaign time is a global authoritative resource. A stale or unknown NetPeer must never be able
-# to pause/unpause/fast-forward the shared campaign; only a currently registered controller may
-# request a mode change. Existing occupancy policies still decide the effective speed.
 & (Join-Path $PSScriptRoot 'ApplyFourPlayerTimeAuthority.ps1') -UpstreamRoot $UpstreamRoot
 
-# A defeated player's MobileParty may legitimately disappear, but reconnect/restart must not
-# fabricate a new active party around a permanently dead Hero. Successor/respawn policy is a
-# separate explicit transition. Prisoner restoration remains parked/inactive in upstream logic.
+# Defeat lifecycle: never let reconnect/restart implicitly resurrect a permanently dead Hero by
+# manufacturing a fresh active MobileParty. Prisoners remain parked and released/live heroes can
+# regain authoritative leadership through the existing restorer.
 & (Join-Path $PSScriptRoot 'ApplyFourPlayerDefeatLifecycleSafety.ps1') -UpstreamRoot $UpstreamRoot
 
-# Fail staging before compilation if either edge of the partial-battle contract regresses: mission
-# start must stay participant-targeted, battle leave must stay owned, and finalization must stay
-# peer/player/party/event-owned.
 & (Join-Path $PSScriptRoot 'TestFourPlayerMissionIsolationStaging.ps1') -UpstreamRoot $UpstreamRoot
-
-# Verify the global time resource remains server-authoritative while preserving the upstream
-# partial-battle rule: auto-pause only when every connected player is occupied.
 & (Join-Path $PSScriptRoot 'TestFourPlayerTimeAuthorityStaging.ps1') -UpstreamRoot $UpstreamRoot
+& (Join-Path $PSScriptRoot 'TestFourPlayerDefeatLifecycleStaging.ps1') -UpstreamRoot $UpstreamRoot
 
 Write-Host 'KaiTOR shared-map diagnostics applied successfully.'
 Write-Host 'Server command: coop.debug.kaitor.snapshot4p'
