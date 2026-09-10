@@ -99,6 +99,27 @@ jobs:
           } catch { $failed = $true; Write-Host "Expected rejection: $($_.Exception.Message)" }
           if (-not $failed) { throw 'Validator accepted inactive post-battle MobileParty.' }
 
+      - name: Reject dead or captive player in shared post-battle movement
+        shell: pwsh
+        run: |
+          $badPost = Get-Content fixtures/post.json -Raw | ConvertFrom-Json
+          $badMoved = Get-Content fixtures/moved.json -Raw | ConvertFrom-Json
+          $badPost.players[2].heroIsPrisoner = $true
+          $badPost.players[2].prisonerPartyId = 'captor-party-X'
+          $badMoved.players[2].heroIsPrisoner = $true
+          $badMoved.players[2].prisonerPartyId = 'captor-party-X'
+          $badPost | ConvertTo-Json -Depth 8 | Set-Content fixtures/post-captive-other.json -Encoding utf8
+          $badMoved | ConvertTo-Json -Depth 8 | Set-Content fixtures/moved-captive-other.json -Encoding utf8
+          $failed = $false
+          try {
+            ./projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerPostBattleMovement.ps1 `
+              -InBattleSnapshotPath ./fixtures/battle.json `
+              -PostBattleSnapshotPath ./fixtures/post-captive-other.json `
+              -MovedSnapshotPath ./fixtures/moved-captive-other.json `
+              -ControllerId controller-B
+          } catch { $failed = $true; Write-Host "Expected rejection: $($_.Exception.Message)" }
+          if (-not $failed) { throw 'Validator accepted shared post-battle movement while another Hero remained captive.' }
+
       - name: Reject lockstep movement
         shell: pwsh
         run: |
