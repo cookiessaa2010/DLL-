@@ -58,8 +58,44 @@ if ($releaseHandlerIndex -lt 0 -or $releaseGuardIndex -lt 0 -or $releaseActivate
     throw 'Captivity release Hero-state guard must execute before party activation.'
 }
 
+$resolvePath = Join-Path $UpstreamRoot 'source/Coop.Core/Server/Connections/States/ResolveCharacterState.cs'
+if (-not (Test-Path -LiteralPath $resolvePath)) {
+    throw "Missing staged ResolveCharacterState.cs: $resolvePath"
+}
+
+$resolve = [IO.File]::ReadAllText($resolvePath) -replace "`r`n", "`n"
+
+if ($resolve -notmatch 'var heroIsDead = false;') {
+    throw 'Reconnect does not track the authoritative dead-Hero state.'
+}
+if ($resolve -notmatch 'heroIsDead = hero\.IsDead;\s+if \(heroIsDead\) return;') {
+    throw 'Reconnect does not stop party restoration for a dead Hero on the game thread.'
+}
+if ($resolve -notmatch 'if \(heroExists && heroIsDead\)') {
+    throw 'Dead registered controllers are not routed through an explicit successor path.'
+}
+if ($resolve -notmatch 'playerManager\.RemovePlayer\(player\)') {
+    throw 'Successor routing does not release the obsolete dead-Hero registration.'
+}
+if ($resolve -notmatch 'NetworkPlayerRemoved\(player\.ControllerId, player\.HeroId\)') {
+    throw 'Successor routing does not release the old controller/Hero binding on other clients.'
+}
+if ($resolve -notmatch 'network\.SendImmediate\(peer, new NetworkClientValidated\(false, null\)\)') {
+    throw 'Successor routing does not explicitly select normal character creation for the admitted peer.'
+}
+
+$successorIndex = $resolve.IndexOf('if (heroExists && heroIsDead)', [StringComparison]::Ordinal)
+$removeIndex = $resolve.IndexOf('playerManager.RemovePlayer(player);', $successorIndex, [StringComparison]::Ordinal)
+$createIndex = $resolve.IndexOf('ConnectionLogic.CreateCharacter();', $successorIndex, [StringComparison]::Ordinal)
+$genericRestoreFailureIndex = $resolve.IndexOf('if (heroExists)', $successorIndex + 1, [StringComparison]::Ordinal)
+if ($successorIndex -lt 0 -or $removeIndex -lt 0 -or $createIndex -lt 0 -or $genericRestoreFailureIndex -lt 0 -or
+    $successorIndex -gt $removeIndex -or $removeIndex -gt $createIndex -or $createIndex -gt $genericRestoreFailureIndex) {
+    throw 'Dead-controller successor routing must run before the generic unrecoverable-party disconnect path.'
+}
+
 Write-Host 'KaiTOR four-player defeat lifecycle staging: PASS'
 Write-Host '  dead hero -> no implicit recovery-party resurrection'
+Write-Host '  dead registered controller -> old binding removed and admitted peer routed to successor creation'
 Write-Host '  prisoner -> party remains inactive/parked'
 Write-Host '  stale release/dead hero -> party remains parked'
 Write-Host '  live released hero -> authoritative party activation remains available'
