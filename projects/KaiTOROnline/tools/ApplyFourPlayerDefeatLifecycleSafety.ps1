@@ -81,4 +81,94 @@ if (-not $visibility.Contains($releaseOld)) {
 $visibility = $visibility.Replace($releaseOld, $releaseNew)
 [IO.File]::WriteAllText($visibilityPath, $visibility, [Text.UTF8Encoding]::new($false))
 
-Write-Host 'KaiTOR dead-player recovery and captivity-release lifecycle guards applied successfully.'
+$resolvePath = Join-Path $UpstreamRoot 'source/Coop.Core/Server/Connections/States/ResolveCharacterState.cs'
+if (-not (Test-Path -LiteralPath $resolvePath)) {
+    throw "Missing upstream resolve-character state: $resolvePath"
+}
+
+$resolve = [IO.File]::ReadAllText($resolvePath) -replace "`r`n", "`n"
+
+$resolveOld = @'
+            var heroExists = false;
+            var partyRestored = false;
+            var registrationReplaced = false;
+            var restoredPlayer = player;
+
+            // Resolve campaign objects and repair the registration on the game thread. A loaded
+            // party can be registered by an earlier queued apply even though this poll-thread
+            // validation has already arrived.
+            GameThread.Run(() =>
+            {
+                heroExists = objectManager.TryGetObjectWithLogging(player.HeroId, out Hero _);
+                if (!heroExists) return;
+
+                partyRestored = playerPartyRestorer.TryRestore(player, out restoredPlayer);
+'@ -replace "`r`n", "`n"
+
+$resolveNew = @'
+            var heroExists = false;
+            var heroIsDead = false;
+            var partyRestored = false;
+            var registrationReplaced = false;
+            var restoredPlayer = player;
+
+            // Resolve campaign objects and repair the registration on the game thread. A loaded
+            // party can be registered by an earlier queued apply even though this poll-thread
+            // validation has already arrived.
+            GameThread.Run(() =>
+            {
+                heroExists = objectManager.TryGetObjectWithLogging(player.HeroId, out Hero hero);
+                if (!heroExists) return;
+
+                heroIsDead = hero.IsDead;
+                if (heroIsDead) return;
+
+                partyRestored = playerPartyRestorer.TryRestore(player, out restoredPlayer);
+'@ -replace "`r`n", "`n"
+
+if (-not $resolve.Contains($resolveOld)) {
+    throw "Dead-controller successor detection anchor not found in ResolveCharacterState.cs"
+}
+
+$resolve = $resolve.Replace($resolveOld, $resolveNew)
+
+$successorAnchor = @'
+            if (heroExists)
+            {
+                if (!partyRestored || (!ReferenceEquals(restoredPlayer, player) && !registrationReplaced))
+'@ -replace "`r`n", "`n"
+
+$successorReplacement = @'
+            if (heroExists && heroIsDead)
+            {
+                // A dead Hero is terminal for that campaign character, but the persistent controller
+                // identity must remain usable. Drop only the obsolete registration, tell the other
+                // clients to release that controller/Hero binding, and route this same admitted
+                // connection through normal character creation for an explicit successor.
+                Logger.Information(
+                    "Controller {ControllerId} hero {HeroId} is dead; releasing the old registration and creating a successor",
+                    controllerId,
+                    player.HeroId);
+
+                playerManager.RemovePlayer(player);
+                network.SendAllBut(
+                    peer,
+                    new GameInterface.Services.Players.Messages.NetworkPlayerRemoved(player.ControllerId, player.HeroId));
+                network.SendImmediate(peer, new NetworkClientValidated(false, null));
+                ConnectionLogic.CreateCharacter();
+                return;
+            }
+
+            if (heroExists)
+            {
+                if (!partyRestored || (!ReferenceEquals(restoredPlayer, player) && !registrationReplaced))
+'@ -replace "`r`n", "`n"
+
+if (-not $resolve.Contains($successorAnchor)) {
+    throw "Dead-controller successor routing anchor not found in ResolveCharacterState.cs"
+}
+
+$resolve = $resolve.Replace($successorAnchor, $successorReplacement)
+[IO.File]::WriteAllText($resolvePath, $resolve, [Text.UTF8Encoding]::new($false))
+
+Write-Host 'KaiTOR dead-player recovery, successor routing, and captivity-release lifecycle guards applied successfully.'
