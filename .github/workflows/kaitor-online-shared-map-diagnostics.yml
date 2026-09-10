@@ -7,6 +7,7 @@ on:
     paths:
       - 'projects/KaiTOROnline/tools/ApplySharedMapDiagnostics.ps1'
       - 'projects/KaiTOROnline/tools/ApplyFourPlayerMovementOwnership.ps1'
+      - 'projects/KaiTOROnline/tools/ApplyFourPlayerEncounterOwnership.ps1'
       - 'projects/KaiTOROnline/upstream-overlay/source/Coop.Core/Server/Commands/KaiTORFourPlayerSnapshotCommand.cs'
       - '.github/workflows/kaitor-online-shared-map-diagnostics.yml'
   workflow_dispatch:
@@ -48,7 +49,7 @@ jobs:
         shell: pwsh
         run: ./kaitor/projects/KaiTOROnline/tools/ApplyNetPeerIdentitySafety.ps1 -UpstreamRoot (Resolve-Path ./upstream)
 
-      - name: Apply shared-map runtime diagnostics and movement ownership gate
+      - name: Apply shared-map runtime diagnostics and ownership gates
         shell: pwsh
         run: ./kaitor/projects/KaiTOROnline/tools/ApplySharedMapDiagnostics.ps1 -UpstreamRoot (Resolve-Path ./upstream)
 
@@ -108,6 +109,48 @@ jobs:
           }
 
           Write-Host 'KaiTOR server-authoritative movement ownership staging: PASS'
+
+      - name: Verify four-player encounter ownership and battle participant isolation
+        shell: pwsh
+        run: |
+          $conversation = Get-Content './upstream/source/GameInterface/Services/MapEvents/Handlers/ConversationRequestHandler.cs' -Raw
+          $mission = Get-Content './upstream/source/GameInterface/Services/MapEvents/Handlers/BattleMissionStartHandler.cs' -Raw
+
+          if ($conversation -notmatch 'RequesterOwnsRequestedPlayerParty\(requestingPeer, attacker, defender\)') {
+            throw 'Encounter request is not gated by authenticated peer ownership.'
+          }
+          if ($conversation -notmatch 'playerManager\.TryGetPlayer\(requestingPeer, out var player\)') {
+            throw 'Encounter ownership gate does not resolve the authenticated player.'
+          }
+          if ($conversation -notmatch 'objectManager\.TryGetObject<MobileParty>\(player\.MobilePartyId, out var requestingParty\)') {
+            throw 'Encounter ownership gate does not resolve the requester MobileParty.'
+          }
+          if ($conversation -notmatch 'ReferenceEquals\(requestingParty\.Party, attacker\)') {
+            throw 'Encounter ownership gate does not bind the requester to the attacker side.'
+          }
+          if ($conversation -notmatch 'ReferenceEquals\(requestingParty\.Party, defender\)') {
+            throw 'Encounter ownership gate does not bind the requester to the defender side.'
+          }
+          if ($mission -notmatch 'TryGetRequestingParticipant\(requester, payload\.What, mapEvent, out var attackerMobileParty\)') {
+            throw 'Battle start does not validate the requesting participant.'
+          }
+          if ($mission -notmatch '!string\.Equals\(player\.MobilePartyId, request\.AttackerPartyId, StringComparison\.Ordinal\)') {
+            throw 'Battle start still trusts a client-supplied initiating party id.'
+          }
+          if ($mission -notmatch 'mapEvent\.FindMapEventParty\(party\.Party\) != null') {
+            throw 'Battle start does not require the requester party to belong to the authoritative MapEvent.'
+          }
+          if ($mission -notmatch 'mapEvent\.FindMapEventParty\(party\.Party, out var side\) is not MapEventParty mapEventParty') {
+            throw 'Mission participant list is not derived from authoritative MapEvent membership.'
+          }
+          if ($mission -notmatch 'foreach \(var participant in participants\)') {
+            throw 'Mission start is not targeted over the authoritative participant set.'
+          }
+          if ($mission -notmatch 'network\.Send\(participant\.Peer, message\)') {
+            throw 'Mission start is broadcast instead of being sent only to battle participants.'
+          }
+
+          Write-Host 'KaiTOR four-player encounter ownership and battle participant isolation: PASS'
 
       - name: Verify authoritative movement replication path
         shell: pwsh
