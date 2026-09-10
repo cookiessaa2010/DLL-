@@ -75,6 +75,11 @@ Replace-Exact `
 # request a mode change. Existing occupancy policies still decide the effective speed.
 & (Join-Path $PSScriptRoot 'ApplyFourPlayerTimeAuthority.ps1') -UpstreamRoot $UpstreamRoot
 
+# A defeated player's MobileParty may legitimately disappear, but reconnect/restart must not
+# fabricate a new active party around a permanently dead Hero. Successor/respawn policy is a
+# separate explicit transition. Prisoner restoration remains parked/inactive in upstream logic.
+& (Join-Path $PSScriptRoot 'ApplyFourPlayerDefeatLifecycleSafety.ps1') -UpstreamRoot $UpstreamRoot
+
 # Fail staging before compilation if either edge of the partial-battle contract regresses: mission
 # start must stay participant-targeted, battle leave must stay owned, and finalization must stay
 # peer/player/party/event-owned.
