@@ -70,6 +70,11 @@ Replace-Exact `
 # campaign-map client could eject another player's party from an active mission/MapEvent.
 & (Join-Path $PSScriptRoot 'ApplyFourPlayerBattleLeaveOwnership.ps1') -UpstreamRoot $UpstreamRoot
 
+# Campaign time is a global authoritative resource. A stale or unknown NetPeer must never be able
+# to pause/unpause/fast-forward the shared campaign; only a currently registered controller may
+# request a mode change. Existing occupancy policies still decide the effective speed.
+& (Join-Path $PSScriptRoot 'ApplyFourPlayerTimeAuthority.ps1') -UpstreamRoot $UpstreamRoot
+
 # Fail staging before compilation if either edge of the partial-battle contract regresses: mission
 # start must stay participant-targeted, battle leave must stay owned, and finalization must stay
 # peer/player/party/event-owned.
