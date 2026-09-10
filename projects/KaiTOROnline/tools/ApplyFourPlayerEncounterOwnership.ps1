@@ -19,7 +19,7 @@ $old = @'
 
         if (!TryAcceptConversationRequest(requestingPeer, request, attacker, defender, out var aiParty, out var aiPartyId, out var playerPartyId, out var isPlayerVsPlayer))
             return;
-'@
+'@ -replace "`r`n", "`n"
 
 $new = @'
         if (!objectManager.TryGetObjectWithLogging<PartyBase>(request.AttackerId, out var attacker)) return;
@@ -40,7 +40,7 @@ $new = @'
 
         if (!TryAcceptConversationRequest(requestingPeer, request, attacker, defender, out var aiParty, out var aiPartyId, out var playerPartyId, out var isPlayerVsPlayer))
             return;
-'@
+'@ -replace "`r`n", "`n"
 
 if (-not $text.Contains($old)) {
     throw "Encounter ownership anchor not found in $relativePath"
@@ -51,7 +51,7 @@ $text = $text.Replace($old, $new)
 $helperAnchor = @'
     /// <summary>
     /// [Server] Identifies the AI side and rejects when both parties are already in
-'@
+'@ -replace "`r`n", "`n"
 
 $helper = @'
     private bool RequesterOwnsRequestedPlayerParty(NetPeer requestingPeer, PartyBase attacker, PartyBase defender)
@@ -70,7 +70,7 @@ $helper = @'
 
     /// <summary>
     /// [Server] Identifies the AI side and rejects when both parties are already in
-'@
+'@ -replace "`r`n", "`n"
 
 if (-not $text.Contains($helperAnchor)) {
     throw "Encounter ownership helper anchor not found in $relativePath"
