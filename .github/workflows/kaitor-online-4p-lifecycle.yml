@@ -62,6 +62,18 @@ jobs:
             }
           }
 
+          function New-SuccessorSnapshot {
+            param([string[]]$ConnectedIds)
+
+            $snapshot = New-Snapshot $ConnectedIds
+            $snapshot.players[1].heroId = 'hero-B-successor'
+            $snapshot.players[1].mobilePartyId = 'party-B-successor'
+            $snapshot.players[1].characterObjectId = 'character-B-successor'
+            $snapshot.players[1].positionX = 333.25
+            $snapshot.players[1].positionY = 444.5
+            return $snapshot
+          }
+
           $online = New-Snapshot @('A','B','C','D')
           $online | ConvertTo-Json -Depth 8 | Set-Content fixtures/four-online.json -Encoding utf8
 
@@ -84,13 +96,14 @@ jobs:
           # Controller B survives death, but its dead Hero/MobileParty/CharacterObject is replaced.
           # Clan is preserved in this fixture because TOR/Bannerlord succession policy may choose
           # inheritance or replacement; the runtime contract only forbids cross-controller aliasing.
-          $successor = New-Snapshot @('A','B','C','D')
-          $successor.players[1].heroId = 'hero-B-successor'
-          $successor.players[1].mobilePartyId = 'party-B-successor'
-          $successor.players[1].characterObjectId = 'character-B-successor'
-          $successor.players[1].positionX = 333.25
-          $successor.players[1].positionY = 444.5
-          $successor | ConvertTo-Json -Depth 8 | Set-Content fixtures/after-successor.json -Encoding utf8
+          (New-SuccessorSnapshot @('A','B','C','D')) | ConvertTo-Json -Depth 8 | Set-Content fixtures/after-successor.json -Encoding utf8
+
+          # The successor graph must be the graph persisted by the next server save/restart.
+          (New-SuccessorSnapshot @()) | ConvertTo-Json -Depth 8 | Set-Content fixtures/successor-after-restart.json -Encoding utf8
+          (New-SuccessorSnapshot @('D')) | ConvertTo-Json -Depth 8 | Set-Content fixtures/successor-reconnect-1.json -Encoding utf8
+          (New-SuccessorSnapshot @('D','B')) | ConvertTo-Json -Depth 8 | Set-Content fixtures/successor-reconnect-2.json -Encoding utf8
+          (New-SuccessorSnapshot @('D','B','A')) | ConvertTo-Json -Depth 8 | Set-Content fixtures/successor-reconnect-3.json -Encoding utf8
+          (New-SuccessorSnapshot @('D','B','A','C')) | ConvertTo-Json -Depth 8 | Set-Content fixtures/successor-reconnect-4.json -Encoding utf8
 
       - name: Validate preserved controller-to-campaign identity graph
         shell: pwsh
@@ -122,6 +135,20 @@ jobs:
             -BeforeDeathSnapshotPath ./fixtures/four-online.json `
             -AfterSuccessorSnapshotPath ./fixtures/after-successor.json `
             -SuccessorControllerId 'controller-B'
+
+      - name: Validate successor graph survives save restart and out-of-order reconnect
+        shell: pwsh
+        run: |
+          ./projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerRestartReconnect.ps1 `
+            -BeforeRestartSnapshotPath ./fixtures/after-successor.json `
+            -AfterRestartSnapshotPath ./fixtures/successor-after-restart.json `
+            -ReconnectSnapshotPaths @(
+              './fixtures/successor-reconnect-1.json',
+              './fixtures/successor-reconnect-2.json',
+              './fixtures/successor-reconnect-3.json',
+              './fixtures/successor-reconnect-4.json'
+            ) `
+            -ExpectedReconnectOrder @('controller-D','controller-B','controller-A','controller-C')
 
       - name: Reject identity drift across reconnect
         shell: pwsh
