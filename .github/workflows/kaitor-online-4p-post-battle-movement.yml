@@ -1,0 +1,116 @@
+name: KaiTOR Online 4P Post-Battle Movement
+
+on:
+  push:
+    branches:
+      - kaitor-online-4p
+    paths:
+      - 'projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerPostBattleMovement.ps1'
+      - '.github/workflows/kaitor-online-4p-post-battle-movement.yml'
+  workflow_dispatch:
+
+jobs:
+  validate-post-battle-movement:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout KaiTOR project
+        uses: actions/checkout@v4
+
+      - name: Build post-battle fixtures
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force fixtures | Out-Null
+          function New-Player([string]$Id) {
+            [ordered]@{
+              controllerId = "controller-$Id"
+              heroId = "hero-$Id"
+              mobilePartyId = "party-$Id"
+              clanId = "clan-$Id"
+              characterObjectId = "character-$Id"
+              connected = $true
+              heroResolved = $true
+              heroIsDead = $false
+              heroIsPrisoner = $false
+              prisonerPartyId = $null
+              partyResolved = $true
+              partyActive = $true
+              mapEventId = ''
+              positionX = 100.0 + [int][char]$Id
+              positionY = 200.0 + [int][char]$Id
+            }
+          }
+          function New-Snapshot {
+            [ordered]@{ activeAdmissionSlots = 4; playerRegistryCount = 4; players = @((New-Player 'A'),(New-Player 'B'),(New-Player 'C'),(New-Player 'D')) }
+          }
+
+          $battle = New-Snapshot
+          $battle.players[1].mapEventId = 'battle-B-001'
+          $battle | ConvertTo-Json -Depth 8 | Set-Content fixtures/battle.json -Encoding utf8
+
+          $post = New-Snapshot
+          $post | ConvertTo-Json -Depth 8 | Set-Content fixtures/post.json -Encoding utf8
+
+          $moved = New-Snapshot
+          $moved.players[0].positionX += 1.0
+          $moved.players[1].positionY += 2.0
+          $moved.players[2].positionX += 3.0
+          $moved.players[2].positionY += 1.0
+          $moved.players[3].positionX -= 2.0
+          $moved | ConvertTo-Json -Depth 8 | Set-Content fixtures/moved.json -Encoding utf8
+
+      - name: Validate post-battle reactivation and independent movement
+        shell: pwsh
+        run: |
+          ./projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerPostBattleMovement.ps1 `
+            -InBattleSnapshotPath ./fixtures/battle.json `
+            -PostBattleSnapshotPath ./fixtures/post.json `
+            -MovedSnapshotPath ./fixtures/moved.json `
+            -ControllerId controller-B
+
+      - name: Reject stale MapEvent after battle end
+        shell: pwsh
+        run: |
+          $bad = Get-Content fixtures/post.json -Raw | ConvertFrom-Json
+          $bad.players[1].mapEventId = 'battle-B-001'
+          $bad | ConvertTo-Json -Depth 8 | Set-Content fixtures/post-stale.json -Encoding utf8
+          $failed = $false
+          try {
+            ./projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerPostBattleMovement.ps1 `
+              -InBattleSnapshotPath ./fixtures/battle.json `
+              -PostBattleSnapshotPath ./fixtures/post-stale.json `
+              -MovedSnapshotPath ./fixtures/moved.json `
+              -ControllerId controller-B
+          } catch { $failed = $true; Write-Host "Expected rejection: $($_.Exception.Message)" }
+          if (-not $failed) { throw 'Validator accepted stale MapEvent after battle end.' }
+
+      - name: Reject movement while party remains inactive
+        shell: pwsh
+        run: |
+          $bad = Get-Content fixtures/post.json -Raw | ConvertFrom-Json
+          $bad.players[1].partyActive = $false
+          $bad | ConvertTo-Json -Depth 8 | Set-Content fixtures/post-inactive.json -Encoding utf8
+          $failed = $false
+          try {
+            ./projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerPostBattleMovement.ps1 `
+              -InBattleSnapshotPath ./fixtures/battle.json `
+              -PostBattleSnapshotPath ./fixtures/post-inactive.json `
+              -MovedSnapshotPath ./fixtures/moved.json `
+              -ControllerId controller-B
+          } catch { $failed = $true; Write-Host "Expected rejection: $($_.Exception.Message)" }
+          if (-not $failed) { throw 'Validator accepted inactive post-battle MobileParty.' }
+
+      - name: Reject lockstep movement
+        shell: pwsh
+        run: |
+          $bad = Get-Content fixtures/post.json -Raw | ConvertFrom-Json
+          foreach ($p in $bad.players) { $p.positionX = [double]$p.positionX + 1.0 }
+          $bad | ConvertTo-Json -Depth 8 | Set-Content fixtures/moved-lockstep.json -Encoding utf8
+          $failed = $false
+          try {
+            ./projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerPostBattleMovement.ps1 `
+              -InBattleSnapshotPath ./fixtures/battle.json `
+              -PostBattleSnapshotPath ./fixtures/post.json `
+              -MovedSnapshotPath ./fixtures/moved-lockstep.json `
+              -ControllerId controller-B
+          } catch { $failed = $true; Write-Host "Expected rejection: $($_.Exception.Message)" }
+          if (-not $failed) { throw 'Validator accepted lockstep movement for all four parties.' }
