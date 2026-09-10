@@ -65,8 +65,14 @@ Replace-Exact `
 # battle can be finalized. The 1.3.15 implementation proves membership through InvolvedParties.
 & (Join-Path $PSScriptRoot 'ApplyFourPlayerMissionFinalizeOwnership.ps1') -UpstreamRoot $UpstreamRoot
 
+# Leaving a still-live battle is a separate client-originated path from finalization. Reject a
+# NetworkRequestLeaveBattle unless its NetPeer owns the exact PartyId being removed, otherwise one
+# campaign-map client could eject another player's party from an active mission/MapEvent.
+& (Join-Path $PSScriptRoot 'ApplyFourPlayerBattleLeaveOwnership.ps1') -UpstreamRoot $UpstreamRoot
+
 # Fail staging before compilation if either edge of the partial-battle contract regresses: mission
-# start must stay participant-targeted and mission finalize must stay peer/player/party/event-owned.
+# start must stay participant-targeted, battle leave must stay owned, and finalization must stay
+# peer/player/party/event-owned.
 & (Join-Path $PSScriptRoot 'TestFourPlayerMissionIsolationStaging.ps1') -UpstreamRoot $UpstreamRoot
 
 Write-Host 'KaiTOR shared-map diagnostics applied successfully.'
