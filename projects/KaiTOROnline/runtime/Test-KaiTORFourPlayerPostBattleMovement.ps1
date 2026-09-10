@@ -38,6 +38,13 @@ function Assert-SameGraph($Expected,$Actual,[string]$Name,[string]$Id) {
     }
 }
 
+function Assert-FreeLivingPlayer($Player,[string]$Name,[string]$Id) {
+    if (-not [bool]$Player.heroResolved) { throw "$Name/$Id Hero did not resolve." }
+    if ([bool]$Player.heroIsDead) { throw "$Name/$Id Hero is dead; four-player post-battle movement cannot be accepted." }
+    if ([bool]$Player.heroIsPrisoner) { throw "$Name/$Id Hero is still a prisoner; four-player post-battle movement cannot be accepted." }
+    if (-not [bool]$Player.partyResolved -or -not [bool]$Player.partyActive) { throw "$Name/$Id MobileParty is not resolved and active." }
+}
+
 function Distance($A,$B) {
     $dx = [double]$B.positionX - [double]$A.positionX
     $dy = [double]$B.positionY - [double]$A.positionY
@@ -59,8 +66,8 @@ $battleEvent = [string]$battlePlayer.mapEventId
 if ([string]::IsNullOrWhiteSpace($battleEvent)) { throw 'In-battle player must expose a MapEvent id.' }
 if (-not [string]::IsNullOrWhiteSpace([string]$postPlayer.mapEventId)) { throw 'Post-battle player retained stale MapEvent ownership.' }
 if (-not [string]::IsNullOrWhiteSpace([string]$movedPlayer.mapEventId)) { throw 'Moved player re-entered stale MapEvent ownership.' }
-if (-not [bool]$postPlayer.partyResolved -or -not [bool]$postPlayer.partyActive) { throw 'Post-battle MobileParty must be resolved and active.' }
-if ([bool]$postPlayer.heroIsDead -or [bool]$postPlayer.heroIsPrisoner) { throw 'Post-battle movement acceptance requires a living free Hero.' }
+Assert-FreeLivingPlayer $postPlayer 'post-battle' $ControllerId
+Assert-FreeLivingPlayer $movedPlayer 'moved' $ControllerId
 if ((Distance $postPlayer $movedPlayer) -lt $MinimumDistance) { throw 'Released post-battle party did not resume authoritative map movement.' }
 
 $postById = @{}; foreach ($p in @($post.players)) { $postById[[string]$p.controllerId] = $p }
@@ -70,7 +77,9 @@ foreach ($p in @($moved.players)) {
     if (-not $postById.ContainsKey($id)) { throw "Moved snapshot introduced unknown controller '$id'." }
     $before = $postById[$id]
     Assert-SameGraph $before $p 'moved' $id
-    if (-not [bool]$p.partyResolved -or -not [bool]$p.partyActive) { throw "Moved/$id MobileParty is not active." }
+    Assert-FreeLivingPlayer $before 'post-battle' $id
+    Assert-FreeLivingPlayer $p 'moved' $id
+    if (-not [string]::IsNullOrWhiteSpace([string]$before.mapEventId)) { throw "Post-battle/$id unexpectedly owns MapEvent '$($before.mapEventId)'." }
     if (-not [string]::IsNullOrWhiteSpace([string]$p.mapEventId)) { throw "Moved/$id unexpectedly owns MapEvent '$($p.mapEventId)'." }
     $dx = [double]$p.positionX - [double]$before.positionX
     $dy = [double]$p.positionY - [double]$before.positionY
@@ -82,6 +91,7 @@ if ($vectors.Count -lt 2) { throw 'Post-battle movement was not independent; all
 
 Write-Output 'KaiTOR four-player post-battle movement: PASS'
 Write-Output "  Battle MapEvent cleared: $battleEvent"
+Write-Output '  All four Heroes are resolved, alive, free, and backed by active MobileParty instances'
 Write-Output '  Reactivated party resumed movement without stale battle ownership'
 Write-Output "  Distinct movement vectors: $($vectors.Count)"
 Write-Output '  Four-player admission gate remained 4/4'
