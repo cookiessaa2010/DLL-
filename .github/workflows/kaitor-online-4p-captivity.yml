@@ -189,3 +189,21 @@ jobs:
               -ControllerId controller-B
           } catch { $failed = $true; Write-Host "Expected rejection: $($_.Exception.Message)" }
           if (-not $failed) { throw 'Restart validator accepted stale admission slot accounting after captive disconnect.' }
+
+      - name: Reject unaffected player map-state drift across restart
+        shell: pwsh
+        run: |
+          $bad = Get-Content fixtures/restarted-captive.json -Raw | ConvertFrom-Json
+          $bad.players[2].positionX = [double]$bad.players[2].positionX + 25.0
+          $bad | ConvertTo-Json -Depth 8 | Set-Content fixtures/restarted-captive-map-drift.json -Encoding utf8
+          $failed = $false
+          try {
+            ./projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerCaptivityRestart.ps1 `
+              -BeforeCaptureSnapshotPath ./fixtures/before.json `
+              -DisconnectedCaptiveSnapshotPath ./fixtures/disconnected-captive.json `
+              -RestartedCaptiveSnapshotPath ./fixtures/restarted-captive-map-drift.json `
+              -ReconnectedCaptiveSnapshotPath ./fixtures/reconnected-captive.json `
+              -ReleasedSnapshotPath ./fixtures/released.json `
+              -ControllerId controller-B
+          } catch { $failed = $true; Write-Host "Expected rejection: $($_.Exception.Message)" }
+          if (-not $failed) { throw 'Restart validator accepted authoritative position drift for an unaffected player.' }
