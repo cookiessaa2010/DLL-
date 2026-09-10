@@ -142,3 +142,59 @@ jobs:
           }
 
           Write-Host 'KaiTOR authoritative owned-party movement replication path: PASS'
+
+      - name: Verify four-player save restart reconnect persistence path
+        shell: pwsh
+        run: |
+          $saveHandler = Get-Content './upstream/source/Coop.Core/Server/Services/Save/Handlers/SaveGameHandler.cs' -Raw
+          $resolveState = Get-Content './upstream/source/Coop.Core/Server/Connections/States/ResolveCharacterState.cs' -Raw
+          $playerManager = Get-Content './upstream/source/GameInterface/Services/Players/PlayerManager.cs' -Raw
+          $visibilityHandler = Get-Content './upstream/source/Coop.Core/Server/Services/Players/Handlers/PlayerPartyVisibilityHandler.cs' -Raw
+
+          if ($saveHandler -notmatch 'playerRegistry\.Players\.ToArray\(\)') {
+            throw 'Coop save does not persist the complete player registry.'
+          }
+          if ($saveHandler -notmatch 'SelectOneRegistrationPerController\(savedSession\.Players\)') {
+            throw 'Server restart does not de-duplicate saved registrations by controller identity.'
+          }
+          if ($saveHandler -notmatch 'playerPartyRestorer\.TryRestore\(player, out var registration\)') {
+            throw 'Server restart does not restore the saved Hero/MobileParty graph before registration.'
+          }
+          if ($saveHandler -notmatch 'playerRegistry\.AddPlayer\(registration\)') {
+            throw 'Restored player graphs are not returned to the persistent player registry.'
+          }
+          if ($resolveState -notmatch 'playerManager\.TryGetPlayer\(controllerId, out var player\)') {
+            throw 'Reconnect does not resolve the persistent registration by controller id.'
+          }
+          if ($resolveState -notmatch 'playerPartyRestorer\.TryRestore\(player, out restoredPlayer\)') {
+            throw 'Reconnect does not repair/rebind the registered MobileParty graph.'
+          }
+          if ($resolveState -notmatch 'playerManager\.ReplacePlayer\(player, restoredPlayer\)') {
+            throw 'Reconnect cannot replace a repaired registration atomically.'
+          }
+          if ($resolveState -notmatch 'playerManager\.SetPeer\(controllerId, peer\)') {
+            throw 'Reconnect does not bind the new NetPeer generation to the existing controller.'
+          }
+          if ($resolveState -notmatch 'ConnectionLogic\.TransferSave\(\)') {
+            throw 'Reconnect does not transfer the authoritative campaign save.'
+          }
+          if ($resolveState -notmatch 'existingPlayerSender\.SendExistingPlayers\(peer, controllerId\)') {
+            throw 'Reconnect does not deliver the other persistent player graphs to the joiner.'
+          }
+          if ($playerManager -notmatch 'void ClearPeer\(NetPeer peer\)') {
+            throw 'Player registry has no peer-only disconnect operation.'
+          }
+          if ($visibilityHandler -notmatch 'playerManager\.ClearPeer\(peer\)') {
+            throw 'Disconnect does not clear only the live peer association.'
+          }
+          if ($visibilityHandler -match 'playerManager\.RemovePlayer\(player\)') {
+            throw 'Disconnect handler removes the persistent player registration.'
+          }
+          if ($visibilityHandler -notmatch 'party\.IsActive = false') {
+            throw 'Disconnected persistent parties are not parked on the authoritative map.'
+          }
+          if ($visibilityHandler -notmatch 'ActivateParty\(party, player\.MobilePartyId\)') {
+            throw 'Reconnected persistent parties are not reactivated with the same MobileParty id.'
+          }
+
+          Write-Host 'KaiTOR four-player save/restart/reconnect persistence path: PASS'
