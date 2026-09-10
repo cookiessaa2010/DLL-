@@ -108,3 +108,37 @@ jobs:
           }
 
           Write-Host 'KaiTOR server-authoritative movement ownership staging: PASS'
+
+      - name: Verify authoritative movement replication path
+        shell: pwsh
+        run: |
+          $serverPacketHandler = Get-Content './upstream/source/Coop.Core/Server/Services/MobileParties/PacketHandlers/PartyAIBehaviorPacketHandler.cs' -Raw
+          $behaviorHandler = Get-Content './upstream/source/GameInterface/Services/MobileParties/Handlers/MobilePartyBehaviorHandler.cs' -Raw
+          $clientHandler = Get-Content './upstream/source/Coop.Core/Client/Services/MobileParties/Handlers/NetworkPartyBehaviorMessageHandler.cs' -Raw
+
+          if ($behaviorHandler -notmatch 'if \(ModInformation\.IsServer\)\s+PublishAuthoritativeBehavior\(party, data\)') {
+            throw 'Server does not publish an authoritative behavior snapshot after applying a movement request.'
+          }
+          if ($behaviorHandler -notmatch 'mobilePartyBehaviorSnapshot\.TryCreate\(\s*party,\s*out PartyBehaviorUpdateData authoritativeData\)') {
+            throw 'Authoritative movement update is not re-snapshotted from the server MobileParty.'
+          }
+          if ($behaviorHandler -notmatch 'authoritativeData\.OriginControllerId = request\.OriginControllerId') {
+            throw 'Authoritative movement echo does not preserve the server-stamped controller identity.'
+          }
+          if ($behaviorHandler -notmatch 'new PartyBehaviorUpdated\(ref authoritativeData\)') {
+            throw 'Authoritative movement snapshot is not published for network replication.'
+          }
+          if ($serverPacketHandler -notmatch 'Subscribe<PartyBehaviorUpdated>\(Handle_PartyBehaviorUpdated\)') {
+            throw 'Server packet handler is not subscribed to authoritative movement snapshots.'
+          }
+          if ($serverPacketHandler -notmatch 'new NetworkUpdatePartyBehavior\(data\)') {
+            throw 'Authoritative movement snapshot is not converted to a network update.'
+          }
+          if ($clientHandler -notmatch 'Subscribe<NetworkUpdatePartyBehavior>\(Handle\)') {
+            throw 'Client is not subscribed to authoritative movement network updates.'
+          }
+          if ($clientHandler -notmatch 'new UpdatePartyBehavior\(ref data\)') {
+            throw 'Client does not feed authoritative movement updates back into GameInterface.'
+          }
+
+          Write-Host 'KaiTOR authoritative owned-party movement replication path: PASS'
