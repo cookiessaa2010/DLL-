@@ -60,6 +60,12 @@ function Assert-SameMapState($Expected, $Actual, [string]$Name, [string]$Id) {
     }
 }
 
+function Assert-NoMapEvent($Player, [string]$Name) {
+    if (-not [string]::IsNullOrWhiteSpace([string]$Player.mapEventId)) {
+        throw "$Name retained stale mapEventId '$($Player.mapEventId)' for '$ControllerId'."
+    }
+}
+
 function Assert-Captive($Player, [string]$Name, [bool]$ExpectedConnected) {
     if ([bool]$Player.connected -ne $ExpectedConnected) {
         throw "$Name connected state is invalid for '$ControllerId'."
@@ -73,6 +79,7 @@ function Assert-Captive($Player, [string]$Name, [bool]$ExpectedConnected) {
     if ([bool]$Player.partyActive) {
         throw "$Name prematurely activated '$ControllerId' MobileParty while Hero is prisoner."
     }
+    Assert-NoMapEvent $Player $Name
 }
 
 $before = Read-Snapshot $BeforeCaptureSnapshotPath 'before-capture'
@@ -132,6 +139,7 @@ if (-not [string]::IsNullOrWhiteSpace([string]$releasedPlayer.prisonerPartyId)) 
 if (-not [bool]$releasedPlayer.partyResolved -or -not [bool]$releasedPlayer.partyActive) {
     throw 'Released player MobileParty must reactivate only after captivity is cleared.'
 }
+Assert-NoMapEvent $releasedPlayer 'released'
 
 $beforeByController = @{}
 foreach ($p in @($before.players)) { $beforeByController[[string]$p.controllerId] = $p }
@@ -153,6 +161,7 @@ foreach ($phase in @(
 Write-Output 'KaiTOR four-player captivity restart/reconnect lifecycle: PASS'
 Write-Output "  Controller: $ControllerId"
 Write-Output '  Captivity persisted through disconnect, save/restart, and reconnect'
-Write-Output '  Captive MobileParty remained inactive until authoritative release'
+Write-Output '  Captive MobileParty remained inactive and detached from MapEvent until authoritative release'
+Write-Output '  Release reactivated MobileParty without restoring stale battle ownership'
 Write-Output '  Admission slots matched connected peers while preserving the four-player cap'
 Write-Output '  Other three players preserved identity graphs, map-event state, and authoritative positions'
