@@ -56,5 +56,9 @@ Replace-Exact `
 # same full-build staging path so every packaged Coop.Core carries it.
 & (Join-Path $PSScriptRoot 'ApplyFourPlayerMovementOwnership.ps1') -UpstreamRoot $UpstreamRoot
 
+# Encounter/conversation ids are client supplied too. Bind every request to the authenticated
+# peer's persistent MobileParty before vanilla PlayerEncounter/MapEvent creation can run.
+& (Join-Path $PSScriptRoot 'ApplyFourPlayerEncounterOwnership.ps1') -UpstreamRoot $UpstreamRoot
+
 Write-Host 'KaiTOR shared-map diagnostics applied successfully.'
 Write-Host 'Server command: coop.debug.kaitor.snapshot4p'
