@@ -21,7 +21,7 @@ function Get-Player($Snapshot, [string]$Name, [string]$Id) {
     $matches = @($Snapshot.players | Where-Object { [string]$_.controllerId -ceq $Id })
     if ($matches.Count -ne 1) { throw "$Name must contain exactly one '$Id' registration; found $($matches.Count)." }
     $player = $matches[0]
-    foreach ($field in @('heroId','mobilePartyId','clanId','characterObjectId','connected','heroResolved','heroIsDead','heroIsPrisoner','prisonerPartyId','partyResolved','partyActive')) {
+    foreach ($field in @('heroId','mobilePartyId','clanId','characterObjectId','connected','heroResolved','heroIsDead','heroIsPrisoner','prisonerPartyId','partyResolved','partyActive','mapEventId','positionX','positionY')) {
         if ($null -eq $player.PSObject.Properties[$field]) { throw "$Name player '$Id' is missing '$field'." }
     }
     return $player
@@ -46,6 +46,16 @@ function Assert-SameGraph($Expected, $Actual, [string]$Name, [string]$Id) {
     foreach ($field in @('heroId','mobilePartyId','clanId','characterObjectId')) {
         if ([string]$Actual.$field -cne [string]$Expected.$field) {
             throw "$Name changed $field for '$Id'."
+        }
+    }
+}
+
+function Assert-SameMapState($Expected, $Actual, [string]$Name, [string]$Id) {
+    foreach ($field in @('mapEventId','positionX','positionY')) {
+        $expectedValue = [string]$Expected.$field
+        $actualValue = [string]$Actual.$field
+        if ($actualValue -cne $expectedValue) {
+            throw "$Name changed unaffected $field for '$Id': expected '$expectedValue', got '$actualValue'."
         }
     }
 }
@@ -125,12 +135,18 @@ if (-not [bool]$releasedPlayer.partyResolved -or -not [bool]$releasedPlayer.part
 
 $beforeByController = @{}
 foreach ($p in @($before.players)) { $beforeByController[[string]$p.controllerId] = $p }
-foreach ($phase in @($disconnected,$restarted,$reconnected,$released)) {
-    foreach ($p in @($phase.players)) {
+foreach ($phase in @(
+    @{ Name='disconnected-captive'; Snapshot=$disconnected },
+    @{ Name='restarted-captive'; Snapshot=$restarted },
+    @{ Name='reconnected-captive'; Snapshot=$reconnected },
+    @{ Name='released'; Snapshot=$released }
+)) {
+    foreach ($p in @($phase.Snapshot.players)) {
         $id = [string]$p.controllerId
         if ($id -ceq $ControllerId) { continue }
-        if (-not $beforeByController.ContainsKey($id)) { throw "Lifecycle introduced unknown controller '$id'." }
-        Assert-SameGraph $beforeByController[$id] $p 'unaffected-player lifecycle' $id
+        if (-not $beforeByController.ContainsKey($id)) { throw "$($phase.Name) introduced unknown controller '$id'." }
+        Assert-SameGraph $beforeByController[$id] $p $phase.Name $id
+        Assert-SameMapState $beforeByController[$id] $p $phase.Name $id
     }
 }
 
@@ -139,4 +155,4 @@ Write-Output "  Controller: $ControllerId"
 Write-Output '  Captivity persisted through disconnect, save/restart, and reconnect'
 Write-Output '  Captive MobileParty remained inactive until authoritative release'
 Write-Output '  Admission slots matched connected peers while preserving the four-player cap'
-Write-Output '  Four-player persistent registrations and unaffected player graphs were preserved'
+Write-Output '  Other three players preserved identity graphs, map-event state, and authoritative positions'
