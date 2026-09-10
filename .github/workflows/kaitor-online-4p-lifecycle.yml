@@ -7,6 +7,7 @@ on:
     paths:
       - 'projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerLifecycle.ps1'
       - 'projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerRestartReconnect.ps1'
+      - 'projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerSuccessorIsolation.ps1'
       - 'projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerSnapshot.ps1'
       - '.github/workflows/kaitor-online-4p-lifecycle.yml'
   workflow_dispatch:
@@ -80,6 +81,17 @@ jobs:
           (New-Snapshot @('D','B','A')) | ConvertTo-Json -Depth 8 | Set-Content fixtures/reconnect-3.json -Encoding utf8
           (New-Snapshot @('D','B','A','C')) | ConvertTo-Json -Depth 8 | Set-Content fixtures/reconnect-4.json -Encoding utf8
 
+          # Controller B survives death, but its dead Hero/MobileParty/CharacterObject is replaced.
+          # Clan is preserved in this fixture because TOR/Bannerlord succession policy may choose
+          # inheritance or replacement; the runtime contract only forbids cross-controller aliasing.
+          $successor = New-Snapshot @('A','B','C','D')
+          $successor.players[1].heroId = 'hero-B-successor'
+          $successor.players[1].mobilePartyId = 'party-B-successor'
+          $successor.players[1].characterObjectId = 'character-B-successor'
+          $successor.players[1].positionX = 333.25
+          $successor.players[1].positionY = 444.5
+          $successor | ConvertTo-Json -Depth 8 | Set-Content fixtures/after-successor.json -Encoding utf8
+
       - name: Validate preserved controller-to-campaign identity graph
         shell: pwsh
         run: |
@@ -102,6 +114,14 @@ jobs:
               './fixtures/reconnect-4.json'
             ) `
             -ExpectedReconnectOrder @('controller-D','controller-B','controller-A','controller-C')
+
+      - name: Validate death-to-successor isolation with four connected players
+        shell: pwsh
+        run: |
+          ./projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerSuccessorIsolation.ps1 `
+            -BeforeDeathSnapshotPath ./fixtures/four-online.json `
+            -AfterSuccessorSnapshotPath ./fixtures/after-successor.json `
+            -SuccessorControllerId 'controller-B'
 
       - name: Reject identity drift across reconnect
         shell: pwsh
@@ -178,4 +198,50 @@ jobs:
 
           if (-not $failed) {
             throw 'Restart/reconnect validator accepted a reconnect sequence that did not match observed live peers.'
+          }
+
+      - name: Reject successor reuse of dead MobileParty
+        shell: pwsh
+        run: |
+          $bad = Get-Content ./fixtures/after-successor.json -Raw | ConvertFrom-Json
+          $bad.players[1].mobilePartyId = 'party-B'
+          $bad | ConvertTo-Json -Depth 8 | Set-Content ./fixtures/after-successor-dead-party-bad.json -Encoding utf8
+
+          $failed = $false
+          try {
+            ./projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerSuccessorIsolation.ps1 `
+              -BeforeDeathSnapshotPath ./fixtures/four-online.json `
+              -AfterSuccessorSnapshotPath ./fixtures/after-successor-dead-party-bad.json `
+              -SuccessorControllerId 'controller-B'
+          }
+          catch {
+            $failed = $true
+            Write-Host "Expected rejection: $($_.Exception.Message)"
+          }
+
+          if (-not $failed) {
+            throw 'Successor isolation validator accepted reuse of the dead MobileParty.'
+          }
+
+      - name: Reject mutation of an unaffected player graph
+        shell: pwsh
+        run: |
+          $bad = Get-Content ./fixtures/after-successor.json -Raw | ConvertFrom-Json
+          $bad.players[2].heroId = 'hero-C-mutated'
+          $bad | ConvertTo-Json -Depth 8 | Set-Content ./fixtures/after-successor-other-player-bad.json -Encoding utf8
+
+          $failed = $false
+          try {
+            ./projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerSuccessorIsolation.ps1 `
+              -BeforeDeathSnapshotPath ./fixtures/four-online.json `
+              -AfterSuccessorSnapshotPath ./fixtures/after-successor-other-player-bad.json `
+              -SuccessorControllerId 'controller-B'
+          }
+          catch {
+            $failed = $true
+            Write-Host "Expected rejection: $($_.Exception.Message)"
+          }
+
+          if (-not $failed) {
+            throw 'Successor isolation validator accepted mutation of an unaffected player graph.'
           }
