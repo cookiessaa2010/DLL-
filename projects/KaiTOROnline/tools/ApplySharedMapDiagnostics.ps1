@@ -80,5 +80,9 @@ Replace-Exact `
 # peer/player/party/event-owned.
 & (Join-Path $PSScriptRoot 'TestFourPlayerMissionIsolationStaging.ps1') -UpstreamRoot $UpstreamRoot
 
+# Verify the global time resource remains server-authoritative while preserving the upstream
+# partial-battle rule: auto-pause only when every connected player is occupied.
+& (Join-Path $PSScriptRoot 'TestFourPlayerTimeAuthorityStaging.ps1') -UpstreamRoot $UpstreamRoot
+
 Write-Host 'KaiTOR shared-map diagnostics applied successfully.'
 Write-Host 'Server command: coop.debug.kaitor.snapshot4p'
