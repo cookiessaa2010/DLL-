@@ -1,0 +1,103 @@
+name: KaiTOR Online 4P Captivity Lifecycle
+
+on:
+  push:
+    branches:
+      - kaitor-online-4p
+    paths:
+      - 'projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerCaptivityLifecycle.ps1'
+      - 'projects/KaiTOROnline/upstream-overlay/source/Coop.Core/Server/Commands/KaiTORFourPlayerSnapshotCommand.cs'
+      - 'projects/KaiTOROnline/tools/ApplyFourPlayerDefeatLifecycleSafety.ps1'
+      - '.github/workflows/kaitor-online-4p-captivity.yml'
+  workflow_dispatch:
+
+jobs:
+  validate-captivity-lifecycle:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout KaiTOR project
+        uses: actions/checkout@v4
+
+      - name: Build four-player captivity fixtures
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force fixtures | Out-Null
+
+          function New-Player([string]$Id) {
+            [ordered]@{
+              controllerId = "controller-$Id"
+              heroId = "hero-$Id"
+              mobilePartyId = "party-$Id"
+              clanId = "clan-$Id"
+              characterObjectId = "character-$Id"
+              connected = $true
+              heroResolved = $true
+              heroIsDead = $false
+              heroIsPrisoner = $false
+              prisonerPartyId = $null
+              partyResolved = $true
+              partyActive = $true
+              mapEventId = ''
+              positionX = 100.0 + [int][char]$Id
+              positionY = 200.0 + [int][char]$Id
+            }
+          }
+
+          function New-Snapshot {
+            $players = @((New-Player 'A'),(New-Player 'B'),(New-Player 'C'),(New-Player 'D'))
+            [ordered]@{ activeAdmissionSlots = 4; playerRegistryCount = 4; players = $players }
+          }
+
+          $before = New-Snapshot
+          $before | ConvertTo-Json -Depth 8 | Set-Content fixtures/before.json -Encoding utf8
+
+          $captive = New-Snapshot
+          $captive.players[1].heroIsPrisoner = $true
+          $captive.players[1].prisonerPartyId = 'captor-party-X'
+          $captive.players[1].partyActive = $false
+          $captive | ConvertTo-Json -Depth 8 | Set-Content fixtures/captive.json -Encoding utf8
+
+          $released = New-Snapshot
+          $released | ConvertTo-Json -Depth 8 | Set-Content fixtures/released.json -Encoding utf8
+
+      - name: Validate capture park and authoritative release
+        shell: pwsh
+        run: |
+          ./projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerCaptivityLifecycle.ps1 `
+            -BeforeCaptureSnapshotPath ./fixtures/before.json `
+            -CaptiveSnapshotPath ./fixtures/captive.json `
+            -ReleasedSnapshotPath ./fixtures/released.json `
+            -ControllerId controller-B
+
+      - name: Reject stale release while Hero remains prisoner
+        shell: pwsh
+        run: |
+          $bad = Get-Content fixtures/released.json -Raw | ConvertFrom-Json
+          $bad.players[1].heroIsPrisoner = $true
+          $bad.players[1].prisonerPartyId = 'captor-party-X'
+          $bad | ConvertTo-Json -Depth 8 | Set-Content fixtures/released-stale.json -Encoding utf8
+          $failed = $false
+          try {
+            ./projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerCaptivityLifecycle.ps1 `
+              -BeforeCaptureSnapshotPath ./fixtures/before.json `
+              -CaptiveSnapshotPath ./fixtures/captive.json `
+              -ReleasedSnapshotPath ./fixtures/released-stale.json `
+              -ControllerId controller-B
+          } catch { $failed = $true; Write-Host "Expected rejection: $($_.Exception.Message)" }
+          if (-not $failed) { throw 'Captivity validator accepted stale prisoner state after release.' }
+
+      - name: Reject party activation during captivity
+        shell: pwsh
+        run: |
+          $bad = Get-Content fixtures/captive.json -Raw | ConvertFrom-Json
+          $bad.players[1].partyActive = $true
+          $bad | ConvertTo-Json -Depth 8 | Set-Content fixtures/captive-active.json -Encoding utf8
+          $failed = $false
+          try {
+            ./projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerCaptivityLifecycle.ps1 `
+              -BeforeCaptureSnapshotPath ./fixtures/before.json `
+              -CaptiveSnapshotPath ./fixtures/captive-active.json `
+              -ReleasedSnapshotPath ./fixtures/released.json `
+              -ControllerId controller-B
+          } catch { $failed = $true; Write-Host "Expected rejection: $($_.Exception.Message)" }
+          if (-not $failed) { throw 'Captivity validator accepted active player MobileParty while Hero is prisoner.' }
