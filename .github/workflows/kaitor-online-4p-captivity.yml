@@ -50,6 +50,7 @@ jobs:
           }
 
           $before = New-Snapshot
+          $before.players[1].mapEventId = 'battle-capture-X'
           $before | ConvertTo-Json -Depth 8 | Set-Content fixtures/before.json -Encoding utf8
 
           $captive = New-Snapshot
@@ -207,3 +208,21 @@ jobs:
               -ControllerId controller-B
           } catch { $failed = $true; Write-Host "Expected rejection: $($_.Exception.Message)" }
           if (-not $failed) { throw 'Restart validator accepted authoritative position drift for an unaffected player.' }
+
+      - name: Reject stale battle ownership after release
+        shell: pwsh
+        run: |
+          $bad = Get-Content fixtures/released.json -Raw | ConvertFrom-Json
+          $bad.players[1].mapEventId = 'battle-capture-X'
+          $bad | ConvertTo-Json -Depth 8 | Set-Content fixtures/released-stale-map-event.json -Encoding utf8
+          $failed = $false
+          try {
+            ./projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerCaptivityRestart.ps1 `
+              -BeforeCaptureSnapshotPath ./fixtures/before.json `
+              -DisconnectedCaptiveSnapshotPath ./fixtures/disconnected-captive.json `
+              -RestartedCaptiveSnapshotPath ./fixtures/restarted-captive.json `
+              -ReconnectedCaptiveSnapshotPath ./fixtures/reconnected-captive.json `
+              -ReleasedSnapshotPath ./fixtures/released-stale-map-event.json `
+              -ControllerId controller-B
+          } catch { $failed = $true; Write-Host "Expected rejection: $($_.Exception.Message)" }
+          if (-not $failed) { throw 'Restart validator accepted stale MapEvent ownership after prisoner release.' }
