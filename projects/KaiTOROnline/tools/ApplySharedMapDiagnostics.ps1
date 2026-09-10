@@ -60,5 +60,10 @@ Replace-Exact `
 # peer's persistent MobileParty before vanilla PlayerEncounter/MapEvent creation can run.
 & (Join-Path $PSScriptRoot 'ApplyFourPlayerEncounterOwnership.ps1') -UpstreamRoot $UpstreamRoot
 
+# Mission teardown is also a client-originated command. Require the requesting peer to resolve to
+# a registered player whose authoritative MobileParty is part of the exact MapEvent before a live
+# battle can be finalized, so players remaining on the campaign map cannot tear down another fight.
+& (Join-Path $PSScriptRoot 'ApplyFourPlayerMissionFinalizeOwnership.ps1') -UpstreamRoot $UpstreamRoot
+
 Write-Host 'KaiTOR shared-map diagnostics applied successfully.'
 Write-Host 'Server command: coop.debug.kaitor.snapshot4p'
