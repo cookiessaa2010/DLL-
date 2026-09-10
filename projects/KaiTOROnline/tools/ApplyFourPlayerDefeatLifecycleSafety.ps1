@@ -150,7 +150,18 @@ $successorReplacement = @'
                     controllerId,
                     player.HeroId);
 
-                playerManager.RemovePlayer(player);
+                // Removal is an authoritative state transition, not best-effort cleanup. If the
+                // registration changed underneath this reconnect (or was already replaced), do not
+                // continue into successor creation with a second graph for the same controller.
+                if (!playerManager.RemovePlayer(player) || playerManager.TryGetPlayer(controllerId, out _))
+                {
+                    Logger.Error(
+                        "Cannot create successor for controller {ControllerId}: obsolete dead-Hero registration could not be removed cleanly",
+                        controllerId);
+                    peer.Disconnect();
+                    return;
+                }
+
                 network.SendAllBut(
                     peer,
                     new GameInterface.Services.Players.Messages.NetworkPlayerRemoved(player.ControllerId, player.HeroId));
