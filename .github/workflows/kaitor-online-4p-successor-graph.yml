@@ -1,0 +1,78 @@
+name: KaiTOR Online 4P Successor Graph Isolation
+
+on:
+  push:
+    branches:
+      - kaitor-online-4p
+    paths:
+      - 'projects/KaiTOROnline/tools/ApplyFourPlayerSuccessorGraphIsolation.ps1'
+      - 'projects/KaiTOROnline/tools/TestFourPlayerSuccessorGraphIsolationStaging.ps1'
+      - 'projects/KaiTOROnline/tools/ApplyFourPlayerSuccessorIdentitySafety.ps1'
+      - 'projects/KaiTOROnline/tools/ApplySharedMapDiagnostics.ps1'
+      - '.github/workflows/kaitor-online-4p-successor-graph.yml'
+  workflow_dispatch:
+
+jobs:
+  verify-successor-graph-isolation:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout KaiTOR project
+        uses: actions/checkout@v4
+        with:
+          path: kaitor
+
+      - name: Checkout pinned Bannerlord Coop source
+        uses: actions/checkout@v4
+        with:
+          repository: Bannerlord-Coop-Team/BannerlordCoop
+          ref: 107d1c29ec3dc2d9f2d3a7836ae1691c2391e00c
+          path: upstream
+
+      - name: Setup .NET 8 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore Bannerlord 1.3.15 reference packages
+        shell: pwsh
+        run: dotnet restore ./kaitor/projects/KaiTOROnline/probes/Bannerlord1315ApiProbe/Bannerlord1315ApiProbe.csproj
+
+      - name: Stage exact Bannerlord 1.3.15 references
+        shell: pwsh
+        run: ./kaitor/projects/KaiTOROnline/tools/StageBannerlord1315References.ps1 -UpstreamRoot (Resolve-Path ./upstream)
+
+      - name: Apply tested four-player admission gate
+        shell: pwsh
+        run: ./kaitor/projects/KaiTOROnline/tools/ApplyFourPlayerGate.ps1 -UpstreamRoot (Resolve-Path ./upstream)
+
+      - name: Apply NetPeer identity hardening
+        shell: pwsh
+        run: ./kaitor/projects/KaiTOROnline/tools/ApplyNetPeerIdentitySafety.ps1 -UpstreamRoot (Resolve-Path ./upstream)
+
+      - name: Apply shared-map gates including successor graph isolation
+        shell: pwsh
+        run: ./kaitor/projects/KaiTOROnline/tools/ApplySharedMapDiagnostics.ps1 -UpstreamRoot (Resolve-Path ./upstream)
+
+      - name: Verify successor graph isolation contract
+        shell: pwsh
+        run: ./kaitor/projects/KaiTOROnline/tools/TestFourPlayerSuccessorGraphIsolationStaging.ps1 -UpstreamRoot (Resolve-Path ./upstream)
+
+      - name: Apply Bannerlord 1.3.15 compile backport
+        shell: pwsh
+        run: ./kaitor/projects/KaiTOROnline/tools/ApplyBannerlord1315CompileBackport.ps1 -UpstreamRoot (Resolve-Path ./upstream)
+
+      - name: Apply Missions 1.3.15 backport
+        shell: pwsh
+        run: ./kaitor/projects/KaiTOROnline/tools/ApplyBannerlord1315MissionsBackport.ps1 -UpstreamRoot (Resolve-Path ./upstream)
+
+      - name: Align managed dependencies
+        shell: pwsh
+        run: ./kaitor/projects/KaiTOROnline/tools/ApplyManagedDependencyAlignment.ps1 -UpstreamRoot (Resolve-Path ./upstream)
+
+      - name: Restore Coop dependency graph
+        shell: pwsh
+        run: dotnet restore ./upstream/source/Coop.Core/Coop.Core.csproj -p:KaiTORBannerlord1315=true -p:NuGetAudit=false
+
+      - name: Build Coop.Core against Bannerlord 1.3.15.110062
+        shell: pwsh
+        run: dotnet build ./upstream/source/Coop.Core/Coop.Core.csproj --configuration Release --no-restore --verbosity minimal -p:KaiTORBannerlord1315=true -p:NuGetAudit=false
