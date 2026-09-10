@@ -29,6 +29,7 @@ function Require-Text {
 }
 
 $missionStart = Read-UpstreamText 'source/GameInterface/Services/MapEvents/Handlers/BattleMissionStartHandler.cs'
+$joinLeave = Read-UpstreamText 'source/GameInterface/Services/MapEvents/Handlers/BattleJoinLeaveHandler.cs'
 $finalize = Read-UpstreamText 'source/GameInterface/Services/MapEvents/Handlers/BattleFinalizeHandler.cs'
 
 # Enter isolation: the server derives recipients from authoritative MapEvent membership and sends
@@ -46,6 +47,34 @@ Require-Text $missionStart `
 if ($missionStart.Contains('network.SendAll(missionStartMessage)') -or
     $missionStart.Contains('network.SendAll(message);')) {
     throw 'Mission start contains a global broadcast path that can drag non-participants into battle.'
+}
+
+# Mid-battle leave isolation: client-supplied PartyId must be owned by the exact requesting NetPeer
+# before the server calls the authoritative removal path. This prevents C/D from ejecting A/B.
+Require-Text $joinLeave `
+    'var requestingPeer = payload.Who as NetPeer;' `
+    'Battle leave does not resolve the requesting NetPeer.'
+Require-Text $joinLeave `
+    'if (requestingPeer == null)' `
+    'Battle leave does not reject a missing remote NetPeer.'
+Require-Text $joinLeave `
+    '!objectManager.TryGetObjectWithLogging<PartyBase>(payload.What.PartyId, out var requestedParty)' `
+    'Battle leave does not resolve the requested PartyId before removal.'
+Require-Text $joinLeave `
+    '!TryGetRequestingPlayer(requestingPeer, requestedParty, out var controllerId)' `
+    'Battle leave does not bind the requested PartyId to the authenticated player.'
+Require-Text $joinLeave `
+    'RemovePartyFromBattleAndBroadcast(' `
+    'Battle leave no longer reaches the authoritative removal path after ownership validation.'
+
+$unsafeLeave = @'
+        RemovePartyFromBattleAndBroadcast(
+            payload.What.PartyId,
+            payload.What.FinishLocalMenus,
+            payload.Who as NetPeer);
+'@ -replace "`r`n", "`n"
+if ($joinLeave.Contains($unsafeLeave)) {
+    throw 'Legacy battle-leave path is still present: client PartyId reaches removal without ownership validation.'
 }
 
 # Exit isolation: a remote teardown must first resolve the exact live peer to a persistent player,
@@ -78,4 +107,4 @@ if ($finalize.Contains($legacyBypass)) {
     throw 'Legacy finalize authorization is still present: an unknown NetPeer can bypass the host check.'
 }
 
-Write-Host 'KaiTOR four-player mission enter/exit isolation staging: PASS'
+Write-Host 'KaiTOR four-player mission enter/leave/exit isolation staging: PASS'
