@@ -56,7 +56,7 @@ namespace Coop.Core.Server.Commands
                         heroResolved,
                         heroIsDead = heroResolved && hero.IsDead,
                         heroIsPrisoner = heroResolved && hero.IsPrisoner,
-                        prisonerPartyId = heroResolved ? hero.PartyBelongedToAsPrisoner?.StringId : null,
+                        prisonerPartyId = heroResolved ? hero.PartyBelongedToAsPrisoner?.MobileParty?.StringId : null,
                         partyResolved,
                         partyActive = partyResolved && party.IsActive,
                         mapEventId = partyResolved ? party.MapEvent?.StringId : null,
