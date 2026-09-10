@@ -28,12 +28,20 @@ foreach ($needle in $required) {
     }
 }
 
-$graphCheck = $text.IndexOf('foreach (var registeredPlayer in playerManager.Players)', [System.StringComparison]::Ordinal)
-$playerCreate = $text.IndexOf('player = new Player(controllerId, heroId, mobilePartyId, clanId, characterObjectId);', [System.StringComparison]::Ordinal)
-$addPlayer = $text.IndexOf('if (!playerManager.AddPlayer(player))', [System.StringComparison]::Ordinal)
-$setPeer = $text.IndexOf('playerManager.SetPeer(controllerId, netPeer);', [System.StringComparison]::Ordinal)
+# Runtime ordering spans two methods, so validate each method independently instead of
+# comparing raw file offsets. Handle_NetworkTransferNewHero appears before TryCreatePlayer
+# in this source file, which makes a whole-file AddPlayer-vs-Player-construction offset
+# comparison report the opposite of the actual call order.
+$tryCreateCall = $text.IndexOf('if (!TryCreatePlayer(controllerId, hero, out var player))', [System.StringComparison]::Ordinal)
+$addPlayer = $text.IndexOf('if (!playerManager.AddPlayer(player))', $tryCreateCall + 1, [System.StringComparison]::Ordinal)
+$setPeer = $text.IndexOf('playerManager.SetPeer(controllerId, netPeer);', $addPlayer + 1, [System.StringComparison]::Ordinal)
 
-if ($graphCheck -lt 0 -or $playerCreate -lt 0 -or $addPlayer -lt 0 -or $setPeer -lt 0) {
+$tryCreateMethod = $text.IndexOf('private bool TryCreatePlayer(string controllerId, Hero hero, out Player player)', [System.StringComparison]::Ordinal)
+$graphCheck = $text.IndexOf('foreach (var registeredPlayer in playerManager.Players)', $tryCreateMethod + 1, [System.StringComparison]::Ordinal)
+$playerCreate = $text.IndexOf('player = new Player(controllerId, heroId, mobilePartyId, clanId, characterObjectId);', $graphCheck + 1, [System.StringComparison]::Ordinal)
+
+if ($tryCreateCall -lt 0 -or $addPlayer -lt 0 -or $setPeer -lt 0 -or
+    $tryCreateMethod -lt 0 -or $graphCheck -lt 0 -or $playerCreate -lt 0) {
     throw 'Unable to locate successor graph-isolation ordering anchors.'
 }
 
@@ -41,8 +49,8 @@ if ($graphCheck -gt $playerCreate) {
     throw 'Successor graph collision check must run before constructing the Player registration.'
 }
 
-if ($playerCreate -gt $addPlayer -or $addPlayer -gt $setPeer) {
-    throw 'Character creation ordering changed: expected graph validation -> Player -> AddPlayer -> SetPeer.'
+if ($tryCreateCall -gt $addPlayer -or $addPlayer -gt $setPeer) {
+    throw 'Character creation handler ordering changed: expected TryCreatePlayer -> AddPlayer -> SetPeer.'
 }
 
 Write-Host 'KaiTOR four-player successor graph-isolation staging contract verified.'
