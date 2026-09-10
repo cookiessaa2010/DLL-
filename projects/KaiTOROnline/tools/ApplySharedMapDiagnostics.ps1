@@ -66,10 +66,15 @@ Replace-Exact `
 # for this exact NetPeer. The PlayerId repeated in NetworkTransferNewHero is client-supplied data.
 & (Join-Path $PSScriptRoot 'ApplyFourPlayerSuccessorIdentitySafety.ps1') -UpstreamRoot $UpstreamRoot
 
+# A valid controller must still receive an isolated authoritative graph. Reject any uploaded
+# Hero/MobileParty/Clan/CharacterObject ids already registered to one of the other players.
+& (Join-Path $PSScriptRoot 'ApplyFourPlayerSuccessorGraphIsolation.ps1') -UpstreamRoot $UpstreamRoot
+
 & (Join-Path $PSScriptRoot 'TestFourPlayerMissionIsolationStaging.ps1') -UpstreamRoot $UpstreamRoot
 & (Join-Path $PSScriptRoot 'TestFourPlayerTimeAuthorityStaging.ps1') -UpstreamRoot $UpstreamRoot
 & (Join-Path $PSScriptRoot 'TestFourPlayerDefeatLifecycleStaging.ps1') -UpstreamRoot $UpstreamRoot
 & (Join-Path $PSScriptRoot 'TestFourPlayerSuccessorIdentityStaging.ps1') -UpstreamRoot $UpstreamRoot
+& (Join-Path $PSScriptRoot 'TestFourPlayerSuccessorGraphIsolationStaging.ps1') -UpstreamRoot $UpstreamRoot
 
 Write-Host 'KaiTOR shared-map diagnostics applied successfully.'
 Write-Host 'Server command: coop.debug.kaitor.snapshot4p'
