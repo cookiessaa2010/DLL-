@@ -50,6 +50,7 @@ if ($missionStart.Contains('network.SendAll(missionStartMessage)') -or
 
 # Exit isolation: a remote teardown must first resolve the exact live peer to a persistent player,
 # then to that player's authoritative MobileParty, and finally prove membership in this MapEvent.
+# Bannerlord 1.3.15 exposes InvolvedParties but not the later single-argument FindMapEventParty API.
 Require-Text $finalize `
     'if (!playerManager.TryGetPlayer(requester, out var requestingPlayer))' `
     'Mission finalize does not reject unknown/stale NetPeer requesters.'
@@ -57,8 +58,11 @@ Require-Text $finalize `
     '!objectManager.TryGetObject<MobileParty>(requestingPlayer.MobilePartyId, out var requestingParty)' `
     'Mission finalize does not resolve the requester authoritative MobileParty.'
 Require-Text $finalize `
-    'mapEvent.FindMapEventParty(requestingParty.Party) == null' `
-    'Mission finalize does not reject players outside the target MapEvent.'
+    'mapEvent.InvolvedParties == null' `
+    'Mission finalize does not guard missing authoritative MapEvent membership.'
+Require-Text $finalize `
+    '!mapEvent.InvolvedParties.Contains(requestingParty.Party)' `
+    'Mission finalize does not reject players outside the target MapEvent using the 1.3.15 API.'
 Require-Text $finalize `
     'if (hostRegistry.TryGet(payload.What.MapEventId, out var hostAssignment)' `
     'Mission finalize no longer enforces the elected battle host when one exists.'
