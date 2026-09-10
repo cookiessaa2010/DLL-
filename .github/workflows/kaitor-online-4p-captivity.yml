@@ -171,3 +171,21 @@ jobs:
               -ControllerId controller-B
           } catch { $failed = $true; Write-Host "Expected rejection: $($_.Exception.Message)" }
           if (-not $failed) { throw 'Restart validator accepted prisonerPartyId drift across restart.' }
+
+      - name: Reject stale admission slot after captive disconnect
+        shell: pwsh
+        run: |
+          $bad = Get-Content fixtures/disconnected-captive.json -Raw | ConvertFrom-Json
+          $bad.activeAdmissionSlots = 4
+          $bad | ConvertTo-Json -Depth 8 | Set-Content fixtures/disconnected-captive-stale-slot.json -Encoding utf8
+          $failed = $false
+          try {
+            ./projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerCaptivityRestart.ps1 `
+              -BeforeCaptureSnapshotPath ./fixtures/before.json `
+              -DisconnectedCaptiveSnapshotPath ./fixtures/disconnected-captive-stale-slot.json `
+              -RestartedCaptiveSnapshotPath ./fixtures/restarted-captive.json `
+              -ReconnectedCaptiveSnapshotPath ./fixtures/reconnected-captive.json `
+              -ReleasedSnapshotPath ./fixtures/released.json `
+              -ControllerId controller-B
+          } catch { $failed = $true; Write-Host "Expected rejection: $($_.Exception.Message)" }
+          if (-not $failed) { throw 'Restart validator accepted stale admission slot accounting after captive disconnect.' }
