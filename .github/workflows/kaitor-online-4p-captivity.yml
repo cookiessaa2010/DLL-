@@ -6,6 +6,7 @@ on:
       - kaitor-online-4p
     paths:
       - 'projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerCaptivityLifecycle.ps1'
+      - 'projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerCaptivityRestart.ps1'
       - 'projects/KaiTOROnline/upstream-overlay/source/Coop.Core/Server/Commands/KaiTORFourPlayerSnapshotCommand.cs'
       - 'projects/KaiTOROnline/tools/ApplyFourPlayerDefeatLifecycleSafety.ps1'
       - '.github/workflows/kaitor-online-4p-captivity.yml'
@@ -57,6 +58,28 @@ jobs:
           $captive.players[1].partyActive = $false
           $captive | ConvertTo-Json -Depth 8 | Set-Content fixtures/captive.json -Encoding utf8
 
+          $disconnectedCaptive = New-Snapshot
+          $disconnectedCaptive.activeAdmissionSlots = 3
+          $disconnectedCaptive.players[1].connected = $false
+          $disconnectedCaptive.players[1].heroIsPrisoner = $true
+          $disconnectedCaptive.players[1].prisonerPartyId = 'captor-party-X'
+          $disconnectedCaptive.players[1].partyActive = $false
+          $disconnectedCaptive | ConvertTo-Json -Depth 8 | Set-Content fixtures/disconnected-captive.json -Encoding utf8
+
+          $restartedCaptive = New-Snapshot
+          $restartedCaptive.activeAdmissionSlots = 0
+          foreach ($player in $restartedCaptive.players) { $player.connected = $false }
+          $restartedCaptive.players[1].heroIsPrisoner = $true
+          $restartedCaptive.players[1].prisonerPartyId = 'captor-party-X'
+          $restartedCaptive.players[1].partyActive = $false
+          $restartedCaptive | ConvertTo-Json -Depth 8 | Set-Content fixtures/restarted-captive.json -Encoding utf8
+
+          $reconnectedCaptive = New-Snapshot
+          $reconnectedCaptive.players[1].heroIsPrisoner = $true
+          $reconnectedCaptive.players[1].prisonerPartyId = 'captor-party-X'
+          $reconnectedCaptive.players[1].partyActive = $false
+          $reconnectedCaptive | ConvertTo-Json -Depth 8 | Set-Content fixtures/reconnected-captive.json -Encoding utf8
+
           $released = New-Snapshot
           $released | ConvertTo-Json -Depth 8 | Set-Content fixtures/released.json -Encoding utf8
 
@@ -66,6 +89,17 @@ jobs:
           ./projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerCaptivityLifecycle.ps1 `
             -BeforeCaptureSnapshotPath ./fixtures/before.json `
             -CaptiveSnapshotPath ./fixtures/captive.json `
+            -ReleasedSnapshotPath ./fixtures/released.json `
+            -ControllerId controller-B
+
+      - name: Validate captivity across disconnect restart reconnect and release
+        shell: pwsh
+        run: |
+          ./projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerCaptivityRestart.ps1 `
+            -BeforeCaptureSnapshotPath ./fixtures/before.json `
+            -DisconnectedCaptiveSnapshotPath ./fixtures/disconnected-captive.json `
+            -RestartedCaptiveSnapshotPath ./fixtures/restarted-captive.json `
+            -ReconnectedCaptiveSnapshotPath ./fixtures/reconnected-captive.json `
             -ReleasedSnapshotPath ./fixtures/released.json `
             -ControllerId controller-B
 
@@ -101,3 +135,39 @@ jobs:
               -ControllerId controller-B
           } catch { $failed = $true; Write-Host "Expected rejection: $($_.Exception.Message)" }
           if (-not $failed) { throw 'Captivity validator accepted active player MobileParty while Hero is prisoner.' }
+
+      - name: Reject premature party activation after captive reconnect
+        shell: pwsh
+        run: |
+          $bad = Get-Content fixtures/reconnected-captive.json -Raw | ConvertFrom-Json
+          $bad.players[1].partyActive = $true
+          $bad | ConvertTo-Json -Depth 8 | Set-Content fixtures/reconnected-captive-active.json -Encoding utf8
+          $failed = $false
+          try {
+            ./projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerCaptivityRestart.ps1 `
+              -BeforeCaptureSnapshotPath ./fixtures/before.json `
+              -DisconnectedCaptiveSnapshotPath ./fixtures/disconnected-captive.json `
+              -RestartedCaptiveSnapshotPath ./fixtures/restarted-captive.json `
+              -ReconnectedCaptiveSnapshotPath ./fixtures/reconnected-captive-active.json `
+              -ReleasedSnapshotPath ./fixtures/released.json `
+              -ControllerId controller-B
+          } catch { $failed = $true; Write-Host "Expected rejection: $($_.Exception.Message)" }
+          if (-not $failed) { throw 'Restart validator accepted active MobileParty before prisoner release.' }
+
+      - name: Reject lost prisoner ownership across restart
+        shell: pwsh
+        run: |
+          $bad = Get-Content fixtures/restarted-captive.json -Raw | ConvertFrom-Json
+          $bad.players[1].prisonerPartyId = 'different-captor-party'
+          $bad | ConvertTo-Json -Depth 8 | Set-Content fixtures/restarted-captive-drift.json -Encoding utf8
+          $failed = $false
+          try {
+            ./projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerCaptivityRestart.ps1 `
+              -BeforeCaptureSnapshotPath ./fixtures/before.json `
+              -DisconnectedCaptiveSnapshotPath ./fixtures/disconnected-captive.json `
+              -RestartedCaptiveSnapshotPath ./fixtures/restarted-captive-drift.json `
+              -ReconnectedCaptiveSnapshotPath ./fixtures/reconnected-captive.json `
+              -ReleasedSnapshotPath ./fixtures/released.json `
+              -ControllerId controller-B
+          } catch { $failed = $true; Write-Host "Expected rejection: $($_.Exception.Message)" }
+          if (-not $failed) { throw 'Restart validator accepted prisonerPartyId drift across restart.' }
