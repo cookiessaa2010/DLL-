@@ -65,5 +65,9 @@ Replace-Exact `
 # battle can be finalized, so players remaining on the campaign map cannot tear down another fight.
 & (Join-Path $PSScriptRoot 'ApplyFourPlayerMissionFinalizeOwnership.ps1') -UpstreamRoot $UpstreamRoot
 
+# Fail staging before compilation if either edge of the partial-battle contract regresses: mission
+# start must stay participant-targeted and mission finalize must stay peer/player/party/event-owned.
+& (Join-Path $PSScriptRoot 'TestFourPlayerMissionIsolationStaging.ps1') -UpstreamRoot $UpstreamRoot
+
 Write-Host 'KaiTOR shared-map diagnostics applied successfully.'
 Write-Host 'Server command: coop.debug.kaitor.snapshot4p'
