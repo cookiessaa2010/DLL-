@@ -10,7 +10,11 @@ on:
       - 'projects/KaiTOROnline/tools/ApplyFourPlayerEncounterOwnership.ps1'
       - 'projects/KaiTOROnline/tools/ApplyFourPlayerMissionFinalizeOwnership.ps1'
       - 'projects/KaiTOROnline/tools/ApplyFourPlayerBattleLeaveOwnership.ps1'
+      - 'projects/KaiTOROnline/tools/ApplyFourPlayerTimeAuthority.ps1'
+      - 'projects/KaiTOROnline/tools/ApplyFourPlayerDefeatLifecycleSafety.ps1'
       - 'projects/KaiTOROnline/tools/TestFourPlayerMissionIsolationStaging.ps1'
+      - 'projects/KaiTOROnline/tools/TestFourPlayerTimeAuthorityStaging.ps1'
+      - 'projects/KaiTOROnline/tools/TestFourPlayerDefeatLifecycleStaging.ps1'
       - 'projects/KaiTOROnline/upstream-overlay/source/Coop.Core/Server/Commands/KaiTORFourPlayerSnapshotCommand.cs'
       - '.github/workflows/kaitor-online-shared-map-diagnostics.yml'
   workflow_dispatch:
@@ -245,4 +249,4 @@ jobs:
 
           Write-Host 'KaiTOR four-player save/restart/reconnect persistence path: PASS'
 
-      # Keep this workflow path-sensitive: changes to any ownership patcher above must exercise staging + compile.
+      # Keep this workflow path-sensitive: changes to any ownership/lifecycle patcher above must exercise staging + compile.
