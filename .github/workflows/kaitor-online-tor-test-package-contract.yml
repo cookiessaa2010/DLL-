@@ -78,7 +78,7 @@ jobs:
           foreach ($module in @('Native','SandBoxCore','Sandbox','CustomBattle','StoryMode','TOR_Armory','TOR_Environment')) {
             $moduleDir = Join-Path $root ("Modules/{0}" -f $module)
             New-Item -ItemType Directory -Force -Path $moduleDir | Out-Null
-            "<Module><Id value=\"$module\" /><Version value=\"v1.3.15\" /></Module>" |
+            ('<Module><Id value="{0}" /><Version value="v1.3.15" /></Module>' -f $module) |
               Set-Content -LiteralPath (Join-Path $moduleDir 'SubModule.xml') -Encoding UTF8
           }
 
