@@ -217,7 +217,9 @@ jobs:
         run: |
           $environmentXml = Join-Path $env:KAITOR_TOR_FAKE_ROOT 'Modules/TOR_Environment/SubModule.xml'
           $original = Get-Content -LiteralPath $environmentXml -Raw
-          $original.Replace('    <Version value="v1.3.15" />' + [Environment]::NewLine, '') | Set-Content -LiteralPath $environmentXml -Encoding UTF8
+          $mutated = [regex]::Replace($original, '(?m)^\s*<Version value="v1\.3\.15"\s*/>\s*\r?\n?', '', 1)
+          if ($mutated -eq $original) { throw 'Negative-test setup failed to remove TOR_Environment Module.Version.' }
+          $mutated | Set-Content -LiteralPath $environmentXml -Encoding UTF8
           try {
             $failed = $false
             try {
