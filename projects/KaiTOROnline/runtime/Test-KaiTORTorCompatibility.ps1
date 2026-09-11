@@ -73,6 +73,10 @@ function Assert-TorRuntimePayload {
 
     $runtimeBin = Join-Path $Root ("Modules\{0}\bin\Win64_Shipping_Client" -f $ModuleId)
     foreach ($dllName in $dllNames) {
+        if ([IO.Path]::IsPathRooted($dllName) -or [IO.Path]::GetFileName($dllName) -ne $dllName -or [IO.Path]::GetExtension($dllName) -ne '.dll') {
+            throw "TOR module '$ModuleId' declares unsafe runtime DLLName '$dllName'. DLLName must be a leaf .dll file name inside its Win64_Shipping_Client directory."
+        }
+
         $dllPath = Join-Path $runtimeBin $dllName
         if (-not (Test-Path -LiteralPath $dllPath -PathType Leaf)) {
             throw "TOR runtime assembly missing for '$ModuleId': $dllPath"
