@@ -6,6 +6,7 @@ on:
       - kaitor-online-4p
     paths:
       - 'projects/KaiTOROnline/runtime/Test-KaiTORTorTestPackage.ps1'
+      - 'projects/KaiTOROnline/runtime/Test-KaiTORTorLiveReadiness.ps1'
       - 'projects/KaiTOROnline/runtime/TOR_RUNTIME_CONTRACT.txt'
       - 'projects/KaiTOROnline/runtime/modules.tor-1.3.15.txt'
       - '.github/workflows/kaitor-online-tor-test-package-contract.yml'
@@ -25,7 +26,18 @@ jobs:
           New-Item -ItemType Directory -Force -Path (Join-Path $stage 'Modules/Coop/bin/Win64_Shipping_Client') | Out-Null
           New-Item -ItemType Directory -Force -Path (Join-Path $stage 'Runtime') | Out-Null
 
-          Set-Content -LiteralPath (Join-Path $stage 'Modules/Coop/SubModule.xml') -Value '<Module />' -Encoding UTF8
+          @'
+          <Module>
+            <Id value="Coop" />
+            <DependedModules>
+              <DependedModule Id="Native" DependentVersion="v1.3.15" />
+              <DependedModule Id="SandBoxCore" DependentVersion="v1.3.15" />
+              <DependedModule Id="Sandbox" DependentVersion="v1.3.15" />
+              <DependedModule Id="CustomBattle" DependentVersion="v1.3.15" />
+              <DependedModule Id="StoryMode" DependentVersion="v1.3.15" />
+            </DependedModules>
+          </Module>
+          '@ | Set-Content -LiteralPath (Join-Path $stage 'Modules/Coop/SubModule.xml') -Encoding UTF8
           foreach ($assembly in @('Coop.dll','Coop.Core.dll','GameInterface.dll')) {
             Set-Content -LiteralPath (Join-Path $stage "Modules/Coop/bin/Win64_Shipping_Client/$assembly") -Value 'CI placeholder' -Encoding ASCII
           }
@@ -54,6 +66,60 @@ jobs:
       - name: Validate TOR test package contract
         shell: pwsh
         run: ./projects/KaiTOROnline/runtime/Test-KaiTORTorTestPackage.ps1 -PackageRoot $env:KAITOR_TEST_PACKAGE
+
+      - name: Exercise TOR live-readiness preflight
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP 'KaiTOR-TOR-live-readiness'
+          $bin = Join-Path $root 'bin/Win64_Shipping_Client'
+          New-Item -ItemType Directory -Force -Path $bin | Out-Null
+          Set-Content -LiteralPath (Join-Path $bin 'Bannerlord.exe') -Value 'CI placeholder' -Encoding ASCII
+
+          foreach ($module in @('Native','SandBoxCore','Sandbox','CustomBattle','StoryMode','TOR_Armory','TOR_Environment')) {
+            $moduleDir = Join-Path $root ("Modules/{0}" -f $module)
+            New-Item -ItemType Directory -Force -Path $moduleDir | Out-Null
+            "<Module><Id value=\"$module\" /><Version value=\"v1.3.15\" /></Module>" |
+              Set-Content -LiteralPath (Join-Path $moduleDir 'SubModule.xml') -Encoding UTF8
+          }
+
+          $torCore = Join-Path $root 'Modules/TOR_Core'
+          $torCoreBin = Join-Path $torCore 'bin/Win64_Shipping_Client'
+          New-Item -ItemType Directory -Force -Path $torCoreBin | Out-Null
+          @'
+          <Module>
+            <Id value="TOR_Core" />
+            <Version value="v1.3.15" />
+            <DependedModules>
+              <DependedModule Id="Native" DependentVersion="v1.3.15" />
+              <DependedModule Id="SandBoxCore" DependentVersion="v1.3.15" />
+              <DependedModule Id="Sandbox" DependentVersion="v1.3.15" />
+              <DependedModule Id="TOR_Armory" DependentVersion="v1.3.15" />
+              <DependedModule Id="TOR_Environment" DependentVersion="v1.3.15" />
+            </DependedModules>
+            <SubModules>
+              <SubModule>
+                <DLLName value="TOR_Core.dll" />
+                <Tags>
+                  <Tag key="DedicatedServerType" value="none" />
+                  <Tag key="IsNoRenderModeElement" value="false" />
+                </Tags>
+              </SubModule>
+            </SubModules>
+          </Module>
+          '@ | Set-Content -LiteralPath (Join-Path $torCore 'SubModule.xml') -Encoding UTF8
+          Set-Content -LiteralPath (Join-Path $torCoreBin 'TOR_Core.dll') -Value 'CI TOR placeholder' -Encoding ASCII
+
+          Copy-Item (Join-Path $env:KAITOR_TEST_PACKAGE 'Modules/Coop') (Join-Path $root 'Modules/Coop') -Recurse -Force
+
+          $output = ./projects/KaiTOROnline/runtime/Test-KaiTORTorLiveReadiness.ps1 `
+            -PackageRoot $env:KAITOR_TEST_PACKAGE `
+            -BannerlordRoot $root `
+            -SaveName 'KaiTOR-CI-Live-Readiness' `
+            -SkipVersionCheck 2>&1 | Out-String
+          Write-Host $output
+          if ($output -notmatch 'KaiTOR TOR live readiness: PASS') { throw 'Live-readiness preflight did not reach PASS.' }
+          if ($output -notmatch 'exact SHA-256 match') { throw 'Live-readiness preflight did not verify installed payload identity.' }
+          if ($output -notmatch 'DRY RUN: process not started') { throw 'Live-readiness preflight did not exercise the TOR launcher dry run.' }
 
       - name: Reject package missing TOR launcher
         shell: pwsh
