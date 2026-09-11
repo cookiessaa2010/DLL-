@@ -67,7 +67,7 @@ jobs:
             <DependedModule Id="StoryMode" DependentVersion="v1.3.15"/>
           </DependedModules></Module>
           '@ | Set-Content -LiteralPath (Join-Path $coop 'SubModule.xml') -Encoding UTF8
-          foreach ($assembly in @('Coop.dll','Coop.Core.dll','GameInterface.dll')) {
+          foreach ($assembly in @('Coop.dll','Coop.Core.dll','GameInterface.dll','Missions.dll')) {
             Set-Content -LiteralPath (Join-Path $coopBin $assembly) -Value 'CI placeholder' -Encoding ASCII
           }
 
