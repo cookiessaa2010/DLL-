@@ -1,0 +1,101 @@
+name: KaiTOR Online TOR Content-Only Assets
+
+on:
+  push:
+    branches:
+      - kaitor-online-4p
+    paths:
+      - 'projects/KaiTOROnline/runtime/Test-KaiTORTorCompatibility.ps1'
+      - '.github/workflows/kaitor-online-tor-content-only-assets.yml'
+  workflow_dispatch:
+
+jobs:
+  content-only-assets:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout KaiTOR project
+        uses: actions/checkout@v4
+
+      - name: Build TOR layout matching Steam Workshop asset modules
+        shell: powershell
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP 'fake-kaitor-tor-content-only'
+          New-Item -ItemType Directory -Force -Path (Join-Path $root 'bin/Win64_Shipping_Client') | Out-Null
+          Set-Content -LiteralPath (Join-Path $root 'bin/Win64_Shipping_Client/Bannerlord.exe') -Value 'CI placeholder' -Encoding ASCII
+
+          foreach ($module in @('Native', 'SandBoxCore', 'Sandbox')) {
+            $dir = Join-Path $root ("Modules/{0}" -f $module)
+            New-Item -ItemType Directory -Force -Path $dir | Out-Null
+            ('<Module><Id value="{0}" /><Version value="v1.3.15" /></Module>' -f $module) |
+              Set-Content -LiteralPath (Join-Path $dir 'SubModule.xml') -Encoding UTF8
+          }
+
+          foreach ($module in @('TOR_Armory', 'TOR_Environment')) {
+            $dir = Join-Path $root ("Modules/{0}" -f $module)
+            New-Item -ItemType Directory -Force -Path $dir | Out-Null
+            @"
+          <Module>
+            <Id value="$module" />
+            <Version value="v1.3.15" />
+          </Module>
+          "@ | Set-Content -LiteralPath (Join-Path $dir 'SubModule.xml') -Encoding UTF8
+          }
+
+          $core = Join-Path $root 'Modules/TOR_Core'
+          $coreBin = Join-Path $core 'bin/Win64_Shipping_Client'
+          New-Item -ItemType Directory -Force -Path $coreBin | Out-Null
+          @'
+          <Module>
+            <Id value="TOR_Core" />
+            <Version value="v1.3.15" />
+            <DependedModules>
+              <DependedModule Id="Native" DependentVersion="v1.3.15" />
+              <DependedModule Id="SandBoxCore" DependentVersion="v1.3.15" />
+              <DependedModule Id="Sandbox" DependentVersion="v1.3.15" />
+              <DependedModule Id="TOR_Armory" DependentVersion="v1.3.15" />
+              <DependedModule Id="TOR_Environment" DependentVersion="v1.3.15" />
+            </DependedModules>
+            <SubModules>
+              <SubModule>
+                <DLLName value="TOR_Core.dll" />
+                <Tags>
+                  <Tag key="DedicatedServerType" value="none" />
+                  <Tag key="IsNoRenderModeElement" value="false" />
+                </Tags>
+              </SubModule>
+            </SubModules>
+          </Module>
+          '@ | Set-Content -LiteralPath (Join-Path $core 'SubModule.xml') -Encoding UTF8
+          Set-Content -LiteralPath (Join-Path $coreBin 'TOR_Core.dll') -Value 'CI placeholder' -Encoding ASCII
+
+          "KAITOR_TOR_CONTENT_ONLY_ROOT=$root" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Accept content-only Armory and Environment under Windows PowerShell 5.1
+        shell: powershell
+        run: |
+          $output = ./projects/KaiTOROnline/runtime/Test-KaiTORTorCompatibility.ps1 `
+            -BannerlordRoot $env:KAITOR_TOR_CONTENT_ONLY_ROOT 3>&1 2>&1 | Out-String
+          Write-Host $output
+          if ($output -notmatch 'TOR compatibility preflight: PASS') {
+            throw 'Valid content-only TOR_Armory/TOR_Environment layout was rejected.'
+          }
+          if ($output -notmatch 'Required managed TOR DLL:\s+TOR_Core.dll') {
+            throw 'Managed TOR runtime contract was not surfaced.'
+          }
+
+      - name: Still reject missing TOR Core runtime DLL
+        shell: powershell
+        run: |
+          $dll = Join-Path $env:KAITOR_TOR_CONTENT_ONLY_ROOT 'Modules/TOR_Core/bin/Win64_Shipping_Client/TOR_Core.dll'
+          Remove-Item -LiteralPath $dll -Force
+          $failed = $false
+          try {
+            ./projects/KaiTOROnline/runtime/Test-KaiTORTorCompatibility.ps1 `
+              -BannerlordRoot $env:KAITOR_TOR_CONTENT_ONLY_ROOT | Out-Null
+          }
+          catch {
+            $failed = $true
+            Write-Host $_.Exception.Message
+            if ($_.Exception.Message -notmatch 'TOR runtime assembly missing.*TOR_Core') { throw }
+          }
+          if (-not $failed) { throw 'Missing TOR_Core.dll was incorrectly accepted.' }
