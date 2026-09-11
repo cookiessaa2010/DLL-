@@ -59,13 +59,26 @@ function Read-ModuleMetadata {
     return [pscustomobject]@{ Path = $path; Xml = $xml }
 }
 
+function Get-ModuleVersionValue {
+    param(
+        [Parameter(Mandatory = $true)]$Metadata
+    )
+
+    $versionNode = $Metadata.Xml.SelectSingleNode('/Module/Version')
+    if ($null -eq $versionNode) {
+        return ''
+    }
+
+    return [string]$versionNode.GetAttribute('value')
+}
+
 function Assert-ExactTorModuleVersion {
     param(
         [Parameter(Mandatory = $true)][string]$ModuleId,
         [Parameter(Mandatory = $true)]$Metadata
     )
 
-    $installedVersion = [string]$Metadata.Xml.Module.Version.value
+    $installedVersion = Get-ModuleVersionValue -Metadata $Metadata
     if ([string]::IsNullOrWhiteSpace($installedVersion)) {
         throw "Installed TOR module '$ModuleId' does not declare Module.Version. Exact TOR $ExpectedTorVersion is required."
     }
@@ -110,10 +123,10 @@ $root = Resolve-BannerlordRoot -Path $BannerlordRoot
 $core = Read-ModuleMetadata -Root $root -ModuleId 'TOR_Core'
 $xml = $core.Xml
 
-$version = [string]$xml.Module.Version.value
-if ($version -ne $ExpectedTorVersion) {
-    throw "Expected The Old Realms $ExpectedTorVersion, found '$version'."
-}
+# Validate TOR_Core through the same fail-closed path used for all exact-version TOR modules.
+# This intentionally handles a missing <Version> node without leaking a StrictMode property error.
+Assert-ExactTorModuleVersion -ModuleId 'TOR_Core' -Metadata $core
+$version = Get-ModuleVersionValue -Metadata $core
 
 $dependencies = @($xml.Module.DependedModules.DependedModule)
 foreach ($required in $RequiredDependencies) {
@@ -135,10 +148,6 @@ foreach ($required in $RequiredDependencies) {
         Assert-ExactTorModuleVersion -ModuleId $required -Metadata $metadata
     }
 }
-
-# TOR_Core is read before the dependency loop, so validate its own version through the same
-# fail-closed helper as the other TOR runtime modules. This also rejects missing Version metadata.
-Assert-ExactTorModuleVersion -ModuleId 'TOR_Core' -Metadata $core
 
 foreach ($runtimeModule in $RequiredTorRuntimeModules) {
     $metadata = if ($runtimeModule -eq 'TOR_Core') {
