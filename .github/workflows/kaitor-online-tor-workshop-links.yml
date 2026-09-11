@@ -24,6 +24,19 @@ jobs:
           New-Item -ItemType Directory -Force -Path (Join-Path $game 'Modules') | Out-Null
           New-Item -ItemType Directory -Force -Path $workshop | Out-Null
 
+          # Real Workshop libraries can contain unrelated modules. These fixtures ensure
+          # discovery ignores missing Id metadata and malformed XML instead of dying under
+          # Windows PowerShell 5.1 StrictMode before the TOR modules are found.
+          $unrelatedMissingId = Join-Path $workshop '1111111111'
+          New-Item -ItemType Directory -Force -Path $unrelatedMissingId | Out-Null
+          '<Module><Version value="v9.9.9" /></Module>' |
+            Set-Content -LiteralPath (Join-Path $unrelatedMissingId 'SubModule.xml') -Encoding UTF8
+
+          $unrelatedMalformed = Join-Path $workshop '2222222222'
+          New-Item -ItemType Directory -Force -Path $unrelatedMalformed | Out-Null
+          '<Module><Id value="Broken">' |
+            Set-Content -LiteralPath (Join-Path $unrelatedMalformed 'SubModule.xml') -Encoding UTF8
+
           $fixtures = @{
             '3025575223' = 'TOR_Armory'
             '3025579210' = 'TOR_Environment'
