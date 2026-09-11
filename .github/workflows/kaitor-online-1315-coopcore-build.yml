@@ -301,3 +301,33 @@ jobs:
           path: ${{ env.KAITOR_ARTIFACT }}
           if-no-files-found: error
           retention-days: 7
+
+      - name: Download uploaded KaiTOR artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: KaiTOROnline-0.0.1-bootstrap-Bannerlord-1.3.15.110062
+          path: ${{ runner.temp }}/KaiTOROnline-uploaded
+
+      - name: Validate uploaded artifact boundary
+        shell: pwsh
+        run: |
+          $uploaded = Resolve-Path (Join-Path $env:RUNNER_TEMP 'KaiTOROnline-uploaded')
+          ./kaitor/projects/KaiTOROnline/runtime/Test-KaiTORTorTestPackage.ps1 -PackageRoot $uploaded
+
+          $buildInfo = Get-Content -LiteralPath (Join-Path $uploaded 'BUILD.txt') -Raw
+          if ($buildInfo -notmatch [regex]::Escape("Source commit: $env:GITHUB_SHA")) {
+            throw "Uploaded artifact provenance mismatch. Expected source commit $env:GITHUB_SHA."
+          }
+
+          $forbidden = Get-ChildItem $uploaded -Recurse -File | Where-Object {
+            $_.Name -like 'TaleWorlds*.dll' -or
+            $_.FullName -match '[\\/]TOR_Armory[\\/]' -or
+            $_.FullName -match '[\\/]TOR_Environment[\\/]' -or
+            $_.FullName -match '[\\/]TOR_Core[\\/]'
+          }
+          if ($forbidden) {
+            $forbidden | ForEach-Object { Write-Host "Forbidden redistributed payload: $($_.FullName)" }
+            throw 'Uploaded artifact contains game or TOR payloads that must not be redistributed.'
+          }
+
+          Write-Host "Uploaded artifact passed contract, provenance, and redistribution checks for $env:GITHUB_SHA."
