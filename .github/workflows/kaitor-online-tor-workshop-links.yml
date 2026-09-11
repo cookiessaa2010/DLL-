@@ -1,0 +1,98 @@
+name: KaiTOR Online TOR Workshop Links
+
+on:
+  push:
+    branches:
+      - kaitor-online-4p
+    paths:
+      - 'projects/KaiTOROnline/runtime/Prepare-KaiTORTorWorkshopLinks.ps1'
+      - '.github/workflows/kaitor-online-tor-workshop-links.yml'
+  workflow_dispatch:
+
+jobs:
+  workshop-links:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout KaiTOR project
+        uses: actions/checkout@v4
+
+      - name: Assemble synthetic Bannerlord and Workshop layout
+        shell: powershell
+        run: |
+          $game = Join-Path $env:RUNNER_TEMP 'KaiTOR-Workshop-Game'
+          $workshop = Join-Path $env:RUNNER_TEMP 'KaiTOR-Workshop-Content'
+          New-Item -ItemType Directory -Force -Path (Join-Path $game 'Modules') | Out-Null
+          New-Item -ItemType Directory -Force -Path $workshop | Out-Null
+
+          $fixtures = @{
+            '3025575223' = 'TOR_Armory'
+            '3025579210' = 'TOR_Environment'
+            '3025574678' = 'TOR_Core'
+          }
+          foreach ($entry in $fixtures.GetEnumerator()) {
+            $dir = Join-Path $workshop $entry.Key
+            New-Item -ItemType Directory -Force -Path $dir | Out-Null
+            ('<Module><Id value="{0}" /><Version value="v1.3.15" /></Module>' -f $entry.Value) |
+              Set-Content -LiteralPath (Join-Path $dir 'SubModule.xml') -Encoding UTF8
+          }
+
+          "KAITOR_WORKSHOP_GAME=$game" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "KAITOR_WORKSHOP_ROOT=$workshop" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Create TOR Workshop junctions with Windows PowerShell 5.1
+        shell: powershell
+        run: |
+          $output = ./projects/KaiTOROnline/runtime/Prepare-KaiTORTorWorkshopLinks.ps1 `
+            -BannerlordRoot $env:KAITOR_WORKSHOP_GAME `
+            -WorkshopRoot $env:KAITOR_WORKSHOP_ROOT 2>&1 | Out-String
+          Write-Host $output
+          if ($output -notmatch 'KaiTOR TOR Workshop link preparation: PASS') {
+            throw 'Workshop link preparation did not report PASS.'
+          }
+
+          foreach ($module in @('TOR_Armory','TOR_Environment','TOR_Core')) {
+            $path = Join-Path $env:KAITOR_WORKSHOP_GAME ("Modules/{0}" -f $module)
+            if (-not (Test-Path -LiteralPath (Join-Path $path 'SubModule.xml') -PathType Leaf)) {
+              throw "Prepared junction is missing SubModule.xml: $path"
+            }
+            $item = Get-Item -LiteralPath $path -Force
+            if (-not (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -eq [IO.FileAttributes]::ReparsePoint)) {
+              throw "Prepared TOR path is not a junction/reparse point: $path"
+            }
+          }
+
+      - name: Verify Workshop junction preparation is idempotent
+        shell: powershell
+        run: |
+          $output = ./projects/KaiTOROnline/runtime/Prepare-KaiTORTorWorkshopLinks.ps1 `
+            -BannerlordRoot $env:KAITOR_WORKSHOP_GAME `
+            -WorkshopRoot $env:KAITOR_WORKSHOP_ROOT 2>&1 | Out-String
+          Write-Host $output
+          if ($output -notmatch 'Workshop junction already ready') {
+            throw 'Second Workshop preparation did not recognize existing safe junctions.'
+          }
+          if ($output -notmatch 'KaiTOR TOR Workshop link preparation: PASS') {
+            throw 'Idempotent Workshop preparation did not report PASS.'
+          }
+
+      - name: Refuse to overwrite a real TOR directory
+        shell: powershell
+        run: |
+          $game = Join-Path $env:RUNNER_TEMP 'KaiTOR-Workshop-Conflict'
+          $real = Join-Path $game 'Modules/TOR_Core'
+          New-Item -ItemType Directory -Force -Path $real | Out-Null
+          '<Module><Id value="TOR_Core" /><Version value="v1.3.15" /></Module>' |
+            Set-Content -LiteralPath (Join-Path $real 'SubModule.xml') -Encoding UTF8
+
+          $failed = $false
+          try {
+            ./projects/KaiTOROnline/runtime/Prepare-KaiTORTorWorkshopLinks.ps1 `
+              -BannerlordRoot $game `
+              -WorkshopRoot $env:KAITOR_WORKSHOP_ROOT
+          } catch {
+            $failed = $true
+            Write-Host "Expected real-directory rejection: $($_.Exception.Message)"
+          }
+          if (-not $failed) {
+            throw 'Workshop helper overwrote or accepted a real TOR directory.'
+          }
