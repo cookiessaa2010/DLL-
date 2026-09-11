@@ -30,6 +30,7 @@ $requiredFiles = @(
     'Runtime/Test-KaiTORTorPostBattleRuntime.ps1',
     'Runtime/Test-KaiTORTorPostBattleLiveEvidence.ps1',
     'Runtime/Test-KaiTORTorTestPackage.ps1',
+    'Runtime/FIRST_TOR_LIVE_TEST_RU.txt',
     'Runtime/TOR_RUNTIME_CONTRACT.txt',
     'Runtime/modules.tor-1.3.15.txt',
     'BUILD.txt',
@@ -51,6 +52,22 @@ $contractChecks = @(
 foreach ($needle in $contractChecks) {
     if ($contract -notlike "*$needle*") {
         throw "TOR runtime contract missing required statement: $needle"
+    }
+}
+
+$runbook = Get-Content -LiteralPath (Join-Path $root 'Runtime/FIRST_TOR_LIVE_TEST_RU.txt') -Raw
+$runbookChecks = @(
+    'Bannerlord: 1.3.15.110062',
+    'The Old Realms: 1.3.15',
+    'Максимум: 4 одновременно подключённых игрока',
+    'Test-KaiTORTorLiveReadiness.ps1',
+    'Start-KaiTORTorCampaignServer.ps1',
+    'coop.debug.kaitor.snapshot4p',
+    'Capture-KaiTORTorPostBattleLiveSession.ps1'
+)
+foreach ($needle in $runbookChecks) {
+    if ($runbook -notlike "*$needle*") {
+        throw "TOR live-test runbook missing required instruction: $needle"
     }
 }
 
