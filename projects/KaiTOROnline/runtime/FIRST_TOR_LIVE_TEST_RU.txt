@@ -1,0 +1,110 @@
+KaiTOR Online — первый реальный TOR live-test
+
+Цель
+- Bannerlord: 1.3.15.110062
+- The Old Realms: 1.3.15
+- KaiTOR/Coop: пакет из текущего artifact ветки kaitor-online-4p
+- Максимум: 4 одновременно подключённых игрока
+- Авторитетный процесс кампании: Bannerlord.exe /singleplayer /server
+
+Важно
+- Пакет KaiTOR НЕ содержит и не распространяет файлы Bannerlord или The Old Realms.
+- На тестовой машине должны быть легально установлены Bannerlord 1.3.15.110062 и TOR 1.3.15.
+- TOR-модули должны загружаться в порядке:
+  TOR_Armory -> TOR_Environment -> TOR_Core -> Coop
+- Не заменяйте TOR-файлы файлами из пакета KaiTOR. В пакет входит только Modules/Coop и Runtime-инструменты.
+
+1. Подготовка
+1) Распакуйте artifact KaiTOR в отдельную папку.
+2) Скопируйте папку Modules/Coop из artifact в корень установленного Bannerlord, сохранив структуру Modules/Coop/...
+3) Убедитесь, что установлены TOR_Armory, TOR_Environment и TOR_Core версии 1.3.15.
+4) Не используйте дополнительные gameplay-моды в первом прогоне. Клиенты должны иметь одинаковый набор модулей.
+
+2. Обязательный preflight
+Запустите PowerShell из папки artifact:
+
+  ./Runtime/Test-KaiTORTorLiveReadiness.ps1 `
+    -PackageRoot . `
+    -BannerlordRoot "C:\PATH\TO\Mount & Blade II Bannerlord" `
+    -SaveName "KaiTOR-TOR-Live-01"
+
+Ожидаемый результат:
+  KaiTOR TOR live readiness: PASS
+
+Preflight должен подтвердить:
+- целевой runtime Bannerlord;
+- TOR 1.3.15 и требуемую цепочку модулей;
+- установленный Modules/Coop совпадает с пакетным payload по SHA-256;
+- TOR launcher dry-run корректен.
+
+Если preflight FAIL — сервер не запускать. Сначала исправьте указанное расхождение.
+
+3. Запуск authoritative campaign server
+После PASS:
+
+  ./Runtime/Start-KaiTORTorCampaignServer.ps1 `
+    -BannerlordRoot "C:\PATH\TO\Mount & Blade II Bannerlord" `
+    -SaveName "KaiTOR-TOR-Live-01"
+
+Ожидаемая архитектура: Bannerlord.exe /singleplayer /server.
+Не считать TOR совместимость доказанной только по факту старта процесса: нужен живой клиентский тест.
+
+4. Smoke-test на 2 клиента
+Сначала подключите 2 клиента через существующий Coop connection flow.
+Проверить:
+- оба игрока входят в одну кампанию;
+- у каждого независимый Hero/Clan/MobileParty;
+- обе партии видны на общей карте;
+- движение одной партии не двигает вторую;
+- reconnect возвращает игрока к его прежней идентичности/партии;
+- в runtime log нет TypeLoadException, MissingMethodException, MissingFieldException, FileLoadException, BadImageFormatException, ReflectionTypeLoadException или Harmony patch failure.
+
+Если 2-client smoke стабилен — переходить к 4 клиентам.
+
+5. 4-player shared-map acceptance
+Подключите ровно 4 разных контроллера.
+В server command input выполните:
+
+  coop.debug.kaitor.snapshot4p
+
+Сохраните вывод с маркером:
+  KAITOR_4P_SNAPSHOT_JSON=...
+
+Проверить:
+- activeAdmissionSlots = 4;
+- 4 уникальных controllerId;
+- 4 уникальных Hero;
+- 4 уникальных Clan;
+- 4 уникальных MobileParty;
+- 4 уникальных CharacterObject;
+- все 4 partyResolved/partyActive в обычном map-state;
+- пятый новый контроллер не допускается.
+
+После независимого перемещения всех четырёх партий выполните snapshot ещё раз. Движение должно быть независимым, без lockstep и без подмены owner identity.
+
+6. Battle/post-battle TOR acceptance
+Для финального live evidence используйте единый непрерывный server process и один command stream.
+Нужны три последовательных snapshot4p:
+1) in-battle;
+2) post-battle после выхода из MapEvent;
+3) moved после независимого движения.
+
+Для автоматизированной фиксации используйте:
+  Runtime/Capture-KaiTORTorPostBattleLiveSession.ps1
+  Runtime/Invoke-KaiTORTorPostBattleLiveAcceptance.ps1
+  Runtime/Test-KaiTORTorPostBattleLiveEvidence.ps1
+
+Не перезапускайте сервер и не заменяйте/truncate runtime log или command stream между этими тремя состояниями.
+
+7. Что сохранить при ошибке
+- полный runtime log;
+- точный текст исключения и stack trace;
+- все строки KAITOR_4P_SNAPSHOT_JSON;
+- стадия: server start / client join / character creation / map movement / encounter / battle / post-battle / reconnect / save-load;
+- какой из 4 клиентов вызвал проблему.
+
+Критерий первого успешного этапа
+2 клиента стабильно входят в TOR-кампанию, получают независимые партии, двигаются и переподключаются без fatal managed/runtime ошибок.
+
+Критерий полного текущего этапа
+4 клиента проходят shared-map + battle/post-battle acceptance в одном authoritative TOR campaign process с сохранением идентичностей и лимита 4 игроков.
