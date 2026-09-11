@@ -53,7 +53,8 @@ function Read-ModuleMetadata {
         throw "TOR module '$ModuleId' has invalid SubModule.xml: $($_.Exception.Message)"
     }
 
-    $declaredId = [string]$xml.Module.Id.value
+    $idNode = $xml.SelectSingleNode('/Module/Id')
+    $declaredId = if ($null -eq $idNode) { '' } else { [string]$idNode.GetAttribute('value') }
     if ($declaredId -ne $ModuleId) {
         throw "Module directory '$ModuleId' declares Module.Id '$declaredId'. Expected exact Id '$ModuleId'."
     }
@@ -90,6 +91,31 @@ function Assert-ExactTorModuleVersion {
     }
 }
 
+function Get-TorSubModuleDllNames {
+    param(
+        [Parameter(Mandatory = $true)]$Metadata
+    )
+
+    # Use XPath instead of PowerShell XML property traversal. Under Windows PowerShell 5.1
+    # with StrictMode, a valid content-only Bannerlord module that has no <SubModules>
+    # element can otherwise raise PropertyNotFoundException before we can classify it.
+    $names = [Collections.Generic.List[string]]::new()
+    $subModules = @($Metadata.Xml.SelectNodes('/Module/SubModules/SubModule'))
+    foreach ($subModule in $subModules) {
+        $dllNode = $subModule.SelectSingleNode('DLLName')
+        if ($null -eq $dllNode) {
+            continue
+        }
+
+        $dllName = [string]$dllNode.GetAttribute('value')
+        if (-not [string]::IsNullOrWhiteSpace($dllName)) {
+            $names.Add($dllName)
+        }
+    }
+
+    return $names.ToArray()
+}
+
 function Assert-TorRuntimePayload {
     param(
         [Parameter(Mandatory = $true)][string]$Root,
@@ -97,15 +123,16 @@ function Assert-TorRuntimePayload {
         [Parameter(Mandatory = $true)]$Metadata
     )
 
-    $subModules = @($Metadata.Xml.Module.SubModules.SubModule)
-    $dllNames = @(
-        $subModules |
-            ForEach-Object { [string]$_.DLLName.value } |
-            Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
-    )
+    $dllNames = @(Get-TorSubModuleDllNames -Metadata $Metadata)
 
+    # TOR_Armory and TOR_Environment are valid asset/content modules in the real Steam
+    # Workshop distribution and may not declare a managed SubModule DLL at all. TOR_Core
+    # is the code-bearing module and must always declare at least one runtime DLL.
     if ($dllNames.Count -lt 1) {
-        throw "TOR module '$ModuleId' does not declare any runtime DLL in SubModule.xml."
+        if ($ModuleId -eq 'TOR_Core') {
+            throw "TOR module '$ModuleId' does not declare any runtime DLL in SubModule.xml."
+        }
+        return
     }
 
     $runtimeBin = Join-Path $Root ("Modules\{0}\bin\Win64_Shipping_Client" -f $ModuleId)
@@ -130,14 +157,14 @@ $xml = $core.Xml
 Assert-ExactTorModuleVersion -ModuleId 'TOR_Core' -Metadata $core
 $version = Get-ModuleVersionValue -Metadata $core
 
-$dependencies = @($xml.Module.DependedModules.DependedModule)
+$dependencies = @($xml.SelectNodes('/Module/DependedModules/DependedModule'))
 foreach ($required in $RequiredDependencies) {
-    $match = @($dependencies | Where-Object { [string]$_.Id -eq $required })
+    $match = @($dependencies | Where-Object { [string]$_.GetAttribute('Id') -eq $required })
     if ($match.Count -ne 1) {
         throw "TOR_Core must declare dependency '$required' exactly once."
     }
 
-    $dependentVersion = [string]$match[0].DependentVersion
+    $dependentVersion = [string]$match[0].GetAttribute('DependentVersion')
     if ($dependentVersion -ne $ExpectedTorVersion) {
         throw "TOR_Core dependency '$required' must target $ExpectedTorVersion, found '$dependentVersion'."
     }
@@ -161,17 +188,16 @@ foreach ($runtimeModule in $RequiredTorRuntimeModules) {
     Assert-TorRuntimePayload -Root $root -ModuleId $runtimeModule -Metadata $metadata
 }
 
-$subModules = @($xml.Module.SubModules.SubModule)
-$coreSubModule = @($subModules | Where-Object { [string]$_.DLLName.value -eq 'TOR_Core.dll' })
+$coreSubModule = @($xml.SelectNodes('/Module/SubModules/SubModule[DLLName/@value="TOR_Core.dll"]'))
 if ($coreSubModule.Count -ne 1) {
     throw 'TOR_Core SubModule.xml must declare exactly one TOR_Core.dll submodule.'
 }
 
-$tags = @($coreSubModule[0].Tags.Tag)
-$dedicatedTag = @($tags | Where-Object { [string]$_.key -eq 'DedicatedServerType' })
-$dedicatedValue = if ($dedicatedTag.Count -eq 1) { [string]$dedicatedTag[0].value } else { '<missing>' }
-$noRenderTag = @($tags | Where-Object { [string]$_.key -eq 'IsNoRenderModeElement' })
-$noRenderValue = if ($noRenderTag.Count -eq 1) { [string]$noRenderTag[0].value } else { '<missing>' }
+$tags = @($coreSubModule[0].SelectNodes('Tags/Tag'))
+$dedicatedTag = @($tags | Where-Object { [string]$_.GetAttribute('key') -eq 'DedicatedServerType' })
+$dedicatedValue = if ($dedicatedTag.Count -eq 1) { [string]$dedicatedTag[0].GetAttribute('value') } else { '<missing>' }
+$noRenderTag = @($tags | Where-Object { [string]$_.GetAttribute('key') -eq 'IsNoRenderModeElement' })
+$noRenderValue = if ($noRenderTag.Count -eq 1) { [string]$noRenderTag[0].GetAttribute('value') } else { '<missing>' }
 
 if ($RequireDedicatedServerMetadata -and $dedicatedValue -eq 'none') {
     throw "TOR_Core declares DedicatedServerType=none. Native dedicated-server loading is not advertised by TOR 1.3.15; use the KaiTOR Bannerlord campaign-process path and validate it at runtime before claiming TOR dedicated compatibility."
@@ -182,6 +208,7 @@ Write-Output "  Bannerlord root:             $root"
 Write-Output "  TOR_Core version:            $version"
 Write-Output "  Required TOR dependencies:   $($RequiredDependencies -join ', ')"
 Write-Output "  TOR runtime payload:         $($RequiredTorRuntimeModules -join ', ')"
+Write-Output '  Required managed TOR DLL:    TOR_Core.dll'
 Write-Output "  DedicatedServerType:         $dedicatedValue"
 Write-Output "  IsNoRenderModeElement:       $noRenderValue"
 
