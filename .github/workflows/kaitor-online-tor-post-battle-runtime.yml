@@ -1,0 +1,164 @@
+name: KaiTOR Online TOR Post-Battle Runtime Acceptance
+
+on:
+  push:
+    branches:
+      - kaitor-online-4p
+    paths:
+      - 'projects/KaiTOROnline/runtime/Test-KaiTORTorPostBattleRuntime.ps1'
+      - 'projects/KaiTOROnline/runtime/Test-KaiTORTorRuntimeLog.ps1'
+      - 'projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerSnapshot.ps1'
+      - 'projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerPostBattleMovement.ps1'
+      - '.github/workflows/kaitor-online-tor-post-battle-runtime.yml'
+  workflow_dispatch:
+
+jobs:
+  validate-tor-post-battle-runtime:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build TOR post-battle fixtures
+        shell: pwsh
+        run: |
+          $root = "$env:RUNNER_TEMP/kaitor-tor-post-battle"
+          New-Item -ItemType Directory -Path $root -Force | Out-Null
+
+          @'
+          [Module] TOR_Armory initialized
+          Loaded managed assembly TOR_Armory.dll
+          [Module] TOR_Environment initialized
+          Loaded managed assembly TOR_Environment.dll
+          [Module] TOR_Core initialized
+          Loaded managed assembly TOR_Core.dll
+          [Module] Coop initialized
+          Loaded managed assembly Coop.Core.dll
+          Campaign server ready
+          '@ | Set-Content -LiteralPath "$root/runtime.log" -Encoding UTF8
+
+          function New-Player {
+            param(
+              [string]$Id,
+              [double]$X,
+              [double]$Y,
+              [string]$MapEventId = ''
+            )
+            [pscustomobject]@{
+              controllerId = "controller-$Id"
+              heroId = "hero-$Id"
+              mobilePartyId = "party-$Id"
+              clanId = "clan-$Id"
+              characterObjectId = "character-$Id"
+              connected = $true
+              heroResolved = $true
+              heroIsDead = $false
+              heroIsPrisoner = $false
+              prisonerPartyId = ''
+              partyResolved = $true
+              partyActive = $true
+              mapEventId = $MapEventId
+              positionX = $X
+              positionY = $Y
+            }
+          }
+
+          $battle = [pscustomobject]@{
+            activeAdmissionSlots = 4
+            playerRegistryCount = 4
+            players = @(
+              New-Player A 10.0 10.0 'battle-001'
+              New-Player B 20.0 20.0
+              New-Player C 30.0 30.0
+              New-Player D 40.0 40.0
+            )
+          }
+          $post = [pscustomobject]@{
+            activeAdmissionSlots = 4
+            playerRegistryCount = 4
+            players = @(
+              New-Player A 10.0 10.0
+              New-Player B 20.0 20.0
+              New-Player C 30.0 30.0
+              New-Player D 40.0 40.0
+            )
+          }
+          $moved = [pscustomobject]@{
+            activeAdmissionSlots = 4
+            playerRegistryCount = 4
+            players = @(
+              New-Player A 11.0 10.0
+              New-Player B 20.0 21.5
+              New-Player C 28.0 31.0
+              New-Player D 42.5 38.0
+            )
+          }
+
+          $battle | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath "$root/battle.json" -Encoding UTF8
+          $post | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath "$root/post.json" -Encoding UTF8
+          $moved | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath "$root/moved.json" -Encoding UTF8
+
+      - name: Accept full TOR post-battle four-player runtime
+        shell: pwsh
+        run: |
+          $root = "$env:RUNNER_TEMP/kaitor-tor-post-battle"
+          ./projects/KaiTOROnline/runtime/Test-KaiTORTorPostBattleRuntime.ps1 `
+            -LogPath "$root/runtime.log" `
+            -InBattleSnapshotPath "$root/battle.json" `
+            -PostBattleSnapshotPath "$root/post.json" `
+            -MovedSnapshotPath "$root/moved.json" `
+            -ControllerId 'controller-A'
+
+      - name: Reject stale MapEvent after TOR battle exit
+        shell: pwsh
+        run: |
+          $root = "$env:RUNNER_TEMP/kaitor-tor-post-battle"
+          $bad = Get-Content -LiteralPath "$root/post.json" -Raw | ConvertFrom-Json
+          $bad.players[0].mapEventId = 'battle-001'
+          $bad | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath "$root/stale-post.json" -Encoding UTF8
+
+          $rejected = $false
+          try {
+            & ./projects/KaiTOROnline/runtime/Test-KaiTORTorPostBattleRuntime.ps1 `
+              -LogPath "$root/runtime.log" `
+              -InBattleSnapshotPath "$root/battle.json" `
+              -PostBattleSnapshotPath "$root/stale-post.json" `
+              -MovedSnapshotPath "$root/moved.json" `
+              -ControllerId 'controller-A'
+          }
+          catch {
+            $rejected = $true
+            Write-Host "Expected rejection: $($_.Exception.Message)"
+            if ($_.Exception.Message -notmatch 'stale MapEvent') { throw }
+          }
+          if (-not $rejected) { throw 'TOR post-battle validator accepted stale MapEvent ownership.' }
+
+      - name: Reject invalid TOR stack even with valid post-battle movement
+        shell: pwsh
+        run: |
+          $root = "$env:RUNNER_TEMP/kaitor-tor-post-battle"
+          @'
+          [Module] TOR_Armory initialized
+          Loaded managed assembly TOR_Armory.dll
+          [Module] TOR_Core initialized
+          Loaded managed assembly TOR_Core.dll
+          [Module] Coop initialized
+          Loaded managed assembly Coop.Core.dll
+          Campaign server ready
+          '@ | Set-Content -LiteralPath "$root/bad-runtime.log" -Encoding UTF8
+
+          $rejected = $false
+          try {
+            & ./projects/KaiTOROnline/runtime/Test-KaiTORTorPostBattleRuntime.ps1 `
+              -LogPath "$root/bad-runtime.log" `
+              -InBattleSnapshotPath "$root/battle.json" `
+              -PostBattleSnapshotPath "$root/post.json" `
+              -MovedSnapshotPath "$root/moved.json" `
+              -ControllerId 'controller-A'
+          }
+          catch {
+            $rejected = $true
+            Write-Host "Expected rejection: $($_.Exception.Message)"
+            if ($_.Exception.Message -notmatch 'TOR_Environment') { throw }
+          }
+          if (-not $rejected) { throw 'TOR post-battle validator accepted an incomplete TOR stack.' }
