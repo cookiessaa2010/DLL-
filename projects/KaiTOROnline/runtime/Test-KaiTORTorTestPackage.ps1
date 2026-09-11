@@ -60,7 +60,7 @@ if ($moduleOrder.Count -ne $expectedOrder.Count) {
 }
 for ($i = 0; $i -lt $expectedOrder.Count; $i++) {
     if ($moduleOrder[$i] -ne $expectedOrder[$i]) {
-        throw "Unexpected TOR module order at index $i: $($moduleOrder[$i]); expected $($expectedOrder[$i])."
+        throw "Unexpected TOR module order at index ${i}: $($moduleOrder[$i]); expected $($expectedOrder[$i])."
     }
 }
 
