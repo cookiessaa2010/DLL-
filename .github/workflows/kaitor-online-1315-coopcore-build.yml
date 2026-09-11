@@ -263,14 +263,16 @@ jobs:
           }
 
           @(
-            'KaiTOR Online 0.0.1 bootstrap',
+            'KaiTOR Online 0.0.1 bootstrap / TOR live-test package',
             'Target: Mount & Blade II Bannerlord 1.3.15.110062',
+            'Target mod: The Old Realms 1.3.15',
             'Admission limit: 4 simultaneous players',
-            'Campaign authority: separate Bannerlord.exe /server process loading the authoritative save',
+            'Campaign authority: Bannerlord.exe /singleplayer /server loading the authoritative save',
+            'TOR runtime order: TOR_Armory -> TOR_Environment -> TOR_Core -> Coop',
             'ServerConsole: auxiliary rendezvous/NAT/listing service; NOT the campaign world server',
-            'Native no-render/headless mode: NOT YET VERIFIED (module metadata currently opts out)',
-            'Purpose: vanilla four-client runtime/bootstrap testing before TOR integration',
-            'Game assemblies are NOT included; use an existing legal Bannerlord 1.3.15.110062 installation.',
+            'Native no-render/headless TOR mode: NOT CLAIMED (TOR_Core metadata opts out)',
+            'Purpose: first four-client TOR runtime acceptance using the user installed legal game and TOR files.',
+            'Game and TOR assemblies are NOT included; use an existing legal Bannerlord 1.3.15.110062 + TOR 1.3.15 installation.',
             "Source commit: $env:GITHUB_SHA"
           ) | Set-Content -Encoding UTF8 (Join-Path $stage 'BUILD.txt')
 
@@ -287,6 +289,10 @@ jobs:
       - name: Audit packaged managed dependency versions
         shell: pwsh
         run: ./kaitor/projects/KaiTOROnline/tools/AuditManagedAssemblyReferences.ps1 -Directory (Join-Path $env:KAITOR_ARTIFACT 'Modules/Coop/bin/Win64_Shipping_Client')
+
+      - name: Validate distributable TOR live-test package contract
+        shell: pwsh
+        run: ./kaitor/projects/KaiTOROnline/runtime/Test-KaiTORTorTestPackage.ps1 -PackageRoot $env:KAITOR_ARTIFACT
 
       - name: Upload KaiTOR bootstrap artifact
         uses: actions/upload-artifact@v4
