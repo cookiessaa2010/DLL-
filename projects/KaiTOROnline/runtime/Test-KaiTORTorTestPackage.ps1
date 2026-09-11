@@ -21,6 +21,7 @@ $requiredFiles = @(
     'Modules/Coop/bin/Win64_Shipping_Client/Coop.dll',
     'Modules/Coop/bin/Win64_Shipping_Client/Coop.Core.dll',
     'Modules/Coop/bin/Win64_Shipping_Client/GameInterface.dll',
+    'Modules/Coop/bin/Win64_Shipping_Client/Missions.dll',
     'Runtime/Start-KaiTORCampaignServer.ps1',
     'Runtime/Start-KaiTORTorCampaignServer.ps1',
     'Runtime/Test-KaiTORTorLiveReadiness.ps1',
