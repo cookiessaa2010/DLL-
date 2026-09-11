@@ -4,6 +4,22 @@ on:
   push:
     branches:
       - kaitor-online-4p
+    paths:
+      - 'projects/KaiTOROnline/tools/StageBannerlord1315References.ps1'
+      - 'projects/KaiTOROnline/tools/ApplyBannerlord1315CompileBackport.ps1'
+      - 'projects/KaiTOROnline/tools/ApplyBannerlord1315MissionsBackport.ps1'
+      - 'projects/KaiTOROnline/tools/ApplyBannerlord1315ModuleMetadata.ps1'
+      - 'projects/KaiTOROnline/tools/ApplyManagedDependencyAlignment.ps1'
+      - 'projects/KaiTOROnline/tools/ApplyFourPlayerGate.ps1'
+      - 'projects/KaiTOROnline/tools/ApplyNetPeerIdentitySafety.ps1'
+      - 'projects/KaiTOROnline/tools/ApplySharedMapDiagnostics.ps1'
+      - 'projects/KaiTOROnline/tools/AuditManagedAssemblyReferences.ps1'
+      - 'projects/KaiTOROnline/runtime/**'
+      - 'projects/KaiTOROnline/DEDICATED_CAMPAIGN_SERVER.md'
+      - 'projects/KaiTOROnline/FOUR_PLAYER_PERSISTENCE_AUDIT.md'
+      - 'projects/KaiTOROnline/upstream-overlay/**'
+      - 'projects/KaiTOROnline/probes/Bannerlord1315ApiProbe/**'
+      - '.github/workflows/kaitor-online-1315-coopcore-build.yml'
   workflow_dispatch:
 
 permissions:
