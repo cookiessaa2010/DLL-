@@ -13,6 +13,7 @@ Set-StrictMode -Version Latest
 $ExpectedTorVersion = 'v1.3.15'
 $RequiredDependencies = @('Native', 'SandBoxCore', 'Sandbox', 'TOR_Armory', 'TOR_Environment')
 $RequiredTorRuntimeModules = @('TOR_Armory', 'TOR_Environment', 'TOR_Core')
+$RequiredExactTorVersionModules = @('TOR_Armory', 'TOR_Environment', 'TOR_Core')
 
 function Resolve-BannerlordRoot {
     param([Parameter(Mandatory = $true)][string]$Path)
@@ -56,6 +57,22 @@ function Read-ModuleMetadata {
     }
 
     return [pscustomobject]@{ Path = $path; Xml = $xml }
+}
+
+function Assert-ExactTorModuleVersion {
+    param(
+        [Parameter(Mandatory = $true)][string]$ModuleId,
+        [Parameter(Mandatory = $true)]$Metadata
+    )
+
+    $installedVersion = [string]$Metadata.Xml.Module.Version.value
+    if ([string]::IsNullOrWhiteSpace($installedVersion)) {
+        throw "Installed TOR module '$ModuleId' does not declare Module.Version. Exact TOR $ExpectedTorVersion is required."
+    }
+
+    if ($installedVersion -ne $ExpectedTorVersion) {
+        throw "Installed TOR module '$ModuleId' is version '$installedVersion', expected '$ExpectedTorVersion'."
+    }
 }
 
 function Assert-TorRuntimePayload {
@@ -111,14 +128,17 @@ foreach ($required in $RequiredDependencies) {
     }
 
     # Validate that the installed dependency module is present and that the directory cannot
-    # masquerade as another module Id. Its own version is checked when metadata exposes one;
-    # this avoids silently accepting a mixed TOR install.
+    # masquerade as another module Id. Exact TOR module versions are enforced below; the
+    # Bannerlord-native modules are version-pinned by the base runtime preflight.
     $metadata = Read-ModuleMetadata -Root $root -ModuleId $required
-    $installedVersion = [string]$metadata.Xml.Module.Version.value
-    if ($installedVersion -and $installedVersion -ne $ExpectedTorVersion) {
-        throw "Installed TOR dependency '$required' is version '$installedVersion', expected '$ExpectedTorVersion'."
+    if ($RequiredExactTorVersionModules -contains $required) {
+        Assert-ExactTorModuleVersion -ModuleId $required -Metadata $metadata
     }
 }
+
+# TOR_Core is read before the dependency loop, so validate its own version through the same
+# fail-closed helper as the other TOR runtime modules. This also rejects missing Version metadata.
+Assert-ExactTorModuleVersion -ModuleId 'TOR_Core' -Metadata $core
 
 foreach ($runtimeModule in $RequiredTorRuntimeModules) {
     $metadata = if ($runtimeModule -eq 'TOR_Core') {
