@@ -30,7 +30,8 @@ $requiredFiles = @(
     'Runtime/Test-KaiTORTorTestPackage.ps1',
     'Runtime/TOR_RUNTIME_CONTRACT.txt',
     'Runtime/modules.tor-1.3.15.txt',
-    'BUILD.txt'
+    'BUILD.txt',
+    'SHA256SUMS.txt'
 )
 
 foreach ($relative in $requiredFiles) {
@@ -68,8 +69,14 @@ $build = Get-Content -LiteralPath (Join-Path $root 'BUILD.txt') -Raw
 if ($build -notmatch 'Bannerlord 1\.3\.15\.110062') {
     throw 'BUILD.txt does not identify Bannerlord 1.3.15.110062.'
 }
+if ($build -notmatch 'Target mod:\s*The Old Realms 1\.3\.15') {
+    throw 'BUILD.txt does not identify The Old Realms 1.3.15.'
+}
 if ($build -notmatch 'Admission limit:\s*4 simultaneous players') {
     throw 'BUILD.txt does not preserve the tested four-player admission limit.'
+}
+if ($build -notmatch 'Source commit:\s*[0-9a-fA-F]{40}') {
+    throw 'BUILD.txt does not contain a valid 40-character source commit.'
 }
 
 $forbidden = Get-ChildItem -LiteralPath $root -Recurse -File | Where-Object {
@@ -81,8 +88,56 @@ if ($forbidden) {
     throw 'Package contains Bannerlord/TOR game files that KaiTOR must not redistribute.'
 }
 
+$sumFile = Join-Path $root 'SHA256SUMS.txt'
+$sumLines = @(Get-Content -LiteralPath $sumFile | Where-Object { $_.Trim() })
+if ($sumLines.Count -eq 0) {
+    throw 'SHA256SUMS.txt is empty.'
+}
+
+$listedPaths = New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::OrdinalIgnoreCase)
+foreach ($line in $sumLines) {
+    if ($line -notmatch '^([0-9A-Fa-f]{64})\s{2}(.+)$') {
+        throw "Invalid SHA256SUMS.txt entry: $line"
+    }
+
+    $expectedHash = $Matches[1].ToUpperInvariant()
+    $relative = $Matches[2]
+    $normalized = $relative -replace '\\','/'
+    if ($normalized -eq 'SHA256SUMS.txt') {
+        throw 'SHA256SUMS.txt must not hash itself.'
+    }
+    if ($normalized.StartsWith('/') -or $normalized.Contains('../') -or $normalized.Contains('..\\')) {
+        throw "Unsafe path in SHA256SUMS.txt: $relative"
+    }
+    if (-not $listedPaths.Add($normalized)) {
+        throw "Duplicate path in SHA256SUMS.txt: $relative"
+    }
+
+    $filePath = Join-Path $root ($normalized -replace '/',[IO.Path]::DirectorySeparatorChar)
+    if (-not (Test-Path -LiteralPath $filePath -PathType Leaf)) {
+        throw "SHA256SUMS.txt references missing file: $relative"
+    }
+    $actualHash = (Get-FileHash -LiteralPath $filePath -Algorithm SHA256).Hash.ToUpperInvariant()
+    if ($actualHash -ne $expectedHash) {
+        throw "SHA-256 mismatch for ${relative}: expected $expectedHash, got $actualHash"
+    }
+}
+
+$actualFiles = @(Get-ChildItem -LiteralPath $root -Recurse -File | ForEach-Object {
+    ([IO.Path]::GetRelativePath($root, $_.FullName) -replace '\\','/')
+} | Where-Object { $_ -ne 'SHA256SUMS.txt' })
+foreach ($relative in $actualFiles) {
+    if (-not $listedPaths.Contains($relative)) {
+        throw "Package file missing from SHA256SUMS.txt: $relative"
+    }
+}
+if ($listedPaths.Count -ne $actualFiles.Count) {
+    throw "SHA256SUMS.txt file count mismatch: listed $($listedPaths.Count), package contains $($actualFiles.Count) non-manifest files."
+}
+
 Write-Host 'KaiTOR TOR test-package contract PASS.'
 Write-Host "Package root: $root"
 Write-Host 'Target: Bannerlord 1.3.15.110062 + The Old Realms 1.3.15'
 Write-Host 'Admission limit: 4 simultaneous players'
+Write-Host "SHA-256 manifest verified for $($listedPaths.Count) file(s)."
 Write-Host 'Authoritative TOR launch: Bannerlord.exe /singleplayer /server'
