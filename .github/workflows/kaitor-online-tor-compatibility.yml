@@ -166,6 +166,29 @@ jobs:
             Move-Item -LiteralPath $backup -Destination $environmentDll
           }
 
+      - name: Validate unsafe TOR runtime DLL path is rejected
+        shell: pwsh
+        run: |
+          $environmentXml = Join-Path $env:KAITOR_TOR_FAKE_ROOT 'Modules/TOR_Environment/SubModule.xml'
+          $original = Get-Content -LiteralPath $environmentXml -Raw
+          $original.Replace('TOR_Environment.dll', '../TOR_Environment.dll') | Set-Content -LiteralPath $environmentXml -Encoding UTF8
+          try {
+            $failed = $false
+            try {
+              ./projects/KaiTOROnline/runtime/Test-KaiTORTorCompatibility.ps1 `
+                -BannerlordRoot $env:KAITOR_TOR_FAKE_ROOT | Out-Null
+            }
+            catch {
+              $failed = $true
+              Write-Host $_.Exception.Message
+              if ($_.Exception.Message -notmatch "unsafe runtime DLLName.*TOR_Environment") { throw }
+            }
+            if (-not $failed) { throw 'TOR compatibility preflight accepted an unsafe TOR runtime DLL path.' }
+          }
+          finally {
+            Set-Content -LiteralPath $environmentXml -Value $original -Encoding UTF8
+          }
+
       - name: Validate mixed TOR version is rejected
         shell: pwsh
         run: |
