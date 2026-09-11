@@ -6,6 +6,7 @@ on:
       - kaitor-online-4p
     paths:
       - 'projects/KaiTOROnline/runtime/Invoke-KaiTORTorPostBattleLiveAcceptance.ps1'
+      - 'projects/KaiTOROnline/runtime/Capture-KaiTORTorPostBattleLiveSession.ps1'
       - 'projects/KaiTOROnline/runtime/Test-KaiTORTorPostBattleLiveEvidence.ps1'
       - 'projects/KaiTOROnline/runtime/Test-KaiTORTorPostBattleRuntime.ps1'
       - 'projects/KaiTOROnline/runtime/Export-KaiTORFourPlayerSnapshot.ps1'
@@ -77,6 +78,15 @@ jobs:
           Write-CommandSnapshot "$root/post-battle.txt" $post
           Write-CommandSnapshot "$root/moved.txt" $moved
 
+          # Build one authoritative command-output stream fixture for the single-session capture gate.
+          Set-Content -LiteralPath "$root/server-output.txt" -Value 'server> session ready' -Encoding UTF8
+          $streamLines = @(
+            (Get-Content -LiteralPath "$root/in-battle.txt" -Raw).TrimEnd(),
+            (Get-Content -LiteralPath "$root/post-battle.txt" -Raw).TrimEnd(),
+            (Get-Content -LiteralPath "$root/moved.txt" -Raw).TrimEnd()
+          )
+          $streamLines | ConvertTo-Json -Compress | Set-Content -LiteralPath "$root/stream-lines.json" -Encoding UTF8
+
       - name: Accept one-command TOR post-battle live evidence
         shell: pwsh
         run: |
@@ -111,6 +121,40 @@ jobs:
           if ([int]$manifest.target.simultaneousPlayers -ne 4) { throw 'Post-battle live evidence changed the 4-player contract.' }
           if ($manifest.target.bannerlord -cne '1.3.15.110062' -or $manifest.target.theOldRealms -cne '1.3.15') { throw 'Post-battle live evidence target versions drifted.' }
           Write-Host 'TOR post-battle live evidence runner: PASS'
+
+      - name: Capture post-battle snapshots from one authoritative stream
+        shell: pwsh
+        run: |
+          $root = "$env:RUNNER_TEMP/kaitor-tor-post-battle-live"
+          $out = "$root/single-stream-evidence"
+          $streamPath = "$root/server-output.txt"
+          $lines = @(Get-Content -LiteralPath "$root/stream-lines.json" -Raw | ConvertFrom-Json)
+
+          $writer = Start-Job -ScriptBlock {
+            param($Path,$Records)
+            foreach ($record in $Records) {
+              Start-Sleep -Milliseconds 600
+              Add-Content -LiteralPath $Path -Value ([string]$record)
+            }
+          } -ArgumentList $streamPath,$lines
+
+          try {
+            ./projects/KaiTOROnline/runtime/Capture-KaiTORTorPostBattleLiveSession.ps1 `
+              -RuntimeLogPath "$root/runtime.log" `
+              -CommandOutputPath $streamPath `
+              -ControllerId 'controller-A' `
+              -OutputDirectory $out `
+              -TimeoutSeconds 15 `
+              -PollMilliseconds 100
+          }
+          finally {
+            Wait-Job -Job $writer -Timeout 10 | Out-Null
+            Receive-Job -Job $writer -ErrorAction Stop | Out-Null
+            Remove-Job -Job $writer -Force
+          }
+
+          ./projects/KaiTOROnline/runtime/Test-KaiTORTorPostBattleLiveEvidence.ps1 -EvidenceDirectory $out
+          Write-Host 'TOR post-battle single-stream capture gate: PASS'
 
       - name: Verify TOR post-battle evidence manifest and hashes
         shell: pwsh
