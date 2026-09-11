@@ -67,6 +67,21 @@ jobs:
         shell: pwsh
         run: ./projects/KaiTOROnline/runtime/Test-KaiTORTorTestPackage.ps1 -PackageRoot $env:KAITOR_TEST_PACKAGE
 
+      - name: Reject package missing Missions payload
+        shell: pwsh
+        run: |
+          $copy = Join-Path $env:RUNNER_TEMP 'KaiTOR-TOR-missing-missions'
+          Copy-Item $env:KAITOR_TEST_PACKAGE $copy -Recurse -Force
+          Remove-Item -LiteralPath (Join-Path $copy 'Modules/Coop/bin/Win64_Shipping_Client/Missions.dll') -Force
+          $failed = $false
+          try {
+            ./projects/KaiTOROnline/runtime/Test-KaiTORTorTestPackage.ps1 -PackageRoot $copy
+          } catch {
+            $failed = $true
+            Write-Host "Expected Missions package rejection: $($_.Exception.Message)"
+          }
+          if (-not $failed) { throw 'Package without Missions.dll was incorrectly accepted.' }
+
       - name: Exercise TOR live-readiness preflight
         shell: pwsh
         run: |
@@ -120,6 +135,25 @@ jobs:
           if ($output -notmatch 'KaiTOR TOR live readiness: PASS') { throw 'Live-readiness preflight did not reach PASS.' }
           if ($output -notmatch 'exact SHA-256 match') { throw 'Live-readiness preflight did not verify installed payload identity.' }
           if ($output -notmatch 'DRY RUN: process not started') { throw 'Live-readiness preflight did not exercise the TOR launcher dry run.' }
+
+      - name: Reject stale installed Missions payload
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP 'KaiTOR-TOR-live-readiness'
+          $missions = Join-Path $root 'Modules/Coop/bin/Win64_Shipping_Client/Missions.dll'
+          Add-Content -LiteralPath $missions -Value 'stale installed Missions payload'
+          $failed = $false
+          try {
+            ./projects/KaiTOROnline/runtime/Test-KaiTORTorLiveReadiness.ps1 `
+              -PackageRoot $env:KAITOR_TEST_PACKAGE `
+              -BannerlordRoot $root `
+              -SaveName 'KaiTOR-CI-Stale-Missions' `
+              -SkipVersionCheck
+          } catch {
+            $failed = $true
+            Write-Host "Expected installed Missions rejection: $($_.Exception.Message)"
+          }
+          if (-not $failed) { throw 'Live-readiness accepted a stale installed Missions.dll.' }
 
       - name: Reject package missing TOR launcher
         shell: pwsh
