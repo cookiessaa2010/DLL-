@@ -27,6 +27,53 @@ foreach ($input in @(
     }
 }
 
+$resolvedRuntimeLog = (Resolve-Path -LiteralPath $RuntimeLogPath).Path
+$resolvedCommandOutput = (Resolve-Path -LiteralPath $CommandOutputPath).Path
+$serverRunningPattern = '(?im)\bcampaign\s+server\b[^\r\n]{0,120}\b(?:entered\s+running\s+state|running|ready)\b'
+$runtimeAnchorBytes = [IO.File]::ReadAllBytes($resolvedRuntimeLog)
+if ($runtimeAnchorBytes.Length -eq 0) {
+    throw "KaiTOR TOR runtime log is empty: $resolvedRuntimeLog"
+}
+$runtimeAnchorText = [Text.Encoding]::UTF8.GetString($runtimeAnchorBytes)
+$runtimeReadyCount = [regex]::Matches($runtimeAnchorText, $serverRunningPattern).Count
+if ($runtimeReadyCount -lt 1) {
+    throw "KaiTOR TOR live capture requires an existing campaign server ready/running marker in $resolvedRuntimeLog"
+}
+
+function Get-BytesSha256 {
+    param([Parameter(Mandatory = $true)][byte[]]$Bytes)
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try {
+        return ([BitConverter]::ToString($sha.ComputeHash($Bytes))).Replace('-', '').ToLowerInvariant()
+    }
+    finally {
+        $sha.Dispose()
+    }
+}
+
+$runtimeAnchorHash = Get-BytesSha256 -Bytes $runtimeAnchorBytes
+$runtimeAnchorLength = $runtimeAnchorBytes.Length
+
+function Assert-ServerSessionContinuity {
+    $currentBytes = [IO.File]::ReadAllBytes($resolvedRuntimeLog)
+    if ($currentBytes.Length -lt $runtimeAnchorLength) {
+        throw 'KaiTOR TOR live capture rejected: runtime log was truncated or replaced during capture.'
+    }
+
+    $prefixBytes = New-Object byte[] $runtimeAnchorLength
+    [Array]::Copy($currentBytes, 0, $prefixBytes, 0, $runtimeAnchorLength)
+    $prefixHash = Get-BytesSha256 -Bytes $prefixBytes
+    if ($prefixHash -cne $runtimeAnchorHash) {
+        throw 'KaiTOR TOR live capture rejected: runtime log prefix changed during capture; authoritative server continuity is not proven.'
+    }
+
+    $currentText = [Text.Encoding]::UTF8.GetString($currentBytes)
+    $currentReadyCount = [regex]::Matches($currentText, $serverRunningPattern).Count
+    if ($currentReadyCount -ne $runtimeReadyCount) {
+        throw "KaiTOR TOR live capture rejected: campaign server ready/running marker count changed from $runtimeReadyCount to $currentReadyCount; a server restart or second session was observed."
+    }
+}
+
 New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
 $resolvedOutput = (Resolve-Path -LiteralPath $OutputDirectory).Path
 $inBattleOutput = Join-Path $resolvedOutput 'snapshot-command-in-battle.txt'
@@ -46,20 +93,24 @@ function Wait-ForSnapshotAtIndex {
 
     $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
     while ([DateTime]::UtcNow -lt $deadline) {
-        $records = @(Get-SnapshotRecords -Path $CommandOutputPath)
+        Assert-ServerSessionContinuity
+        $records = @(Get-SnapshotRecords -Path $resolvedCommandOutput)
         if ($records.Count -gt $Index) {
+            Assert-ServerSessionContinuity
             return [string]$records[$Index]
         }
         Start-Sleep -Milliseconds $PollMilliseconds
     }
 
-    throw "Timed out waiting for $Stage snapshot at stream index $Index. Run 'coop.debug.kaitor.snapshot4p' on the same authoritative server session and ensure output is appended to $CommandOutputPath."
+    throw "Timed out waiting for $Stage snapshot at stream index $Index. Run 'coop.debug.kaitor.snapshot4p' on the same authoritative server session and ensure output is appended to $resolvedCommandOutput."
 }
 
-$initialRecords = @(Get-SnapshotRecords -Path $CommandOutputPath)
+Assert-ServerSessionContinuity
+$initialRecords = @(Get-SnapshotRecords -Path $resolvedCommandOutput)
 $baseIndex = $initialRecords.Count
 Write-Output "Existing snapshot records: $baseIndex"
 Write-Output "Capture directory: $resolvedOutput"
+Write-Output "Authoritative runtime continuity anchor: readyMarkers=$runtimeReadyCount prefixBytes=$runtimeAnchorLength sha256=$runtimeAnchorHash"
 Write-Output 'IN-BATTLE: while the selected controller is in the active MapEvent, run coop.debug.kaitor.snapshot4p.'
 $inBattleRecord = Wait-ForSnapshotAtIndex -Index $baseIndex -Stage 'IN-BATTLE'
 [IO.File]::WriteAllText($inBattleOutput, $inBattleRecord + [Environment]::NewLine, [Text.UTF8Encoding]::new($false))
@@ -75,8 +126,9 @@ $movedRecord = Wait-ForSnapshotAtIndex -Index ($baseIndex + 2) -Stage 'MOVED'
 [IO.File]::WriteAllText($movedOutput, $movedRecord + [Environment]::NewLine, [Text.UTF8Encoding]::new($false))
 Write-Output 'MOVED snapshot captured from the same authoritative output stream.'
 
+Assert-ServerSessionContinuity
 & $acceptanceRunner `
-    -RuntimeLogPath $RuntimeLogPath `
+    -RuntimeLogPath $resolvedRuntimeLog `
     -InBattleCommandOutputPath $inBattleOutput `
     -PostBattleCommandOutputPath $postBattleOutput `
     -MovedCommandOutputPath $movedOutput `
