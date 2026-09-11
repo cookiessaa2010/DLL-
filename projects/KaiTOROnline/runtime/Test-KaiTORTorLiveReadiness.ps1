@@ -37,7 +37,8 @@ $relativePayload = @(
     'Modules/Coop/SubModule.xml',
     'Modules/Coop/bin/Win64_Shipping_Client/Coop.dll',
     'Modules/Coop/bin/Win64_Shipping_Client/Coop.Core.dll',
-    'Modules/Coop/bin/Win64_Shipping_Client/GameInterface.dll'
+    'Modules/Coop/bin/Win64_Shipping_Client/GameInterface.dll',
+    'Modules/Coop/bin/Win64_Shipping_Client/Missions.dll'
 )
 
 foreach ($relative in $relativePayload) {
