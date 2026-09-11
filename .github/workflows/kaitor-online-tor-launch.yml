@@ -89,6 +89,27 @@ jobs:
           if ($output -notmatch '/coopsave KaiTOR-TOR-CI') { throw 'TOR launch did not preserve Coop save contract.' }
           if ($output -notmatch 'DRY RUN: process not started') { throw 'TOR launcher dry run did not complete.' }
 
+      - name: Validate TOR launch rejects missing Missions runtime assembly
+        shell: pwsh
+        run: |
+          $missions = Join-Path $env:KAITOR_TOR_LAUNCH_ROOT 'Modules/Coop/bin/Win64_Shipping_Client/Missions.dll'
+          Remove-Item -LiteralPath $missions -Force
+          $failed = $false
+          try {
+            ./projects/KaiTOROnline/runtime/Start-KaiTORTorCampaignServer.ps1 `
+              -BannerlordRoot $env:KAITOR_TOR_LAUNCH_ROOT `
+              -SaveName 'KaiTOR-TOR-CI' `
+              -SkipVersionCheck `
+              -DryRun | Out-Null
+          }
+          catch {
+            $failed = $true
+            Write-Host $_.Exception.Message
+            if ($_.Exception.Message -notmatch 'Missions.dll') { throw }
+          }
+          if (-not $failed) { throw 'TOR launcher accepted a runtime missing Missions.dll.' }
+          Set-Content -LiteralPath $missions -Value 'CI placeholder' -Encoding ASCII
+
       - name: Validate TOR launch rejects missing TOR runtime assembly
         shell: pwsh
         run: |
