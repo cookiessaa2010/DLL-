@@ -212,6 +212,29 @@ jobs:
             Set-Content -LiteralPath $environmentXml -Value $original -Encoding UTF8
           }
 
+      - name: Validate missing TOR module version is rejected
+        shell: pwsh
+        run: |
+          $environmentXml = Join-Path $env:KAITOR_TOR_FAKE_ROOT 'Modules/TOR_Environment/SubModule.xml'
+          $original = Get-Content -LiteralPath $environmentXml -Raw
+          $original.Replace('    <Version value="v1.3.15" />' + [Environment]::NewLine, '') | Set-Content -LiteralPath $environmentXml -Encoding UTF8
+          try {
+            $failed = $false
+            try {
+              ./projects/KaiTOROnline/runtime/Test-KaiTORTorCompatibility.ps1 `
+                -BannerlordRoot $env:KAITOR_TOR_FAKE_ROOT | Out-Null
+            }
+            catch {
+              $failed = $true
+              Write-Host $_.Exception.Message
+              if ($_.Exception.Message -notmatch "TOR module 'TOR_Environment'.*does not declare Module.Version.*v1.3.15") { throw }
+            }
+            if (-not $failed) { throw 'TOR compatibility preflight accepted TOR_Environment without Module.Version.' }
+          }
+          finally {
+            Set-Content -LiteralPath $environmentXml -Value $original -Encoding UTF8
+          }
+
       - name: Validate mixed TOR version is rejected
         shell: pwsh
         run: |
