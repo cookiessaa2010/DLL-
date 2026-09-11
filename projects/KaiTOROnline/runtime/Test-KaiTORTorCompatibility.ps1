@@ -50,6 +50,11 @@ function Read-ModuleMetadata {
         throw "TOR module '$ModuleId' has invalid SubModule.xml: $($_.Exception.Message)"
     }
 
+    $declaredId = [string]$xml.Module.Id.value
+    if ($declaredId -ne $ModuleId) {
+        throw "Module directory '$ModuleId' declares Module.Id '$declaredId'. Expected exact Id '$ModuleId'."
+    }
+
     return [pscustomobject]@{ Path = $path; Xml = $xml }
 }
 
@@ -88,11 +93,6 @@ $root = Resolve-BannerlordRoot -Path $BannerlordRoot
 $core = Read-ModuleMetadata -Root $root -ModuleId 'TOR_Core'
 $xml = $core.Xml
 
-$id = [string]$xml.Module.Id.value
-if ($id -ne 'TOR_Core') {
-    throw "Expected TOR_Core module Id 'TOR_Core', found '$id'."
-}
-
 $version = [string]$xml.Module.Version.value
 if ($version -ne $ExpectedTorVersion) {
     throw "Expected The Old Realms $ExpectedTorVersion, found '$version'."
@@ -110,8 +110,9 @@ foreach ($required in $RequiredDependencies) {
         throw "TOR_Core dependency '$required' must target $ExpectedTorVersion, found '$dependentVersion'."
     }
 
-    # Validate that the installed dependency module is present too. Its own version is checked
-    # when metadata exposes a Version value; this avoids silently accepting a mixed TOR install.
+    # Validate that the installed dependency module is present and that the directory cannot
+    # masquerade as another module Id. Its own version is checked when metadata exposes one;
+    # this avoids silently accepting a mixed TOR install.
     $metadata = Read-ModuleMetadata -Root $root -ModuleId $required
     $installedVersion = [string]$metadata.Xml.Module.Version.value
     if ($installedVersion -and $installedVersion -ne $ExpectedTorVersion) {
