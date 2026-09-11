@@ -1,0 +1,70 @@
+name: KaiTOR Online TOR Command Stream Continuity
+
+on:
+  push:
+    branches:
+      - kaitor-online-4p
+    paths:
+      - 'projects/KaiTOROnline/runtime/Capture-KaiTORTorPostBattleLiveSession.ps1'
+      - '.github/workflows/kaitor-online-tor-command-stream-continuity.yml'
+  workflow_dispatch:
+
+jobs:
+  reject-command-stream-replacement:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reject replaced command output during capture
+        shell: pwsh
+        run: |
+          $root = "$env:RUNNER_TEMP/kaitor-tor-command-stream-continuity"
+          New-Item -ItemType Directory -Path $root -Force | Out-Null
+          $runtime = "$root/runtime.log"
+          $stream = "$root/server-output.txt"
+          $out = "$root/evidence"
+
+          @'
+          [Module] TOR_Armory initialized
+          [Module] TOR_Environment initialized
+          [Module] TOR_Core initialized
+          [Module] Coop initialized
+          Campaign server ready
+          '@ | Set-Content -LiteralPath $runtime -Encoding UTF8
+          Set-Content -LiteralPath $stream -Value 'server> authoritative session ready' -Encoding UTF8
+
+          $writer = Start-Job -ScriptBlock {
+            param($Path)
+            Start-Sleep -Milliseconds 400
+            Add-Content -LiteralPath $Path -Value 'server> KAITOR_4P_SNAPSHOT_JSON={}'
+            Start-Sleep -Milliseconds 500
+            Set-Content -LiteralPath $Path -Value 'server> replaced output stream' -Encoding UTF8
+            Add-Content -LiteralPath $Path -Value 'server> KAITOR_4P_SNAPSHOT_JSON={}'
+            Add-Content -LiteralPath $Path -Value 'server> KAITOR_4P_SNAPSHOT_JSON={}'
+          } -ArgumentList $stream
+
+          $rejected = $false
+          try {
+            ./projects/KaiTOROnline/runtime/Capture-KaiTORTorPostBattleLiveSession.ps1 `
+              -RuntimeLogPath $runtime `
+              -CommandOutputPath $stream `
+              -ControllerId 'controller-A' `
+              -OutputDirectory $out `
+              -TimeoutSeconds 10 `
+              -PollMilliseconds 100
+          }
+          catch {
+            $rejected = $true
+            Write-Host "Expected command stream continuity rejection: $($_.Exception.Message)"
+          }
+          finally {
+            Wait-Job -Job $writer -Timeout 10 | Out-Null
+            Receive-Job -Job $writer -ErrorAction Stop | Out-Null
+            Remove-Job -Job $writer -Force
+          }
+
+          if (-not $rejected) {
+            throw 'Post-battle capture accepted snapshots after the authoritative command output stream was replaced.'
+          }
+          Write-Host 'TOR command stream replacement rejection gate: PASS'
