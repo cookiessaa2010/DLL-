@@ -38,7 +38,7 @@ jobs:
             </DependedModules>
           </Module>
           '@ | Set-Content -LiteralPath (Join-Path $stage 'Modules/Coop/SubModule.xml') -Encoding UTF8
-          foreach ($assembly in @('Coop.dll','Coop.Core.dll','GameInterface.dll')) {
+          foreach ($assembly in @('Coop.dll','Coop.Core.dll','GameInterface.dll','Missions.dll')) {
             Set-Content -LiteralPath (Join-Path $stage "Modules/Coop/bin/Win64_Shipping_Client/$assembly") -Value 'CI placeholder' -Encoding ASCII
           }
 
