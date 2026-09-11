@@ -16,6 +16,23 @@ function Require-File {
     return $path
 }
 
+function Get-RelativePathCompat {
+    param(
+        [Parameter(Mandatory = $true)][string]$BasePath,
+        [Parameter(Mandatory = $true)][string]$FullPath
+    )
+
+    $baseFull = [IO.Path]::GetFullPath($BasePath).TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
+    $targetFull = [IO.Path]::GetFullPath($FullPath)
+    $prefix = $baseFull + [IO.Path]::DirectorySeparatorChar
+
+    if (-not $targetFull.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Path '$FullPath' is outside package root '$BasePath'."
+    }
+
+    return $targetFull.Substring($prefix.Length)
+}
+
 $requiredFiles = @(
     'Modules/Coop/SubModule.xml',
     'Modules/Coop/bin/Win64_Shipping_Client/Coop.dll',
@@ -146,7 +163,7 @@ foreach ($line in $sumLines) {
 }
 
 $actualFiles = @(Get-ChildItem -LiteralPath $root -Recurse -File | ForEach-Object {
-    ([IO.Path]::GetRelativePath($root, $_.FullName) -replace '\\','/')
+    ((Get-RelativePathCompat -BasePath $root -FullPath $_.FullName) -replace '\\','/')
 } | Where-Object { $_ -ne 'SHA256SUMS.txt' })
 foreach ($relative in $actualFiles) {
     if (-not $listedPaths.Contains($relative)) {
