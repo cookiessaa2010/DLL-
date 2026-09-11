@@ -74,6 +74,33 @@ jobs:
           if ($output -notmatch 'DRY RUN: process not started') { throw 'Launcher dry-run contract did not complete.' }
           if ($output -notmatch '/coopsave KaiTOR-CI-Save') { throw 'Launcher did not preserve the Coop save launch contract.' }
 
+      - name: Validate missing Coop dependency metadata is rejected cleanly
+        shell: powershell
+        run: |
+          $coopXml = Join-Path $env:KAITOR_FAKE_ROOT 'Modules/Coop/SubModule.xml'
+          $original = Get-Content -LiteralPath $coopXml -Raw
+          '<Module />' | Set-Content -LiteralPath $coopXml -Encoding UTF8
+          try {
+            $failed = $false
+            try {
+              ./projects/KaiTOROnline/runtime/Test-KaiTORRuntimePreflight.ps1 `
+                -BannerlordRoot $env:KAITOR_FAKE_ROOT `
+                -SkipVersionCheck | Out-Null
+            }
+            catch {
+              $failed = $true
+              Write-Host $_.Exception.Message
+              if ($_.Exception.Message -notmatch 'Coop SubModule.xml has no dependency metadata') { throw }
+              if ($_.Exception.GetType().FullName -match 'PropertyNotFoundException') {
+                throw 'Missing Coop metadata leaked a StrictMode PropertyNotFoundException.'
+              }
+            }
+            if (-not $failed) { throw 'Preflight accepted Coop metadata with no dependencies.' }
+          }
+          finally {
+            Set-Content -LiteralPath $coopXml -Value $original -Encoding UTF8
+          }
+
       - name: Validate missing Missions assembly is rejected by preflight and launcher
         shell: pwsh
         run: |
