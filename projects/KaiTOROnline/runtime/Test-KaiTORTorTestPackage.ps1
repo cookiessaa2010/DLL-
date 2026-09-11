@@ -55,11 +55,14 @@ foreach ($needle in $contractChecks) {
     }
 }
 
-$runbook = Get-Content -LiteralPath (Join-Path $root 'Runtime/FIRST_TOR_LIVE_TEST_RU.txt') -Raw
+# Keep this validator source ASCII-only so it parses correctly in Windows PowerShell 5.1.
+# Read the Russian runbook explicitly as UTF-8, but validate its critical contract using
+# ASCII markers that survive consistently across PowerShell editions and Windows locales.
+$runbook = Get-Content -LiteralPath (Join-Path $root 'Runtime/FIRST_TOR_LIVE_TEST_RU.txt') -Raw -Encoding UTF8
 $runbookChecks = @(
     'Bannerlord: 1.3.15.110062',
     'The Old Realms: 1.3.15',
-    'Максимум: 4 одновременно подключённых игрока',
+    'activeAdmissionSlots = 4',
     'Test-KaiTORTorLiveReadiness.ps1',
     'Start-KaiTORTorCampaignServer.ps1',
     'coop.debug.kaitor.snapshot4p',
