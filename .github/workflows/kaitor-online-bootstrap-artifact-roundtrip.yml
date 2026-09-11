@@ -1,0 +1,103 @@
+name: KaiTOR Online Bootstrap Artifact Roundtrip
+
+on:
+  push:
+    branches:
+      - kaitor-online-4p
+    paths:
+      - '.github/workflows/kaitor-online-bootstrap-artifact-roundtrip.yml'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  verify-uploaded-bootstrap:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout KaiTOR project
+        uses: actions/checkout@v4
+
+      - name: Resolve latest successful backport artifact
+        id: resolve
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $json = gh run list `
+            --repo $env:GITHUB_REPOSITORY `
+            --workflow kaitor-online-1315-coopcore-build.yml `
+            --branch kaitor-online-4p `
+            --status success `
+            --limit 1 `
+            --json databaseId,headSha,conclusion
+          $runs = @($json | ConvertFrom-Json)
+          if ($runs.Count -ne 1) { throw 'Could not resolve a successful KaiTOR backport run.' }
+          $run = $runs[0]
+          if ($run.conclusion -ne 'success') { throw "Resolved backport run is not successful: $($run.conclusion)" }
+          "run_id=$($run.databaseId)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "head_sha=$($run.headSha)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          Write-Host "Resolved backport run $($run.databaseId) at $($run.headSha)"
+
+      - name: Download uploaded bootstrap artifact
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $dest = Join-Path $env:RUNNER_TEMP 'downloaded-bootstrap'
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          gh run download '${{ steps.resolve.outputs.run_id }}' `
+            --repo $env:GITHUB_REPOSITORY `
+            --name 'KaiTOROnline-0.0.1-bootstrap-Bannerlord-1.3.15.110062' `
+            --dir $dest
+          if ($LASTEXITCODE -ne 0) { throw "Artifact download failed with exit code $LASTEXITCODE" }
+          "KAITOR_DOWNLOADED_ARTIFACT=$dest" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Revalidate downloaded TOR live-test package
+        shell: pwsh
+        run: ./projects/KaiTOROnline/runtime/Test-KaiTORTorTestPackage.ps1 -PackageRoot $env:KAITOR_DOWNLOADED_ARTIFACT
+
+      - name: Verify artifact source commit
+        shell: pwsh
+        run: |
+          $build = Get-Content -LiteralPath (Join-Path $env:KAITOR_DOWNLOADED_ARTIFACT 'BUILD.txt') -Raw
+          $expected = '${{ steps.resolve.outputs.head_sha }}'
+          if ($build -notmatch [regex]::Escape("Source commit: $expected")) {
+            throw "Downloaded artifact BUILD.txt does not match source backport commit $expected."
+          }
+          Write-Host "Artifact source commit verified: $expected"
+
+      - name: Verify SHA256 manifest after upload/download
+        shell: pwsh
+        run: |
+          $root = (Resolve-Path -LiteralPath $env:KAITOR_DOWNLOADED_ARTIFACT).Path
+          $manifestPath = Join-Path $root 'SHA256SUMS.txt'
+          if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) { throw 'SHA256SUMS.txt missing from downloaded artifact.' }
+
+          $entries = @{}
+          foreach ($line in Get-Content -LiteralPath $manifestPath) {
+            if ([string]::IsNullOrWhiteSpace($line)) { continue }
+            if ($line -notmatch '^([0-9A-Fa-f]{64})  (.+)$') { throw "Malformed SHA256SUMS entry: $line" }
+            $hash = $Matches[1].ToUpperInvariant()
+            $relative = $Matches[2]
+            if ($entries.ContainsKey($relative)) { throw "Duplicate SHA256SUMS path: $relative" }
+            if ([IO.Path]::IsPathRooted($relative) -or $relative -match '(^|[\\/])\.\.([\\/]|$)') {
+              throw "Unsafe SHA256SUMS path: $relative"
+            }
+            $full = Join-Path $root $relative
+            if (-not (Test-Path -LiteralPath $full -PathType Leaf)) { throw "Manifest file missing after download: $relative" }
+            $actual = (Get-FileHash -LiteralPath $full -Algorithm SHA256).Hash.ToUpperInvariant()
+            if ($actual -ne $hash) { throw "Artifact hash mismatch after upload/download: $relative" }
+            $entries[$relative] = $true
+          }
+
+          $files = @(Get-ChildItem -LiteralPath $root -Recurse -File | Where-Object { $_.FullName -ne $manifestPath })
+          foreach ($file in $files) {
+            $relative = [IO.Path]::GetRelativePath($root, $file.FullName)
+            if (-not $entries.ContainsKey($relative)) { throw "Downloaded artifact contains file absent from SHA256SUMS.txt: $relative" }
+          }
+          if ($entries.Count -ne $files.Count) {
+            throw "SHA256 manifest count mismatch: $($entries.Count) entries for $($files.Count) files."
+          }
+          Write-Host "Roundtrip SHA256 integrity verified for $($entries.Count) file(s)."
