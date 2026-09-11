@@ -45,7 +45,7 @@ jobs:
           </Module>
           '@ | Set-Content -LiteralPath (Join-Path $coop 'SubModule.xml') -Encoding UTF8
 
-          foreach ($assembly in @('Coop.dll', 'Coop.Core.dll', 'GameInterface.dll')) {
+          foreach ($assembly in @('Coop.dll', 'Coop.Core.dll', 'GameInterface.dll', 'Missions.dll')) {
             Set-Content -LiteralPath (Join-Path $coopBin $assembly) -Value 'CI placeholder' -Encoding ASCII
           }
 
@@ -59,7 +59,7 @@ jobs:
             -SkipVersionCheck 2>&1 | Out-String
           Write-Host $output
           if ($output -notmatch 'runtime preflight: PASS') { throw 'Preflight did not reach PASS.' }
-          if ($output -notmatch 'Coop.dll, Coop.Core.dll, GameInterface.dll') { throw 'Preflight did not validate core Coop runtime assemblies.' }
+          if ($output -notmatch 'Coop.dll, Coop.Core.dll, GameInterface.dll, Missions.dll') { throw 'Preflight did not validate the complete Coop runtime assembly set.' }
 
       - name: Validate campaign launcher is gated by runtime preflight
         shell: pwsh
@@ -74,10 +74,10 @@ jobs:
           if ($output -notmatch 'DRY RUN: process not started') { throw 'Launcher dry-run contract did not complete.' }
           if ($output -notmatch '/coopsave KaiTOR-CI-Save') { throw 'Launcher did not preserve the Coop save launch contract.' }
 
-      - name: Validate missing managed assembly is rejected by preflight and launcher
+      - name: Validate missing Missions assembly is rejected by preflight and launcher
         shell: pwsh
         run: |
-          Remove-Item -LiteralPath (Join-Path $env:KAITOR_FAKE_ROOT 'Modules/Coop/bin/Win64_Shipping_Client/Coop.Core.dll') -Force
+          Remove-Item -LiteralPath (Join-Path $env:KAITOR_FAKE_ROOT 'Modules/Coop/bin/Win64_Shipping_Client/Missions.dll') -Force
 
           $preflightFailed = $false
           try {
@@ -88,9 +88,9 @@ jobs:
           catch {
             $preflightFailed = $true
             Write-Host $_.Exception.Message
-            if ($_.Exception.Message -notmatch 'Coop.Core.dll') { throw }
+            if ($_.Exception.Message -notmatch 'Missions.dll') { throw }
           }
-          if (-not $preflightFailed) { throw 'Preflight accepted a runtime missing Coop.Core.dll.' }
+          if (-not $preflightFailed) { throw 'Preflight accepted a runtime missing Missions.dll.' }
 
           $launcherFailed = $false
           try {
@@ -103,6 +103,6 @@ jobs:
           catch {
             $launcherFailed = $true
             Write-Host $_.Exception.Message
-            if ($_.Exception.Message -notmatch 'Coop.Core.dll') { throw }
+            if ($_.Exception.Message -notmatch 'Missions.dll') { throw }
           }
-          if (-not $launcherFailed) { throw 'Campaign launcher accepted a runtime missing Coop.Core.dll.' }
+          if (-not $launcherFailed) { throw 'Campaign launcher accepted a runtime missing Missions.dll.' }
