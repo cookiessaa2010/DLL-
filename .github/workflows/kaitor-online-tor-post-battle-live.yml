@@ -78,7 +78,6 @@ jobs:
           Write-CommandSnapshot "$root/post-battle.txt" $post
           Write-CommandSnapshot "$root/moved.txt" $moved
 
-          # Build one authoritative command-output stream fixture for the single-session capture gate.
           Set-Content -LiteralPath "$root/server-output.txt" -Value 'server> session ready' -Encoding UTF8
           $streamLines = @(
             (Get-Content -LiteralPath "$root/in-battle.txt" -Raw).TrimEnd(),
@@ -155,6 +154,53 @@ jobs:
 
           ./projects/KaiTOROnline/runtime/Test-KaiTORTorPostBattleLiveEvidence.ps1 -EvidenceDirectory $out
           Write-Host 'TOR post-battle single-stream capture gate: PASS'
+
+      - name: Reject server restart during post-battle capture
+        shell: pwsh
+        run: |
+          $root = "$env:RUNNER_TEMP/kaitor-tor-post-battle-live"
+          $runtime = "$root/runtime-restart.log"
+          $streamPath = "$root/server-output-restart.txt"
+          $out = "$root/restart-rejected"
+          Copy-Item -LiteralPath "$root/runtime.log" -Destination $runtime -Force
+          Set-Content -LiteralPath $streamPath -Value 'server> session ready' -Encoding UTF8
+          $lines = @(Get-Content -LiteralPath "$root/stream-lines.json" -Raw | ConvertFrom-Json)
+
+          $writer = Start-Job -ScriptBlock {
+            param($Path,$RuntimePath,$Records)
+            Start-Sleep -Milliseconds 400
+            Add-Content -LiteralPath $Path -Value ([string]$Records[0])
+            Start-Sleep -Milliseconds 400
+            Add-Content -LiteralPath $RuntimePath -Value 'Campaign server ready'
+            Start-Sleep -Milliseconds 400
+            Add-Content -LiteralPath $Path -Value ([string]$Records[1])
+            Start-Sleep -Milliseconds 400
+            Add-Content -LiteralPath $Path -Value ([string]$Records[2])
+          } -ArgumentList $streamPath,$runtime,$lines
+
+          $rejected = $false
+          try {
+            ./projects/KaiTOROnline/runtime/Capture-KaiTORTorPostBattleLiveSession.ps1 `
+              -RuntimeLogPath $runtime `
+              -CommandOutputPath $streamPath `
+              -ControllerId 'controller-A' `
+              -OutputDirectory $out `
+              -TimeoutSeconds 10 `
+              -PollMilliseconds 100
+          }
+          catch {
+            $rejected = $true
+            Write-Host "Expected session continuity rejection: $($_.Exception.Message)"
+          }
+          finally {
+            Wait-Job -Job $writer -Timeout 10 | Out-Null
+            Receive-Job -Job $writer -ErrorAction Stop | Out-Null
+            Remove-Job -Job $writer -Force
+          }
+          if (-not $rejected) {
+            throw 'Post-battle capture accepted snapshots across a campaign server restart.'
+          }
+          Write-Host 'TOR post-battle server-restart rejection gate: PASS'
 
       - name: Verify TOR post-battle evidence manifest and hashes
         shell: pwsh
