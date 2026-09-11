@@ -26,7 +26,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path $bin | Out-Null
           Set-Content -LiteralPath (Join-Path $bin 'Bannerlord.exe') -Value 'CI placeholder' -Encoding ASCII
 
-          foreach ($module in @('Native', 'SandBoxCore', 'Sandbox', 'CustomBattle', 'StoryMode', 'TOR_Armory', 'TOR_Environment')) {
+          foreach ($module in @('Native', 'SandBoxCore', 'Sandbox', 'CustomBattle', 'StoryMode')) {
             $dir = Join-Path $root ("Modules/{0}" -f $module)
             New-Item -ItemType Directory -Force -Path $dir | Out-Null
             @"
@@ -35,6 +35,24 @@ jobs:
             <Version value="v1.3.15" />
           </Module>
           "@ | Set-Content -LiteralPath (Join-Path $dir 'SubModule.xml') -Encoding UTF8
+          }
+
+          foreach ($torModule in @('TOR_Armory', 'TOR_Environment')) {
+            $dir = Join-Path $root ("Modules/{0}" -f $torModule)
+            $moduleBin = Join-Path $dir 'bin/Win64_Shipping_Client'
+            New-Item -ItemType Directory -Force -Path $moduleBin | Out-Null
+            @"
+          <Module>
+            <Id value="$torModule" />
+            <Version value="v1.3.15" />
+            <SubModules>
+              <SubModule>
+                <DLLName value="$torModule.dll" />
+              </SubModule>
+            </SubModules>
+          </Module>
+          "@ | Set-Content -LiteralPath (Join-Path $dir 'SubModule.xml') -Encoding UTF8
+            Set-Content -LiteralPath (Join-Path $moduleBin "$torModule.dll") -Value 'CI placeholder' -Encoding ASCII
           }
 
           $tor = Join-Path $root 'Modules/TOR_Core'
@@ -81,7 +99,7 @@ jobs:
             </DependedModules>
           </Module>
           '@ | Set-Content -LiteralPath (Join-Path $coop 'SubModule.xml') -Encoding UTF8
-          foreach ($assembly in @('Coop.dll', 'Coop.Core.dll', 'GameInterface.dll')) {
+          foreach ($assembly in @('Coop.dll', 'Coop.Core.dll', 'GameInterface.dll', 'Missions.dll')) {
             Set-Content -LiteralPath (Join-Path $coopBin $assembly) -Value 'CI placeholder' -Encoding ASCII
           }
 
