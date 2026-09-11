@@ -24,7 +24,9 @@ function Resolve-BannerlordRoot {
     }
 
     if ((Split-Path -Leaf $resolved) -eq 'Win64_Shipping_Client') {
-        $candidate = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $resolved))
+        # The caller may point directly at <BannerlordRoot>\bin\Win64_Shipping_Client.
+        # From that directory, two parents resolve to the Bannerlord installation root.
+        $candidate = Split-Path -Parent (Split-Path -Parent $resolved)
         if (Test-Path -LiteralPath (Join-Path $candidate 'Modules') -PathType Container) {
             return $candidate
         }
