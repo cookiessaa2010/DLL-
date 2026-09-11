@@ -127,6 +127,17 @@ jobs:
           if ($output -notmatch 'TOR runtime payload:\s+TOR_Armory, TOR_Environment, TOR_Core') { throw 'Full TOR runtime payload was not validated.' }
           if ($output -notmatch 'DedicatedServerType:\s+none') { throw 'Known TOR dedicated-server metadata was not surfaced.' }
 
+      - name: Validate Win64_Shipping_Client path resolves to Bannerlord root
+        shell: pwsh
+        run: |
+          $bin = Join-Path $env:KAITOR_TOR_FAKE_ROOT 'bin/Win64_Shipping_Client'
+          $output = ./projects/KaiTOROnline/runtime/Test-KaiTORTorCompatibility.ps1 `
+            -BannerlordRoot $bin 3>&1 2>&1 | Out-String
+          Write-Host $output
+          if ($output -notmatch 'TOR compatibility preflight: PASS') { throw 'TOR compatibility preflight rejected a valid Win64_Shipping_Client path.' }
+          $escapedRoot = [regex]::Escape($env:KAITOR_TOR_FAKE_ROOT)
+          if ($output -notmatch "Bannerlord root:\s+$escapedRoot") { throw 'TOR compatibility preflight resolved the Win64_Shipping_Client path to the wrong Bannerlord root.' }
+
       - name: Validate native dedicated metadata claim is rejected
         shell: pwsh
         run: |
