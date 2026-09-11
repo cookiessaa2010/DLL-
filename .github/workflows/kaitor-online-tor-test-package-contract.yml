@@ -90,11 +90,29 @@ jobs:
           New-Item -ItemType Directory -Force -Path $bin | Out-Null
           Set-Content -LiteralPath (Join-Path $bin 'Bannerlord.exe') -Value 'CI placeholder' -Encoding ASCII
 
-          foreach ($module in @('Native','SandBoxCore','Sandbox','CustomBattle','StoryMode','TOR_Armory','TOR_Environment')) {
+          foreach ($module in @('Native','SandBoxCore','Sandbox','CustomBattle','StoryMode')) {
             $moduleDir = Join-Path $root ("Modules/{0}" -f $module)
             New-Item -ItemType Directory -Force -Path $moduleDir | Out-Null
             ('<Module><Id value="{0}" /><Version value="v1.3.15" /></Module>' -f $module) |
               Set-Content -LiteralPath (Join-Path $moduleDir 'SubModule.xml') -Encoding UTF8
+          }
+
+          foreach ($torModule in @('TOR_Armory','TOR_Environment')) {
+            $moduleDir = Join-Path $root ("Modules/{0}" -f $torModule)
+            $moduleBin = Join-Path $moduleDir 'bin/Win64_Shipping_Client'
+            New-Item -ItemType Directory -Force -Path $moduleBin | Out-Null
+            @"
+          <Module>
+            <Id value="$torModule" />
+            <Version value="v1.3.15" />
+            <SubModules>
+              <SubModule>
+                <DLLName value="$torModule.dll" />
+              </SubModule>
+            </SubModules>
+          </Module>
+          "@ | Set-Content -LiteralPath (Join-Path $moduleDir 'SubModule.xml') -Encoding UTF8
+            Set-Content -LiteralPath (Join-Path $moduleBin "$torModule.dll") -Value 'CI TOR placeholder' -Encoding ASCII
           }
 
           $torCore = Join-Path $root 'Modules/TOR_Core'
