@@ -1,0 +1,112 @@
+name: KaiTOR Online TOR Post-Battle Live Evidence
+
+on:
+  push:
+    branches:
+      - kaitor-online-4p
+    paths:
+      - 'projects/KaiTOROnline/runtime/Invoke-KaiTORTorPostBattleLiveAcceptance.ps1'
+      - 'projects/KaiTOROnline/runtime/Test-KaiTORTorPostBattleRuntime.ps1'
+      - 'projects/KaiTOROnline/runtime/Export-KaiTORFourPlayerSnapshot.ps1'
+      - 'projects/KaiTOROnline/runtime/Test-KaiTORTorRuntimeLog.ps1'
+      - 'projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerSnapshot.ps1'
+      - 'projects/KaiTOROnline/runtime/Test-KaiTORFourPlayerPostBattleMovement.ps1'
+      - '.github/workflows/kaitor-online-tor-post-battle-live.yml'
+  workflow_dispatch:
+
+jobs:
+  validate-live-evidence-runner:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build synthetic live TOR post-battle evidence
+        shell: pwsh
+        run: |
+          $root = "$env:RUNNER_TEMP/kaitor-tor-post-battle-live"
+          New-Item -ItemType Directory -Path $root -Force | Out-Null
+
+          @'
+          [Module] TOR_Armory initialized
+          Loaded managed assembly TOR_Armory.dll
+          [Module] TOR_Environment initialized
+          Loaded managed assembly TOR_Environment.dll
+          [Module] TOR_Core initialized
+          Loaded managed assembly TOR_Core.dll
+          [Module] Coop initialized
+          Loaded managed assembly Coop.Core.dll
+          Campaign server ready
+          '@ | Set-Content -LiteralPath "$root/runtime.log" -Encoding UTF8
+
+          function New-Player {
+            param([string]$Id,[double]$X,[double]$Y,[string]$MapEventId = '')
+            [pscustomobject]@{
+              controllerId = "controller-$Id"
+              heroId = "hero-$Id"
+              mobilePartyId = "party-$Id"
+              clanId = "clan-$Id"
+              characterObjectId = "character-$Id"
+              connected = $true
+              heroResolved = $true
+              heroIsDead = $false
+              heroIsPrisoner = $false
+              prisonerPartyId = ''
+              partyResolved = $true
+              partyActive = $true
+              mapEventId = $MapEventId
+              positionX = $X
+              positionY = $Y
+            }
+          }
+
+          function Write-CommandSnapshot {
+            param([string]$Path,$Snapshot)
+            "server> KAITOR_4P_SNAPSHOT_JSON=$($Snapshot | ConvertTo-Json -Depth 8 -Compress)" | Set-Content -LiteralPath $Path -Encoding UTF8
+          }
+
+          $battle = [pscustomobject]@{ activeAdmissionSlots=4; playerRegistryCount=4; players=@(
+            New-Player A 10 10 'battle-live-001'; New-Player B 20 20; New-Player C 30 30; New-Player D 40 40) }
+          $post = [pscustomobject]@{ activeAdmissionSlots=4; playerRegistryCount=4; players=@(
+            New-Player A 10 10; New-Player B 20 20; New-Player C 30 30; New-Player D 40 40) }
+          $moved = [pscustomobject]@{ activeAdmissionSlots=4; playerRegistryCount=4; players=@(
+            New-Player A 11 10; New-Player B 20 21.5; New-Player C 28 31; New-Player D 42.5 38) }
+
+          Write-CommandSnapshot "$root/in-battle.txt" $battle
+          Write-CommandSnapshot "$root/post-battle.txt" $post
+          Write-CommandSnapshot "$root/moved.txt" $moved
+
+      - name: Accept one-command TOR post-battle live evidence
+        shell: pwsh
+        run: |
+          $root = "$env:RUNNER_TEMP/kaitor-tor-post-battle-live"
+          $out = "$root/evidence"
+          ./projects/KaiTOROnline/runtime/Invoke-KaiTORTorPostBattleLiveAcceptance.ps1 `
+            -RuntimeLogPath "$root/runtime.log" `
+            -InBattleCommandOutputPath "$root/in-battle.txt" `
+            -PostBattleCommandOutputPath "$root/post-battle.txt" `
+            -MovedCommandOutputPath "$root/moved.txt" `
+            -ControllerId 'controller-A' `
+            -OutputDirectory $out
+
+          foreach ($file in @(
+            'runtime.log',
+            'snapshot-command-in-battle.txt',
+            'snapshot-command-post-battle.txt',
+            'snapshot-command-moved.txt',
+            'snapshot-in-battle.json',
+            'snapshot-post-battle.json',
+            'snapshot-moved.json',
+            'acceptance-post-battle.json'
+          )) {
+            if (-not (Test-Path -LiteralPath (Join-Path $out $file) -PathType Leaf)) {
+              throw "Missing post-battle live evidence file: $file"
+            }
+          }
+
+          $manifest = Get-Content -LiteralPath "$out/acceptance-post-battle.json" -Raw | ConvertFrom-Json
+          if ($manifest.schema -cne 'kaitor-online-tor-post-battle-live-acceptance/v1') { throw 'Unexpected post-battle live evidence schema.' }
+          if ($manifest.result -cne 'PASS') { throw 'Post-battle live evidence manifest did not record PASS.' }
+          if ([int]$manifest.target.simultaneousPlayers -ne 4) { throw 'Post-battle live evidence changed the 4-player contract.' }
+          if ($manifest.target.bannerlord -cne '1.3.15.110062' -or $manifest.target.theOldRealms -cne '1.3.15') { throw 'Post-battle live evidence target versions drifted.' }
+          Write-Host 'TOR post-battle live evidence runner: PASS'
