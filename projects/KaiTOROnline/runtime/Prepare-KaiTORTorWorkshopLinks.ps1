@@ -68,10 +68,23 @@ function Read-ModuleIdentity {
         [xml]$xml = Get-Content -LiteralPath $subModule -Raw
     }
     catch {
-        throw "Invalid SubModule.xml in '$Directory': $($_.Exception.Message)"
+        # Workshop contains arbitrary third-party modules. A malformed unrelated module
+        # must not prevent discovery of the exact TOR modules; required TOR modules still
+        # fail closed below when no valid matching Id can be found.
+        return $null
     }
 
-    $id = [string]$xml.Module.Id.value
+    # XPath avoids StrictMode PropertyNotFoundException on unrelated modules that have a
+    # SubModule.xml but omit <Id> or <Version> nodes.
+    $idNode = $xml.SelectSingleNode('/Module/Id')
+    if ($null -eq $idNode) {
+        return $null
+    }
+    $id = [string]$idNode.GetAttribute('value')
+    if ([string]::IsNullOrWhiteSpace($id)) {
+        return $null
+    }
+
     $versionNode = $xml.SelectSingleNode('/Module/Version')
     $version = if ($null -eq $versionNode) { '' } else { [string]$versionNode.GetAttribute('value') }
 
