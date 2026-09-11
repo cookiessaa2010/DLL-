@@ -71,14 +71,24 @@ function Assert-ModuleMetadata {
     }
 
     if ($ModuleId -eq 'Coop') {
-        $dependencies = @($xml.Module.DependedModules.DependedModule)
+        # XPath is deliberate here: Windows PowerShell 5.1 + StrictMode throws a raw
+        # PropertyNotFoundException when <DependedModules> is absent. Missing metadata is
+        # a package-contract failure and should produce our stable diagnostic instead.
+        $dependencies = @($xml.SelectNodes('/Module/DependedModules/DependedModule'))
         if ($dependencies.Count -eq 0) {
             throw "Coop SubModule.xml has no dependency metadata. This is not the KaiTOR 1.3.15 build."
         }
 
-        $wrong = @($dependencies | Where-Object { $_.DependentVersion -and $_.DependentVersion -ne 'v1.3.15' })
+        $wrong = @(
+            $dependencies | Where-Object {
+                $dependentVersion = [string]$_.GetAttribute('DependentVersion')
+                -not [string]::IsNullOrWhiteSpace($dependentVersion) -and $dependentVersion -ne 'v1.3.15'
+            }
+        )
         if ($wrong.Count -gt 0) {
-            $details = ($wrong | ForEach-Object { "$($_.Id)=$($_.DependentVersion)" }) -join ', '
+            $details = ($wrong | ForEach-Object {
+                "{0}={1}" -f $_.GetAttribute('Id'), $_.GetAttribute('DependentVersion')
+            }) -join ', '
             throw "Coop dependency metadata is not locked to Bannerlord v1.3.15: $details"
         }
 
