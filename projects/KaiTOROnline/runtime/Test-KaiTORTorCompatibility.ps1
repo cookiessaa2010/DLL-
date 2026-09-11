@@ -12,6 +12,7 @@ Set-StrictMode -Version Latest
 
 $ExpectedTorVersion = 'v1.3.15'
 $RequiredDependencies = @('Native', 'SandBoxCore', 'Sandbox', 'TOR_Armory', 'TOR_Environment')
+$RequiredTorRuntimeModules = @('TOR_Armory', 'TOR_Environment', 'TOR_Core')
 
 function Resolve-BannerlordRoot {
     param([Parameter(Mandatory = $true)][string]$Path)
@@ -52,6 +53,33 @@ function Read-ModuleMetadata {
     return [pscustomobject]@{ Path = $path; Xml = $xml }
 }
 
+function Assert-TorRuntimePayload {
+    param(
+        [Parameter(Mandatory = $true)][string]$Root,
+        [Parameter(Mandatory = $true)][string]$ModuleId,
+        [Parameter(Mandatory = $true)]$Metadata
+    )
+
+    $subModules = @($Metadata.Xml.Module.SubModules.SubModule)
+    $dllNames = @(
+        $subModules |
+            ForEach-Object { [string]$_.DLLName.value } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    )
+
+    if ($dllNames.Count -lt 1) {
+        throw "TOR module '$ModuleId' does not declare any runtime DLL in SubModule.xml."
+    }
+
+    $runtimeBin = Join-Path $Root ("Modules\{0}\bin\Win64_Shipping_Client" -f $ModuleId)
+    foreach ($dllName in $dllNames) {
+        $dllPath = Join-Path $runtimeBin $dllName
+        if (-not (Test-Path -LiteralPath $dllPath -PathType Leaf)) {
+            throw "TOR runtime assembly missing for '$ModuleId': $dllPath"
+        }
+    }
+}
+
 $root = Resolve-BannerlordRoot -Path $BannerlordRoot
 $core = Read-ModuleMetadata -Root $root -ModuleId 'TOR_Core'
 $xml = $core.Xml
@@ -87,9 +115,14 @@ foreach ($required in $RequiredDependencies) {
     }
 }
 
-$coreBin = Join-Path $root 'Modules\TOR_Core\bin\Win64_Shipping_Client\TOR_Core.dll'
-if (-not (Test-Path -LiteralPath $coreBin -PathType Leaf)) {
-    throw "TOR_Core runtime assembly missing: $coreBin"
+foreach ($runtimeModule in $RequiredTorRuntimeModules) {
+    $metadata = if ($runtimeModule -eq 'TOR_Core') {
+        $core
+    }
+    else {
+        Read-ModuleMetadata -Root $root -ModuleId $runtimeModule
+    }
+    Assert-TorRuntimePayload -Root $root -ModuleId $runtimeModule -Metadata $metadata
 }
 
 $subModules = @($xml.Module.SubModules.SubModule)
@@ -112,7 +145,7 @@ Write-Output 'KaiTOR Online TOR compatibility preflight: PASS'
 Write-Output "  Bannerlord root:             $root"
 Write-Output "  TOR_Core version:            $version"
 Write-Output "  Required TOR dependencies:   $($RequiredDependencies -join ', ')"
-Write-Output "  TOR_Core.dll:                present"
+Write-Output "  TOR runtime payload:         $($RequiredTorRuntimeModules -join ', ')"
 Write-Output "  DedicatedServerType:         $dedicatedValue"
 Write-Output "  IsNoRenderModeElement:       $noRenderValue"
 
@@ -120,4 +153,4 @@ if ($dedicatedValue -eq 'none') {
     Write-Warning 'TOR_Core 1.3.15 does not advertise native dedicated-server support (DedicatedServerType=none). KaiTOR must verify TOR through the Bannerlord campaign-process /server path used by Start-KaiTORCampaignServer.ps1.'
 }
 
-Write-Output 'Next TOR gate: launch the KaiTOR campaign process with TOR modules and verify TOR_Core loads before four-player snapshot/movement acceptance.'
+Write-Output 'Next TOR gate: launch the KaiTOR campaign process with TOR modules and verify the full TOR runtime stack loads before four-player snapshot/movement acceptance.'
