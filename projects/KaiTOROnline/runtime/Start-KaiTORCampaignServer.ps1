@@ -24,7 +24,9 @@ param(
 
     [switch]$DryRun,
 
-    [switch]$Wait
+    [switch]$Wait,
+
+    [switch]$NoExitOnWait
 )
 
 $ErrorActionPreference = 'Stop'
@@ -231,6 +233,17 @@ Write-Output 'The /coopsave path auto-starts Coop when Bannerlord reaches Initia
 
 if ($Wait) {
     $process.WaitForExit()
-    Write-Output "Campaign-server process exited with code $($process.ExitCode)."
-    exit $process.ExitCode
+    $exitCode = $process.ExitCode
+    Write-Output "Campaign-server process exited with code $exitCode."
+
+    # Wrapper launchers (notably TOR Workshop staging) need their finally blocks to run
+    # after the child exits so temporary module links are always cleaned up.
+    if ($NoExitOnWait) {
+        if ($exitCode -ne 0) {
+            throw "Campaign-server process exited with code $exitCode."
+        }
+        return
+    }
+
+    exit $exitCode
 }
