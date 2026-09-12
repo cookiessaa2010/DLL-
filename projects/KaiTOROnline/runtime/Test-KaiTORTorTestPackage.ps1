@@ -41,6 +41,7 @@ $requiredFiles = @(
     'Modules/Coop/bin/Win64_Shipping_Client/Missions.dll',
     'Runtime/Start-KaiTORCampaignServer.ps1',
     'Runtime/Start-KaiTORTorCampaignServer.ps1',
+    'Runtime/KaiTORTorWorkshopRuntime.ps1',
     'Runtime/Prepare-KaiTORTorWorkshopLinks.ps1',
     'Runtime/Test-KaiTORTorLiveReadiness.ps1',
     'Runtime/Capture-KaiTORTorPostBattleLiveSession.ps1',
@@ -83,6 +84,7 @@ $runbookChecks = @(
     'activeAdmissionSlots = 4',
     'Test-KaiTORTorLiveReadiness.ps1',
     'Start-KaiTORTorCampaignServer.ps1',
+    'TOR Workshop staging',
     'coop.debug.kaitor.snapshot4p',
     'Capture-KaiTORTorPostBattleLiveSession.ps1'
 )
