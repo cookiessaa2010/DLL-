@@ -1,16 +1,22 @@
-name: KaiTOR Online TOR Workshop Links
+name: KaiTOR Online TOR Workshop Staging
 
 on:
   push:
     branches:
       - kaitor-online-4p
     paths:
+      - 'projects/KaiTOROnline/runtime/KaiTORTorWorkshopRuntime.ps1'
       - 'projects/KaiTOROnline/runtime/Prepare-KaiTORTorWorkshopLinks.ps1'
+      - 'projects/KaiTOROnline/runtime/Start-KaiTORTorCampaignServer.ps1'
+      - 'projects/KaiTOROnline/runtime/Start-KaiTORCampaignServer.ps1'
+      - 'projects/KaiTOROnline/runtime/Test-KaiTORTorCompatibility.ps1'
+      - 'projects/KaiTOROnline/runtime/Test-KaiTORRuntimePreflight.ps1'
+      - 'projects/KaiTOROnline/runtime/modules.tor-1.3.15.txt'
       - '.github/workflows/kaitor-online-tor-workshop-links.yml'
   workflow_dispatch:
 
 jobs:
-  workshop-links:
+  workshop-staging:
     runs-on: windows-latest
     steps:
       - name: Checkout KaiTOR project
@@ -21,91 +27,135 @@ jobs:
         run: |
           $game = Join-Path $env:RUNNER_TEMP 'KaiTOR-Workshop-Game'
           $workshop = Join-Path $env:RUNNER_TEMP 'KaiTOR-Workshop-Content'
-          New-Item -ItemType Directory -Force -Path (Join-Path $game 'Modules') | Out-Null
+          $bin = Join-Path $game 'bin/Win64_Shipping_Client'
+          New-Item -ItemType Directory -Force -Path $bin | Out-Null
           New-Item -ItemType Directory -Force -Path $workshop | Out-Null
+          Set-Content -LiteralPath (Join-Path $bin 'Bannerlord.exe') -Value 'CI placeholder' -Encoding ASCII
 
-          # Real Workshop libraries can contain unrelated modules. These fixtures ensure
-          # discovery ignores missing Id metadata and malformed XML instead of dying under
-          # Windows PowerShell 5.1 StrictMode before the TOR modules are found.
-          $unrelatedMissingId = Join-Path $workshop '1111111111'
-          New-Item -ItemType Directory -Force -Path $unrelatedMissingId | Out-Null
-          '<Module><Version value="v9.9.9" /></Module>' |
-            Set-Content -LiteralPath (Join-Path $unrelatedMissingId 'SubModule.xml') -Encoding UTF8
-
-          $unrelatedMalformed = Join-Path $workshop '2222222222'
-          New-Item -ItemType Directory -Force -Path $unrelatedMalformed | Out-Null
-          '<Module><Id value="Broken">' |
-            Set-Content -LiteralPath (Join-Path $unrelatedMalformed 'SubModule.xml') -Encoding UTF8
-
-          $fixtures = @{
-            '3025575223' = 'TOR_Armory'
-            '3025579210' = 'TOR_Environment'
-            '3025574678' = 'TOR_Core'
-          }
-          foreach ($entry in $fixtures.GetEnumerator()) {
-            $dir = Join-Path $workshop $entry.Key
+          foreach ($module in @('Native','SandBoxCore','Sandbox','CustomBattle','StoryMode')) {
+            $dir = Join-Path $game ("Modules/{0}" -f $module)
             New-Item -ItemType Directory -Force -Path $dir | Out-Null
-            ('<Module><Id value="{0}" /><Version value="v1.3.15" /></Module>' -f $entry.Value) |
+            ("<Module><Id value=`"{0}`"/><Version value=`"v1.3.15`"/></Module>" -f $module) |
               Set-Content -LiteralPath (Join-Path $dir 'SubModule.xml') -Encoding UTF8
           }
+
+          $coop = Join-Path $game 'Modules/Coop'
+          $coopBin = Join-Path $coop 'bin/Win64_Shipping_Client'
+          New-Item -ItemType Directory -Force -Path $coopBin | Out-Null
+          @'
+          <Module><Id value="Coop"/><Version value="v1.3.15"/><DependedModules>
+            <DependedModule Id="Native" DependentVersion="v1.3.15"/>
+            <DependedModule Id="SandBoxCore" DependentVersion="v1.3.15"/>
+            <DependedModule Id="Sandbox" DependentVersion="v1.3.15"/>
+            <DependedModule Id="CustomBattle" DependentVersion="v1.3.15"/>
+            <DependedModule Id="StoryMode" DependentVersion="v1.3.15"/>
+          </DependedModules></Module>
+          '@ | Set-Content -LiteralPath (Join-Path $coop 'SubModule.xml') -Encoding UTF8
+          foreach ($assembly in @('Coop.dll','Coop.Core.dll','GameInterface.dll','Missions.dll')) {
+            Set-Content -LiteralPath (Join-Path $coopBin $assembly) -Value 'CI placeholder' -Encoding ASCII
+          }
+
+          # Unrelated malformed Workshop entries must not break TOR discovery.
+          $bad = Join-Path $workshop '1111111111'
+          New-Item -ItemType Directory -Force -Path $bad | Out-Null
+          '<Module><Id value="Broken">' | Set-Content -LiteralPath (Join-Path $bad 'SubModule.xml') -Encoding UTF8
+
+          foreach ($entry in @(
+            @{ Id='3025575223'; Module='TOR_Armory' },
+            @{ Id='3025579210'; Module='TOR_Environment' }
+          )) {
+            $dir = Join-Path $workshop $entry.Id
+            New-Item -ItemType Directory -Force -Path $dir | Out-Null
+            ("<Module><Id value=`"{0}`"/><Version value=`"v1.3.15`"/></Module>" -f $entry.Module) |
+              Set-Content -LiteralPath (Join-Path $dir 'SubModule.xml') -Encoding UTF8
+          }
+
+          $tor = Join-Path $workshop '3025574678'
+          $torBin = Join-Path $tor 'bin/Win64_Shipping_Client'
+          New-Item -ItemType Directory -Force -Path $torBin | Out-Null
+          @'
+          <Module>
+            <Id value="TOR_Core"/><Version value="v1.3.15"/>
+            <DependedModules>
+              <DependedModule Id="Native" DependentVersion="v1.3.15"/>
+              <DependedModule Id="SandBoxCore" DependentVersion="v1.3.15"/>
+              <DependedModule Id="Sandbox" DependentVersion="v1.3.15"/>
+              <DependedModule Id="TOR_Armory" DependentVersion="v1.3.15"/>
+              <DependedModule Id="TOR_Environment" DependentVersion="v1.3.15"/>
+            </DependedModules>
+            <SubModules><SubModule><DLLName value="TOR_Core.dll"/><Tags>
+              <Tag key="DedicatedServerType" value="none"/>
+              <Tag key="IsNoRenderModeElement" value="false"/>
+            </Tags></SubModule></SubModules>
+          </Module>
+          '@ | Set-Content -LiteralPath (Join-Path $tor 'SubModule.xml') -Encoding UTF8
+          Set-Content -LiteralPath (Join-Path $torBin 'TOR_Core.dll') -Value 'CI placeholder' -Encoding ASCII
 
           "KAITOR_WORKSHOP_GAME=$game" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "KAITOR_WORKSHOP_ROOT=$workshop" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-      - name: Create TOR Workshop junctions with Windows PowerShell 5.1
+      - name: Discover TOR Workshop payload without touching Bannerlord Modules
         shell: powershell
         run: |
           $output = ./projects/KaiTOROnline/runtime/Prepare-KaiTORTorWorkshopLinks.ps1 `
             -BannerlordRoot $env:KAITOR_WORKSHOP_GAME `
-            -WorkshopRoot $env:KAITOR_WORKSHOP_ROOT 2>&1 | Out-String
+            -WorkshopRoot $env:KAITOR_WORKSHOP_ROOT 3>&1 2>&1 | Out-String
           Write-Host $output
-          if ($output -notmatch 'KaiTOR TOR Workshop link preparation: PASS') {
-            throw 'Workshop link preparation did not report PASS.'
+          if ($output -notmatch 'KaiTOR TOR Workshop discovery: PASS') {
+            throw 'Workshop discovery did not report PASS.'
           }
+          foreach ($module in @('TOR_Armory','TOR_Environment','TOR_Core')) {
+            $path = Join-Path $env:KAITOR_WORKSHOP_GAME ("Modules/{0}" -f $module)
+            if (Test-Path -LiteralPath $path) {
+              throw "Discovery mutated Bannerlord Modules: $path"
+            }
+          }
+
+      - name: Dry-run TOR campaign with ephemeral Workshop staging
+        shell: powershell
+        run: |
+          $output = ./projects/KaiTOROnline/runtime/Start-KaiTORTorCampaignServer.ps1 `
+            -BannerlordRoot $env:KAITOR_WORKSHOP_GAME `
+            -WorkshopRoot $env:KAITOR_WORKSHOP_ROOT `
+            -SaveName 'KaiTOR-Workshop-CI' `
+            -SkipVersionCheck `
+            -DryRun 3>&1 2>&1 | Out-String
+          Write-Host $output
+          if ($output -notmatch 'TOR Workshop staging: ACTIVE') { throw 'Workshop staging was not activated.' }
+          if ($output -notmatch 'TOR compatibility preflight: PASS') { throw 'TOR compatibility preflight did not pass.' }
+          if ($output -notmatch 'Runtime preflight: PASS') { throw 'Base runtime preflight did not pass.' }
+          if ($output -notmatch 'DRY RUN: process not started') { throw 'Campaign dry run did not complete.' }
+          if ($output -notmatch 'TOR Workshop staging cleanup: PASS') { throw 'Temporary Workshop staging did not report cleanup.' }
 
           foreach ($module in @('TOR_Armory','TOR_Environment','TOR_Core')) {
             $path = Join-Path $env:KAITOR_WORKSHOP_GAME ("Modules/{0}" -f $module)
-            if (-not (Test-Path -LiteralPath (Join-Path $path 'SubModule.xml') -PathType Leaf)) {
-              throw "Prepared junction is missing SubModule.xml: $path"
-            }
-            $item = Get-Item -LiteralPath $path -Force
-            if (-not (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -eq [IO.FileAttributes]::ReparsePoint)) {
-              throw "Prepared TOR path is not a junction/reparse point: $path"
+            if (Test-Path -LiteralPath $path) {
+              throw "Temporary TOR junction leaked after dry run: $path"
             }
           }
 
-      - name: Verify Workshop junction preparation is idempotent
+      - name: Reject persistent TOR junctions before launch
         shell: powershell
         run: |
-          $output = ./projects/KaiTOROnline/runtime/Prepare-KaiTORTorWorkshopLinks.ps1 `
-            -BannerlordRoot $env:KAITOR_WORKSHOP_GAME `
-            -WorkshopRoot $env:KAITOR_WORKSHOP_ROOT 2>&1 | Out-String
-          Write-Host $output
-          if ($output -notmatch 'Workshop junction already ready') {
-            throw 'Second Workshop preparation did not recognize existing safe junctions.'
-          }
-          if ($output -notmatch 'KaiTOR TOR Workshop link preparation: PASS') {
-            throw 'Idempotent Workshop preparation did not report PASS.'
-          }
-
-      - name: Refuse to overwrite a real TOR directory
-        shell: powershell
-        run: |
-          $game = Join-Path $env:RUNNER_TEMP 'KaiTOR-Workshop-Conflict'
-          $real = Join-Path $game 'Modules/TOR_Core'
-          New-Item -ItemType Directory -Force -Path $real | Out-Null
-          '<Module><Id value="TOR_Core" /><Version value="v1.3.15" /></Module>' |
-            Set-Content -LiteralPath (Join-Path $real 'SubModule.xml') -Encoding UTF8
-
-          $failed = $false
+          $target = Join-Path $env:KAITOR_WORKSHOP_GAME 'Modules/TOR_Core'
+          New-Item -ItemType Junction -Path $target -Target (Join-Path $env:KAITOR_WORKSHOP_ROOT '3025574678') | Out-Null
           try {
-            ./projects/KaiTOROnline/runtime/Prepare-KaiTORTorWorkshopLinks.ps1 `
-              -BannerlordRoot $game `
-              -WorkshopRoot $env:KAITOR_WORKSHOP_ROOT
-          } catch {
-            $failed = $true
-            Write-Host "Expected real-directory rejection: $($_.Exception.Message)"
+            $failed = $false
+            try {
+              ./projects/KaiTOROnline/runtime/Start-KaiTORTorCampaignServer.ps1 `
+                -BannerlordRoot $env:KAITOR_WORKSHOP_GAME `
+                -WorkshopRoot $env:KAITOR_WORKSHOP_ROOT `
+                -SaveName 'KaiTOR-Workshop-CI' `
+                -SkipVersionCheck `
+                -DryRun | Out-Null
+            }
+            catch {
+              $failed = $true
+              Write-Host $_.Exception.Message
+              if ($_.Exception.Message -notmatch 'Persistent TOR reparse point detected') { throw }
+            }
+            if (-not $failed) { throw 'Launcher accepted a persistent TOR junction.' }
           }
-          if (-not $failed) {
-            throw 'Workshop helper overwrote or accepted a real TOR directory.'
+          finally {
+            cmd /c rmdir "$target"
           }
