@@ -9,6 +9,7 @@ TOR topology: rendered campaign-process path
 TOR_Core metadata: DedicatedServerType=none
 Native TaleWorlds dedicated/no-render TOR support: NOT CLAIMED
 Validated KaiTOR Coop payload: SubModule.xml, Coop.dll, Coop.Core.dll, GameInterface.dll, Missions.dll.
+Steam Workshop TOR policy: persistent TOR junctions in the real Bannerlord Modules directory are forbidden; Workshop modules are staged only for the KaiTOR invocation and removed afterward.
 Live readiness requires the installed KaiTOR Coop payload to match the validated package byte-for-byte by SHA-256 before launch authorization.
 Runtime acceptance requires ordered TOR_Armory + TOR_Environment + TOR_Core + Coop load evidence and an explicit campaign-server ready/running marker.
 Shared-map acceptance requires four independent persistent controller/Hero/Clan/MobileParty/CharacterObject graphs.
