@@ -110,19 +110,23 @@ $exe = $resolved.Exe
 
 if (-not $SkipVersionCheck) {
     $version = [Diagnostics.FileVersionInfo]::GetVersionInfo($exe)
-    $reported = @($version.FileVersion, $version.ProductVersion) |
-        Where-Object { $_ } |
-        Select-Object -Unique
+    # Windows PowerShell 5.1 unwraps a one-item pipeline result. Keep an explicit
+    # array so StrictMode never turns a normal version mismatch into .Count failure.
+    $reported = @(
+        @($version.FileVersion, $version.ProductVersion) |
+            Where-Object { $_ } |
+            Select-Object -Unique
+    )
     $matches = @($reported | Where-Object { $_ -like "$ExpectedVersion*" })
     if ($matches.Count -eq 0) {
-        $shown = if ($reported.Count) { $reported -join ', ' } else { '<not reported>' }
+        $shown = if ($reported.Count -gt 0) { $reported -join ', ' } else { '<not reported>' }
         throw "Expected Bannerlord $ExpectedVersion, but Bannerlord.exe reports: $shown"
     }
 }
 
-if (-not $ModuleIds -or $ModuleIds.Count -eq 0) {
+if (-not $ModuleIds -or @($ModuleIds).Count -eq 0) {
     $source = if ($ModuleListPath) { $ModuleListPath } else { $DefaultModuleList }
-    $ModuleIds = Get-ModuleIdsFromFile -Path $source
+    $ModuleIds = @(Get-ModuleIdsFromFile -Path $source)
 }
 
 $seen = @{}
