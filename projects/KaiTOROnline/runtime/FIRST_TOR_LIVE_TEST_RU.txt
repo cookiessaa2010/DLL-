@@ -13,6 +13,7 @@ KaiTOR Online — первый реальный TOR live-test
 - TOR-модули должны загружаться в порядке:
   TOR_Armory -> TOR_Environment -> TOR_Core -> Coop
 - Не заменяйте TOR-файлы файлами из пакета KaiTOR. В пакет входит только Modules/Coop и Runtime-инструменты.
+- Не создавайте постоянные TOR junction/symlink в Bannerlord\Modules: они могут мешать обычному запуску игры через Steam/TaleWorlds Launcher.
 
 1. Подготовка
 1) Распакуйте artifact KaiTOR в отдельную папку.
@@ -20,28 +21,33 @@ KaiTOR Online — первый реальный TOR live-test
 3) Убедитесь, что установлены TOR_Armory, TOR_Environment и TOR_Core версии 1.3.15.
 4) Не используйте дополнительные gameplay-моды в первом прогоне. Клиенты должны иметь одинаковый набор модулей.
 
-Если TOR установлен через Steam Workshop, не копируйте гигабайты TOR вручную. Из папки artifact выполните:
+Если TOR установлен через Steam Workshop, не копируйте гигабайты TOR вручную и не создавайте постоянные ссылки. Для безопасной проверки discovery из папки artifact выполните:
 
-  ./Runtime/Prepare-KaiTORTorWorkshopLinks.ps1 `
+  .\Runtime\Prepare-KaiTORTorWorkshopLinks.ps1 `
     -BannerlordRoot "C:\PATH\TO\Mount & Blade II Bannerlord"
 
-Скрипт автоматически ищет Workshop в той же Steam-библиотеке (...\steamapps\workshop\content\261550), находит модули по Module.Id и проверяет точную версию v1.3.15. Он создаёт в Bannerlord\Modules только NTFS junction для TOR_Armory, TOR_Environment и TOR_Core; сами TOR-файлы остаются в Steam Workshop и продолжают обновляться Steam.
+Скрипт автоматически ищет Workshop в той же Steam-библиотеке (...\steamapps\workshop\content\261550), находит модули по Module.Id и проверяет точную версию v1.3.15. Он ничего не создаёт в Bannerlord\Modules.
 
 Если Workshop находится в другой Steam-библиотеке, укажите его явно:
 
-  ./Runtime/Prepare-KaiTORTorWorkshopLinks.ps1 `
+  .\Runtime\Prepare-KaiTORTorWorkshopLinks.ps1 `
     -BannerlordRoot "C:\PATH\TO\Mount & Blade II Bannerlord" `
     -WorkshopRoot "D:\steam\steamapps\workshop\content\261550"
 
-Скрипт не перезаписывает реальные папки TOR: если в Bannerlord\Modules уже существует обычная директория с таким именем, подготовка завершится ошибкой и потребует ручного решения.
+TOR Workshop staging выполняется только Start-KaiTORTorCampaignServer.ps1: перед server/preflight он временно создаёт нужные junction для TOR_Armory, TOR_Environment и TOR_Core, а в finally удаляет их. Поэтому обычный Steam-запуск Bannerlord остаётся с чистой папкой Modules. При Workshop staging серверный launcher держит PowerShell открытым до завершения Bannerlord, чтобы гарантировать cleanup.
+
+Если PowerShell был аварийно завершён и в Bannerlord\Modules остались TOR_* reparse-point, KaiTOR откажется запускаться. Удалите только эти ссылки командой cmd /c rmdir и повторите запуск; оригинальные файлы Workshop при этом не удаляются.
 
 2. Обязательный preflight
 Запустите PowerShell из папки artifact:
 
-  ./Runtime/Test-KaiTORTorLiveReadiness.ps1 `
+  .\Runtime\Test-KaiTORTorLiveReadiness.ps1 `
     -PackageRoot . `
     -BannerlordRoot "C:\PATH\TO\Mount & Blade II Bannerlord" `
     -SaveName "KaiTOR-TOR-Live-01"
+
+Если Workshop находится не в той же Steam-библиотеке, добавьте:
+  -WorkshopRoot "D:\steam\steamapps\workshop\content\261550"
 
 Ожидаемый результат:
   KaiTOR TOR live readiness: PASS
@@ -50,16 +56,20 @@ Preflight должен подтвердить:
 - целевой runtime Bannerlord;
 - TOR 1.3.15 и требуемую цепочку модулей;
 - установленный Modules/Coop совпадает с пакетным payload по SHA-256;
-- TOR launcher dry-run корректен.
+- TOR launcher dry-run корректен;
+- временный TOR Workshop staging полностью очищен после dry-run.
 
 Если preflight FAIL — сервер не запускать. Сначала исправьте указанное расхождение.
 
 3. Запуск authoritative campaign server
 После PASS:
 
-  ./Runtime/Start-KaiTORTorCampaignServer.ps1 `
+  .\Runtime\Start-KaiTORTorCampaignServer.ps1 `
     -BannerlordRoot "C:\PATH\TO\Mount & Blade II Bannerlord" `
     -SaveName "KaiTOR-TOR-Live-01"
+
+Если Workshop находится не в той же Steam-библиотеке, добавьте -WorkshopRoot явно.
+При Workshop TOR не закрывайте PowerShell принудительно во время работы сервера: launcher ждёт завершения Bannerlord и затем удаляет временные junction.
 
 Ожидаемая архитектура: Bannerlord.exe /singleplayer /server.
 Не считать TOR совместимость доказанной только по факту старта процесса: нужен живой клиентский тест.
