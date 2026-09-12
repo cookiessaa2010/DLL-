@@ -74,6 +74,39 @@ jobs:
           if ($output -notmatch 'DRY RUN: process not started') { throw 'Launcher dry-run contract did not complete.' }
           if ($output -notmatch '/coopsave KaiTOR-CI-Save') { throw 'Launcher did not preserve the Coop save launch contract.' }
 
+      - name: Reject a scalar file-version mismatch cleanly under Windows PowerShell 5.1
+        shell: powershell
+        run: |
+          $versionRoot = Join-Path $env:RUNNER_TEMP 'fake-bannerlord-version-scalar'
+          $versionBin = Join-Path $versionRoot 'bin/Win64_Shipping_Client'
+          New-Item -ItemType Directory -Force -Path $versionBin | Out-Null
+          Copy-Item -LiteralPath "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" `
+            -Destination (Join-Path $versionBin 'Bannerlord.exe') -Force
+
+          foreach ($script in @(
+            './projects/KaiTOROnline/runtime/Test-KaiTORRuntimePreflight.ps1',
+            './projects/KaiTOROnline/runtime/Start-KaiTORCampaignServer.ps1'
+          )) {
+            $failed = $false
+            try {
+              if ($script -like '*Start-*') {
+                & $script -BannerlordRoot $versionRoot -SaveName 'KaiTOR-Version-CI' -DryRun | Out-Null
+              }
+              else {
+                & $script -BannerlordRoot $versionRoot | Out-Null
+              }
+            }
+            catch {
+              $failed = $true
+              Write-Host "$script -> $($_.Exception.Message)"
+              if ($_.Exception.Message -notmatch 'Expected Bannerlord 1\.3\.15\.110062') { throw }
+              if ($_.Exception.GetType().FullName -match 'PropertyNotFoundException' -or $_.Exception.Message -match 'property .Count') {
+                throw 'Scalar version information leaked a StrictMode .Count failure.'
+              }
+            }
+            if (-not $failed) { throw "$script unexpectedly accepted the wrong Bannerlord version." }
+          }
+
       - name: Validate missing Coop dependency metadata is rejected cleanly
         shell: powershell
         run: |
