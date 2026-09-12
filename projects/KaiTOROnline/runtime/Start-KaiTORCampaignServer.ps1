@@ -59,7 +59,7 @@ function Quote-WindowsArgument {
 
     # Matches Bannerlord Coop's ServerLaunchArguments quoting contract. Windows parses
     # backslashes specially only when they precede a quote or the closing quote.
-    if ($Value.Length -gt 0 -and $Value -notmatch '[\s"]') {
+    if ($Value.Length -gt 0 -and $Value -notmatch '[\s\"]') {
         return $Value
     }
 
@@ -132,19 +132,23 @@ if (-not (Test-Path -LiteralPath $exe -PathType Leaf)) {
 
 if (-not $SkipVersionCheck) {
     $version = [Diagnostics.FileVersionInfo]::GetVersionInfo($exe)
-    $reported = @($version.FileVersion, $version.ProductVersion) |
-        Where-Object { $_ } |
-        Select-Object -Unique
+    # Preserve array identity explicitly. Windows PowerShell 5.1 collapses a one-item
+    # pipeline result to a scalar, and StrictMode then rejects scalar .Count access.
+    $reported = @(
+        @($version.FileVersion, $version.ProductVersion) |
+            Where-Object { $_ } |
+            Select-Object -Unique
+    )
     $matches = @($reported | Where-Object { $_ -like "$ExpectedVersion*" })
     if ($matches.Count -eq 0) {
-        $shown = if ($reported.Count) { $reported -join ', ' } else { '<not reported>' }
+        $shown = if ($reported.Count -gt 0) { $reported -join ', ' } else { '<not reported>' }
         throw "Expected Bannerlord $ExpectedVersion, but Bannerlord.exe reports: $shown. Use -SkipVersionCheck only for diagnostics."
     }
 }
 
-if (-not $ModuleIds -or $ModuleIds.Count -eq 0) {
+if (-not $ModuleIds -or @($ModuleIds).Count -eq 0) {
     $source = if ($ModuleListPath) { $ModuleListPath } else { $DefaultModuleList }
-    $ModuleIds = Get-ModuleIdsFromFile -Path $source
+    $ModuleIds = @(Get-ModuleIdsFromFile -Path $source)
 }
 
 if (-not ($ModuleIds -contains 'Coop')) {
