@@ -43,6 +43,20 @@ foreach ($required in @($TorPreflight, $CampaignLauncher, $TorModuleList, $Works
 . $WorkshopRuntime
 $root = Resolve-KaiTORBannerlordRoot -Path $BannerlordRoot
 $requiredTor = @('TOR_Armory', 'TOR_Environment', 'TOR_Core')
+
+# Persistent TOR links in the real Bannerlord Modules directory can interfere with the
+# normal Steam/TaleWorlds launcher. KaiTOR only permits real manual module directories or
+# links created inside this invocation and removed in its finally block.
+foreach ($moduleId in $requiredTor) {
+    $moduleDirectory = Join-Path $root ("Modules\{0}" -f $moduleId)
+    if (Test-Path -LiteralPath $moduleDirectory) {
+        $item = Get-Item -LiteralPath $moduleDirectory -Force
+        if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -eq [IO.FileAttributes]::ReparsePoint) {
+            throw "Persistent TOR reparse point detected: $moduleDirectory. Remove it before KaiTOR launch; Workshop TOR is staged temporarily by this script."
+        }
+    }
+}
+
 $presentTor = @($requiredTor | Where-Object {
     Test-Path -LiteralPath (Join-Path $root ("Modules\{0}\SubModule.xml" -f $_)) -PathType Leaf
 })
