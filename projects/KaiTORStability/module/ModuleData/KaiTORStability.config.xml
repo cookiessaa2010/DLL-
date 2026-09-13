@@ -10,4 +10,8 @@
        Soldiers with only one battle-equipment variant do not need TOR's four duplicate roster entries.
        Multi-loadout troops keep TOR's original multiplicity. -->
   <ShaderCacheAcceleration enabled="true" singleLoadoutCopies="1" />
+
+  <!-- Safe default for KaiTOR Online / Bannerlord Coop. Loading/shader features stay active,
+       but gameplay-affecting mission replacements are disabled while Coop is active. -->
+  <CoopCompatibility disableGameplayPatches="true" />
 </KaiTORStability>
