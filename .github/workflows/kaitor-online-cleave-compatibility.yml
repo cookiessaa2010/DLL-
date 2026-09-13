@@ -1,0 +1,164 @@
+name: KaiTOR Online + KaiCleave compatibility
+
+on:
+  push:
+    branches:
+      - kaitor-online-4p
+    paths:
+      - 'projects/KaiTOROnline/runtime/Start-KaiTORTorCampaignServer.ps1'
+      - 'projects/KaiTOROnline/runtime/Test-KaiTORCleaveCompatibility.ps1'
+      - 'projects/KaiTOROnline/runtime/modules.tor-1.3.15.txt'
+      - 'projects/KaiTOROnline/runtime/TOR_RUNTIME_CONTRACT.txt'
+      - '.github/workflows/kaitor-online-cleave-compatibility.yml'
+  workflow_dispatch:
+
+jobs:
+  compatibility:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout KaiTOR Online
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate actual KaiCleave branch contract
+        shell: pwsh
+        run: |
+          git fetch origin ci/kai-cleave-v0.2.1-coop --depth=1
+          $metadata = git show FETCH_HEAD:ci/KaiCleave/SubModule.xml
+          if (-not $metadata) { throw 'Unable to read KaiCleave SubModule.xml.' }
+          [xml]$xml = ($metadata -join "`n")
+          if ($xml.Module.Id.value -ne 'KaiCleave') { throw 'Unexpected KaiCleave module id.' }
+          if ($xml.Module.Version.value -ne 'v0.2.1') { throw "Expected KaiCleave v0.2.1, found $($xml.Module.Version.value)." }
+
+          $runtime = git show FETCH_HEAD:ci/KaiCleave/CoopRuntime.cs | Out-String
+          foreach ($required in @('AuthoritativeServer','PassiveClient','/server','/coopsave','TryGetControlledObjectInfo')) {
+            if ($runtime -notmatch [regex]::Escape($required)) { throw "KaiCleave Coop runtime contract missing '$required'." }
+          }
+
+          $submodule = git show FETCH_HEAD:ci/KaiCleave/SubModule.cs | Out-String
+          if ($submodule -notmatch 'CombatPatchesAllowed') { throw 'KaiCleave does not gate combat patches by authority.' }
+          if ($submodule -notmatch 'combat patches PASSIVE') { throw 'KaiCleave passive-client path is missing.' }
+
+      - name: Build synthetic TOR plus KaiCleave runtime
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP 'fake-kaitor-cleave'
+          $bin = Join-Path $root 'bin/Win64_Shipping_Client'
+          New-Item -ItemType Directory -Force -Path $bin | Out-Null
+          Set-Content -LiteralPath (Join-Path $bin 'Bannerlord.exe') -Value 'CI placeholder' -Encoding ASCII
+
+          foreach ($module in @('Native','SandBoxCore','Sandbox','CustomBattle','StoryMode')) {
+            $dir = Join-Path $root ("Modules/{0}" -f $module)
+            New-Item -ItemType Directory -Force -Path $dir | Out-Null
+            "<Module><Id value=`"$module`"/><Version value=`"v1.3.15`"/></Module>" | Set-Content -LiteralPath (Join-Path $dir 'SubModule.xml') -Encoding UTF8
+          }
+
+          $harmony = Join-Path $root 'Modules/Bannerlord.Harmony'
+          $harmonyBin = Join-Path $harmony 'bin/Win64_Shipping_Client'
+          New-Item -ItemType Directory -Force -Path $harmonyBin | Out-Null
+          @'
+          <Module>
+            <Id value="Bannerlord.Harmony"/>
+            <Version value="v2.4.2.248"/>
+            <ModuleCategory value="Singleplayer"/>
+            <SubModules><SubModule><DLLName value="Bannerlord.Harmony.dll"/></SubModule></SubModules>
+          </Module>
+          '@ | Set-Content -LiteralPath (Join-Path $harmony 'SubModule.xml') -Encoding UTF8
+          Set-Content -LiteralPath (Join-Path $harmonyBin 'Bannerlord.Harmony.dll') -Value 'CI placeholder' -Encoding ASCII
+
+          foreach ($torModule in @('TOR_Armory','TOR_Environment')) {
+            $dir = Join-Path $root ("Modules/{0}" -f $torModule)
+            New-Item -ItemType Directory -Force -Path $dir | Out-Null
+            "<Module><Id value=`"$torModule`"/><Version value=`"v1.3.15`"/></Module>" | Set-Content -LiteralPath (Join-Path $dir 'SubModule.xml') -Encoding UTF8
+          }
+
+          $tor = Join-Path $root 'Modules/TOR_Core'
+          $torBin = Join-Path $tor 'bin/Win64_Shipping_Client'
+          New-Item -ItemType Directory -Force -Path $torBin | Out-Null
+          @'
+          <Module>
+            <Id value="TOR_Core"/><Version value="v1.3.15"/>
+            <DependedModules>
+              <DependedModule Id="Native" DependentVersion="v1.3.15"/>
+              <DependedModule Id="SandBoxCore" DependentVersion="v1.3.15"/>
+              <DependedModule Id="Sandbox" DependentVersion="v1.3.15"/>
+              <DependedModule Id="TOR_Armory" DependentVersion="v1.3.15"/>
+              <DependedModule Id="TOR_Environment" DependentVersion="v1.3.15"/>
+            </DependedModules>
+            <SubModules><SubModule><DLLName value="TOR_Core.dll"/><Tags>
+              <Tag key="DedicatedServerType" value="none"/>
+              <Tag key="IsNoRenderModeElement" value="false"/>
+            </Tags></SubModule></SubModules>
+          </Module>
+          '@ | Set-Content -LiteralPath (Join-Path $tor 'SubModule.xml') -Encoding UTF8
+          Set-Content -LiteralPath (Join-Path $torBin 'TOR_Core.dll') -Value 'CI placeholder' -Encoding ASCII
+
+          git fetch origin ci/kai-cleave-v0.2.1-coop --depth=1
+          $cleave = Join-Path $root 'Modules/KaiCleave'
+          $cleaveBin = Join-Path $cleave 'bin/Win64_Shipping_Client'
+          New-Item -ItemType Directory -Force -Path $cleaveBin | Out-Null
+          $cleaveMetadata = git show FETCH_HEAD:ci/KaiCleave/SubModule.xml
+          Set-Content -LiteralPath (Join-Path $cleave 'SubModule.xml') -Value ($cleaveMetadata -join "`n") -Encoding UTF8
+          Set-Content -LiteralPath (Join-Path $cleaveBin 'KaiCleave.dll') -Value 'CI placeholder' -Encoding ASCII
+
+          $coop = Join-Path $root 'Modules/Coop'
+          $coopBin = Join-Path $coop 'bin/Win64_Shipping_Client'
+          New-Item -ItemType Directory -Force -Path $coopBin | Out-Null
+          @'
+          <Module><Id value="Coop"/><Version value="v1.3.15"/><DependedModules>
+            <DependedModule Id="Native" DependentVersion="v1.3.15"/>
+            <DependedModule Id="SandBoxCore" DependentVersion="v1.3.15"/>
+            <DependedModule Id="Sandbox" DependentVersion="v1.3.15"/>
+            <DependedModule Id="CustomBattle" DependentVersion="v1.3.15"/>
+            <DependedModule Id="StoryMode" DependentVersion="v1.3.15"/>
+          </DependedModules></Module>
+          '@ | Set-Content -LiteralPath (Join-Path $coop 'SubModule.xml') -Encoding UTF8
+          foreach ($assembly in @('Coop.dll','Coop.Core.dll','GameInterface.dll','Missions.dll')) {
+            Set-Content -LiteralPath (Join-Path $coopBin $assembly) -Value 'CI placeholder' -Encoding ASCII
+          }
+
+          "KAITOR_CLEAVE_ROOT=$root" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Exercise KaiCleave preflight
+        shell: pwsh
+        run: |
+          $out = @(& ./projects/KaiTOROnline/runtime/Test-KaiTORCleaveCompatibility.ps1 -BannerlordRoot $env:KAITOR_CLEAVE_ROOT 3>&1)
+          $text = $out | Out-String
+          Write-Host $text
+          if ($text -notmatch 'KaiCleave compatibility preflight: PASS') { throw 'KaiCleave preflight did not PASS.' }
+          if ($text -notmatch 'Bannerlord.Harmony v2.4.2.248') { throw 'Harmony contract was not validated.' }
+
+      - name: Exercise authoritative TOR launch order
+        shell: pwsh
+        run: |
+          $output = ./projects/KaiTOROnline/runtime/Start-KaiTORTorCampaignServer.ps1 `
+            -BannerlordRoot $env:KAITOR_CLEAVE_ROOT `
+            -SaveName 'KaiTOR-Cleave-CI' `
+            -Visibility none `
+            -WorkshopRoot $env:RUNNER_TEMP `
+            -SkipVersionCheck `
+            -DryRun 3>&1 2>&1 | Out-String
+          Write-Host $output
+
+          if ($output -notmatch 'KaiCleave integration: ACTIVE') { throw 'Launcher did not activate KaiCleave.' }
+          if ($output -notmatch 'KaiCleave compatibility preflight: PASS') { throw 'Launcher bypassed KaiCleave preflight.' }
+          if ($output -notmatch 'Modules:\s+Bannerlord.Harmony, Native, SandBoxCore, Sandbox, CustomBattle, StoryMode, TOR_Armory, TOR_Environment, TOR_Core, KaiCleave, Coop') {
+            throw 'Authoritative module order is not Harmony -> base/TOR -> KaiCleave -> Coop.'
+          }
+          if ($output -notmatch '/server') { throw 'Authoritative /server marker missing.' }
+          if ($output -notmatch '/coopsave KaiTOR-Cleave-CI') { throw 'Authoritative /coopsave marker missing.' }
+          if ($output -notmatch 'DRY RUN: process not started') { throw 'Dry run did not complete.' }
+
+      - name: Validate documented authority contract
+        shell: pwsh
+        run: |
+          $contract = Get-Content ./projects/KaiTOROnline/runtime/TOR_RUNTIME_CONTRACT.txt -Raw
+          foreach ($required in @(
+            'TOR_Core -> KaiCleave -> KaiTOR_Stability -> Coop',
+            'clients load the module for module-list/version parity but do not install KaiCleave damage/collision Harmony patches',
+            'PlayerManager registration',
+            'Battle acceptance with KaiCleave'
+          )) {
+            if ($contract -notmatch [regex]::Escape($required)) { throw "Runtime contract missing: $required" }
+          }
