@@ -11,6 +11,8 @@ namespace KaiTORStability
         public int FullRescanIntervalMs { get; private set; } = 100;
         public bool EnableShaderTelemetry { get; private set; } = true;
         public int ShaderTelemetryIntervalMs { get; private set; } = 500;
+        public bool EnableShaderCacheAcceleration { get; private set; } = true;
+        public int ShaderCacheSingleLoadoutCopies { get; private set; } = 1;
 
         public static StabilitySettings Load()
         {
@@ -58,6 +60,22 @@ namespace KaiTORStability
                     if (int.TryParse((string)shaderNode.Attribute("sampleIntervalMs"), out interval))
                     {
                         settings.ShaderTelemetryIntervalMs = Math.Max(250, Math.Min(5000, interval));
+                    }
+                }
+
+                var acceleratorNode = rootNode.Element("ShaderCacheAcceleration");
+                if (acceleratorNode != null)
+                {
+                    bool enabled;
+                    if (bool.TryParse((string)acceleratorNode.Attribute("enabled"), out enabled))
+                    {
+                        settings.EnableShaderCacheAcceleration = enabled;
+                    }
+
+                    int copies;
+                    if (int.TryParse((string)acceleratorNode.Attribute("singleLoadoutCopies"), out copies))
+                    {
+                        settings.ShaderCacheSingleLoadoutCopies = Math.Max(1, Math.Min(4, copies));
                     }
                 }
             }
