@@ -42,12 +42,13 @@ jobs:
 
           $runtime = Get-Content 'ci/KaiCleave/CoopRuntime.cs' -Raw
           foreach ($required in @(
-            'AuthoritativeServer',
-            'PassiveClient',
+            'CoopPeer',
+            'CoopCampaignServer',
             '/server',
             '/coopsave',
             'TryGetControlledObjectInfo',
-            'PlayerOnly fails closed'
+            'IsControlled',
+            'PlayerOnly=false is not enabled'
           )) {
             if ($runtime -notmatch [regex]::Escape($required)) {
               throw "Coop runtime guard is missing required contract marker: $required"
@@ -55,8 +56,9 @@ jobs:
           }
 
           $submodule = Get-Content 'ci/KaiCleave/SubModule.cs' -Raw
-          if ($submodule -notmatch 'CombatPatchesAllowed') { throw 'SubModule does not gate Harmony patches by Coop authority.' }
-          if ($submodule -notmatch 'combat patches PASSIVE') { throw 'Passive client behavior is not explicit.' }
+          if ($submodule -notmatch 'CombatPatchesAllowed') { throw 'SubModule does not gate Harmony patches by Coop role.' }
+          if ($submodule -notmatch 'battle peers own cleave simulation') { throw 'Campaign-server passive behavior is not explicit.' }
+          if ($submodule -notmatch 'Coop peer local-authority') { throw 'Battle-peer active behavior is not explicit.' }
 
           $patch = Get-Content 'ci/KaiCleave/CleavePatch.cs' -Raw
           if ($patch -notmatch 'IsEligiblePlayerAttacker') { throw 'PlayerOnly is not routed through Coop ownership resolution.' }
