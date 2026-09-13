@@ -32,13 +32,14 @@ jobs:
           if ($xml.Module.Version.value -ne 'v0.2.1') { throw "Expected KaiCleave v0.2.1, found $($xml.Module.Version.value)." }
 
           $runtime = git show FETCH_HEAD:ci/KaiCleave/CoopRuntime.cs | Out-String
-          foreach ($required in @('AuthoritativeServer','PassiveClient','/server','/coopsave','TryGetControlledObjectInfo')) {
+          foreach ($required in @('CoopPeer','CoopCampaignServer','/server','/coopsave','TryGetControlledObjectInfo','IsControlled')) {
             if ($runtime -notmatch [regex]::Escape($required)) { throw "KaiCleave Coop runtime contract missing '$required'." }
           }
 
           $submodule = git show FETCH_HEAD:ci/KaiCleave/SubModule.cs | Out-String
-          if ($submodule -notmatch 'CombatPatchesAllowed') { throw 'KaiCleave does not gate combat patches by authority.' }
-          if ($submodule -notmatch 'combat patches PASSIVE') { throw 'KaiCleave passive-client path is missing.' }
+          if ($submodule -notmatch 'CombatPatchesAllowed') { throw 'KaiCleave does not gate combat patches by Coop role.' }
+          if ($submodule -notmatch 'battle peers own cleave simulation') { throw 'KaiCleave campaign-server passive path is missing.' }
+          if ($submodule -notmatch 'Coop peer local-authority') { throw 'KaiCleave active battle-peer path is missing.' }
 
       - name: Build synthetic TOR plus KaiCleave runtime
         shell: pwsh
@@ -128,8 +129,9 @@ jobs:
           Write-Host $text
           if ($text -notmatch 'KaiCleave compatibility preflight: PASS') { throw 'KaiCleave preflight did not PASS.' }
           if ($text -notmatch 'Bannerlord.Harmony v2.4.2.248') { throw 'Harmony contract was not validated.' }
+          if ($text -notmatch 'campaign server is combat-passive') { throw 'Peer-local authority contract was not reported.' }
 
-      - name: Exercise authoritative TOR launch order
+      - name: Exercise campaign-server TOR launch order
         shell: pwsh
         run: |
           $output = ./projects/KaiTOROnline/runtime/Start-KaiTORTorCampaignServer.ps1 `
@@ -144,10 +146,10 @@ jobs:
           if ($output -notmatch 'KaiCleave integration: ACTIVE') { throw 'Launcher did not activate KaiCleave.' }
           if ($output -notmatch 'KaiCleave compatibility preflight: PASS') { throw 'Launcher bypassed KaiCleave preflight.' }
           if ($output -notmatch 'Modules:\s+Bannerlord.Harmony, Native, SandBoxCore, Sandbox, CustomBattle, StoryMode, TOR_Armory, TOR_Environment, TOR_Core, KaiCleave, Coop') {
-            throw 'Authoritative module order is not Harmony -> base/TOR -> KaiCleave -> Coop.'
+            throw 'Campaign-process module order is not Harmony -> base/TOR -> KaiCleave -> Coop.'
           }
-          if ($output -notmatch '/server') { throw 'Authoritative /server marker missing.' }
-          if ($output -notmatch '/coopsave KaiTOR-Cleave-CI') { throw 'Authoritative /coopsave marker missing.' }
+          if ($output -notmatch '/server') { throw 'Campaign-process /server marker missing.' }
+          if ($output -notmatch '/coopsave KaiTOR-Cleave-CI') { throw 'Campaign-process /coopsave marker missing.' }
           if ($output -notmatch 'DRY RUN: process not started') { throw 'Dry run did not complete.' }
 
       - name: Validate documented authority contract
@@ -156,8 +158,9 @@ jobs:
           $contract = Get-Content ./projects/KaiTOROnline/runtime/TOR_RUNTIME_CONTRACT.txt -Raw
           foreach ($required in @(
             'TOR_Core -> KaiCleave -> KaiTOR_Stability -> Coop',
-            'clients load the module for module-list/version parity but do not install KaiCleave damage/collision Harmony patches',
-            'PlayerManager registration',
+            'campaign process keeps KaiCleave combat patches passive',
+            'Every battle client keeps KaiCleave combat patches active',
+            'PlayerManager.TryGetControlledObjectInfo',
             'Battle acceptance with KaiCleave'
           )) {
             if ($contract -notmatch [regex]::Escape($required)) { throw "Runtime contract missing: $required" }
