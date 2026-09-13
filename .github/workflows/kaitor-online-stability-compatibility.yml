@@ -1,0 +1,73 @@
+name: KaiTOR Online + Stability compatibility
+
+on:
+  push:
+    branches:
+      - kaitor-online-4p
+    paths:
+      - 'projects/KaiTOROnline/runtime/Start-KaiTORTorCampaignServer.ps1'
+      - 'projects/KaiTOROnline/runtime/Test-KaiTORStabilityCompatibility.ps1'
+      - 'projects/KaiTOROnline/runtime/modules.tor-1.3.15.txt'
+      - 'projects/KaiTOROnline/runtime/TOR_RUNTIME_CONTRACT.txt'
+      - '.github/workflows/kaitor-online-stability-compatibility.yml'
+  workflow_dispatch:
+
+jobs:
+  compatibility:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout KaiTOR Online
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate actual KaiTOR Stability branch metadata
+        shell: pwsh
+        run: |
+          git fetch origin kaitor-stability --depth=1
+          $metadata = git show FETCH_HEAD:projects/KaiTORStability/module/SubModule.xml
+          if (-not $metadata) { throw 'Unable to read KaiTOR Stability SubModule.xml from kaitor-stability branch.' }
+          [xml]$xml = ($metadata -join "`n")
+          if ($xml.Module.Id.value -ne 'KaiTOR_Stability') { throw 'Unexpected Stability module id.' }
+          if ($xml.Module.Version.value -ne 'v0.4.1') { throw "Expected Stability v0.4.1, found $($xml.Module.Version.value)." }
+          $tor = @($xml.Module.DependedModules.DependedModule | Where-Object { $_.Id -eq 'TOR_Core' })
+          if ($tor.Count -ne 1 -or $tor[0].DependentVersion -ne 'v1.3.15') { throw 'Stability TOR_Core dependency is incompatible.' }
+
+      - name: Exercise Stability compatibility preflight
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP 'KaiTORStabilityCompatRoot'
+          $module = Join-Path $root 'Modules/KaiTOR_Stability'
+          $bin = Join-Path $module 'bin/Win64_Shipping_Client'
+          New-Item -ItemType Directory -Force -Path $bin | Out-Null
+
+          git fetch origin kaitor-stability --depth=1
+          $metadata = git show FETCH_HEAD:projects/KaiTORStability/module/SubModule.xml
+          Set-Content -LiteralPath (Join-Path $module 'SubModule.xml') -Value ($metadata -join "`n") -Encoding UTF8
+          Set-Content -LiteralPath (Join-Path $bin 'KaiTORStability.dll') -Value 'synthetic-runtime-placeholder' -Encoding ASCII
+
+          $out = @(& ./projects/KaiTOROnline/runtime/Test-KaiTORStabilityCompatibility.ps1 -BannerlordRoot $root 3>&1)
+          $text = $out | Out-String
+          Write-Host $text
+          if ($text -notmatch 'KaiTOR Stability compatibility preflight: PASS') {
+            throw 'Stability compatibility preflight did not PASS.'
+          }
+
+      - name: Validate Coop-safe load-order contract
+        shell: pwsh
+        run: |
+          $ids = @(
+            Get-Content ./projects/KaiTOROnline/runtime/modules.tor-1.3.15.txt |
+              ForEach-Object { $_.Trim() } |
+              Where-Object { $_ -and -not $_.StartsWith('#') }
+          )
+          if ($ids[-1] -ne 'Coop') { throw 'Base TOR module list must keep Coop last.' }
+          if ($ids -contains 'KaiTOR_Stability') { throw 'Base module list must remain usable without optional Stability install.' }
+
+          $launcher = Get-Content ./projects/KaiTOROnline/runtime/Start-KaiTORTorCampaignServer.ps1 -Raw
+          if ($launcher -notmatch "Add\('KaiTOR_Stability'\)") { throw 'Launcher does not insert Stability before Coop.' }
+          if ($launcher -notmatch 'Test-KaiTORStabilityCompatibility.ps1') { throw 'Launcher does not invoke Stability preflight.' }
+
+          $contract = Get-Content ./projects/KaiTOROnline/runtime/TOR_RUNTIME_CONTRACT.txt -Raw
+          if ($contract -notmatch 'TOR_Core -> KaiTOR_Stability -> Coop') { throw 'Runtime contract lacks Stability load order.' }
+          if ($contract -notmatch 'same KaiTOR_Stability version') { throw 'Runtime contract lacks exact module-match requirement.' }
