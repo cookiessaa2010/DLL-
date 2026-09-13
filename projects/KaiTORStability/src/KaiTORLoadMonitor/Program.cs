@@ -12,6 +12,12 @@ namespace KaiTORLoadMonitor
         [STAThread]
         private static void Main(string[] args)
         {
+            if (HasArg(args, "--self-test"))
+            {
+                Environment.Exit(ShaderCacheLocator.SelfTest() ? 0 : 3);
+                return;
+            }
+
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
@@ -32,6 +38,16 @@ namespace KaiTORLoadMonitor
             }
 
             Application.Run(new LoadMonitorForm(gameRoot));
+        }
+
+        private static bool HasArg(string[] args, string value)
+        {
+            if (args == null) return false;
+            foreach (var arg in args)
+            {
+                if (string.Equals(arg, value, StringComparison.OrdinalIgnoreCase)) return true;
+            }
+            return false;
         }
 
         private static string ParseGameRoot(string[] args)

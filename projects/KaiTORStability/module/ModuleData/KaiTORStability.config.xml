@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <KaiTORStability>
-  <!-- Experimental optimization. Set enabled="false" for instant rollback without uninstalling the module. -->
+  <!-- Experimental battle optimization. Set enabled="false" for instant rollback without uninstalling the module. -->
   <BattleStatusOptimization enabled="true" fullRescanIntervalMs="100" />
+
+  <!-- Lightweight engine telemetry used by KaiTOR Load Monitor for real shader progress/ETA. -->
+  <ShaderTelemetry enabled="true" sampleIntervalMs="500" />
 </KaiTORStability>
