@@ -5,6 +5,7 @@ using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace KaiTORLoadMonitor
@@ -23,17 +24,20 @@ namespace KaiTORLoadMonitor
         private readonly Timer _timer = new Timer();
         private readonly Label _phase = new Label();
         private readonly Label _detail = new Label();
+        private readonly Label _percent = new Label();
         private readonly Label _time = new Label();
         private readonly Label _eta = new Label();
         private readonly ProgressBar _progress = new ProgressBar();
         private readonly Label _tip = new Label();
         private readonly List<ShaderSample> _shaderSamples = new List<ShaderSample>();
+        private readonly bool _likelyFirstShaderRun;
         private TimeSpan _lastCpu;
         private DateTime _lastCpuSampleUtc;
         private double? _historicalSeconds;
         private bool _moduleLoaded;
         private bool _optimizationActive;
         private bool _ready;
+        private bool _prelaunchPreparing;
         private DateTime? _readyAtUtc;
         private int _maxProgress;
         private long _stabilityLogOffset;
@@ -42,6 +46,7 @@ namespace KaiTORLoadMonitor
         private int? _boostedProcessId;
         private ProcessPriorityClass? _originalPriority;
         private bool _startupPriorityBoostActive;
+        private string _prestageSummary = string.Empty;
 
         private static readonly string StateRoot = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -53,10 +58,11 @@ namespace KaiTORLoadMonitor
         {
             _gameRoot = gameRoot;
             _shaderCache = ShaderCacheLocator.Inspect(gameRoot);
+            _likelyFirstShaderRun = IsLikelyFirstShaderRun(_shaderCache.Path);
 
             Text = "KaiTOR — загрузка The Old Realms";
             Width = 760;
-            Height = 370;
+            Height = 405;
             StartPosition = FormStartPosition.CenterScreen;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
@@ -84,18 +90,25 @@ namespace KaiTORLoadMonitor
             _progress.SetBounds(30, 160, 680, 24);
             _progress.Minimum = 0;
             _progress.Maximum = 100;
-            _time.SetBounds(30, 197, 320, 25);
-            _eta.SetBounds(370, 197, 340, 25);
+            _percent.SetBounds(30, 190, 680, 24);
+            _percent.TextAlign = ContentAlignment.TopCenter;
+            _percent.Font = new Font("Segoe UI Semibold", 10f);
+            _time.SetBounds(30, 220, 330, 25);
+            _eta.SetBounds(370, 220, 340, 25);
             _eta.TextAlign = ContentAlignment.TopRight;
-            _tip.SetBounds(30, 235, 680, 78);
+            _tip.SetBounds(30, 258, 680, 88);
             _tip.ForeColor = Color.DarkGray;
             _tip.Text = _shaderCache.Describe() + Environment.NewLine +
-                        "Если Bannerlord показывает «Не отвечает», не закрывайте его автоматически: монитор отдельно проверяет процесс и реальные события TOR.";
+                        (_likelyFirstShaderRun
+                            ? "Похоже на первый запуск: KaiTOR заранее подготовит TOR shader sources до старта игры. "
+                            : "Shader cache уже существует: подготовка проверит только изменённые TOR shader sources. ") +
+                        "Если Bannerlord показывает «Не отвечает», не закрывайте его автоматически.";
 
             Controls.Add(title);
             Controls.Add(_phase);
             Controls.Add(_detail);
             Controls.Add(_progress);
+            Controls.Add(_percent);
             Controls.Add(_time);
             Controls.Add(_eta);
             Controls.Add(_tip);
@@ -115,9 +128,118 @@ namespace KaiTORLoadMonitor
         private void OnShown(object sender, EventArgs e)
         {
             Directory.CreateDirectory(StateRoot);
-            SetPhase("Запускаем Bannerlord", "Подготовка обычного TaleWorlds launcher. " + ShortCacheMode(), 5);
-            TryLaunch();
             _timer.Start();
+
+            var existing = FindBannerlordProcess();
+            if (existing != null)
+            {
+                SetPhase("Bannerlord уже запущен", "Подключаем монитор к текущему процессу. " + ShortCacheMode(), 15);
+                return;
+            }
+
+            StartPrelaunchPreparation();
+        }
+
+        private void StartPrelaunchPreparation()
+        {
+            _prelaunchPreparing = true;
+            SetPhase(
+                _likelyFirstShaderRun ? "Подготовка первого запуска" : "Подготовка запуска",
+                "Проверяем TOR shader sources и заранее переносим только отсутствующие/обновлённые файлы.",
+                2);
+
+            ExternalEvent(
+                "PRELAUNCH_START",
+                "firstShaderRun=" + _likelyFirstShaderRun + "; cacheMode=" + _shaderCache.Mode + "; cachePath=" + _shaderCache.Path);
+
+            Task.Run(() => ShaderSourcePrestage.Prepare(_gameRoot, ReportPrestageProgress))
+                .ContinueWith(task =>
+                {
+                    SafeBeginInvoke(() => CompletePrelaunchPreparation(task));
+                });
+        }
+
+        private void ReportPrestageProgress(ShaderSourcePrestageProgress progress)
+        {
+            if (progress == null) return;
+            SafeBeginInvoke(() =>
+            {
+                var stagePercent = progress.Total <= 0
+                    ? 100
+                    : (int)Math.Round(progress.Completed * 100d / progress.Total);
+                var overall = 2 + (int)Math.Round(Math.Min(100, Math.Max(0, stagePercent)) * 0.10d);
+                SetPhase(
+                    "Подготовка TOR shader sources — " + stagePercent + "%",
+                    "Файлы: " + progress.Completed + "/" + progress.Total +
+                    (string.IsNullOrWhiteSpace(progress.FileName) ? string.Empty : " · " + progress.FileName),
+                    overall);
+            });
+        }
+
+        private void CompletePrelaunchPreparation(Task<ShaderSourcePrestageResult> task)
+        {
+            _prelaunchPreparing = false;
+
+            if (task == null || task.IsCanceled)
+            {
+                _prestageSummary = "Предварительная подготовка отменена; TOR выполнит штатную проверку сам.";
+                ExternalEvent("SHADER_SOURCE_PRESTAGE", "cancelled=true");
+            }
+            else if (task.IsFaulted)
+            {
+                var error = task.Exception != null ? task.Exception.GetBaseException().Message : "unknown error";
+                _prestageSummary = "Предварительная подготовка не завершилась; используем штатный путь TOR.";
+                ExternalEvent("SHADER_SOURCE_PRESTAGE", "faulted=true; error=" + error);
+            }
+            else
+            {
+                var result = task.Result;
+                if (result == null || !result.SourceFound)
+                {
+                    _prestageSummary = "TOR_Armory shader sources не найдены заранее; TOR выполнит штатную проверку при загрузке.";
+                }
+                else if (!result.TargetReady)
+                {
+                    _prestageSummary = "Папка Bannerlord Shaders/Sources недоступна для предварительной подготовки; TOR попробует штатный путь.";
+                }
+                else
+                {
+                    _prestageSummary = "Shader sources: " + result.CopiedFiles + " обновлено, " +
+                                       result.SkippedFiles + " уже актуальны, " +
+                                       result.WarmedFiles + " прогрето в файловом кэше" +
+                                       (result.Errors > 0 ? ", ошибок " + result.Errors : string.Empty) + ".";
+                }
+
+                if (result != null)
+                {
+                    ExternalEvent(
+                        "SHADER_SOURCE_PRESTAGE",
+                        "sourceFound=" + result.SourceFound +
+                        "; targetReady=" + result.TargetReady +
+                        "; total=" + result.TotalFiles +
+                        "; copied=" + result.CopiedFiles +
+                        "; skipped=" + result.SkippedFiles +
+                        "; warmed=" + result.WarmedFiles +
+                        "; errors=" + result.Errors +
+                        "; ms=" + (long)result.Elapsed.TotalMilliseconds);
+                }
+            }
+
+            SetPhase("Запускаем Bannerlord", _prestageSummary + " " + ShortCacheMode(), 12);
+            TryLaunch();
+        }
+
+        private void SafeBeginInvoke(Action action)
+        {
+            try
+            {
+                if (action == null || IsDisposed || !IsHandleCreated) return;
+                BeginInvoke(action);
+            }
+            catch
+            {
+                // Window may be closing while a preparation worker reports progress.
+            }
         }
 
         private void TryLaunch()
@@ -148,7 +270,14 @@ namespace KaiTORLoadMonitor
         private void OnTick(object sender, EventArgs e)
         {
             var elapsed = DateTime.UtcNow - _startedUtc;
-            _time.Text = "Прошло: " + FormatDuration(elapsed);
+            _time.Text = "Время загрузки: " + FormatDuration(elapsed);
+
+            if (_prelaunchPreparing)
+            {
+                _eta.Text = _likelyFirstShaderRun ? "ETA: подготовка первого запуска" : "ETA: подготовка shader sources";
+                return;
+            }
+
             ReadStabilityEvents();
             UpdateEta(elapsed);
 
@@ -166,11 +295,13 @@ namespace KaiTORLoadMonitor
 
             if (_shaderRemaining.HasValue && _shaderRemaining.Value > 0)
             {
-                var progress = EstimateShaderProgress(_shaderRemaining.Value);
+                var shaderPercent = GetShaderWavePercent(_shaderRemaining.Value);
+                var progress = EstimateShaderProgress(shaderPercent);
                 SetPhase(
-                    "Компиляция шейдеров — осталось " + _shaderRemaining.Value,
-                    "Bannerlord сообщает реальное число активных компиляций. " + ShortCacheMode() + " " + health,
-                    progress);
+                    "Компиляция шейдеров — " + shaderPercent + "%",
+                    "Осталось задач компиляции: " + _shaderRemaining.Value + ". " + ShortCacheMode() + " " + health,
+                    progress,
+                    shaderPercent);
                 return;
             }
 
@@ -178,15 +309,17 @@ namespace KaiTORLoadMonitor
             {
                 SetPhase(
                     "Готово",
-                    _optimizationActive
-                        ? "Главный экран готов. Оптимизация боя активирована. " + ShortCacheMode()
-                        : "Главный экран готов. Проверьте лог KaiTOR Stability для статуса оптимизации. " + ShortCacheMode(),
+                    (_optimizationActive
+                        ? "Главный экран готов, оптимизация боя активирована. "
+                        : "Главный экран готов. ") +
+                    "Полная загрузка: " + FormatDuration(elapsed) + ". " + ShortCacheMode(),
                     100);
 
                 if (_readyAtUtc == null)
                 {
                     _readyAtUtc = DateTime.UtcNow;
                     SaveHistory(elapsed.TotalSeconds);
+                    ExternalEvent("LOAD_COMPLETE", "seconds=" + elapsed.TotalSeconds.ToString("0.###", CultureInfo.InvariantCulture));
                 }
                 else if ((DateTime.UtcNow - _readyAtUtc.Value).TotalSeconds >= 4)
                 {
@@ -197,7 +330,7 @@ namespace KaiTORLoadMonitor
 
             if (process == null)
             {
-                SetPhase("Ожидаем Bannerlord", "Launcher запущен. Выберите TOR и нажмите Play.", 10);
+                SetPhase("Ожидаем Bannerlord", "Launcher запущен. Выберите TOR и нажмите Play.", 14);
                 return;
             }
 
@@ -206,16 +339,16 @@ namespace KaiTORLoadMonitor
                 SetPhase(
                     "TOR_Core загружен",
                     "Инициализируется интерфейс и стартовый экран. " + ShortCacheMode() + " " + health,
-                    82);
+                    94);
                 return;
             }
 
             var progressBeforeModule = EstimatePreModuleProgress(elapsed);
-            var longLoad = elapsed.TotalSeconds >= Math.Max(90, (_historicalSeconds ?? 180) * 0.55);
+            var longLoad = elapsed.TotalSeconds >= Math.Max(90, (_historicalSeconds ?? (_likelyFirstShaderRun ? 900d : 180d)) * 0.55);
             SetPhase(
                 longLoad ? "TOR всё ещё загружается" : "Загрузка TOR и ресурсов",
                 (longLoad
-                    ? "Долгая стадия может быть инициализацией TOR или компиляцией ресурсов. Не закрывайте игру только из-за статуса «Не отвечает». "
+                    ? "Идёт тяжёлая инициализация/компиляция. Процесс жив — не закрывайте игру только из-за «Не отвечает». "
                     : "Модули Bannerlord и The Old Realms инициализируются. ") + health,
                 progressBeforeModule);
         }
@@ -244,7 +377,7 @@ namespace KaiTORLoadMonitor
             }
             catch
             {
-                // The game may rotate/write the file while we read it. Retry on the next tick.
+                // The game may write/rotate the file while we read it. Retry next tick.
             }
         }
 
@@ -282,7 +415,7 @@ namespace KaiTORLoadMonitor
         {
             if (_shaderRemaining.HasValue && remaining > _shaderRemaining.Value)
             {
-                // The engine has queued a new compilation wave. Do not mix rates from different waves.
+                // A new wave was queued. Do not mix rates from different waves.
                 _shaderSamples.Clear();
                 _shaderWavePeak = remaining;
             }
@@ -340,9 +473,6 @@ namespace KaiTORLoadMonitor
                 _boostedProcessId = process.Id;
                 _originalPriority = process.PriorityClass;
 
-                // AboveNormal is deliberately conservative. It does not change affinity,
-                // shader compiler thread count or engine internals, and is restored once
-                // the initial module screen is ready.
                 if (process.PriorityClass == ProcessPriorityClass.Idle ||
                     process.PriorityClass == ProcessPriorityClass.BelowNormal ||
                     process.PriorityClass == ProcessPriorityClass.Normal)
@@ -359,10 +489,7 @@ namespace KaiTORLoadMonitor
 
         private void RestoreStartupPriority()
         {
-            if (!_boostedProcessId.HasValue)
-            {
-                return;
-            }
+            if (!_boostedProcessId.HasValue) return;
 
             try
             {
@@ -379,7 +506,7 @@ namespace KaiTORLoadMonitor
             }
             catch
             {
-                // Startup boost is best-effort and must never block game launch/exit.
+                // Best effort only.
             }
             finally
             {
@@ -418,7 +545,7 @@ namespace KaiTORLoadMonitor
                     Math.Max(0, cpuPercent),
                     ramGb,
                     process.Responding ? "отвечает" : "может выглядеть зависшим",
-                    _startupPriorityBoostActive ? " · стартовый CPU boost" : string.Empty);
+                    _startupPriorityBoostActive ? " · CPU boost" : string.Empty);
             }
             catch
             {
@@ -428,16 +555,21 @@ namespace KaiTORLoadMonitor
 
         private int EstimatePreModuleProgress(TimeSpan elapsed)
         {
-            var basis = _historicalSeconds ?? 240d;
-            var ratio = Math.Min(1d, elapsed.TotalSeconds / Math.Max(30d, basis * 0.8d));
-            return 22 + (int)(ratio * 43d);
+            var basis = _historicalSeconds ?? (_likelyFirstShaderRun ? 900d : 240d);
+            var ratio = Math.Min(1d, elapsed.TotalSeconds / Math.Max(30d, basis * 0.85d));
+            return 16 + (int)(ratio * 42d);
         }
 
-        private int EstimateShaderProgress(int remaining)
+        private int GetShaderWavePercent(int remaining)
         {
-            if (_shaderWavePeak <= 0) return 55;
+            if (_shaderWavePeak <= 0) return 0;
             var ratio = 1d - Math.Min(1d, remaining / (double)_shaderWavePeak);
-            return 42 + (int)(ratio * 38d);
+            return Math.Max(0, Math.Min(100, (int)Math.Round(ratio * 100d)));
+        }
+
+        private static int EstimateShaderProgress(int shaderPercent)
+        {
+            return 58 + (int)Math.Round(Math.Max(0, Math.Min(100, shaderPercent)) * 0.34d);
         }
 
         private void UpdateEta(TimeSpan elapsed)
@@ -465,7 +597,9 @@ namespace KaiTORLoadMonitor
 
             if (!_historicalSeconds.HasValue)
             {
-                _eta.Text = "ETA: калибровка первого запуска";
+                _eta.Text = _likelyFirstShaderRun
+                    ? "ETA запуска: измеряем первый запуск"
+                    : "ETA запуска: калибровка";
                 return;
             }
 
@@ -493,12 +627,25 @@ namespace KaiTORLoadMonitor
             return _shaderCache.IsKaiRedirect ? "Кэш: Kai redirect." : "Кэш: стандартный путь.";
         }
 
-        private void SetPhase(string phase, string detail, int progress)
+        private void SetPhase(string phase, string detail, int progress, int? shaderPercent = null)
         {
             _phase.Text = phase;
             _detail.Text = detail;
             _maxProgress = Math.Max(_maxProgress, Math.Max(0, Math.Min(100, progress)));
             _progress.Value = _maxProgress;
+
+            if (_maxProgress >= 100)
+            {
+                _percent.Text = "Прогресс: 100%";
+            }
+            else
+            {
+                _percent.Text = "Общий прогресс: ~" + _maxProgress + "%";
+                if (shaderPercent.HasValue)
+                {
+                    _percent.Text += " · компиляция: " + Math.Max(0, Math.Min(100, shaderPercent.Value)) + "%";
+                }
+            }
         }
 
         private static string FormatDuration(TimeSpan value)
@@ -506,6 +653,19 @@ namespace KaiTORLoadMonitor
             if (value.TotalHours >= 1) return string.Format("{0:0}ч {1:00}м", Math.Floor(value.TotalHours), value.Minutes);
             if (value.TotalMinutes >= 1) return string.Format("{0:0}м {1:00}с", Math.Floor(value.TotalMinutes), value.Seconds);
             return Math.Max(0, value.Seconds) + "с";
+        }
+
+        private static bool IsLikelyFirstShaderRun(string path)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(path) || !Directory.Exists(path)) return true;
+                return !Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories).Take(1).Any();
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         private static double? LoadMedianHistory()
@@ -538,6 +698,21 @@ namespace KaiTORLoadMonitor
                 File.AppendAllText(HistoryFile, seconds.ToString("0.###", CultureInfo.InvariantCulture) + Environment.NewLine);
             }
             catch { }
+        }
+
+        private static void ExternalEvent(string eventName, string message)
+        {
+            try
+            {
+                Directory.CreateDirectory(StateRoot);
+                File.AppendAllText(
+                    StabilityLog,
+                    DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture) + "|" + eventName + "|" + (message ?? string.Empty) + Environment.NewLine);
+            }
+            catch
+            {
+                // Diagnostics must never block launch.
+            }
         }
     }
 }

@@ -1,4 +1,4 @@
-# KaiTOR Stability 0.3.0 — тестовая версия
+# KaiTOR Stability 0.4.0 — тестовая версия
 
 Отдельный compatibility/stability-мод для **Mount & Blade II: Bannerlord 1.3.15.110062 + The Old Realms 1.3.15**.
 
@@ -13,58 +13,92 @@
 Монитор показывает:
 
 - текущую стадию запуска;
-- прошедшее время;
-- адаптивный ETA полного запуска по медиане последних 5 успешных запусков;
+- **общий прогресс в процентах**;
+- **отдельный процент текущей shader-compilation wave**, когда движок уже сообщает очередь;
+- полное время загрузки от запуска Monitor до готового главного экрана;
+- ETA запуска по истории этого ПК;
+- ETA шейдеров по фактической скорости уменьшения engine queue;
 - CPU/RAM Bannerlord и состояние окна;
-- реальное число незавершённых shader compilations, когда движок Bannerlord уже доступен;
-- ETA компиляции шейдеров по фактической скорости уменьшения очереди;
 - статус battle optimization;
 - фактический путь shader cache.
 
-Прогресс не рисует фиктивные 99%: до появления реальных событий TOR используется только ограниченная оценка по истории конкретного ПК.
+До появления реального shader counter общий процент помечается `~`, потому что это стадийная оценка, а не выдуманное точное значение. После появления очереди компиляции отдельный shader-процент считается из реального количества оставшихся задач текущей волны.
 
-Во время **первой загрузки до главного экрана** монитор также временно переводит процесс Bannerlord из Normal/BelowNormal в **AboveNormal**. Это мягкий Windows scheduler boost: affinity и число shader compiler threads не меняются. Как только главный экран готов или монитор закрывается, исходный priority восстанавливается. Эффект будет заметен в основном на ПК, где компиляция конкурирует с фоновыми задачами; это не замена precompiled cache.
+Во время **первой загрузки до главного экрана** Monitor временно переводит процесс Bannerlord из Normal/BelowNormal в **AboveNormal**. Affinity и native shader compiler threads не меняются. После готовности главного экрана или закрытия Monitor исходный priority восстанавливается.
 
-### 2. Совместимость с обычным shader cache и Kai Shader Cache Redirector
+### 2. First-load shader-source prestage
 
-Monitor автоматически различает два поддерживаемых режима:
+Версия 0.4.0 добавляет первый реальный ускоритель именно стартовой загрузки.
 
-1. стандартный Bannerlord 1.3.15.110062:
+TOR при `OnSubModuleLoad` синхронно вызывает `ShaderSourceManager.CopyShaderSourcesToGame()`: проверяет `.rs/.rsh` из `TOR_Armory/Shaders/Sources` и при необходимости копирует их в базовый `Bannerlord/Shaders/Sources`.
+
+KaiTOR Load Monitor теперь делает совместимую проверку **до запуска Bannerlord**:
+
+1. находит `TOR_Armory` в обычной `Modules` или в Steam Workshop текущей библиотеки;
+2. перечисляет `.rs/.rsh`;
+3. использует то же безопасное правило обновления, что TOR: отсутствует файл, отличается размер или source новее target;
+4. заранее переносит только нужные файлы;
+5. читает итоговые target-файлы с `SequentialScan`, чтобы они уже находились в файловом кэше Windows перед стартом движка;
+6. показывает подготовку игроку в процентах и по количеству файлов.
+
+После этого штатный TOR-проход должен увидеть уже актуальные shader sources и не тратить время на их повторное копирование. Если prestage не может найти TOR_Armory или записать target, он просто отступает: игра продолжает запуск и TOR выполняет оригинальную процедуру.
+
+События для анализа:
+
+```text
+PRELAUNCH_START
+SHADER_SOURCE_PRESTAGE
+LOAD_COMPLETE
+```
+
+`SHADER_SOURCE_PRESTAGE` содержит `total/copy/skipped/warmed/errors/ms`, поэтому можно отдельно измерить стоимость подготовки.
+
+### 3. Совместимость с обычным shader cache и Kai Shader Cache Redirector
+
+Monitor автоматически различает два режима:
+
+1. стандартный Bannerlord:
 
 ```text
 C:\ProgramData\Mount and Blade II Bannerlord\Shaders
 ```
 
-2. нашу ранее сделанную модификацию **Bannerlord Shader Cache Redirector**. Для неё проверяется именно сигнатура нашего патча в `TaleWorlds.Native.dll`, после чего из DLL читается реальный путь, например:
+2. нашу ранее сделанную модификацию **Bannerlord Shader Cache Redirector**, для которой из проверенной сигнатуры `TaleWorlds.Native.dll` читается фактический путь, например:
 
 ```text
 D:\MNB\Shaders
 ```
 
-Поэтому **KaiTOR Stability не требует возвращать shader cache на C:**. Battle optimization, shader telemetry и shader-cache accelerator работают одинаково в обоих вариантах. Redirector остаётся отдельным необязательным патчем — KaiTOR Stability сам native DLL не изменяет.
+First-load prestage работает с **shader source files** в каталоге игры, а не с compiled cache, поэтому одинаково совместим и со стандартным cache, и с Redirector. Battle optimization, telemetry и Build Shader Cache accelerator также не требуют возвращать cache на C:.
 
-### 3. Реальная shader telemetry
+### 4. Реальная shader telemetry
 
-Мод раз в 500 мс опрашивает официальный engine counter:
+Мод раз в 500 мс опрашивает engine counter:
 
 ```text
 TaleWorlds.Engine.Utilities.GetNumberOfShaderCompilationsInProgress()
 ```
 
-В лог пишутся только изменения очереди и редкий heartbeat. Если движок добавляет новую волну компиляции, ETA автоматически начинает измеряться заново.
+В лог пишутся изменения очереди и редкий heartbeat:
 
-### 4. Shader Cache Accelerator — phase 1
+```text
+SHADER_START
+SHADER_PROGRESS
+SHADER_COMPLETE
+```
 
-Официальный TOR `Build Shader Cache` формирует специальный custom-battle roster. В текущем TOR каждый обычный soldier добавляется **4 раза**, даже когда у него только один battle-equipment вариант.
+Если движок добавляет новую волну, расчёт скорости/ETA текущей волны сбрасывается, чтобы не смешивать разные очереди.
 
-KaiTOR Stability 0.3.0 патчит только приватный `TORShaderGameManager.GetPlayerParty()` и применяет консервативное правило:
+### 5. Shader Cache Accelerator — phase 1
 
-- soldier с 0/1 battle-equipment вариантом: оставляем 1 копию вместо 4;
-- soldier с 2+ вариантами: сохраняем все оригинальные TOR-копии;
+Официальный TOR `Build Shader Cache` формирует специальный custom-battle roster. В текущем TOR каждый обычный soldier добавляется 4 раза даже при одном battle-equipment варианте.
+
+KaiTOR Stability применяет консервативное правило:
+
+- soldier с 0/1 battle-equipment вариантом: 1 копия вместо 4;
+- soldier с 2+ вариантами: сохраняются оригинальные TOR-копии;
 - heroes/non-soldiers не урезаются;
-- сам shader compiler, его native threads и cache format не изменяются.
-
-Таким образом мы удаляем только явно избыточные roster entries и пока не пытаемся угадывать, какой equipment-вариант TOR хотел прогреть.
+- native shader compiler и формат cache не изменяются.
 
 В лог пишется фактическая экономия:
 
@@ -72,39 +106,31 @@ KaiTOR Stability 0.3.0 патчит только приватный `TORShaderGa
 SHADER_CACHE_ROSTER|original=...; optimized=...; saved=...; uniqueCharacters=...; collapsedSingleLoadoutTroops=...; preservedMultiLoadoutTroops=...
 ```
 
-Если private API TOR отличается от ожидаемого, patch не ставится и оригинальный Build Shader Cache остаётся без изменений.
-
 Отключение:
 
 ```xml
 <ShaderCacheAcceleration enabled="false" singleLoadoutCopies="1" />
 ```
 
-## Что планируется для более сильного ускорения Build Shader Cache
+## Что дальше для первой загрузки
 
-Phase 2 — вместо одной огромной roster-сцены подавать контент управляемыми пакетами, ориентируясь на реальный `GetNumberOfShaderCompilationsInProgress()` и освобождая RAM между пакетами. Это требует теста в самой игре, потому что нужно доказать, что все equipment/material combinations продолжают попадать в cache.
+0.4.0 ускоряет безопасную часть до старта движка и делает прогресс видимым. Основное тяжёлое время первой установки всё равно может уходить на native shader compilation.
 
-## Первая загрузка после установки TOR
+Следующие направления тестируются только после замеров 0.4.0:
 
-Для первой загрузки самый перспективный путь отличается от runtime-ускорения Build Shader Cache.
+- определить долю времени до `MODULE_LOAD`, внутри shader queue и после неё;
+- профилировать, насколько first-load ограничен CPU, диском или native compiler;
+- подготовить корректный **module-level precompiled shader cache** через официальный Bannerlord Modding Kit и проверить cold start на чистой установке;
+- после подтверждения совместимости сравнить его со стандартной локальной компиляцией;
+- для `Build Shader Cache` перейти к управляемым пакетам персонажей/equipment вместо одной огромной сцены, не теряя shader combinations.
 
-TaleWorlds официально поддерживает **precompiled module shader cache**: при публикации мода через Modding Kit с `Compile Shaders` готовый cache кладётся в `Modules/<ModuleName>/Shaders/D3D11`. Если такой cache совместим с точной версией Bannerlord/TOR, новый игрок не должен локально компилировать все эти combinations с нуля.
-
-Поэтому план первой загрузки:
-
-1. получить чистый TOR 1.3.15/1.16 asset set;
-2. сгенерировать module-level precompiled cache через официальный Bannerlord Modding Kit;
-3. проверить его на нескольких ПК/видеокартах и на обычном shader path + нашем Redirector;
-4. измерить cold-start с пустым локальным cache;
-5. только после проверки рассматривать distribution cache pack.
-
-Мы **не будем** раздавать случайный локальный `%ProgramData%` cache от одного ПК: такой cache может содержать vanilla/другие моды и быть привязан к версии/настройкам. Нужен именно корректно сгенерированный module-level cache.
+Мы не раздаём случайный локальный `%ProgramData%` cache одного ПК. Для distribution нужен именно корректно созданный module shader cache под точную версию игры/TOR.
 
 ## Battle Status optimization
 
-Оригинальный `TOR_Core.BattleMechanics.StatusEffect.StatusEffectMissionLogic` просматривает всех агентов очень часто. Тестовый replacement уменьшает частоту полного поиска агентов, но уже найденные активные status-effect components продолжает обновлять каждый кадр.
+Оригинальный `TOR_Core.BattleMechanics.StatusEffect.StatusEffectMissionLogic` часто просматривает всех агентов. Replacement уменьшает частоту полного поиска, но уже найденные активные status-effect components продолжает обновлять каждый кадр.
 
-По умолчанию полный повторный поиск:
+По умолчанию:
 
 ```text
 100 ms
@@ -116,19 +142,19 @@ TaleWorlds официально поддерживает **precompiled module sh
 Modules\KaiTOR_Stability\ModuleData\KaiTORStability.config.xml
 ```
 
-Быстрый откат только battle optimization:
+Быстрый откат:
 
 ```xml
 <BattleStatusOptimization enabled="false" fullRescanIntervalMs="100" />
 ```
 
-Отключение только shader telemetry:
+Shader telemetry:
 
 ```xml
 <ShaderTelemetry enabled="false" sampleIntervalMs="500" />
 ```
 
-Если runtime API TOR не совпадает с ожидаемым контрактом, replacement не ставится и оригинальная TOR logic остаётся активной.
+При несовпадении runtime API TOR replacement не устанавливается и оригинальная логика остаётся активной.
 
 ## Установка
 
@@ -138,15 +164,15 @@ Modules\KaiTOR_Stability\ModuleData\KaiTORStability.config.xml
 Modules\KaiTOR_Stability
 ```
 
-в папку Bannerlord `Modules` и включить **KaiTOR Stability после TOR_Core** в launcher.
+в Bannerlord `Modules` и включить **KaiTOR Stability после TOR_Core**.
 
-Для тестов запуска рекомендуется:
+Для измерения и first-load optimization запускать через:
 
 ```text
 Tools\KaiTORLoadMonitor.exe
 ```
 
-Monitor сам ищет Steam libraries. При необходимости можно указать путь явно:
+При необходимости путь можно указать явно:
 
 ```text
 KaiTORLoadMonitor.exe --game-root "D:\steam\steamapps\common\Mount & Blade II Bannerlord"
@@ -158,9 +184,11 @@ KaiTORLoadMonitor.exe --game-root "D:\steam\steamapps\common\Mount & Blade II Ba
 %LOCALAPPDATA%\KaiTORStability\KaiTORStability.log
 ```
 
-Ключевые события:
+Основные события:
 
 ```text
+PRELAUNCH_START
+SHADER_SOURCE_PRESTAGE
 SESSION_START
 MODULE_LOAD
 SHADER_ACCELERATOR_READY
@@ -173,26 +201,29 @@ SHADER_TELEMETRY_ERROR
 OPTIMIZATION_ACTIVE
 OPTIMIZATION_FALLBACK
 INITIAL_SCREEN_READY
+LOAD_COMPLETE
 ```
 
-## Как тестировать shader accelerator
+## Что измерять на первом запуске
 
-Для чистого сравнения нужны два прогона на одном ПК и одной версии TOR:
+Для полезного сравнения сохранять один лог целиком. Из него можно получить:
 
-1. очистить cache одинаковым способом и запустить TOR `Build Shader Cache` с `<ShaderCacheAcceleration enabled="false" ... />`;
-2. записать время и peak RAM;
-3. снова привести cache к тому же исходному состоянию;
-4. включить accelerator и повторить;
-5. сравнить время, peak RAM и `SHADER_CACHE_ROSTER`.
-
-После ускоренного прогона отдельно проверить несколько разных армий/битв и UI portraits, чтобы убедиться, что не осталось непрогретых combinations.
+- длительность prestage;
+- сколько shader-source файлов реально пришлось копировать;
+- время до загрузки нашего module;
+- начало/конец shader compilation;
+- скорость уменьшения очереди;
+- общую длительность до главного экрана;
+- статус battle/shader acceleration.
 
 ## Безопасность изменений
 
 - оригинальный `TOR_Core.dll` не заменяется;
-- оригинальные TaleWorlds DLL не входят в пакет;
-- `0Harmony.dll` не дублируется в пакете — используется уже загруженная TOR/Harmony runtime;
+- TaleWorlds DLL не входят в пакет;
+- `0Harmony.dll` не дублируется;
+- first-load prestage копирует только `.rs/.rsh` по тому же правилу актуальности, что TOR;
+- при ошибке prestage запуск не блокируется;
 - KaiTOR Stability не применяет и не удаляет Shader Cache Redirector;
-- startup priority boost откатывается после достижения главного экрана или закрытия Monitor;
-- сохранения не переписываются модом;
-- при несовместимом TOR API shader/battle optimization fail-open и оставляют оригинальную логику.
+- startup priority boost откатывается;
+- сохранения не переписываются;
+- при несовместимом TOR API оптимизации fail-open и оставляют оригинальную логику.

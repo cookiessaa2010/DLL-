@@ -2,7 +2,7 @@
 <Module>
   <Name value="KaiTOR Stability" />
   <Id value="KaiTOR_Stability" />
-  <Version value="v0.3.0" />
+  <Version value="v0.4.0" />
   <SingleplayerModule value="true" />
   <MultiplayerModule value="false" />
   <Official value="false" />

@@ -14,7 +14,8 @@ namespace KaiTORLoadMonitor
         {
             if (HasArg(args, "--self-test"))
             {
-                Environment.Exit(ShaderCacheLocator.SelfTest() ? 0 : 3);
+                var ok = ShaderCacheLocator.SelfTest() && ShaderSourcePrestage.SelfTest();
+                Environment.Exit(ok ? 0 : 3);
                 return;
             }
 
