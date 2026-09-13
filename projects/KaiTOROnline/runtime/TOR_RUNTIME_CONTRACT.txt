@@ -4,13 +4,13 @@ Target mod: The Old Realms 1.3.15
 Required TOR modules: TOR_Armory, TOR_Environment, TOR_Core
 Required base runtime load order: TOR_Armory -> TOR_Environment -> TOR_Core -> Coop
 Optional validated KaiCleave integration: when KaiCleave v0.2.1 is installed on the campaign-process host, the launcher validates KaiCleave plus Bannerlord.Harmony v2.4.2.248, inserts Bannerlord.Harmony ahead of Native and uses TOR_Core -> KaiCleave -> Coop (or TOR_Core -> KaiCleave -> KaiTOR_Stability -> Coop when Stability is also installed). The same KaiCleave version must be active on every connecting client because Coop validates community modules exactly in both directions.
-KaiCleave Coop authority rule: clients load the module for module-list/version parity but do not install KaiCleave damage/collision Harmony patches. Only the authoritative Bannerlord.exe /singleplayer /server /coopsave process runs cleave combat logic. With PlayerOnly=true, the authoritative server resolves the attacker's Hero through Coop PlayerManager registration rather than Agent.IsMainAgent; failed ownership lookup disables cleave for that attacker instead of applying it to NPCs.
+KaiCleave Coop authority rule: the /singleplayer /server /coopsave campaign process keeps KaiCleave combat patches passive because Coop battle collision/damage is simulated by per-mission peers. Every battle client keeps KaiCleave combat patches active, but an attack is eligible only when the attacker is that peer's locally-owned registered player Hero. Local ownership is resolved through Coop PlayerManager.TryGetControlledObjectInfo and ControlledObjectInfo.IsControlled. Remote puppets and NPCs fail the owner-local check. If lookup fails, cleave fails closed. In v0.2.1, PlayerOnly=false is intentionally treated as player-only in Coop until NPC AgentRegistry authority support is added.
 Optional validated Stability integration: when KaiTOR_Stability v0.4.1 is installed on the campaign-process host, the launcher validates it and uses TOR_Core -> KaiTOR_Stability -> Coop when Cleave is absent, or TOR_Core -> KaiCleave -> KaiTOR_Stability -> Coop when both are installed. The same KaiTOR_Stability version must be active on every connecting client because Coop validates community modules exactly in both directions.
 KaiTOR Stability Coop-safe default: gameplay-affecting TOR StatusEffectMissionLogic replacement is disabled while Coop is active; loading/shader telemetry/prestage/cache acceleration remain available.
 Kai Shader Cache Redirector is local cache-path infrastructure, not a Bannerlord community module; it does not participate in Coop module-list validation.
 Admission limit: 4 simultaneous players
 Authoritative campaign process: Bannerlord.exe /singleplayer /server
-TOR topology: rendered campaign-process path
+TOR topology: rendered campaign-process path with peer-owned battle simulation
 TOR_Core metadata: DedicatedServerType=none
 Native TaleWorlds dedicated/no-render TOR support: NOT CLAIMED
 Validated KaiTOR Coop payload: SubModule.xml, Coop.dll, Coop.Core.dll, GameInterface.dll, Missions.dll.
@@ -19,6 +19,6 @@ Live readiness requires the installed KaiTOR Coop payload to match the validated
 Runtime acceptance requires ordered TOR_Armory + TOR_Environment + TOR_Core + [optional KaiCleave] + [optional KaiTOR_Stability] + Coop load evidence and an explicit campaign-server ready/running marker. If KaiCleave is active, Bannerlord.Harmony must precede Native in the module token.
 Shared-map acceptance requires four independent persistent controller/Hero/Clan/MobileParty/CharacterObject graphs.
 Movement acceptance requires all four authoritative MobileParty instances to move with non-lockstep evidence.
-Battle acceptance with KaiCleave requires at least two connected player controllers to land cleave swings in one continuous authoritative battle, client logs to remain passive, NPC cleave to remain disabled with PlayerOnly=true, and post-battle campaign state to remain synchronized.
+Battle acceptance with KaiCleave requires at least two connected player controllers to land cleave swings in one continuous battle, campaign-server KaiCleave log to remain passive, battle-peer logs to show CoopPeer + active patches, remote puppets to avoid duplicate cleave, NPC cleave to remain disabled with PlayerOnly=true, and post-battle HP/deaths/campaign state to remain synchronized.
 Post-battle live acceptance requires one continuous authoritative server session covering in-battle -> post-battle -> moved snapshots, with append-only runtime and command-output evidence.
 Game and TOR assemblies are not distributed by KaiTOR Online; use a legal Bannerlord 1.3.15.110062 + TOR 1.3.15 installation.
