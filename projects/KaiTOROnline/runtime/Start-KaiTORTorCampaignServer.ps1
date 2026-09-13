@@ -30,12 +30,13 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 $TorPreflight = Join-Path $PSScriptRoot 'Test-KaiTORTorCompatibility.ps1'
+$CleavePreflight = Join-Path $PSScriptRoot 'Test-KaiTORCleaveCompatibility.ps1'
 $StabilityPreflight = Join-Path $PSScriptRoot 'Test-KaiTORStabilityCompatibility.ps1'
 $CampaignLauncher = Join-Path $PSScriptRoot 'Start-KaiTORCampaignServer.ps1'
 $TorModuleList = Join-Path $PSScriptRoot 'modules.tor-1.3.15.txt'
 $WorkshopRuntime = Join-Path $PSScriptRoot 'KaiTORTorWorkshopRuntime.ps1'
 
-foreach ($required in @($TorPreflight, $StabilityPreflight, $CampaignLauncher, $TorModuleList, $WorkshopRuntime)) {
+foreach ($required in @($TorPreflight, $CleavePreflight, $StabilityPreflight, $CampaignLauncher, $TorModuleList, $WorkshopRuntime)) {
     if (-not (Test-Path -LiteralPath $required -PathType Leaf)) {
         throw "KaiTOR TOR launch dependency missing: $required"
     }
@@ -93,18 +94,32 @@ try {
     }
     Write-Output 'TOR compatibility preflight: PASS (TOR launch authorized).'
 
-    # Start from the proven TOR order and optionally insert KaiTOR Stability immediately before
-    # Coop. Coop's module validator requires community modules to match exactly in both directions,
-    # so a Stability-enabled client can only join when the authoritative process loads the same
-    # KaiTOR_Stability version too.
+    # Start from the proven TOR order. Optional Kai gameplay/support modules are inserted
+    # deterministically before Coop so the authoritative campaign process and every client can
+    # present the same community-module set to Coop's exact module validator.
     $baseModuleIds = @(
         Get-Content -LiteralPath $TorModuleList |
             ForEach-Object { $_.Trim() } |
             Where-Object { $_ -and -not $_.StartsWith('#') }
     )
 
+    $cleaveMetadata = Join-Path $root 'Modules\KaiCleave\SubModule.xml'
+    $cleaveInstalled = Test-Path -LiteralPath $cleaveMetadata -PathType Leaf
     $stabilityMetadata = Join-Path $root 'Modules\KaiTOR_Stability\SubModule.xml'
     $stabilityInstalled = Test-Path -LiteralPath $stabilityMetadata -PathType Leaf
+
+    if ($cleaveInstalled) {
+        $cleaveOutput = @(& $CleavePreflight -BannerlordRoot $root 3>&1)
+        $cleaveText = $cleaveOutput | Out-String
+        Write-Output $cleaveText.TrimEnd()
+        if ($cleaveText -notmatch 'KaiCleave compatibility preflight: PASS') {
+            throw 'KaiCleave compatibility preflight did not report PASS; refusing to launch a mixed Coop/Cleave runtime.'
+        }
+        Write-Output 'KaiCleave integration: ACTIVE (Bannerlord.Harmony first; KaiCleave after TOR_Core and before Coop).'
+    }
+    else {
+        Write-Output 'KaiCleave integration: INACTIVE (optional module is not installed on this campaign-process host).'
+    }
 
     if ($stabilityInstalled) {
         $stabilityOutput = @(& $StabilityPreflight -BannerlordRoot $root 3>&1)
@@ -113,22 +128,40 @@ try {
         if ($stabilityText -notmatch 'KaiTOR Stability compatibility preflight: PASS') {
             throw 'KaiTOR Stability compatibility preflight did not report PASS; refusing to launch a mixed Coop/Stability runtime.'
         }
-        Write-Output 'KaiTOR Stability integration: ACTIVE (module will load after TOR_Core and before Coop).'
+        Write-Output 'KaiTOR Stability integration: ACTIVE (module will load after KaiCleave/TOR_Core and before Coop).'
     }
     else {
         Write-Output 'KaiTOR Stability integration: INACTIVE (optional module is not installed on this campaign-process host).'
     }
 
     $finalModuleIds = [Collections.Generic.List[string]]::new()
+
+    # KaiCleave has an explicit Bannerlord.Harmony dependency. KaiTOR builds the _MODULES_
+    # token itself, so insert Harmony explicitly ahead of Native when Cleave is active.
+    if ($cleaveInstalled) {
+        $finalModuleIds.Add('Bannerlord.Harmony')
+    }
+
     foreach ($moduleId in $baseModuleIds) {
-        if ($moduleId -eq 'Coop' -and $stabilityInstalled) {
-            $finalModuleIds.Add('KaiTOR_Stability')
+        if ($moduleId -eq 'Coop') {
+            if ($cleaveInstalled) {
+                $finalModuleIds.Add('KaiCleave')
+            }
+            if ($stabilityInstalled) {
+                $finalModuleIds.Add('KaiTOR_Stability')
+            }
         }
         $finalModuleIds.Add($moduleId)
     }
 
     if (-not $finalModuleIds.Contains('Coop')) {
         throw "TOR module list does not contain required 'Coop' module."
+    }
+    if ($cleaveInstalled -and -not $finalModuleIds.Contains('KaiCleave')) {
+        throw 'KaiCleave is installed but could not be inserted into the campaign-process module order.'
+    }
+    if ($cleaveInstalled -and -not $finalModuleIds.Contains('Bannerlord.Harmony')) {
+        throw 'KaiCleave is installed but Bannerlord.Harmony could not be inserted into the campaign-process module order.'
     }
     if ($stabilityInstalled -and -not $finalModuleIds.Contains('KaiTOR_Stability')) {
         throw 'KaiTOR Stability is installed but could not be inserted into the campaign-process module order.'
