@@ -23,7 +23,11 @@ namespace KaiTORStability
                 "KaiTOR Stability loaded after TOR_Core; optimization=" + _settings.EnableStatusEffectOptimization +
                 "; rescanMs=" + _settings.FullRescanIntervalMs +
                 "; shaderTelemetry=" + _settings.EnableShaderTelemetry +
-                "; shaderSampleMs=" + _settings.ShaderTelemetryIntervalMs);
+                "; shaderSampleMs=" + _settings.ShaderTelemetryIntervalMs +
+                "; shaderAcceleration=" + _settings.EnableShaderCacheAcceleration +
+                "; singleLoadoutCopies=" + _settings.ShaderCacheSingleLoadoutCopies);
+
+            ShaderCacheAcceleration.Install(_settings);
         }
 
         protected override void OnBeforeInitialModuleScreenSetAsRoot()
