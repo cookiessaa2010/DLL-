@@ -26,20 +26,25 @@ namespace KaiCleave
                 _harmony = new Harmony(HarmonyId);
                 _harmony.PatchAll(typeof(SubModule).Assembly);
                 TorCompatibility.TryPatch(_harmony);
-                DebugLogger.Write("combat patches ACTIVE");
+                DebugLogger.Write("combat patches ACTIVE | owner-local battle authority");
             }
             else
             {
-                // Coop module validation requires the same KaiCleave module/version on clients and
-                // server, but only the authoritative /server /coopsave process may modify combat.
-                DebugLogger.Write("combat patches PASSIVE on Coop client; authoritative server owns cleave");
+                // The KaiTOR campaign server owns campaign state but Coop battle collision/damage is
+                // simulated by mission peers. Keep this module loaded for exact module validation,
+                // but do not patch mission combat in the /server /coopsave process.
+                DebugLogger.Write("combat patches PASSIVE on Coop campaign server; battle peers own cleave simulation");
             }
 
             if (KaiSettings.ShowLoadMessage)
             {
-                string authority = _combatPatchesActive
-                    ? (CoopRuntime.IsAuthoritativeCoopServer ? "Coop server authority" : "standalone")
-                    : "Coop client passive";
+                string authority;
+                if (CoopRuntime.Mode == CoopRuntimeMode.CoopPeer)
+                    authority = "Coop peer local-authority";
+                else if (CoopRuntime.Mode == CoopRuntimeMode.CoopCampaignServer)
+                    authority = "Coop campaign server passive";
+                else
+                    authority = "standalone";
 
                 InformationManager.DisplayMessage(
                     new InformationMessage("[KaiCleave] " + Version +
@@ -61,7 +66,7 @@ namespace KaiCleave
 
             if (!_combatPatchesActive)
             {
-                DebugLogger.Write("mission initialized | passive Coop client | no damage patches");
+                DebugLogger.Write("mission initialized | Coop campaign server passive | no damage patches");
                 return;
             }
 
