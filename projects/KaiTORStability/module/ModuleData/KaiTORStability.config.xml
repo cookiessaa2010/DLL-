@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<KaiTORStability>
+  <!-- Experimental optimization. Set enabled="false" for instant rollback without uninstalling the module. -->
+  <BattleStatusOptimization enabled="true" fullRescanIntervalMs="100" />
+</KaiTORStability>
