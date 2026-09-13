@@ -5,4 +5,9 @@
 
   <!-- Lightweight engine telemetry used by KaiTOR Load Monitor for real shader progress/ETA. -->
   <ShaderTelemetry enabled="true" sampleIntervalMs="500" />
+
+  <!-- Conservative TOR Build Shader Cache optimization.
+       Soldiers with only one battle-equipment variant do not need TOR's four duplicate roster entries.
+       Multi-loadout troops keep TOR's original multiplicity. -->
+  <ShaderCacheAcceleration enabled="true" singleLoadoutCopies="1" />
 </KaiTORStability>
