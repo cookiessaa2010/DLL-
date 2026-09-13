@@ -13,6 +13,7 @@ namespace KaiTORStability
         public int ShaderTelemetryIntervalMs { get; private set; } = 500;
         public bool EnableShaderCacheAcceleration { get; private set; } = true;
         public int ShaderCacheSingleLoadoutCopies { get; private set; } = 1;
+        public bool DisableGameplayPatchesWhenCoopActive { get; private set; } = true;
 
         public static StabilitySettings Load()
         {
@@ -76,6 +77,16 @@ namespace KaiTORStability
                     if (int.TryParse((string)acceleratorNode.Attribute("singleLoadoutCopies"), out copies))
                     {
                         settings.ShaderCacheSingleLoadoutCopies = Math.Max(1, Math.Min(4, copies));
+                    }
+                }
+
+                var coopNode = rootNode.Element("CoopCompatibility");
+                if (coopNode != null)
+                {
+                    bool disableGameplayPatches;
+                    if (bool.TryParse((string)coopNode.Attribute("disableGameplayPatches"), out disableGameplayPatches))
+                    {
+                        settings.DisableGameplayPatchesWhenCoopActive = disableGameplayPatches;
                     }
                 }
             }
