@@ -2,7 +2,10 @@ KaiTOR Online TOR runtime acceptance contract
 Target game: Mount & Blade II Bannerlord 1.3.15.110062
 Target mod: The Old Realms 1.3.15
 Required TOR modules: TOR_Armory, TOR_Environment, TOR_Core
-Required runtime load order: TOR_Armory -> TOR_Environment -> TOR_Core -> Coop
+Required base runtime load order: TOR_Armory -> TOR_Environment -> TOR_Core -> Coop
+Optional validated Stability integration: when KaiTOR_Stability v0.4.1 is installed on the campaign-process host, the launcher validates it and uses TOR_Core -> KaiTOR_Stability -> Coop. The same KaiTOR_Stability version must be active on every connecting client because Coop validates community modules exactly in both directions.
+KaiTOR Stability Coop-safe default: gameplay-affecting TOR StatusEffectMissionLogic replacement is disabled while Coop is active; loading/shader telemetry/prestage/cache acceleration remain available.
+Kai Shader Cache Redirector is local cache-path infrastructure, not a Bannerlord community module; it does not participate in Coop module-list validation.
 Admission limit: 4 simultaneous players
 Authoritative campaign process: Bannerlord.exe /singleplayer /server
 TOR topology: rendered campaign-process path
@@ -11,7 +14,7 @@ Native TaleWorlds dedicated/no-render TOR support: NOT CLAIMED
 Validated KaiTOR Coop payload: SubModule.xml, Coop.dll, Coop.Core.dll, GameInterface.dll, Missions.dll.
 Steam Workshop TOR policy: persistent TOR junctions in the real Bannerlord Modules directory are forbidden; Workshop modules are staged only for the KaiTOR invocation and removed afterward.
 Live readiness requires the installed KaiTOR Coop payload to match the validated package byte-for-byte by SHA-256 before launch authorization.
-Runtime acceptance requires ordered TOR_Armory + TOR_Environment + TOR_Core + Coop load evidence and an explicit campaign-server ready/running marker.
+Runtime acceptance requires ordered TOR_Armory + TOR_Environment + TOR_Core + [optional KaiTOR_Stability] + Coop load evidence and an explicit campaign-server ready/running marker.
 Shared-map acceptance requires four independent persistent controller/Hero/Clan/MobileParty/CharacterObject graphs.
 Movement acceptance requires all four authoritative MobileParty instances to move with non-lockstep evidence.
 Post-battle live acceptance requires one continuous authoritative server session covering in-battle -> post-battle -> moved snapshots, with append-only runtime and command-output evidence.
