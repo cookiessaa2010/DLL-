@@ -118,6 +118,6 @@ Write-Output "  Module:       $ExpectedModuleId $version"
 Write-Output "  Runtime DLL:  $runtimeDll"
 Write-Output "  Harmony:      Bannerlord.Harmony $installedHarmonyVersion"
 Write-Output "  Dependencies: Native/SandBoxCore/Sandbox $ExpectedGameVersion"
-Write-Output '  Coop rule:    same KaiCleave version must be active on authoritative server and every connecting client'
-Write-Output '  Authority:    client module is validation-only/passive; /server /coopsave process owns cleave damage logic'
+Write-Output '  Coop rule:    same KaiCleave version must be active on campaign server and every connecting client'
+Write-Output '  Authority:    campaign server is combat-passive; each battle peer applies cleave only for its locally-owned registered player Hero'
 Write-Output '  Load order:   Bannerlord.Harmony -> Native/... -> TOR_Core -> KaiCleave -> KaiTOR_Stability (optional) -> Coop'
