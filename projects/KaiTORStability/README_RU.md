@@ -23,6 +23,8 @@
 
 Прогресс не рисует фиктивные 99%: до появления реальных событий TOR используется только ограниченная оценка по истории конкретного ПК.
 
+Во время **первой загрузки до главного экрана** монитор также временно переводит процесс Bannerlord из Normal/BelowNormal в **AboveNormal**. Это мягкий Windows scheduler boost: affinity и число shader compiler threads не меняются. Как только главный экран готов или монитор закрывается, исходный priority восстанавливается. Эффект будет заметен в основном на ПК, где компиляция конкурирует с фоновыми задачами; это не замена precompiled cache.
+
 ### 2. Совместимость с обычным shader cache и Kai Shader Cache Redirector
 
 Monitor автоматически различает два поддерживаемых режима:
@@ -191,5 +193,6 @@ INITIAL_SCREEN_READY
 - оригинальные TaleWorlds DLL не входят в пакет;
 - `0Harmony.dll` не дублируется в пакете — используется уже загруженная TOR/Harmony runtime;
 - KaiTOR Stability не применяет и не удаляет Shader Cache Redirector;
+- startup priority boost откатывается после достижения главного экрана или закрытия Monitor;
 - сохранения не переписываются модом;
 - при несовместимом TOR API shader/battle optimization fail-open и оставляют оригинальную логику.
