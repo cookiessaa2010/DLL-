@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using TaleWorlds.ModuleManager;
 using TaleWorlds.MountAndBlade;
 
 namespace KaiTORStability
@@ -12,12 +13,16 @@ namespace KaiTORStability
         private DateTime _lastShaderEventUtc = DateTime.MinValue;
         private bool _shaderCompilationActive;
         private bool _shaderTelemetryFaulted;
+        private bool _coopActive;
+        private bool _coopMissionSkipLogged;
 
         protected override void OnSubModuleLoad()
         {
             base.OnSubModuleLoad();
             StabilityLog.StartSession();
             _settings = StabilitySettings.Load();
+            _coopActive = IsCoopActive();
+
             StabilityLog.Event(
                 "MODULE_LOAD",
                 "KaiTOR Stability loaded after TOR_Core; optimization=" + _settings.EnableStatusEffectOptimization +
@@ -25,7 +30,16 @@ namespace KaiTORStability
                 "; shaderTelemetry=" + _settings.EnableShaderTelemetry +
                 "; shaderSampleMs=" + _settings.ShaderTelemetryIntervalMs +
                 "; shaderAcceleration=" + _settings.EnableShaderCacheAcceleration +
-                "; singleLoadoutCopies=" + _settings.ShaderCacheSingleLoadoutCopies);
+                "; singleLoadoutCopies=" + _settings.ShaderCacheSingleLoadoutCopies +
+                "; coopActive=" + _coopActive +
+                "; coopGameplayGuard=" + _settings.DisableGameplayPatchesWhenCoopActive);
+
+            if (_coopActive && _settings.DisableGameplayPatchesWhenCoopActive)
+            {
+                StabilityLog.Event(
+                    "COOP_COMPAT_ACTIVE",
+                    "Coop module detected. Gameplay-affecting mission replacement is disabled; loading/shader optimizations remain active.");
+            }
 
             ShaderCacheAcceleration.Install(_settings);
         }
@@ -97,6 +111,23 @@ namespace KaiTORStability
                 return;
             }
 
+            // KaiTOR Online/Bannerlord Coop validates community modules on both peers. Even with
+            // identical module sets, replacing gameplay mission logic before a dedicated network
+            // acceptance pass is unnecessarily risky. Keep all client-local loading/shader work,
+            // but fail conservative for the only gameplay-affecting optimization.
+            if (_settings.DisableGameplayPatchesWhenCoopActive && (_coopActive || IsCoopActive()))
+            {
+                _coopActive = true;
+                if (!_coopMissionSkipLogged)
+                {
+                    _coopMissionSkipLogged = true;
+                    StabilityLog.Event(
+                        "OPTIMIZATION_SKIP",
+                        "Coop is active; TOR StatusEffectMissionLogic replacement is disabled by CoopCompatibility guard.");
+                }
+                return;
+            }
+
             try
             {
                 var torLogic = mission.MissionBehaviors.FirstOrDefault(
@@ -132,6 +163,19 @@ namespace KaiTORStability
             {
                 StabilityLog.Event("OPTIMIZATION_ERROR", ex.ToString());
                 // Fail open: if replacement installation itself fails, do not abort mission creation.
+            }
+        }
+
+        private static bool IsCoopActive()
+        {
+            try
+            {
+                return ModuleHelper.GetActiveModules().Any(
+                    module => module != null && string.Equals(module.Id, "Coop", StringComparison.OrdinalIgnoreCase));
+            }
+            catch
+            {
+                return false;
             }
         }
     }
