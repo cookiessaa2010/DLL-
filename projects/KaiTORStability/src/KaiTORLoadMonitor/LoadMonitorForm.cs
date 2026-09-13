@@ -39,6 +39,9 @@ namespace KaiTORLoadMonitor
         private long _stabilityLogOffset;
         private int? _shaderRemaining;
         private int _shaderWavePeak;
+        private int? _boostedProcessId;
+        private ProcessPriorityClass? _originalPriority;
+        private bool _startupPriorityBoostActive;
 
         private static readonly string StateRoot = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -99,7 +102,11 @@ namespace KaiTORLoadMonitor
 
             _historicalSeconds = LoadMedianHistory();
             Shown += OnShown;
-            FormClosed += (s, e) => _timer.Stop();
+            FormClosed += (s, e) =>
+            {
+                RestoreStartupPriority();
+                _timer.Stop();
+            };
 
             _timer.Interval = 500;
             _timer.Tick += OnTick;
@@ -146,6 +153,15 @@ namespace KaiTORLoadMonitor
             UpdateEta(elapsed);
 
             var process = FindBannerlordProcess();
+            if (process != null && !_ready)
+            {
+                TryApplyStartupPriority(process);
+            }
+            else if (_ready)
+            {
+                RestoreStartupPriority();
+            }
+
             var health = process == null ? "" : DescribeProcess(process);
 
             if (_shaderRemaining.HasValue && _shaderRemaining.Value > 0)
@@ -309,6 +325,70 @@ namespace KaiTORLoadMonitor
             return null;
         }
 
+        private void TryApplyStartupPriority(Process process)
+        {
+            if (process == null) return;
+
+            try
+            {
+                if (_boostedProcessId.HasValue && _boostedProcessId.Value == process.Id)
+                {
+                    return;
+                }
+
+                RestoreStartupPriority();
+                _boostedProcessId = process.Id;
+                _originalPriority = process.PriorityClass;
+
+                // AboveNormal is deliberately conservative. It does not change affinity,
+                // shader compiler thread count or engine internals, and is restored once
+                // the initial module screen is ready.
+                if (process.PriorityClass == ProcessPriorityClass.Idle ||
+                    process.PriorityClass == ProcessPriorityClass.BelowNormal ||
+                    process.PriorityClass == ProcessPriorityClass.Normal)
+                {
+                    process.PriorityClass = ProcessPriorityClass.AboveNormal;
+                    _startupPriorityBoostActive = true;
+                }
+            }
+            catch
+            {
+                _startupPriorityBoostActive = false;
+            }
+        }
+
+        private void RestoreStartupPriority()
+        {
+            if (!_boostedProcessId.HasValue)
+            {
+                return;
+            }
+
+            try
+            {
+                if (_startupPriorityBoostActive && _originalPriority.HasValue)
+                {
+                    using (var process = Process.GetProcessById(_boostedProcessId.Value))
+                    {
+                        if (!process.HasExited && process.PriorityClass == ProcessPriorityClass.AboveNormal)
+                        {
+                            process.PriorityClass = _originalPriority.Value;
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Startup boost is best-effort and must never block game launch/exit.
+            }
+            finally
+            {
+                _boostedProcessId = null;
+                _originalPriority = null;
+                _startupPriorityBoostActive = false;
+            }
+        }
+
         private string DescribeProcess(Process process)
         {
             try
@@ -334,10 +414,11 @@ namespace KaiTORLoadMonitor
 
                 return string.Format(
                     CultureInfo.InvariantCulture,
-                    "CPU ~{0:0}% · RAM {1:0.0} GB · окно {2}.",
+                    "CPU ~{0:0}% · RAM {1:0.0} GB · окно {2}{3}.",
                     Math.Max(0, cpuPercent),
                     ramGb,
-                    process.Responding ? "отвечает" : "может выглядеть зависшим");
+                    process.Responding ? "отвечает" : "может выглядеть зависшим",
+                    _startupPriorityBoostActive ? " · стартовый CPU boost" : string.Empty);
             }
             catch
             {
