@@ -1,4 +1,4 @@
-# KaiTOR Stability 0.4.0 — тестовая версия
+# KaiTOR Stability 0.4.1 — тестовая версия
 
 Отдельный compatibility/stability-мод для **Mount & Blade II: Bannerlord 1.3.15.110062 + The Old Realms 1.3.15**.
 
@@ -28,11 +28,11 @@
 
 ### 2. First-load shader-source prestage
 
-Версия 0.4.0 добавляет первый реальный ускоритель именно стартовой загрузки.
+Версия 0.4.1 включает ускоритель стартовой загрузки.
 
 TOR при `OnSubModuleLoad` синхронно вызывает `ShaderSourceManager.CopyShaderSourcesToGame()`: проверяет `.rs/.rsh` из `TOR_Armory/Shaders/Sources` и при необходимости копирует их в базовый `Bannerlord/Shaders/Sources`.
 
-KaiTOR Load Monitor теперь делает совместимую проверку **до запуска Bannerlord**:
+KaiTOR Load Monitor делает совместимую проверку **до запуска Bannerlord**:
 
 1. находит `TOR_Armory` в обычной `Modules` или в Steam Workshop текущей библиотеки;
 2. перечисляет `.rs/.rsh`;
@@ -71,7 +71,35 @@ D:\MNB\Shaders
 
 First-load prestage работает с **shader source files** в каталоге игры, а не с compiled cache, поэтому одинаково совместим и со стандартным cache, и с Redirector. Battle optimization, telemetry и Build Shader Cache accelerator также не требуют возвращать cache на C:.
 
-### 4. Реальная shader telemetry
+### 4. Совместимость с KaiTOR Online / KaiCoop
+
+Bannerlord Coop сравнивает community-модули сервера и клиентов в обе стороны, включая **Id и Version**. Поэтому если `KaiTOR_Stability` включён, версия должна быть одинаковой на авторитетном campaign-process сервере и у всех подключающихся клиентов.
+
+Рекомендуемый порядок:
+
+```text
+TOR_Armory
+TOR_Environment
+TOR_Core
+KaiTOR_Stability
+Coop
+```
+
+`Coop` остаётся последним.
+
+Чтобы не вносить дополнительную разницу в сетевую симуляцию до отдельного live-теста, 0.4.1 автоматически включает защитный режим: если активен мод `Coop`, замена `TOR StatusEffectMissionLogic` не устанавливается. При этом остаются активны локальные функции загрузки и шейдеров: Monitor, проценты/ETA, telemetry, prestage и Shader Cache Accelerator.
+
+Конфиг:
+
+```xml
+<CoopCompatibility disableGameplayPatches="true" />
+```
+
+Оставлять `true` до отдельной сетевой проверки battle optimization.
+
+Kai Shader Cache Redirector не является Bannerlord community-модулем и не участвует в module handshake Coop: он меняет только локальный путь compiled shader cache. Поэтому разные ПК могут использовать стандартный путь или Redirector независимо друг от друга.
+
+### 5. Реальная shader telemetry
 
 Мод раз в 500 мс опрашивает engine counter:
 
@@ -89,7 +117,7 @@ SHADER_COMPLETE
 
 Если движок добавляет новую волну, расчёт скорости/ETA текущей волны сбрасывается, чтобы не смешивать разные очереди.
 
-### 5. Shader Cache Accelerator — phase 1
+### 6. Shader Cache Accelerator — phase 1
 
 Официальный TOR `Build Shader Cache` формирует специальный custom-battle roster. В текущем TOR каждый обычный soldier добавляется 4 раза даже при одном battle-equipment варианте.
 
@@ -114,9 +142,9 @@ SHADER_CACHE_ROSTER|original=...; optimized=...; saved=...; uniqueCharacters=...
 
 ## Что дальше для первой загрузки
 
-0.4.0 ускоряет безопасную часть до старта движка и делает прогресс видимым. Основное тяжёлое время первой установки всё равно может уходить на native shader compilation.
+0.4.1 ускоряет безопасную часть до старта движка и делает прогресс видимым. Основное тяжёлое время первой установки всё равно может уходить на native shader compilation.
 
-Следующие направления тестируются только после замеров 0.4.0:
+Следующие направления тестируются только после замеров 0.4.1:
 
 - определить долю времени до `MODULE_LOAD`, внутри shader queue и после неё;
 - профилировать, насколько first-load ограничен CPU, диском или native compiler;
@@ -154,7 +182,7 @@ Shader telemetry:
 <ShaderTelemetry enabled="false" sampleIntervalMs="500" />
 ```
 
-При несовпадении runtime API TOR replacement не устанавливается и оригинальная логика остаётся активной.
+При активном `Coop` battle replacement по умолчанию автоматически пропускается. При несовпадении runtime API TOR replacement также не устанавливается и оригинальная логика остаётся активной.
 
 ## Установка
 
@@ -165,6 +193,14 @@ Modules\KaiTOR_Stability
 ```
 
 в Bannerlord `Modules` и включить **KaiTOR Stability после TOR_Core**.
+
+Для KaiTOR Online порядок должен быть:
+
+```text
+TOR_Core -> KaiTOR_Stability -> Coop
+```
+
+и та же версия `KaiTOR_Stability` должна быть активна на сервере и всех клиентах.
 
 Для измерения и first-load optimization запускать через:
 
@@ -191,6 +227,7 @@ PRELAUNCH_START
 SHADER_SOURCE_PRESTAGE
 SESSION_START
 MODULE_LOAD
+COOP_COMPAT_ACTIVE
 SHADER_ACCELERATOR_READY
 SHADER_CACHE_ROSTER
 SHADER_ACCELERATOR_FALLBACK
@@ -199,6 +236,7 @@ SHADER_PROGRESS
 SHADER_COMPLETE
 SHADER_TELEMETRY_ERROR
 OPTIMIZATION_ACTIVE
+OPTIMIZATION_SKIP
 OPTIMIZATION_FALLBACK
 INITIAL_SCREEN_READY
 LOAD_COMPLETE
@@ -214,7 +252,8 @@ LOAD_COMPLETE
 - начало/конец shader compilation;
 - скорость уменьшения очереди;
 - общую длительность до главного экрана;
-- статус battle/shader acceleration.
+- статус battle/shader acceleration;
+- был ли активирован Coop compatibility guard.
 
 ## Безопасность изменений
 
@@ -226,4 +265,5 @@ LOAD_COMPLETE
 - KaiTOR Stability не применяет и не удаляет Shader Cache Redirector;
 - startup priority boost откатывается;
 - сохранения не переписываются;
+- при активном Coop gameplay replacement отключён по умолчанию;
 - при несовместимом TOR API оптимизации fail-open и оставляют оригинальную логику.
