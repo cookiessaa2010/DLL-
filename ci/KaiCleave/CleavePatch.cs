@@ -13,13 +13,19 @@ namespace KaiCleave
             in MissionWeapon attackerWeapon,
             int inflictedDamage)
         {
-            if (!KaiSettings.Enabled || GameNetwork.IsSessionActive)
+            if (!KaiSettings.Enabled || !CoopRuntime.CombatPatchesAllowed)
+                return false;
+
+            // Keep ordinary Bannerlord multiplayer untouched. KaiTOR Coop is different: its
+            // authoritative campaign process owns the combat calculation and is explicitly
+            // admitted by CoopRuntime even though the clients also load this module.
+            if (!CoopRuntime.CoopModuleActive && GameNetwork.IsSessionActive)
                 return false;
 
             if (attacker == null || victim == null || !victim.IsActive())
                 return false;
 
-            if (KaiSettings.PlayerOnly && !attacker.IsMainAgent)
+            if (!CoopRuntime.IsEligiblePlayerAttacker(attacker))
                 return false;
 
             if (!KaiSettings.AllowFriendlyTargets && attacker.IsFriendOf(victim))
