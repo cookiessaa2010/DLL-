@@ -17,6 +17,9 @@ $root = (Resolve-Path -LiteralPath $BannerlordRoot).Path
 $moduleRoot = Join-Path $root 'Modules\KaiCleave'
 $metadataPath = Join-Path $moduleRoot 'SubModule.xml'
 $runtimeDll = Join-Path $moduleRoot 'bin\Win64_Shipping_Client\KaiCleave.dll'
+$harmonyRoot = Join-Path $root 'Modules\Bannerlord.Harmony'
+$harmonyMetadataPath = Join-Path $harmonyRoot 'SubModule.xml'
+$harmonyRuntimeDll = Join-Path $harmonyRoot 'bin\Win64_Shipping_Client\Bannerlord.Harmony.dll'
 
 if (-not (Test-Path -LiteralPath $metadataPath -PathType Leaf)) {
     throw "KaiCleave metadata missing: $metadataPath"
@@ -83,10 +86,38 @@ if (Test-Path -LiteralPath $duplicateHarmony -PathType Leaf) {
     throw "KaiCleave package contains duplicate 0Harmony.dll: $duplicateHarmony. It must reuse Bannerlord.Harmony."
 }
 
+# KaiCleave's Harmony dependency must be present in the campaign-process installation because
+# KaiTOR constructs its module token explicitly. Validate the real module, not only KaiCleave's
+# dependency declaration, so the launcher can safely insert Bannerlord.Harmony before Native.
+if (-not (Test-Path -LiteralPath $harmonyMetadataPath -PathType Leaf)) {
+    throw "KaiCleave requires Bannerlord.Harmony $ExpectedHarmonyVersion, but metadata is missing: $harmonyMetadataPath"
+}
+try {
+    [xml]$harmonyXml = Get-Content -LiteralPath $harmonyMetadataPath -Raw
+}
+catch {
+    throw "Bannerlord.Harmony SubModule.xml is invalid: $($_.Exception.Message)"
+}
+
+$installedHarmonyIdNode = $harmonyXml.SelectSingleNode('/Module/Id')
+$installedHarmonyVersionNode = $harmonyXml.SelectSingleNode('/Module/Version')
+$installedHarmonyId = if ($null -eq $installedHarmonyIdNode) { '' } else { [string]$installedHarmonyIdNode.GetAttribute('value') }
+$installedHarmonyVersion = if ($null -eq $installedHarmonyVersionNode) { '' } else { [string]$installedHarmonyVersionNode.GetAttribute('value') }
+if ($installedHarmonyId -ne 'Bannerlord.Harmony') {
+    throw "Harmony module directory declares Id '$installedHarmonyId', expected 'Bannerlord.Harmony'."
+}
+if ($installedHarmonyVersion -ne $ExpectedHarmonyVersion) {
+    throw "Installed Bannerlord.Harmony is '$installedHarmonyVersion', expected '$ExpectedHarmonyVersion'."
+}
+if (-not (Test-Path -LiteralPath $harmonyRuntimeDll -PathType Leaf)) {
+    throw "Bannerlord.Harmony runtime DLL missing: $harmonyRuntimeDll"
+}
+
 Write-Output 'KaiCleave compatibility preflight: PASS'
 Write-Output "  Module:       $ExpectedModuleId $version"
 Write-Output "  Runtime DLL:  $runtimeDll"
-Write-Output "  Dependencies: Native/SandBoxCore/Sandbox $ExpectedGameVersion; Bannerlord.Harmony $ExpectedHarmonyVersion"
+Write-Output "  Harmony:      Bannerlord.Harmony $installedHarmonyVersion"
+Write-Output "  Dependencies: Native/SandBoxCore/Sandbox $ExpectedGameVersion"
 Write-Output '  Coop rule:    same KaiCleave version must be active on authoritative server and every connecting client'
 Write-Output '  Authority:    client module is validation-only/passive; /server /coopsave process owns cleave damage logic'
-Write-Output '  Load order:   TOR_Core -> KaiCleave -> KaiTOR_Stability (optional) -> Coop'
+Write-Output '  Load order:   Bannerlord.Harmony -> Native/... -> TOR_Core -> KaiCleave -> KaiTOR_Stability (optional) -> Coop'
