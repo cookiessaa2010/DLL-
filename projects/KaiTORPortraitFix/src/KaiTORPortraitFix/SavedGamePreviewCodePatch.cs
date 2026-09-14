@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Reflection;
 using HarmonyLib;
 using SandBox.ViewModelCollection.SaveLoad;
 using TaleWorlds.CampaignSystem.Extensions;
@@ -6,18 +8,25 @@ using TaleWorlds.CampaignSystem.Extensions;
 namespace KaiTORPortraitFix
 {
     /// <summary>
-    /// Bannerlord intentionally clears SavedGameVM.MainHeroVisualCode when it detects a module
-    /// discrepancy. That leaves SaveLoadHeroTableauTextureProvider with an empty visual code and
-    /// the Save/Load screen shows only the black placeholder/silhouette even though the save and
-    /// in-game hero are healthy.
-    ///
-    /// For non-corrupted saves only, restore the character visual code from save metadata. This
-    /// changes only the preview VM; it does not modify the save file or relax the actual load-time
-    /// discrepancy checks/warnings.
+    /// Restores the Save/Load hero visual code when Bannerlord clears it because of a module
+    /// discrepancy. The exact SavedGameVM constructor signature varies across Bannerlord builds,
+    /// so this patch deliberately targets every declared instance constructor instead of relying
+    /// on Harmony to resolve one implicit constructor overload.
     /// </summary>
-    [HarmonyPatch(typeof(SavedGameVM), MethodType.Constructor)]
+    [HarmonyPatch]
     internal static class SavedGamePreviewCodePatch
     {
+        [HarmonyTargetMethods]
+        internal static IEnumerable<MethodBase> TargetMethods()
+        {
+            var constructors = typeof(SavedGameVM).GetConstructors(
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+
+            PortraitFixLog.Event("SAVE_VM_TARGETS", "constructors=" + constructors.Length);
+            foreach (var constructor in constructors)
+                yield return constructor;
+        }
+
         [HarmonyPostfix]
         internal static void Postfix(SavedGameVM __instance)
         {
