@@ -1,9 +1,9 @@
-name: KaiTOR Portrait Fix 0.1.0 Build
+name: KaiTOR Portrait Fix 0.2.0 Diagnostics Build
 
 on:
   push:
     branches:
-      - kaitor-portrait-fix-0.1.0
+      - kaitor-portrait-fix-0.2.0-diagnostics
     paths:
       - 'projects/KaiTORPortraitFix/**'
       - '.github/workflows/kaitor-portrait-fix-build.yml'
@@ -29,26 +29,40 @@ jobs:
         shell: pwsh
         run: dotnet build ./projects/KaiTORPortraitFix/src/KaiTORPortraitFix/KaiTORPortraitFix.csproj -c Release --no-restore -p:NuGetAudit=false
 
-      - name: Validate portrait-fix contracts
+      - name: Validate portrait diagnostics contracts
         shell: pwsh
         run: |
           [xml]$xml = Get-Content ./projects/KaiTORPortraitFix/module/SubModule.xml -Raw
           if ($xml.Module.Id.value -ne 'KaiTOR_PortraitFix') { throw 'Unexpected module id.' }
-          if ($xml.Module.Version.value -ne 'v0.1.0') { throw 'Expected v0.1.0.' }
+          if ($xml.Module.Version.value -ne 'v0.2.0') { throw 'Expected v0.2.0.' }
 
-          $patch = Get-Content ./projects/KaiTORPortraitFix/src/KaiTORPortraitFix/SavePreviewGenderPatch.cs -Raw
-          foreach ($required in @('BasicCharacterTableau', 'RefreshCharacterTableau', '_faceDirtAmount', '_isFemale', 'PATCH_PATTERN', 'PREVIEW_REFRESH')) {
-            if ($patch -notmatch [regex]::Escape($required)) { throw "Missing patch contract: $required" }
+          $diag = Get-Content ./projects/KaiTORPortraitFix/src/KaiTORPortraitFix/SaveLoadPipelineDiagnostics.cs -Raw
+          foreach ($required in @(
+            'SaveLoadHeroTableauTextureProvider',
+            'set_HeroVisualCode',
+            'DeserializeCharacterCode',
+            'FirstTimeInit',
+            'SetTargetSize',
+            'OnTick',
+            'PIPE_HEROCODE',
+            'PIPE_PROVIDER_TICK',
+            'PIPE_DESERIALIZE_IN',
+            'PIPE_BASIC_TICK'
+          )) {
+            if ($diag -notmatch [regex]::Escape($required)) { throw "Missing diagnostic contract: $required" }
           }
 
+          $patch = Get-Content ./projects/KaiTORPortraitFix/src/KaiTORPortraitFix/SavePreviewGenderPatch.cs -Raw
+          if ($patch -notmatch 'PREVIEW_REFRESH') { throw '0.1 refresh diagnostic must be retained.' }
+
           $sub = Get-Content ./projects/KaiTORPortraitFix/src/KaiTORPortraitFix/SubModule.cs -Raw
+          if ($sub -notmatch '0.2.0-diagnostics') { throw 'Runtime version marker missing.' }
           if ($sub -notmatch 'PatchAll') { throw 'Harmony PatchAll missing.' }
-          if ($sub -notmatch 'OnSubModuleLoad') { throw 'Patch must be installed before cold menu.' }
 
       - name: Assemble root-installable package
         shell: pwsh
         run: |
-          $stage = Join-Path $env:RUNNER_TEMP 'KaiTOR-PortraitFix-0.1.0'
+          $stage = Join-Path $env:RUNNER_TEMP 'KaiTOR-PortraitFix-0.2.0-diagnostics'
           $module = Join-Path $stage 'Modules/KaiTOR_PortraitFix'
           $bin = Join-Path $module 'bin/Win64_Shipping_Client'
           New-Item -ItemType Directory -Force -Path $bin | Out-Null
@@ -58,22 +72,25 @@ jobs:
           Copy-Item ./projects/KaiTORPortraitFix/README_RU.md (Join-Path $stage 'README_RU.md')
 
           @'
-          KaiTOR Portrait Fix 0.1.0
+          KaiTOR Portrait Fix 0.2.0 diagnostics
           Bannerlord 1.3.15.110062
 
-          Test goal:
-          1. Enable Bannerlord.Harmony + Native + KaiTOR Portrait Fix.
-          2. Open Saved Campaigns / Load Game.
-          3. Check whether the hero preview is rendered normally instead of as a black silhouette.
-          4. If still black, send: %LOCALAPPDATA%\KaiTORPortraitFix\KaiTORPortraitFix.log and fresh rgl_log_*.txt.
+          This build is diagnostic-first. It retains the 0.1 gender patch and instruments the actual cold-menu preview pipeline:
+          SaveLoadHeroTableauTextureProvider -> HeroVisualCode -> BasicCharacterTableau.DeserializeCharacterCode -> SetTargetSize -> FirstTimeInit -> OnTick -> RefreshCharacterTableau.
+
+          Test:
+          1. Start the game normally with KaiTOR Portrait Fix enabled.
+          2. Open Saved Campaigns and click a save with the black hero silhouette.
+          3. Stay there for 10 seconds.
+          4. Send the complete file: %LOCALAPPDATA%\KaiTORPortraitFix\KaiTORPortraitFix.log
 
           This build does not modify save files.
-          '@ | Set-Content (Join-Path $stage 'TEST_RU.txt') -Encoding UTF8
+          '@ | Set-Content (Join-Path $stage 'TEST_0.2.0_RU.txt') -Encoding UTF8
 
           $forbidden = Get-ChildItem $stage -Recurse -File | Where-Object { $_.Name -like 'TaleWorlds*.dll' -or $_.Name -eq '0Harmony.dll' }
           if ($forbidden) { throw 'Reference/runtime dependencies must not be redistributed.' }
 
-          $zip = Join-Path $env:RUNNER_TEMP 'KaiTOR-PortraitFix-0.1.0-Bannerlord-1.3.15.110062.zip'
+          $zip = Join-Path $env:RUNNER_TEMP 'KaiTOR-PortraitFix-0.2.0-diagnostics-Bannerlord-1.3.15.110062.zip'
           Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $zip -Force
           $hashFile = Join-Path $env:RUNNER_TEMP 'SHA256.txt'
           $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -84,7 +101,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: KaiTOR-PortraitFix-0.1.0
+          name: KaiTOR-PortraitFix-0.2.0-diagnostics
           path: |
             ${{ env.PORTRAIT_FIX_ZIP }}
             ${{ env.PORTRAIT_FIX_HASH }}
