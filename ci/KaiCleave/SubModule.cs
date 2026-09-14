@@ -7,7 +7,7 @@ namespace KaiCleave
     public sealed class SubModule : MBSubModuleBase
     {
         internal const string HarmonyId = "kai.cleave.bannerlord.1.3.15";
-        internal const string Version = "0.2.1-coop-beta";
+        internal const string Version = "0.2.2-perf-test";
 
         private Harmony _harmony;
         private bool _combatPatchesActive;
@@ -30,9 +30,6 @@ namespace KaiCleave
             }
             else
             {
-                // The KaiTOR campaign server owns campaign state but Coop battle collision/damage is
-                // simulated by mission peers. Keep this module loaded for exact module validation,
-                // but do not patch mission combat in the /server /coopsave process.
                 DebugLogger.Write("combat patches PASSIVE on Coop campaign server; battle peers own cleave simulation");
             }
 
@@ -84,6 +81,8 @@ namespace KaiCleave
             }
 
             SwingTracker.Reset();
+            DebugLogger.Write("module unload | flushing async logger");
+            DebugLogger.FlushAndStop();
             base.OnSubModuleUnloaded();
         }
     }
