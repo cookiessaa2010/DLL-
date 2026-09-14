@@ -16,9 +16,6 @@ namespace KaiCleave
             if (!KaiSettings.Enabled || !CoopRuntime.CombatPatchesAllowed)
                 return false;
 
-            // Keep ordinary Bannerlord multiplayer untouched. KaiTOR Coop is different: its
-            // authoritative campaign process owns the combat calculation and is explicitly
-            // admitted by CoopRuntime even though the clients also load this module.
             if (!CoopRuntime.CoopModuleActive && GameNetwork.IsSessionActive)
                 return false;
 
@@ -53,11 +50,6 @@ namespace KaiCleave
         }
     }
 
-    /// <summary>
-    /// Guarantees one damage registration per victim per detected swing and enforces MaxTargetsPerSwing.
-    /// We suppress only duplicate/over-cap RegisterBlow calls; all accepted hits still use Bannerlord/TOR's
-    /// native damage pipeline and therefore retain armor, resistances, perks and hit-location handling.
-    /// </summary>
     [HarmonyPatch(typeof(Mission), "RegisterBlow")]
     internal static class RegisterBlowPatch
     {
@@ -69,18 +61,21 @@ namespace KaiCleave
             ref AttackCollisionData collisionData,
             in MissionWeapon attackerWeapon)
         {
-            if (!CleaveRules.IsEligible(attacker, victim, in collisionData, in attackerWeapon, b.InflictedDamage))
-                return true;
+            var started = System.Diagnostics.Stopwatch.GetTimestamp();
+            try
+            {
+                if (!CleaveRules.IsEligible(attacker, victim, in collisionData, in attackerWeapon, b.InflictedDamage))
+                    return true;
 
-            return SwingTracker.TryRegisterHit(attacker, victim, in collisionData, in attackerWeapon);
+                return SwingTracker.TryRegisterHit(attacker, victim, in collisionData, in attackerWeapon);
+            }
+            finally
+            {
+                DebugLogger.WriteTiming("register-blow", System.Diagnostics.Stopwatch.GetTimestamp() - started, attacker, victim);
+            }
         }
     }
 
-    /// <summary>
-    /// Full-damage mode: after an accepted hit we do not consume the swing's remaining momentum.
-    /// The next collision therefore enters the normal Bannerlord/TOR damage calculation with the same
-    /// pre-armor attack energy instead of a reduced carry-over value.
-    /// </summary>
     [HarmonyPatch(typeof(MissionCombatMechanicsHelper), nameof(MissionCombatMechanicsHelper.UpdateMomentumRemaining))]
     internal static class CleaveMomentumPatch
     {
@@ -94,31 +89,33 @@ namespace KaiCleave
             in MissionWeapon attackerWeapon,
             bool isCrushThrough)
         {
-            if (!KaiSettings.FullMomentum)
-                return true;
+            var started = System.Diagnostics.Stopwatch.GetTimestamp();
+            try
+            {
+                if (!KaiSettings.FullMomentum)
+                    return true;
 
-            // Keep TOR/Bannerlord's separate crush-through system untouched.
-            if (isCrushThrough)
-                return true;
+                if (isCrushThrough)
+                    return true;
 
-            if (!CleaveRules.IsEligible(attacker, victim, in collisionData, in attackerWeapon, b.InflictedDamage))
-                return true;
+                if (!CleaveRules.IsEligible(attacker, victim, in collisionData, in attackerWeapon, b.InflictedDamage))
+                    return true;
 
-            if (momentumRemaining <= 0f || !SwingTracker.CanContinueAfterCurrent(attacker, in collisionData, in attackerWeapon))
-                return true;
+                if (momentumRemaining <= 0f || !SwingTracker.CanContinueAfterCurrent(attacker, in collisionData, in attackerWeapon))
+                    return true;
 
-            DebugLogger.WriteHit("momentum-preserved", attacker, victim, in collisionData, in attackerWeapon,
-                b.InflictedDamage, momentumRemaining, null, null);
+                DebugLogger.WriteHit("momentum-preserved", attacker, victim, in collisionData, in attackerWeapon,
+                    b.InflictedDamage, momentumRemaining, null, null);
 
-            // Skip CalculateRemainingMomentum for this accepted target.
-            return false;
+                return false;
+            }
+            finally
+            {
+                DebugLogger.WriteTiming("momentum", System.Diagnostics.Stopwatch.GetTimestamp() - started, attacker, victim);
+            }
         }
     }
 
-    /// <summary>
-    /// Forces native collision traversal to continue after a valid enemy hit. Blocks, parries, chambers,
-    /// shields, walls and zero-damage hits never enter this path and remain vanilla/TOR behavior.
-    /// </summary>
     [HarmonyPatch(typeof(MissionCombatMechanicsHelper), nameof(MissionCombatMechanicsHelper.DecideWeaponCollisionReaction))]
     internal static class NativeReactionPatch
     {
@@ -134,8 +131,16 @@ namespace KaiCleave
             float momentumRemaining,
             ref MeleeCollisionReaction colReaction)
         {
-            CleaveReaction.Apply(in registeredBlow, in collisionData, attacker, defender,
-                in attackerWeapon, momentumRemaining, ref colReaction, "native");
+            var started = System.Diagnostics.Stopwatch.GetTimestamp();
+            try
+            {
+                CleaveReaction.Apply(in registeredBlow, in collisionData, attacker, defender,
+                    in attackerWeapon, momentumRemaining, ref colReaction, "native");
+            }
+            finally
+            {
+                DebugLogger.WriteTiming("native-reaction", System.Diagnostics.Stopwatch.GetTimestamp() - started, attacker, defender);
+            }
         }
     }
 
