@@ -1,9 +1,9 @@
-name: KaiTOR Portrait Fix 0.3.0 Build
+name: KaiTOR Portrait Fix 0.3.1 Build
 
 on:
   push:
     branches:
-      - kaitor-portrait-fix-0.3.0
+      - kaitor-portrait-fix-0.3.1
     paths:
       - 'projects/KaiTORPortraitFix/**'
       - '.github/workflows/kaitor-portrait-fix-build.yml'
@@ -34,7 +34,7 @@ jobs:
         run: |
           [xml]$xml = Get-Content ./projects/KaiTORPortraitFix/module/SubModule.xml -Raw
           if ($xml.Module.Id.value -ne 'KaiTOR_PortraitFix') { throw 'Unexpected module id.' }
-          if ($xml.Module.Version.value -ne 'v0.3.0') { throw 'Expected v0.3.0.' }
+          if ($xml.Module.Version.value -ne 'v0.3.1') { throw 'Expected v0.3.1.' }
 
           $vm = Get-Content ./projects/KaiTORPortraitFix/src/KaiTORPortraitFix/SavedGamePreviewCodePatch.cs -Raw
           foreach ($required in @(
@@ -43,7 +43,9 @@ jobs:
             'GetCharacterVisualCode',
             'IsModuleDiscrepancyDetected',
             'IsCorrupted',
-            'SAVE_VM',
+            'HarmonyTargetMethods',
+            'GetConstructors',
+            'SAVE_VM_TARGETS',
             'SAVE_VM_FIX',
             'restore-preview-code'
           )) {
@@ -59,13 +61,14 @@ jobs:
           if ($patch -notmatch 'PREVIEW_REFRESH') { throw '0.1 refresh diagnostic must be retained.' }
 
           $sub = Get-Content ./projects/KaiTORPortraitFix/src/KaiTORPortraitFix/SubModule.cs -Raw
-          if ($sub -notmatch '0.3.0') { throw 'Runtime version marker missing.' }
-          if ($sub -notmatch 'PatchAll') { throw 'Harmony PatchAll missing.' }
+          if ($sub -notmatch '0.3.1') { throw 'Runtime version marker missing.' }
+          if ($sub -notmatch '_patched = true') { throw 'Successful patch-state marker missing.' }
+          if ($sub -notmatch '_patched = false') { throw 'Failure patch-state marker missing.' }
 
       - name: Assemble root-installable package
         shell: pwsh
         run: |
-          $stage = Join-Path $env:RUNNER_TEMP 'KaiTOR-PortraitFix-0.3.0'
+          $stage = Join-Path $env:RUNNER_TEMP 'KaiTOR-PortraitFix-0.3.1'
           $module = Join-Path $stage 'Modules/KaiTOR_PortraitFix'
           $bin = Join-Path $module 'bin/Win64_Shipping_Client'
           New-Item -ItemType Directory -Force -Path $bin | Out-Null
@@ -75,33 +78,31 @@ jobs:
           Copy-Item ./projects/KaiTORPortraitFix/README_RU.md (Join-Path $stage 'README_RU.md')
 
           @'
-          KaiTOR Portrait Fix 0.3.0
+          KaiTOR Portrait Fix 0.3.1
           Bannerlord 1.3.15.110062
 
-          Root cause targeted by this build:
-          Bannerlord may set SavedGameVM.MainHeroVisualCode to empty when a module discrepancy is detected.
-          The Save/Load tableau then receives no hero visual code and shows a black placeholder/silhouette.
+          Hotfix for 0.3.0 Harmony constructor resolution failure.
+          The SavedGameVM patch now targets every declared instance constructor explicitly,
+          so it is independent of the exact constructor signature in this Bannerlord build.
 
-          0.3.0 restores the visual code from save metadata only when the save is NOT marked corrupted.
-          It does not edit save files and does not disable load-time compatibility warnings/checks.
+          It still restores MainHeroVisualCode only for non-corrupted saves when the VM code is empty,
+          and does not edit saves or bypass load-time compatibility checks.
 
-          Test:
-          1. Replace the old KaiTOR_PortraitFix folder with this build.
-          2. Unblock KaiTORPortraitFix.dll.
-          3. Start the game and open Saved Campaigns.
-          4. Click the same save.
-          5. If portrait is still black, send %LOCALAPPDATA%\KaiTORPortraitFix\KaiTORPortraitFix.log
+          Expected startup log:
+          SAVE_VM_TARGETS|constructors=<N>
+          PATCH_APPLY|success=true
+          COLD_MENU_READY|patchInstalled=True
 
-          Expected log on the affected case:
+          Expected affected save log:
           SAVE_VM|... discrepancy=True; vmCodeEmpty=True; metadataCodeEmpty=False ...
           SAVE_VM_FIX|applied=true; reason=restore-preview-code ...
           PIPE_HEROCODE|... empty=false ...
-          '@ | Set-Content (Join-Path $stage 'TEST_0.3.0_RU.txt') -Encoding UTF8
+          '@ | Set-Content (Join-Path $stage 'TEST_0.3.1_RU.txt') -Encoding UTF8
 
           $forbidden = Get-ChildItem $stage -Recurse -File | Where-Object { $_.Name -like 'TaleWorlds*.dll' -or $_.Name -eq '0Harmony.dll' }
           if ($forbidden) { throw 'Reference/runtime dependencies must not be redistributed.' }
 
-          $zip = Join-Path $env:RUNNER_TEMP 'KaiTOR-PortraitFix-0.3.0-Bannerlord-1.3.15.110062.zip'
+          $zip = Join-Path $env:RUNNER_TEMP 'KaiTOR-PortraitFix-0.3.1-Bannerlord-1.3.15.110062.zip'
           Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $zip -Force
           $hashFile = Join-Path $env:RUNNER_TEMP 'SHA256.txt'
           $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -112,7 +113,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: KaiTOR-PortraitFix-0.3.0
+          name: KaiTOR-PortraitFix-0.3.1
           path: |
             ${{ env.PORTRAIT_FIX_ZIP }}
             ${{ env.PORTRAIT_FIX_HASH }}
