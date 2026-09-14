@@ -7,14 +7,6 @@ using TaleWorlds.MountAndBlade;
 
 namespace KaiTORStability
 {
-    /// <summary>
-    /// Conservative phase-1 accelerator for TOR's "Build Shader Cache" custom battle.
-    /// TOR currently adds four copies of every soldier. We only collapse those four
-    /// copies when the character exposes zero/one battle equipment variant. Troops
-    /// with multiple battle equipment variants keep TOR's original multiplicity.
-    /// This removes obviously redundant agents without intentionally reducing the
-    /// sampling coverage of multi-loadout troops.
-    /// </summary>
     internal static class ShaderCacheAcceleration
     {
         private const string HarmonyId = "kaitor.stability.shadercache";
@@ -24,10 +16,7 @@ namespace KaiTORStability
 
         public static void Install(StabilitySettings settings)
         {
-            if (_installed || settings == null || !settings.EnableShaderCacheAcceleration)
-            {
-                return;
-            }
+            if (_installed || settings == null || !settings.EnableShaderCacheAcceleration) return;
 
             try
             {
@@ -48,14 +37,11 @@ namespace KaiTORStability
 
                 _enabled = true;
                 _singleLoadoutCopies = Math.Max(1, Math.Min(4, settings.ShaderCacheSingleLoadoutCopies));
-
-                var harmony = new Harmony(HarmonyId);
-                harmony.Patch(target, postfix: new HarmonyMethod(postfix));
+                new Harmony(HarmonyId).Patch(target, postfix: new HarmonyMethod(postfix));
                 _installed = true;
 
-                StabilityLog.Event(
-                    "SHADER_ACCELERATOR_READY",
-                    "TOR Build Shader Cache roster patch installed; singleLoadoutCopies=" + _singleLoadoutCopies + ".");
+                StabilityLog.Event("SHADER_ACCELERATOR_READY",
+                    "TOR Build Shader Cache roster patch installed; variantAware=true; singleLoadoutCopies=" + _singleLoadoutCopies + ".");
             }
             catch (Exception ex)
             {
@@ -66,18 +52,12 @@ namespace KaiTORStability
 
         private static void PostfixGetPlayerParty(ref CustomBattleCombatant __result)
         {
-            if (!_enabled || __result == null)
-            {
-                return;
-            }
+            if (!_enabled || __result == null) return;
 
             try
             {
                 var originalCharacters = __result.Characters.ToList();
-                if (originalCharacters.Count == 0)
-                {
-                    return;
-                }
+                if (originalCharacters.Count == 0) return;
 
                 var orderedGroups = new List<CharacterGroup>();
                 var byId = new Dictionary<string, CharacterGroup>(StringComparer.Ordinal);
@@ -85,10 +65,7 @@ namespace KaiTORStability
                 foreach (var character in originalCharacters)
                 {
                     if (character == null) continue;
-                    var key = string.IsNullOrEmpty(character.StringId)
-                        ? "#" + character.GetHashCode().ToString()
-                        : character.StringId;
-
+                    var key = string.IsNullOrEmpty(character.StringId) ? "#" + character.GetHashCode() : character.StringId;
                     CharacterGroup group;
                     if (!byId.TryGetValue(key, out group))
                     {
@@ -106,65 +83,64 @@ namespace KaiTORStability
 
                 var originalCount = 0;
                 var optimizedCount = 0;
-                var collapsedTroops = 0;
-                var multiLoadoutTroops = 0;
+                var collapsedSingle = 0;
+                var collapsedVariantAware = 0;
+                var preservedFourPlus = 0;
 
                 foreach (var group in orderedGroups)
                 {
                     originalCount += group.OriginalCopies;
                     var copies = group.OriginalCopies;
 
-                    if (group.Character.IsSoldier && group.OriginalCopies > _singleLoadoutCopies)
+                    if (group.Character.IsSoldier && group.OriginalCopies > 1)
                     {
-                        // Take(2) is intentional: we only need to distinguish 0/1 from 2+.
-                        // Multi-loadout troops retain TOR's original four-copy sampling.
-                        var battleVariantCount = group.Character.BattleEquipments.Take(2).Count();
-                        if (battleVariantCount <= 1)
+                        // Count up to 5 only: 4+ variants means TOR's original four copies are preserved.
+                        var variantCount = group.Character.BattleEquipments.Take(5).Count();
+                        int desired;
+                        if (variantCount <= 1)
                         {
-                            copies = Math.Min(group.OriginalCopies, _singleLoadoutCopies);
-                            if (copies < group.OriginalCopies) collapsedTroops++;
+                            desired = _singleLoadoutCopies;
+                            if (desired < group.OriginalCopies) collapsedSingle++;
+                        }
+                        else if (variantCount < 4)
+                        {
+                            desired = variantCount;
+                            if (desired < group.OriginalCopies) collapsedVariantAware++;
                         }
                         else
                         {
-                            multiLoadoutTroops++;
+                            desired = group.OriginalCopies;
+                            preservedFourPlus++;
                         }
+
+                        copies = Math.Min(group.OriginalCopies, Math.Max(1, desired));
                     }
 
                     optimized.AddCharacter(group.Character, Math.Max(1, copies));
                     optimizedCount += Math.Max(1, copies);
                 }
 
-                if (__result.General != null)
-                {
-                    optimized.SetGeneral(__result.General);
-                }
-
+                if (__result.General != null) optimized.SetGeneral(__result.General);
                 __result = optimized;
 
-                StabilityLog.Event(
-                    "SHADER_CACHE_ROSTER",
+                StabilityLog.Event("SHADER_CACHE_ROSTER",
                     "original=" + originalCount +
                     "; optimized=" + optimizedCount +
                     "; saved=" + Math.Max(0, originalCount - optimizedCount) +
                     "; uniqueCharacters=" + orderedGroups.Count +
-                    "; collapsedSingleLoadoutTroops=" + collapsedTroops +
-                    "; preservedMultiLoadoutTroops=" + multiLoadoutTroops + ".");
+                    "; collapsedSingleLoadoutTroops=" + collapsedSingle +
+                    "; collapsedVariantAwareTroops=" + collapsedVariantAware +
+                    "; preservedFourPlusVariantTroops=" + preservedFourPlus + ".");
             }
             catch (Exception ex)
             {
-                // Fail open at the postfix boundary. If anything unexpected happens,
-                // the original TOR result remains usable unless replacement completed.
                 StabilityLog.Event("SHADER_ACCELERATOR_ERROR", ex.ToString());
             }
         }
 
         private sealed class CharacterGroup
         {
-            public CharacterGroup(BasicCharacterObject character)
-            {
-                Character = character;
-            }
-
+            public CharacterGroup(BasicCharacterObject character) { Character = character; }
             public BasicCharacterObject Character { get; private set; }
             public int OriginalCopies { get; set; }
         }
