@@ -1,39 +1,42 @@
-# KaiTOR Portrait Fix 0.3.0
+# KaiTOR Portrait Fix 0.3.1
 
-Фикс чёрного силуэта героя на экране **Сохранённые кампании / Load Game** для Bannerlord `1.3.15.110062` + TOR.
+Минимальный фикс чёрного силуэта персонажа на экране **Сохранённые кампании / Load Game** для Bannerlord `1.3.15.110062` + TOR.
 
 ## Что нашли
 
-Диагностика 0.2.0 показала, что `SaveLoadHeroTableauTextureProvider` действительно создаётся, но получает `HeroVisualCode = empty`. То есть проблема возникает **до рендера**: Bannerlord не передаёт в preview код внешности героя.
+Диагностика 0.2.0 показала: `SaveLoadHeroTableauTextureProvider` создаётся, но получает пустой `HeroVisualCode`. Значит проблема возникает **до рендера**. В штатном `SavedGameVM` Bannerlord очищает `MainHeroVisualCode`, когда считает, что у сохранения есть расхождение по модулям. Поэтому Save/Load tableau не получает описание героя и показывает пустой/чёрный preview, хотя сам персонаж после загрузки кампании исправен.
 
-В `SavedGameVM` есть штатная логика: при `IsModuleDiscrepancyDetected` игра задаёт `MainHeroVisualCode = string.Empty`. Поэтому даже исправный сейв может показывать чёрный placeholder/силуэт, если движок видит расхождение модулей или версий.
+## Что делает 0.3.1
 
-## Что делает 0.3.0
+- патчит все фактически объявленные instance-конструкторы `SavedGameVM`, независимо от их точной сигнатуры;
+- для **не повреждённого** сейва, если `MainHeroVisualCode` пустой, берёт character visual code из metadata сохранения и возвращает его только в VM превью;
+- не изменяет файл сохранения;
+- не отключает предупреждения о несовпадении модулей и не обходит проверки при загрузке;
+- сохраняет диагностику Save/Load pipeline и узкий gender-fix `BasicCharacterTableau` из предыдущих тестов.
 
-- только для НЕ повреждённых сохранений восстанавливает `MainHeroVisualCode` из metadata сейва;
-- не меняет файл сохранения;
-- не отключает предупреждения/проверки совместимости при загрузке;
-- не меняет список модулей сейва;
-- сохраняет диагностику SaveLoad pipeline;
-- сохраняет узкий gender-fix из 0.1.0.
+## Почему 0.3.1 вместо 0.3.0
 
-Если сейв помечен как corrupted, код превью **не восстанавливается**.
+В 0.3.0 Harmony не смог автоматически определить overload конструктора `SavedGameVM` (`Undefined target method`). 0.3.1 использует `HarmonyTargetMethods` и перечисляет все declared instance constructors через reflection, поэтому не зависит от точной сигнатуры конкретной сборки Bannerlord.
 
 ## Лог
 
 `%LOCALAPPDATA%\KaiTORPortraitFix\KaiTORPortraitFix.log`
 
-Ключевые строки:
+На успешном старте ожидаем:
 
-- `SAVE_VM|corrupted=...; discrepancy=...; vmCodeEmpty=...; metadataCodeEmpty=...`
-- `SAVE_VM_FIX|applied=true; reason=restore-preview-code`
-- затем ожидаем `PIPE_HEROCODE|... empty=false`
-- `PIPE_DESERIALIZE_IN/OUT`
-- `PREVIEW_REFRESH`
+- `SAVE_VM_TARGETS|constructors=<N>`
+- `PATCH_APPLY|success=true`
+- `COLD_MENU_READY|patchInstalled=True`
+
+На проблемном сохранении ожидаем:
+
+- `SAVE_VM|... discrepancy=True; vmCodeEmpty=True; metadataCodeEmpty=False ...`
+- `SAVE_VM_FIX|applied=true; reason=restore-preview-code ...`
+- `PIPE_HEROCODE|... empty=false ...`
 
 ## Установка
 
-Распаковать в корень Bannerlord. Должен существовать:
+Распаковать архив в корень Bannerlord. Должен существовать:
 
 `Modules\KaiTOR_PortraitFix\bin\Win64_Shipping_Client\KaiTORPortraitFix.dll`
 
