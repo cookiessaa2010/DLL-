@@ -70,8 +70,44 @@ public static class KaiDiplomacyCommands
         if (first == null || second == null) return "One or both kingdom ids are unknown.";
 
         return behavior.BreakNonAggressionPact(first, second)
-            ? $"Removed NAP: {first.Name} <-> {second.Name}."
+            ? $"Removed NAP: {first.Name} <-> {second.Name}. Trust -10; new NAP blocked for 10 days."
             : "No active NAP existed for that pair.";
+    }
+
+    [CommandLineFunctionality.CommandLineArgumentFunction("ledger", "kaitor_diplomacy")]
+    public static string Ledger(List<string> arguments)
+    {
+        if (arguments.Count != 0) return "Usage: kaitor_diplomacy.ledger";
+
+        var behavior = GetBehavior();
+        if (behavior == null) return "KaiTOR Diplomacy behavior is not loaded.";
+        if (!behavior.RuntimeEnabled) return "KaiTOR Diplomacy runtime is disabled by the TOR compatibility gate.";
+
+        var entries = behavior.DescribeDiplomaticHistory().ToArray();
+        return entries.Length == 0
+            ? "KaiTOR Diplomacy ledger is empty."
+            : string.Join("\n", entries);
+    }
+
+    [CommandLineFunctionality.CommandLineArgumentFunction("inspect", "kaitor_diplomacy")]
+    public static string Inspect(List<string> arguments)
+    {
+        if (arguments.Count != 2)
+            return "Usage: kaitor_diplomacy.inspect <kingdomA> <kingdomB>";
+
+        var behavior = GetBehavior();
+        if (behavior == null) return "KaiTOR Diplomacy behavior is not loaded.";
+
+        var first = FindKingdom(arguments[0]);
+        var second = FindKingdom(arguments[1]);
+        if (first == null || second == null) return "One or both kingdom ids are unknown.";
+
+        return $"{first.Name} <-> {second.Name}: " +
+               $"NAP={(behavior.IsNonAggressionPactActive(first, second) ? "active" : "none")}, " +
+               $"remaining={behavior.GetRemainingDays(first, second)} day(s), " +
+               $"trust={behavior.GetTrust(first, second)}, " +
+               $"breaches={behavior.GetBreachCount(first, second)}, " +
+               $"cooldown={behavior.GetNapCooldownRemainingDays(first, second)} day(s).";
     }
 
     private static KaiDiplomacyBehavior GetBehavior()
