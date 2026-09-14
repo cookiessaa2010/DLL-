@@ -12,7 +12,7 @@ namespace KaiTORPortraitFix
         protected override void OnSubModuleLoad()
         {
             base.OnSubModuleLoad();
-            PortraitFixLog.Event("SESSION_START", "KaiTOR Portrait Fix 0.1.0; Bannerlord=1.3.15.110062; scope=SaveLoad BasicCharacterTableau only");
+            PortraitFixLog.Event("SESSION_START", "KaiTOR Portrait Fix 0.2.0-diagnostics; Bannerlord=1.3.15.110062; scope=SaveLoad pipeline diagnostics + 0.1 gender patch");
 
             if (_patched) return;
             _patched = true;
@@ -21,7 +21,7 @@ namespace KaiTORPortraitFix
             {
                 var harmony = new Harmony(HarmonyId);
                 harmony.PatchAll(typeof(SubModule).Assembly);
-                PortraitFixLog.Event("PATCH_APPLY", "success=true; harmonyId=" + HarmonyId);
+                PortraitFixLog.Event("PATCH_APPLY", "success=true; harmonyId=" + HarmonyId + "; diagnostics=provider+basic-tableau");
             }
             catch (Exception ex)
             {
