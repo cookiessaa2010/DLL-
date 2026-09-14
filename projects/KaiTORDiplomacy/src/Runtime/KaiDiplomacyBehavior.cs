@@ -135,9 +135,11 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
         }
 
         var key = TreatyKey.For(first, second);
-        if (IsNapCooldownActive(key, out var cooldownDays))
+        ReconcilePair(key);
+
+        if (GetCooldownRemainingDays(key) > 0)
         {
-            reason = $"A new non-aggression pact is blocked for another {cooldownDays} day(s) after the previous breach.";
+            reason = $"A new non-aggression pact is blocked for another {GetCooldownRemainingDays(key)} day(s) after the previous breach.";
             return false;
         }
 
@@ -156,9 +158,10 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
 
     public bool BreakNonAggressionPact(Kingdom first, Kingdom second)
     {
-        if (first == null || second == null) return false;
+        if (!_runtimeEnabled || first == null || second == null) return false;
 
         var key = TreatyKey.For(first, second);
+        ReconcilePair(key);
         if (!_nonAggressionExpiryDays.Remove(key)) return false;
 
         ChangeTrust(key, -VoluntaryBreakTrustPenalty);
@@ -169,17 +172,9 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
     public bool IsNonAggressionPactActive(Kingdom first, Kingdom second)
     {
         if (first == null || second == null) return false;
-
         var key = TreatyKey.For(first, second);
-        if (!_nonAggressionExpiryDays.TryGetValue(key, out var expiryDay)) return false;
-
-        if (expiryDay <= CampaignTime.Now.ToDays)
-        {
-            ExpirePactNaturally(key);
-            return false;
-        }
-
-        return true;
+        return _nonAggressionExpiryDays.TryGetValue(key, out var expiryDay) &&
+               expiryDay > CampaignTime.Now.ToDays;
     }
 
     public int GetRemainingDays(Kingdom first, Kingdom second)
@@ -204,19 +199,18 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
     public int GetNapCooldownRemainingDays(Kingdom first, Kingdom second)
     {
         if (first == null || second == null) return 0;
-        var key = TreatyKey.For(first, second);
-        return IsNapCooldownActive(key, out var days) ? days : 0;
+        return GetCooldownRemainingDays(TreatyKey.For(first, second));
     }
 
     public IEnumerable<string> DescribeActivePacts()
     {
-        CleanupExpiredPacts();
-        CleanupExpiredCooldowns();
-
-        foreach (var pair in _nonAggressionExpiryDays.OrderBy(x => x.Key, StringComparer.Ordinal))
+        var currentDay = CampaignTime.Now.ToDays;
+        foreach (var pair in _nonAggressionExpiryDays
+                     .Where(x => x.Value > currentDay)
+                     .OrderBy(x => x.Key, StringComparer.Ordinal))
         {
             if (!TreatyKey.TrySplit(pair.Key, out var firstId, out var secondId)) continue;
-            var remaining = Math.Max(1, (int)Math.Ceiling(pair.Value - CampaignTime.Now.ToDays));
+            var remaining = Math.Max(1, (int)Math.Ceiling(pair.Value - currentDay));
             var trust = GetTrust(pair.Key);
             _breachCounts.TryGetValue(pair.Key, out var breaches);
             yield return $"{firstId} <-> {secondId}: NAP, {remaining} day(s), trust {trust}, breaches {breaches}";
@@ -225,8 +219,6 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
 
     public IEnumerable<string> DescribeDiplomaticHistory()
     {
-        CleanupExpiredCooldowns();
-
         var keys = new HashSet<string>(_diplomaticTrust.Keys, StringComparer.Ordinal);
         keys.UnionWith(_breachCounts.Keys);
         keys.UnionWith(_napCooldownExpiryDays.Keys);
@@ -257,6 +249,19 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
         }
 
         return true;
+    }
+
+    private void ReconcilePair(string key)
+    {
+        if (_nonAggressionExpiryDays.TryGetValue(key, out var expiryDay) && expiryDay <= CampaignTime.Now.ToDays)
+        {
+            ExpirePactNaturally(key);
+        }
+
+        if (_napCooldownExpiryDays.TryGetValue(key, out var cooldownExpiry) && cooldownExpiry <= CampaignTime.Now.ToDays)
+        {
+            _napCooldownExpiryDays.Remove(key);
+        }
     }
 
     private void CleanupExpiredPacts()
@@ -295,23 +300,11 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
         }
     }
 
-    private bool IsNapCooldownActive(string key, out int remainingDays)
-    {
-        remainingDays = GetCooldownRemainingDays(key);
-        return remainingDays > 0;
-    }
-
     private int GetCooldownRemainingDays(string key)
     {
         if (!_napCooldownExpiryDays.TryGetValue(key, out var expiryDay)) return 0;
         var remaining = expiryDay - CampaignTime.Now.ToDays;
-        if (remaining <= 0)
-        {
-            _napCooldownExpiryDays.Remove(key);
-            return 0;
-        }
-
-        return Math.Max(1, (int)Math.Ceiling(remaining));
+        return remaining <= 0 ? 0 : Math.Max(1, (int)Math.Ceiling(remaining));
     }
 
     private int GetTrust(string key)
