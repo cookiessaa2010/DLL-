@@ -1,0 +1,127 @@
+name: KaiTOR Stability 0.4.3 Live Monitor Build
+
+on:
+  push:
+    branches:
+      - kaitor-stability-0.4.3-monitor-live
+    paths:
+      - 'projects/KaiTORStability/**'
+      - '.github/workflows/kaitor-stability-043-build.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        shell: pwsh
+        run: |
+          dotnet restore ./projects/KaiTORStability/src/KaiTORStability/KaiTORStability.csproj
+          dotnet restore ./projects/KaiTORStability/src/KaiTORLoadMonitor/KaiTORLoadMonitor.csproj
+
+      - name: Build Bannerlord module
+        shell: pwsh
+        run: dotnet build ./projects/KaiTORStability/src/KaiTORStability/KaiTORStability.csproj -c Release --no-restore -p:NuGetAudit=false
+
+      - name: Build live monitor
+        shell: pwsh
+        run: dotnet build ./projects/KaiTORStability/src/KaiTORLoadMonitor/KaiTORLoadMonitor.csproj -c Release --no-restore -p:NuGetAudit=false
+
+      - name: Monitor helper self-test
+        shell: pwsh
+        run: |
+          $exe = Resolve-Path ./projects/KaiTORStability/src/KaiTORLoadMonitor/bin/Release/net472/KaiTORLoadMonitor.exe
+          $p = Start-Process -FilePath $exe -ArgumentList '--self-test' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Load monitor self-test failed: $($p.ExitCode)" }
+
+      - name: Validate 0.4.3 hotfix contracts
+        shell: pwsh
+        run: |
+          [xml]$xml = Get-Content ./projects/KaiTORStability/module/SubModule.xml -Raw
+          if ($xml.Module.Version.value -ne 'v0.4.3') { throw 'Expected module v0.4.3.' }
+
+          $sub = Get-Content ./projects/KaiTORStability/src/KaiTORStability/SubModule.cs -Raw
+          if ($sub -notmatch 'KaiTOR Stability 0.4.3') { throw 'Runtime version marker missing.' }
+          if ($sub -notmatch '_initialScreenLogged') { throw 'INITIAL_SCREEN_READY one-shot guard missing.' }
+
+          $monitor = Get-Content ./projects/KaiTORStability/src/KaiTORLoadMonitor/LiveLoadMonitorForm.cs -Raw
+          foreach ($required in @(
+            'SESSION_START',
+            'GetProcessById',
+            'GetProcessIoCounters',
+            'Task.Run(() => ScanCache',
+            'heartbeat #',
+            'activeSamples',
+            'Build Shader Cache TOR',
+            'FirstLaunchWarmup',
+            'CLEAVE_TIMING'
+          )) {
+            if ($monitor -notmatch [regex]::Escape($required)) { throw "Live monitor missing: $required" }
+          }
+          if ($monitor -match 'PriorityClass = ProcessPriorityClass.AboveNormal') { throw '0.4.3 must not boost Bannerlord priority.' }
+
+          $project = Get-Content ./projects/KaiTORStability/src/KaiTORLoadMonitor/KaiTORLoadMonitor.csproj -Raw
+          if ($project -notmatch 'KaiTORLoadMonitor.Program43') { throw 'Program43 startup object missing.' }
+
+      - name: Assemble root-installable test package
+        shell: pwsh
+        run: |
+          $stage = Join-Path $env:RUNNER_TEMP 'KaiTORStability-0.4.3'
+          $module = Join-Path $stage 'Modules/KaiTOR_Stability'
+          $bin = Join-Path $module 'bin/Win64_Shipping_Client'
+          $tools = Join-Path $stage 'Tools'
+          New-Item -ItemType Directory -Force -Path $bin,$tools,(Join-Path $module 'ModuleData') | Out-Null
+
+          Copy-Item ./projects/KaiTORStability/module/SubModule.xml (Join-Path $module 'SubModule.xml')
+          Copy-Item ./projects/KaiTORStability/module/ModuleData/KaiTORStability.config.xml (Join-Path $module 'ModuleData/KaiTORStability.config.xml')
+          Copy-Item ./projects/KaiTORStability/src/KaiTORStability/bin/Release/net472/KaiTORStability.dll (Join-Path $bin 'KaiTORStability.dll')
+          Copy-Item ./projects/KaiTORStability/src/KaiTORLoadMonitor/bin/Release/net472/KaiTORLoadMonitor.exe (Join-Path $tools 'KaiTORLoadMonitor.exe')
+          Copy-Item ./projects/KaiTORStability/README_RU.md (Join-Path $stage 'README_RU.md')
+          Copy-Item ./projects/KaiTORStability/COOP_COMPATIBILITY_RU.md (Join-Path $stage 'COOP_COMPATIBILITY_RU.md')
+
+          @'
+          @echo off
+          setlocal
+          cd /d "%~dp0.."
+          start "KaiTOR Monitor 0.4.3" "%~dp0KaiTORLoadMonitor.exe" --game-root "%CD%"
+          '@ | Set-Content (Join-Path $tools 'START_KAITOR_MONITOR_0.4.3.bat') -Encoding ASCII
+
+          @'
+          KaiTOR Stability 0.4.3 live-monitor hotfix
+          - no Bannerlord AboveNormal priority boost
+          - no recursive shader-cache scan on WinForms UI thread
+          - robust process discovery by known name/path/window and exact PID from SESSION_START
+          - live heartbeat, CPU/RAM/I/O and cumulative loading evidence
+          - shader cache scan runs in a background worker
+          - first-launch shader source prestage + bounded TOR warmup retained
+          - Build Shader Cache / KaiCleave monitoring retained
+          '@ | Set-Content (Join-Path $stage 'HOTFIX_0.4.3_RU.txt') -Encoding UTF8
+
+          $forbidden = Get-ChildItem $stage -Recurse -File | Where-Object { $_.Name -like 'TaleWorlds*.dll' -or $_.Name -eq '0Harmony.dll' }
+          if ($forbidden) { throw 'Reference/runtime dependencies must not be redistributed.' }
+
+          $zip = Join-Path $env:RUNNER_TEMP 'KaiTORStability-0.4.3-Bannerlord-1.3.15-live-monitor.zip'
+          Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $zip -Force
+          $hashFile = Join-Path $env:RUNNER_TEMP 'SHA256.txt'
+          $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $([IO.Path]::GetFileName($zip))" | Set-Content $hashFile -Encoding ascii
+          "KAITOR_STABILITY_ZIP=$zip" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "KAITOR_STABILITY_HASH=$hashFile" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: KaiTORStability-0.4.3-live-monitor
+          path: |
+            ${{ env.KAITOR_STABILITY_ZIP }}
+            ${{ env.KAITOR_STABILITY_HASH }}
+          if-no-files-found: error
+          retention-days: 30
