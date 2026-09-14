@@ -7,7 +7,7 @@
     <Nullable>disable</Nullable>
     <AssemblyName>KaiTORLoadMonitor</AssemblyName>
     <RootNamespace>KaiTORLoadMonitor</RootNamespace>
-    <StartupObject>KaiTORLoadMonitor.Program43</StartupObject>
+    <StartupObject>KaiTORLoadMonitor.Program44</StartupObject>
   </PropertyGroup>
 
   <ItemGroup>
