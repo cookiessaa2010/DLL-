@@ -15,7 +15,7 @@ public static class KaiDiplomacyCommands
 
         var behavior = GetBehavior();
         if (behavior == null) return "KaiTOR Diplomacy behavior is not loaded.";
-        if (!behavior.RuntimeEnabled) return "KaiTOR Diplomacy runtime is disabled by the TOR compatibility gate.";
+        if (!behavior.RuntimeEnabled) return DisabledMessage;
 
         var pacts = behavior.DescribeActivePacts().ToArray();
         return pacts.Length == 0
@@ -43,6 +43,7 @@ public static class KaiDiplomacyCommands
 
         var behavior = GetBehavior();
         if (behavior == null) return "KaiTOR Diplomacy behavior is not loaded.";
+        if (!behavior.RuntimeEnabled) return DisabledMessage;
 
         var first = FindKingdom(arguments[0]);
         var second = FindKingdom(arguments[1]);
@@ -64,6 +65,7 @@ public static class KaiDiplomacyCommands
 
         var behavior = GetBehavior();
         if (behavior == null) return "KaiTOR Diplomacy behavior is not loaded.";
+        if (!behavior.RuntimeEnabled) return DisabledMessage;
 
         var first = FindKingdom(arguments[0]);
         var second = FindKingdom(arguments[1]);
@@ -81,7 +83,7 @@ public static class KaiDiplomacyCommands
 
         var behavior = GetBehavior();
         if (behavior == null) return "KaiTOR Diplomacy behavior is not loaded.";
-        if (!behavior.RuntimeEnabled) return "KaiTOR Diplomacy runtime is disabled by the TOR compatibility gate.";
+        if (!behavior.RuntimeEnabled) return DisabledMessage;
 
         var entries = behavior.DescribeDiplomaticHistory().ToArray();
         return entries.Length == 0
@@ -97,6 +99,7 @@ public static class KaiDiplomacyCommands
 
         var behavior = GetBehavior();
         if (behavior == null) return "KaiTOR Diplomacy behavior is not loaded.";
+        if (!behavior.RuntimeEnabled) return DisabledMessage;
 
         var first = FindKingdom(arguments[0]);
         var second = FindKingdom(arguments[1]);
@@ -109,6 +112,9 @@ public static class KaiDiplomacyCommands
                $"breaches={behavior.GetBreachCount(first, second)}, " +
                $"cooldown={behavior.GetNapCooldownRemainingDays(first, second)} day(s).";
     }
+
+    private const string DisabledMessage =
+        "KaiTOR Diplomacy runtime is disabled by the TOR compatibility gate.";
 
     private static KaiDiplomacyBehavior GetBehavior()
         => Campaign.Current?.GetCampaignBehavior<KaiDiplomacyBehavior>();
