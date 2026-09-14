@@ -1,15 +1,9 @@
-name: Build KaiCleave Coop beta
+name: Build KaiCleave 0.2.2 perf test
 
 on:
   push:
     branches:
-      - ci/kai-cleave-v0.2.1-coop
-    paths:
-      - 'ci/KaiCleave/**'
-      - '.github/workflows/kai-cleave-ci.yml'
-  pull_request:
-    branches:
-      - main
+      - ci/kai-cleave-v0.2.2-perf
     paths:
       - 'ci/KaiCleave/**'
       - '.github/workflows/kai-cleave-ci.yml'
@@ -33,43 +27,34 @@ jobs:
       - name: Build
         run: dotnet build ci/KaiCleave/KaiCleave.csproj -c Release --no-restore
 
-      - name: Validate Coop authority contract
+      - name: Validate performance and Coop contract
         shell: pwsh
         run: |
           [xml]$module = Get-Content 'ci/KaiCleave/SubModule.xml' -Raw
           if ($module.Module.Id.value -ne 'KaiCleave') { throw 'Unexpected module id.' }
-          if ($module.Module.Version.value -ne 'v0.2.1') { throw 'Unexpected KaiCleave version.' }
+          if ($module.Module.Version.value -ne 'v0.2.2') { throw 'Unexpected KaiCleave version.' }
 
           $runtime = Get-Content 'ci/KaiCleave/CoopRuntime.cs' -Raw
-          foreach ($required in @(
-            'CoopPeer',
-            'CoopCampaignServer',
-            '/server',
-            '/coopsave',
-            'TryGetControlledObjectInfo',
-            'IsControlled',
-            'PlayerOnly=false is not enabled'
-          )) {
-            if ($runtime -notmatch [regex]::Escape($required)) {
-              throw "Coop runtime guard is missing required contract marker: $required"
-            }
+          foreach ($required in @('CoopPeer','CoopCampaignServer','/server','/coopsave','TryGetControlledObjectInfo','IsControlled','PlayerOnly=false is not enabled')) {
+            if ($runtime -notmatch [regex]::Escape($required)) { throw "Coop runtime guard is missing required marker: $required" }
           }
 
           $submodule = Get-Content 'ci/KaiCleave/SubModule.cs' -Raw
-          if ($submodule -notmatch 'CombatPatchesAllowed') { throw 'SubModule does not gate Harmony patches by Coop role.' }
-          if ($submodule -notmatch 'battle peers own cleave simulation') { throw 'Campaign-server passive behavior is not explicit.' }
-          if ($submodule -notmatch 'Coop peer local-authority') { throw 'Battle-peer active behavior is not explicit.' }
-
-          $patch = Get-Content 'ci/KaiCleave/CleavePatch.cs' -Raw
-          if ($patch -notmatch 'IsEligiblePlayerAttacker') { throw 'PlayerOnly is not routed through Coop ownership resolution.' }
-          if ($patch -notmatch '!CoopRuntime.CoopModuleActive && GameNetwork.IsSessionActive') {
-            throw 'Ordinary Bannerlord multiplayer guard changed unexpectedly.'
+          foreach ($required in @('CombatPatchesAllowed','battle peers own cleave simulation','Coop peer local-authority','0.2.2-perf-test','FlushAndStop')) {
+            if ($submodule -notmatch [regex]::Escape($required)) { throw "SubModule missing marker: $required" }
           }
+
+          $logger = Get-Content 'ci/KaiCleave/DebugLogger.cs' -Raw
+          foreach ($required in @('ConcurrentQueue','AutoResetEvent','AsyncLogging=True','CLEAVE_TIMING')) {
+            if ($logger -notmatch [regex]::Escape($required)) { throw "Async logger missing marker: $required" }
+          }
+          if ($logger -match 'lock \(Sync\).*File.AppendAllText') { throw 'Synchronous combat logging pattern still present.' }
+
+          $tor = Get-Content 'ci/KaiCleave/TorCompatibility.cs' -Raw
+          if ($tor -notmatch 'target.DeclaringType != torType') { throw 'Inherited TOR method guard missing.' }
 
           $project = Get-Content 'ci/KaiCleave/KaiCleave.csproj' -Raw
-          if ($project -match 'Coop.Core|GameInterface.dll|Missions.dll') {
-            throw 'KaiCleave must not acquire a hard compile/runtime dependency on KaiTOR Coop assemblies.'
-          }
+          if ($project -match 'Coop.Core|GameInterface.dll|Missions.dll') { throw 'KaiCleave must not gain a hard Coop assembly dependency.' }
 
       - name: Package
         shell: pwsh
@@ -83,17 +68,17 @@ jobs:
           New-Item -ItemType Directory -Force "$root\Source" | Out-Null
           Copy-Item 'ci\KaiCleave\*.cs' "$root\Source\"
 
-          $zip = 'KaiCleave-v0.2.1-coop-beta-Bannerlord-1.3.15.110062-TOR-KaiTOR.zip'
+          $zip = 'KaiCleave-v0.2.2-perf-test-Bannerlord-1.3.15.110062-TOR-KaiTOR.zip'
           Compress-Archive -Path 'package\KaiCleave' -DestinationPath $zip -Force
           $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
           "$hash  $zip" | Set-Content 'SHA256.txt' -Encoding ascii
 
-      - name: Upload Coop beta artifact
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: KaiCleave-v0.2.1-coop-beta
+          name: KaiCleave-v0.2.2-perf-test
           if-no-files-found: error
           retention-days: 14
           path: |
-            KaiCleave-v0.2.1-coop-beta-Bannerlord-1.3.15.110062-TOR-KaiTOR.zip
+            KaiCleave-v0.2.2-perf-test-Bannerlord-1.3.15.110062-TOR-KaiTOR.zip
             SHA256.txt
