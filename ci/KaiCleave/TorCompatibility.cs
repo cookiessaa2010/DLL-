@@ -8,19 +8,22 @@ namespace KaiCleave
     internal static class TorCompatibility
     {
         private static bool _patched;
+        private static bool _resolved;
 
         internal static bool TryPatch(Harmony harmony)
         {
-            if (_patched || harmony == null)
-                return _patched;
+            if (_patched) return true;
+            if (_resolved) return true;
+            if (harmony == null) return false;
 
             try
             {
                 Type torType = AccessTools.TypeByName("TOR_Core.Models.TORAgentApplyDamageModel");
-                if (torType == null)
-                    return false;
+                if (torType == null) return false;
 
-                MethodInfo target = AccessTools.Method(torType, "DecideWeaponCollisionReaction");
+                MethodInfo target = torType.GetMethod(
+                    "DecideWeaponCollisionReaction",
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
                 MethodInfo postfix = AccessTools.Method(typeof(TorCompatibility), nameof(TorReactionPostfix));
                 if (target == null || postfix == null)
                 {
@@ -28,8 +31,17 @@ namespace KaiCleave
                     return false;
                 }
 
+                if (target.DeclaringType != torType)
+                {
+                    _resolved = true;
+                    DebugLogger.Write("TOR final-reaction patch not required | inherited=" +
+                                      (target.DeclaringType != null ? target.DeclaringType.FullName : "unknown"));
+                    return true;
+                }
+
                 harmony.Patch(target, postfix: new HarmonyMethod(postfix));
                 _patched = true;
+                _resolved = true;
                 DebugLogger.Write("TOR final-reaction patch active: " + torType.FullName);
                 return true;
             }
@@ -40,8 +52,6 @@ namespace KaiCleave
             }
         }
 
-        // This postfix runs after TOR's own override, so TOR cannot replace our final SlicedThrough
-        // decision after the native helper has already returned.
         private static void TorReactionPostfix(
             in Blow registeredBlow,
             in AttackCollisionData collisionData,
@@ -53,8 +63,16 @@ namespace KaiCleave
             float momentumRemaining,
             ref MeleeCollisionReaction colReaction)
         {
-            CleaveReaction.Apply(in registeredBlow, in collisionData, attacker, defender,
-                in attackerWeapon, momentumRemaining, ref colReaction, "TOR-final");
+            var started = System.Diagnostics.Stopwatch.GetTimestamp();
+            try
+            {
+                CleaveReaction.Apply(in registeredBlow, in collisionData, attacker, defender,
+                    in attackerWeapon, momentumRemaining, ref colReaction, "TOR-final");
+            }
+            finally
+            {
+                DebugLogger.WriteTiming("tor-reaction", System.Diagnostics.Stopwatch.GetTimestamp() - started, attacker, defender);
+            }
         }
     }
 }
