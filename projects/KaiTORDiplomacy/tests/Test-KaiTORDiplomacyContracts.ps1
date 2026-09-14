@@ -45,6 +45,20 @@ foreach ($expectedType in @(
     }
 }
 
+foreach ($requiredPattern in @(
+    'IsStartAllianceDecisionAllowedBetweenKingdoms',
+    'FactionManager.IsAtWarAgainstFaction',
+    'Dictionary<string, double> _nonAggressionExpiryDays',
+    'kaitor_diplomacy_trust',
+    'kaitor_diplomacy_nap_cooldown_expiry_days',
+    'WarBreachTrustPenalty',
+    'NaturalExpiryTrustBonus'
+)) {
+    if ($source -notmatch [regex]::Escape($requiredPattern)) {
+        throw "Required diplomacy safety/state pattern missing: $requiredPattern"
+    }
+}
+
 foreach ($forbidden in @(
     'HarmonyLib',
     'AddModel(new',
@@ -57,14 +71,15 @@ foreach ($forbidden in @(
     }
 }
 
-if ($source -notmatch 'IsStartAllianceDecisionAllowedBetweenKingdoms') {
-    throw 'Treaty creation must pass through the TOR kingdom permission model.'
-}
-if ($source -notmatch 'FactionManager.IsAtWarAgainstFaction') {
-    throw 'Treaty creation must refuse kingdoms already at war.'
+# CampaignTime.Now.ToDays is double in Bannerlord 1.3.15. A float expiry map would
+# either fail compilation or require lossy casts, so make that regression explicit.
+if ($source -match 'Dictionary<string, float> _nonAggressionExpiryDays') {
+    throw 'NAP expiry storage regressed to float; Bannerlord 1.3.15 CampaignTime.ToDays is double.'
 }
 
 Write-Output 'KaiTOR Diplomacy contract tests: PASS'
 Write-Output "  C# files: $($sourceFiles.Count)"
 Write-Output '  TOR model ownership preserved.'
+Write-Output '  Treaty time storage matches Bannerlord 1.3.15 CampaignTime precision.'
+Write-Output '  Trust/breach/cooldown state contract present.'
 Write-Output '  No Harmony/model replacement/forced war-peace-marriage actions detected.'
