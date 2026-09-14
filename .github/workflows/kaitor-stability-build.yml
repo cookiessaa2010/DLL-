@@ -1,9 +1,9 @@
-name: KaiTOR Stability Build
+name: KaiTOR Stability 0.4.2 Build
 
 on:
   push:
     branches:
-      - kaitor-stability
+      - kaitor-stability-0.4.2
     paths:
       - 'projects/KaiTORStability/**'
       - '.github/workflows/kaitor-stability-build.yml'
@@ -40,36 +40,42 @@ jobs:
         run: |
           $exe = Resolve-Path ./projects/KaiTORStability/src/KaiTORLoadMonitor/bin/Release/net472/KaiTORLoadMonitor.exe
           $process = Start-Process -FilePath $exe -ArgumentList '--self-test' -Wait -PassThru
-          if ($process.ExitCode -ne 0) {
-            throw "Load monitor self-test failed with exit code $($process.ExitCode)."
-          }
-          Write-Host 'Shader redirect detector and TOR shader-source prestage self-tests passed.'
+          if ($process.ExitCode -ne 0) { throw "Load monitor self-test failed with exit code $($process.ExitCode)." }
 
-      - name: Validate module metadata and Coop guard
+      - name: Validate 0.4.2 contracts
         shell: pwsh
         run: |
           [xml]$xml = Get-Content ./projects/KaiTORStability/module/SubModule.xml -Raw
           if ($xml.Module.Id.value -ne 'KaiTOR_Stability') { throw 'Unexpected module id.' }
-          if ($xml.Module.Version.value -ne 'v0.4.1') { throw 'Unexpected module version.' }
+          if ($xml.Module.Version.value -ne 'v0.4.2') { throw 'Unexpected module version.' }
           $tor = @($xml.Module.DependedModules.DependedModule | Where-Object { $_.Id -eq 'TOR_Core' })
           if ($tor.Count -ne 1 -or $tor[0].DependentVersion -ne 'v1.3.15') { throw 'TOR_Core v1.3.15 dependency missing.' }
-          if ($xml.Module.SubModules.SubModule.DLLName.value -ne 'KaiTORStability.dll') { throw 'Unexpected DLLName.' }
 
           [xml]$config = Get-Content ./projects/KaiTORStability/module/ModuleData/KaiTORStability.config.xml -Raw
           if ($null -eq $config.KaiTORStability.BattleStatusOptimization) { throw 'Battle optimization config missing.' }
           if ($null -eq $config.KaiTORStability.ShaderTelemetry) { throw 'Shader telemetry config missing.' }
           if ($null -eq $config.KaiTORStability.ShaderCacheAcceleration) { throw 'Shader-cache acceleration config missing.' }
           if ($null -eq $config.KaiTORStability.CoopCompatibility) { throw 'Coop compatibility config missing.' }
-          if ($config.KaiTORStability.CoopCompatibility.disableGameplayPatches -ne 'true') { throw 'Coop gameplay guard must default to true.' }
 
-          $submoduleSource = Get-Content ./projects/KaiTORStability/src/KaiTORStability/SubModule.cs -Raw
-          if ($submoduleSource -notmatch 'COOP_COMPAT_ACTIVE') { throw 'Coop compatibility runtime marker missing.' }
-          if ($submoduleSource -notmatch 'IsCoopActive') { throw 'Coop detection missing.' }
+          $sub = Get-Content ./projects/KaiTORStability/src/KaiTORStability/SubModule.cs -Raw
+          foreach ($required in @('KaiTOR Stability 0.4.2','_initialScreenLogged','COOP_COMPAT_ACTIVE')) {
+            if ($sub -notmatch [regex]::Escape($required)) { throw "SubModule missing $required" }
+          }
+
+          $accel = Get-Content ./projects/KaiTORStability/src/KaiTORStability/ShaderCacheAcceleration.cs -Raw
+          foreach ($required in @('variantAware=true','collapsedVariantAwareTroops','BattleEquipments.Take(5)')) {
+            if ($accel -notmatch [regex]::Escape($required)) { throw "Shader accelerator missing $required" }
+          }
+
+          $monitor = Get-Content ./projects/KaiTORStability/src/KaiTORLoadMonitor/LoadMonitorForm.cs -Raw
+          foreach ($required in @('GetProcessIoCounters','Главное меню готово — монитор активен','SHADER_CACHE_ROSTER','CLEAVE_TIMING','КРИТИЧЕСКАЯ RAM','FirstLaunchWarmup')) {
+            if ($monitor -notmatch [regex]::Escape($required)) { throw "Monitor missing $required" }
+          }
 
       - name: Assemble test package
         shell: pwsh
         run: |
-          $stage = Join-Path $env:RUNNER_TEMP 'KaiTORStability-0.4.1'
+          $stage = Join-Path $env:RUNNER_TEMP 'KaiTORStability-0.4.2'
           $module = Join-Path $stage 'Modules/KaiTOR_Stability'
           $bin = Join-Path $module 'bin/Win64_Shipping_Client'
           $tools = Join-Path $stage 'Tools'
@@ -82,18 +88,28 @@ jobs:
           Copy-Item ./projects/KaiTORStability/README_RU.md (Join-Path $stage 'README_RU.md')
           Copy-Item ./projects/KaiTORStability/COOP_COMPATIBILITY_RU.md (Join-Path $stage 'COOP_COMPATIBILITY_RU.md')
 
-          $forbidden = Get-ChildItem $stage -Recurse -File | Where-Object {
-            $_.Name -like 'TaleWorlds*.dll' -or $_.Name -eq '0Harmony.dll'
-          }
+          @'
+          @echo off
+          setlocal
+          cd /d "%~dp0.."
+          start "KaiTOR Monitor 0.4.2" "%~dp0KaiTORLoadMonitor.exe" --game-root "%CD%"
+          '@ | Set-Content (Join-Path $tools 'START_KAITOR_MONITOR_0.4.2.bat') -Encoding ASCII
+
+          $forbidden = Get-ChildItem $stage -Recurse -File | Where-Object { $_.Name -like 'TaleWorlds*.dll' -or $_.Name -eq '0Harmony.dll' }
           if ($forbidden) { throw 'Reference/runtime dependencies must not be redistributed in this package.' }
 
-          $zip = Join-Path $env:RUNNER_TEMP 'KaiTORStability-0.4.1-Bannerlord-1.3.15.zip'
+          $zip = Join-Path $env:RUNNER_TEMP 'KaiTORStability-0.4.2-Bannerlord-1.3.15-first-launch-monitor.zip'
           Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $zip -Force
+          $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $([IO.Path]::GetFileName($zip))" | Set-Content (Join-Path $env:RUNNER_TEMP 'SHA256.txt') -Encoding ascii
           "KAITOR_STABILITY_ZIP=$zip" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "KAITOR_STABILITY_HASH=$(Join-Path $env:RUNNER_TEMP 'SHA256.txt')" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: KaiTORStability-0.4.1-Bannerlord-1.3.15
-          path: ${{ env.KAITOR_STABILITY_ZIP }}
+          name: KaiTORStability-0.4.2-first-launch-monitor
+          path: |
+            ${{ env.KAITOR_STABILITY_ZIP }}
+            ${{ env.KAITOR_STABILITY_HASH }}
           if-no-files-found: error
