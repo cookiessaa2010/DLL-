@@ -26,7 +26,7 @@ namespace KaiTORStability
 
             StabilityLog.Event(
                 "MODULE_LOAD",
-                "KaiTOR Stability 0.4.2 loaded after TOR_Core; optimization=" + _settings.EnableStatusEffectOptimization +
+                "KaiTOR Stability 0.4.3 loaded after TOR_Core; optimization=" + _settings.EnableStatusEffectOptimization +
                 "; rescanMs=" + _settings.FullRescanIntervalMs +
                 "; shaderTelemetry=" + _settings.EnableShaderTelemetry +
                 "; shaderSampleMs=" + _settings.ShaderTelemetryIntervalMs +
