@@ -15,6 +15,7 @@ namespace KaiTORStability
         private bool _shaderTelemetryFaulted;
         private bool _coopActive;
         private bool _coopMissionSkipLogged;
+        private bool _initialScreenLogged;
 
         protected override void OnSubModuleLoad()
         {
@@ -25,11 +26,12 @@ namespace KaiTORStability
 
             StabilityLog.Event(
                 "MODULE_LOAD",
-                "KaiTOR Stability loaded after TOR_Core; optimization=" + _settings.EnableStatusEffectOptimization +
+                "KaiTOR Stability 0.4.2 loaded after TOR_Core; optimization=" + _settings.EnableStatusEffectOptimization +
                 "; rescanMs=" + _settings.FullRescanIntervalMs +
                 "; shaderTelemetry=" + _settings.EnableShaderTelemetry +
                 "; shaderSampleMs=" + _settings.ShaderTelemetryIntervalMs +
                 "; shaderAcceleration=" + _settings.EnableShaderCacheAcceleration +
+                "; variantAwareRoster=true" +
                 "; singleLoadoutCopies=" + _settings.ShaderCacheSingleLoadoutCopies +
                 "; coopActive=" + _coopActive +
                 "; coopGameplayGuard=" + _settings.DisableGameplayPatchesWhenCoopActive);
@@ -47,6 +49,8 @@ namespace KaiTORStability
         protected override void OnBeforeInitialModuleScreenSetAsRoot()
         {
             base.OnBeforeInitialModuleScreenSetAsRoot();
+            if (_initialScreenLogged) return;
+            _initialScreenLogged = true;
             StabilityLog.Event("INITIAL_SCREEN_READY", "Bannerlord initial module screen is ready.");
         }
 
@@ -54,17 +58,11 @@ namespace KaiTORStability
         {
             base.OnApplicationTick(dt);
 
-            if (_settings == null || !_settings.EnableShaderTelemetry || _shaderTelemetryFaulted)
-            {
-                return;
-            }
+            if (_settings == null || !_settings.EnableShaderTelemetry || _shaderTelemetryFaulted) return;
 
             _shaderTelemetryAccumulator += Math.Max(0f, dt);
             var intervalSeconds = _settings.ShaderTelemetryIntervalMs / 1000f;
-            if (_shaderTelemetryAccumulator < intervalSeconds)
-            {
-                return;
-            }
+            if (_shaderTelemetryAccumulator < intervalSeconds) return;
             _shaderTelemetryAccumulator = 0f;
 
             try
@@ -106,15 +104,8 @@ namespace KaiTORStability
         {
             base.OnMissionBehaviorInitialize(mission);
 
-            if (_settings == null || !_settings.EnableStatusEffectOptimization || mission == null)
-            {
-                return;
-            }
+            if (_settings == null || !_settings.EnableStatusEffectOptimization || mission == null) return;
 
-            // KaiTOR Online/Bannerlord Coop validates community modules on both peers. Even with
-            // identical module sets, replacing gameplay mission logic before a dedicated network
-            // acceptance pass is unnecessarily risky. Keep all client-local loading/shader work,
-            // but fail conservative for the only gameplay-affecting optimization.
             if (_settings.DisableGameplayPatchesWhenCoopActive && (_coopActive || IsCoopActive()))
             {
                 _coopActive = true;
@@ -131,8 +122,7 @@ namespace KaiTORStability
             try
             {
                 var torLogic = mission.MissionBehaviors.FirstOrDefault(
-                    x => string.Equals(
-                        x.GetType().FullName,
+                    x => string.Equals(x.GetType().FullName,
                         "TOR_Core.BattleMechanics.StatusEffect.StatusEffectMissionLogic",
                         StringComparison.Ordinal));
 
@@ -162,7 +152,6 @@ namespace KaiTORStability
             catch (Exception ex)
             {
                 StabilityLog.Event("OPTIMIZATION_ERROR", ex.ToString());
-                // Fail open: if replacement installation itself fails, do not abort mission creation.
             }
         }
 
@@ -173,10 +162,7 @@ namespace KaiTORStability
                 return ModuleHelper.GetActiveModules().Any(
                     module => module != null && string.Equals(module.Id, "Coop", StringComparison.OrdinalIgnoreCase));
             }
-            catch
-            {
-                return false;
-            }
+            catch { return false; }
         }
     }
 }
