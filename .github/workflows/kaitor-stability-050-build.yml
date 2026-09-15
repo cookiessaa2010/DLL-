@@ -62,8 +62,20 @@ jobs:
             if ($logic -notmatch [regex]::Escape($required)) { throw "Battle optimizer missing: $required" }
           }
 
+          $memory = Get-Content ./projects/KaiTORStability/src/KaiTORStability/SystemMemoryProbe.cs -Raw
+          foreach ($required in @('GlobalMemoryStatusEx','TotalPhysicalGb','TotalCommitGb','AvailableCommitGb')) {
+            if ($memory -notmatch [regex]::Escape($required)) { throw "Memory probe missing: $required" }
+          }
+
+          $shader = Get-Content ./projects/KaiTORStability/src/KaiTORStability/ShaderCacheAcceleration.cs -Raw
+          foreach ($required in @('LOW_MEMORY_SHADER_MODE','lowMemorySafeMode','collapsedLowMemoryTroops','SystemMemoryProbe.TryRead')) {
+            if ($shader -notmatch [regex]::Escape($required)) { throw "Shader memory-safety contract missing: $required" }
+          }
+
           [xml]$cfg = Get-Content ./projects/KaiTORStability/module/ModuleData/KaiTORStability.config.xml -Raw
           if (-not $cfg.KaiTORStability.BattleStatusOptimization.hookedSafetyRescanIntervalMs) { throw 'hookedSafetyRescanIntervalMs config missing.' }
+          if ($cfg.KaiTORStability.ShaderCacheAcceleration.lowMemorySafeMode -ne 'true') { throw 'lowMemorySafeMode must default to true.' }
+          if (-not $cfg.KaiTORStability.ShaderCacheAcceleration.lowMemoryPhysicalRamThresholdGb) { throw 'low-memory RAM threshold missing.' }
 
           $monitor = Get-Content ./projects/KaiTORStability/src/KaiTORLoadMonitor/LiveLoadMonitorForm44.cs -Raw
           foreach ($required in @('rgl_log_','load-history-v2.csv','SHADER_BUILD_RAM','RAM_SAMPLE','FirstLaunchWarmup')) {
@@ -103,13 +115,16 @@ jobs:
           - При активном hook safety full rescan идёт раз в 1500 ms вместо 100 ms.
           - Новые эффекты должны включаться сразу через activationNotifications, без задержки до safety rescan.
           - Если TOR API не совпал, мод автоматически остаётся на прежнем 100 ms fallback path.
+          - MEMORY_PROFILE пишет физическую память и commit limit Windows.
+          - На ПК <=24 GB RAM TOR Build Shader Cache включает LOW_MEMORY_SHADER_MODE и использует один roster-copy на солдата.
 
           Тест:
           1. Обычный бой 5-10 минут с магией/status effects.
           2. Проверить появление/исчезновение DoT/баффов и визуальных эффектов.
           3. Проверить посадку/спешивание.
           4. Проверить reinforcement wave.
-          5. После боя прислать KaiTORStability.log.
+          5. На машине с 16 GB RAM отдельно проверить строку LOW_MEMORY_SHADER_MODE (полный shader build пока не обязателен).
+          6. После боя прислать KaiTORStability.log.
 
           Логи:
           %LOCALAPPDATA%\KaiTORStability\KaiTORStability.log
@@ -123,7 +138,9 @@ jobs:
           - Active components are queued immediately when a status effect is added.
           - Periodic full scan becomes a 1500 ms safety net when the hook is available.
           - Automatic fallback to the previous 100 ms scan if the TOR private contract changes.
-          - Existing 0.4.4 RGL/RAM monitor and shader-cache roster optimization are retained.
+          - Windows physical/commit-memory profile is logged.
+          - Low-memory shader-cache mode collapses soldier duplicates on PCs <=24 GB RAM.
+          - Existing 0.4.4 RGL/RAM monitor and normal variant-aware shader roster optimization are retained.
           '@ | Set-Content (Join-Path $stage 'CHANGELOG_0.5.0.txt') -Encoding UTF8
 
           $forbidden = Get-ChildItem $stage -Recurse -File | Where-Object { $_.Name -like 'TaleWorlds*.dll' -or $_.Name -eq '0Harmony.dll' }
