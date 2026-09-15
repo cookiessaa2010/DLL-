@@ -6,6 +6,7 @@ using TaleWorlds.CampaignSystem.Actions;
 using TaleWorlds.CampaignSystem.GameMenus;
 using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
+using TaleWorlds.Library;
 using TaleWorlds.Localization;
 
 namespace KaiTOR.Diplomacy.Runtime;
@@ -59,11 +60,8 @@ public sealed class KaiCultureAssimilationBehavior : CampaignBehaviorBase
     private bool CultureMenuCondition(MenuCallbackArgs args)
     {
         var settlement = Settlement.CurrentSettlement;
-        if (!_runtimeEnabled || settlement == null || !settlement.IsFortification)
-            return false;
-
-        if (settlement.OwnerClan != Clan.PlayerClan)
-            return false;
+        if (!_runtimeEnabled || settlement == null || !settlement.IsFortification) return false;
+        if (settlement.OwnerClan != Clan.PlayerClan) return false;
 
         args.optionLeaveType = GameMenuOption.LeaveType.Manage;
 
@@ -168,68 +166,22 @@ public sealed class KaiCultureAssimilationBehavior : CampaignBehaviorBase
     {
         reason = string.Empty;
 
-        if (!_runtimeEnabled)
-        {
-            reason = "TOR compatibility gate is not active.";
-            return false;
-        }
-
-        if (settlement == null || !settlement.IsFortification)
-        {
-            reason = "A town or castle is required.";
-            return false;
-        }
-
-        if (settlement.OwnerClan != Clan.PlayerClan)
-        {
-            reason = "You can only convert settlements owned by your clan.";
-            return false;
-        }
-
-        if (IsTorSpecialSettlement(settlement))
-        {
-            reason = "TOR marks this settlement as special and excludes it from normal assimilation.";
-            return false;
-        }
-
-        if (settlement.IsUnderSiege)
-        {
-            reason = "Settlement culture cannot be converted during a siege.";
-            return false;
-        }
-
-        if (Clan.PlayerClan == null || Clan.PlayerClan.Tier < RequiredClanTier)
-        {
-            reason = $"Clan tier {RequiredClanTier} or higher is required.";
-            return false;
-        }
+        if (!_runtimeEnabled) { reason = "TOR compatibility gate is not active."; return false; }
+        if (settlement == null || !settlement.IsFortification) { reason = "A town or castle is required."; return false; }
+        if (settlement.OwnerClan != Clan.PlayerClan) { reason = "You can only convert settlements owned by your clan."; return false; }
+        if (IsTorSpecialSettlement(settlement)) { reason = "TOR marks this settlement as special and excludes it from normal assimilation."; return false; }
+        if (settlement.IsUnderSiege) { reason = "Settlement culture cannot be converted during a siege."; return false; }
+        if (Clan.PlayerClan == null || Clan.PlayerClan.Tier < RequiredClanTier) { reason = $"Clan tier {RequiredClanTier} or higher is required."; return false; }
 
         var targetCulture = GetPlayerClanCulture();
-        if (targetCulture == null)
-        {
-            reason = "KaiTOR could not determine your clan culture.";
-            return false;
-        }
+        if (targetCulture == null) { reason = "KaiTOR could not determine your clan culture."; return false; }
+        if (settlement.Culture == targetCulture) { reason = "The settlement already has your clan culture."; return false; }
+        if (Hero.MainHero == null || Hero.MainHero.Gold < CultureChangeCost) { reason = $"You need {CultureChangeCost:N0} denars."; return false; }
 
-        if (settlement.Culture == targetCulture)
-        {
-            reason = "The settlement already has your clan culture.";
-            return false;
-        }
-
-        if (Hero.MainHero == null || Hero.MainHero.Gold < CultureChangeCost)
-        {
-            reason = $"You need {CultureChangeCost:N0} denars.";
-            return false;
-        }
-
-        // Full fail-closed preflight before any notable is removed or any money is charged.
-        if (!TorSettlementCultureBridge.ValidateFullConversion(targetCulture, settlement, out reason))
-            return false;
+        if (!TorSettlementCultureBridge.ValidateFullConversion(targetCulture, settlement, out reason)) return false;
 
         var affected = GetAffectedSettlements(settlement).ToArray();
-        foreach (var affectedSettlement in affected)
-            ApplyCultureToSettlementAndNotables(affectedSettlement, targetCulture);
+        foreach (var affectedSettlement in affected) ApplyCultureToSettlementAndNotables(affectedSettlement, targetCulture);
 
         if (!TorSettlementCultureBridge.RefreshAfterCultureChange(settlement, targetCulture, out reason))
         {
@@ -254,34 +206,28 @@ public sealed class KaiCultureAssimilationBehavior : CampaignBehaviorBase
                $"player clan tier={Clan.PlayerClan?.Tier.ToString() ?? "<null>"}.";
     }
 
-    public IEnumerable<string> DescribeCultureSupport()
-        => TorSettlementCultureBridge.DescribePlayableCultureSupport();
+    public IEnumerable<string> DescribeCultureSupport() => TorSettlementCultureBridge.DescribePlayableCultureSupport();
 
-    private static CultureObject GetPlayerClanCulture()
-        => Clan.PlayerClan?.Culture ?? Hero.MainHero?.Culture;
+    private static CultureObject GetPlayerClanCulture() => Clan.PlayerClan?.Culture ?? Hero.MainHero?.Culture;
 
     private static IEnumerable<Settlement> GetAffectedSettlements(Settlement settlement)
     {
         yield return settlement;
         if (settlement.BoundVillages == null) yield break;
         foreach (var village in settlement.BoundVillages)
-            if (village?.Settlement != null)
-                yield return village.Settlement;
+            if (village?.Settlement != null) yield return village.Settlement;
     }
 
     private static void ApplyCultureToSettlementAndNotables(Settlement settlement, CultureObject targetCulture)
     {
         settlement.Culture = targetCulture;
-
         foreach (var notable in settlement.Notables.ToList())
         {
             if (notable == null || notable.Culture == targetCulture) continue;
-
             var occupation = notable.Occupation;
             KillCharacterAction.ApplyByRemove(notable);
             var replacement = HeroCreator.CreateNotable(occupation, settlement);
-            if (replacement != null)
-                EnterSettlementAction.ApplyForCharacterOnly(replacement, settlement);
+            if (replacement != null) EnterSettlementAction.ApplyForCharacterOnly(replacement, settlement);
         }
     }
 
