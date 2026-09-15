@@ -7,67 +7,56 @@ using TaleWorlds.CampaignSystem.GameMenus;
 using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
 using TaleWorlds.Localization;
-using TaleWorlds.ObjectSystem;
 
 namespace KaiTOR.Diplomacy.Runtime;
 
 public sealed class KaiCultureAssimilationBehavior : CampaignBehaviorBase
 {
-    public const int AssimilationCost = 100000;
-    public const int AssimilationDurationDays = 30;
+    public const int CultureChangeCost = 100000;
+    public const int RequiredClanTier = 3;
+    private const string TorSpecialSettlementId = "castle_BK1";
 
-    private Dictionary<string, string> _targetCultureBySettlement = new();
-    private Dictionary<string, string> _sponsorClanBySettlement = new();
-    private Dictionary<string, double> _completionDayBySettlement = new();
     private bool _runtimeEnabled;
 
     public override void RegisterEvents()
     {
         CampaignEvents.OnSessionLaunchedEvent.AddNonSerializedListener(this, OnSessionLaunched);
-        CampaignEvents.DailyTickSettlementEvent.AddNonSerializedListener(this, OnDailyTickSettlement);
-        CampaignEvents.OnSettlementOwnerChangedEvent.AddNonSerializedListener(this, OnSettlementOwnerChanged);
     }
 
     public override void SyncData(IDataStore dataStore)
     {
-        dataStore.SyncData("kaitor_diplomacy_assimilation_target_culture", ref _targetCultureBySettlement);
-        dataStore.SyncData("kaitor_diplomacy_assimilation_sponsor_clan", ref _sponsorClanBySettlement);
-        dataStore.SyncData("kaitor_diplomacy_assimilation_completion_day", ref _completionDayBySettlement);
-
-        _targetCultureBySettlement ??= new Dictionary<string, string>();
-        _sponsorClanBySettlement ??= new Dictionary<string, string>();
-        _completionDayBySettlement ??= new Dictionary<string, double>();
+        // Intentional: culture is persisted by TOR's own AssimilationCampaignBehavior.
+        // KaiTOR does not maintain a competing settlement-culture save map.
     }
 
     private void OnSessionLaunched(CampaignGameStarter starter)
     {
         _runtimeEnabled = TorCompatibilityGate.TryValidate(out _);
         RegisterMenuOptions(starter);
-        ReconcileProjects();
     }
 
     private void RegisterMenuOptions(CampaignGameStarter starter)
     {
         starter.AddGameMenuOption(
             "town",
-            "kaitor_assimilate_town",
-            "KaiTOR: Assimilate settlement to your culture (100,000 denars)",
-            AssimilationMenuCondition,
-            AssimilationMenuConsequence,
+            "kaitor_change_town_culture",
+            "KaiTOR: Change settlement culture to your clan (100,000 denars)",
+            CultureMenuCondition,
+            CultureMenuConsequence,
             false,
             7);
 
         starter.AddGameMenuOption(
             "castle",
-            "kaitor_assimilate_castle",
-            "KaiTOR: Assimilate settlement to your culture (100,000 denars)",
-            AssimilationMenuCondition,
-            AssimilationMenuConsequence,
+            "kaitor_change_castle_culture",
+            "KaiTOR: Change settlement culture to your clan (100,000 denars)",
+            CultureMenuCondition,
+            CultureMenuConsequence,
             false,
             7);
     }
 
-    private bool AssimilationMenuCondition(MenuCallbackArgs args)
+    private bool CultureMenuCondition(MenuCallbackArgs args)
     {
         var settlement = Settlement.CurrentSettlement;
         if (!_runtimeEnabled || settlement == null || !settlement.IsFortification)
@@ -78,55 +67,62 @@ public sealed class KaiCultureAssimilationBehavior : CampaignBehaviorBase
 
         args.optionLeaveType = GameMenuOption.LeaveType.Manage;
 
-        var targetCulture = Hero.MainHero?.Culture;
-        if (targetCulture == null)
+        if (IsTorSpecialSettlement(settlement))
         {
             args.IsEnabled = false;
-            args.Tooltip = new TextObject("KaiTOR could not determine your culture.");
+            args.Tooltip = new TextObject("TOR marks this settlement as special and excludes it from normal cultural assimilation.");
+            return true;
+        }
+
+        if (Clan.PlayerClan == null || Clan.PlayerClan.Tier < RequiredClanTier)
+        {
+            args.IsEnabled = false;
+            args.Tooltip = new TextObject($"Clan tier {RequiredClanTier} or higher is required to change settlement culture.");
+            return true;
+        }
+
+        var targetCulture = GetPlayerClanCulture();
+        if (!ValidateTargetCulture(targetCulture, settlement, out var cultureReason))
+        {
+            args.IsEnabled = false;
+            args.Tooltip = new TextObject(cultureReason);
             return true;
         }
 
         if (settlement.Culture == targetCulture)
         {
             args.IsEnabled = false;
-            args.Tooltip = new TextObject("This settlement already has your culture.");
+            args.Tooltip = new TextObject("This settlement already uses your clan culture.");
             return true;
         }
 
-        if (HasActiveProject(settlement, out var remainingDays, out var activeCulture))
+        if (Hero.MainHero == null || Hero.MainHero.Gold < CultureChangeCost)
         {
             args.IsEnabled = false;
-            args.Tooltip = new TextObject($"Assimilation to {activeCulture} is already active: {remainingDays} day(s) remaining.");
-            return true;
-        }
-
-        if (Hero.MainHero.Gold < AssimilationCost)
-        {
-            args.IsEnabled = false;
-            args.Tooltip = new TextObject($"You need {AssimilationCost:N0} denars to start assimilation.");
+            args.Tooltip = new TextObject($"You need {CultureChangeCost:N0} denars.");
             return true;
         }
 
         args.Tooltip = new TextObject(
-            $"Start a {AssimilationDurationDays}-day cultural assimilation project toward {targetCulture.Name}. " +
-            "If the settlement is lost before completion, the project is cancelled and TOR ownership assimilation takes over.");
+            $"Immediately change {settlement.Name} and its bound villages to {targetCulture.Name}. " +
+            "Local notables are rebuilt for that culture so TOR recruitment uses the correct troop pools. " +
+            "Lords, companions, clan members, hero race and existing garrison troops are not changed.");
         return true;
     }
 
-    private void AssimilationMenuConsequence(MenuCallbackArgs args)
+    private void CultureMenuConsequence(MenuCallbackArgs args)
     {
         var settlement = Settlement.CurrentSettlement;
-        if (settlement == null) return;
+        var targetCulture = GetPlayerClanCulture();
+        if (settlement == null || targetCulture == null) return;
 
-        var targetCulture = Hero.MainHero?.Culture;
-        if (targetCulture == null) return;
-
-        var title = "KaiTOR cultural assimilation";
-        var body = $"Convert {settlement.Name} toward {targetCulture.Name}?\n\n" +
-                   $"Cost: {AssimilationCost:N0} denars\n" +
-                   $"Duration: {AssimilationDurationDays} campaign days\n\n" +
-                   "On completion the settlement, its bound villages and local notable pool will switch culture. " +
-                   "If another clan captures the settlement first, this project is cancelled and normal TOR assimilation takes over.";
+        var title = "KaiTOR settlement culture";
+        var body = $"Immediately change {settlement.Name} to {targetCulture.Name}?\n\n" +
+                   $"Cost: {CultureChangeCost:N0} denars\n" +
+                   $"Requirement: clan tier {RequiredClanTier}+\n\n" +
+                   "This changes the town/castle, its bound villages and their local notable/recruitment population. " +
+                   "It does NOT change your lords, companions, clan members, hero race or existing armies. " +
+                   "If the settlement is captured later, TOR can assimilate it again to the new owner's faction culture.";
 
         InformationManager.ShowInquiry(
             new InquiryData(
@@ -134,18 +130,14 @@ public sealed class KaiCultureAssimilationBehavior : CampaignBehaviorBase
                 body,
                 true,
                 true,
-                "Start",
+                "Change culture",
                 "Cancel",
                 () =>
                 {
-                    if (TryStartAssimilation(settlement, targetCulture, out var reason))
-                    {
+                    if (TryChangeCultureImmediately(settlement, out var reason))
                         InformationManager.DisplayMessage(new InformationMessage(reason));
-                    }
                     else
-                    {
-                        InformationManager.DisplayMessage(new InformationMessage("KaiTOR assimilation refused: " + reason));
-                    }
+                        InformationManager.DisplayMessage(new InformationMessage("KaiTOR culture change refused: " + reason));
                 },
                 null,
                 string.Empty,
@@ -157,7 +149,7 @@ public sealed class KaiCultureAssimilationBehavior : CampaignBehaviorBase
             false);
     }
 
-    public bool TryStartAssimilation(Settlement settlement, CultureObject targetCulture, out string reason)
+    public bool TryChangeCultureImmediately(Settlement settlement, out string reason)
     {
         reason = string.Empty;
 
@@ -175,143 +167,123 @@ public sealed class KaiCultureAssimilationBehavior : CampaignBehaviorBase
 
         if (settlement.OwnerClan != Clan.PlayerClan)
         {
-            reason = "You can only assimilate settlements owned by your clan.";
+            reason = "You can only change culture in settlements owned by your clan.";
             return false;
         }
 
-        if (targetCulture == null)
+        if (IsTorSpecialSettlement(settlement))
         {
-            reason = "Target culture is unavailable.";
+            reason = "TOR marks this settlement as special and excludes it from normal assimilation.";
             return false;
         }
+
+        if (Clan.PlayerClan == null || Clan.PlayerClan.Tier < RequiredClanTier)
+        {
+            reason = $"Clan tier {RequiredClanTier} or higher is required.";
+            return false;
+        }
+
+        var targetCulture = GetPlayerClanCulture();
+        if (!ValidateTargetCulture(targetCulture, settlement, out reason))
+            return false;
 
         if (settlement.Culture == targetCulture)
         {
-            reason = "The settlement already has the target culture.";
+            reason = "The settlement already has your clan culture.";
             return false;
         }
 
-        if (HasActiveProject(settlement, out _, out _))
+        if (Hero.MainHero == null || Hero.MainHero.Gold < CultureChangeCost)
         {
-            reason = "An assimilation project is already active here.";
+            reason = $"You need {CultureChangeCost:N0} denars.";
             return false;
         }
 
-        if (Hero.MainHero == null || Hero.MainHero.Gold < AssimilationCost)
+        // Validate every affected settlement before changing any state or charging gold.
+        var affected = GetAffectedSettlements(settlement).ToArray();
+        foreach (var affectedSettlement in affected)
         {
-            reason = $"You need {AssimilationCost:N0} denars.";
-            return false;
+            if (!ValidateNotableTemplates(targetCulture, affectedSettlement, out reason))
+                return false;
         }
 
-        GiveGoldAction.ApplyBetweenCharacters(Hero.MainHero, null, AssimilationCost, false);
+        foreach (var affectedSettlement in affected)
+        {
+            ApplyCultureToSettlementAndNotables(affectedSettlement, targetCulture);
+        }
 
-        var id = settlement.StringId;
-        _targetCultureBySettlement[id] = targetCulture.StringId;
-        _sponsorClanBySettlement[id] = Clan.PlayerClan.StringId;
-        _completionDayBySettlement[id] = CampaignTime.Now.ToDays + AssimilationDurationDays;
+        GiveGoldAction.ApplyBetweenCharacters(Hero.MainHero, null, CultureChangeCost, false);
 
-        reason = $"Assimilation started in {settlement.Name}: {targetCulture.Name}, {AssimilationDurationDays} days, {AssimilationCost:N0} denars paid.";
+        reason = $"{settlement.Name} changed culture to {targetCulture.Name}. {CultureChangeCost:N0} denars paid. " +
+                 "Recruitment population refreshed; lords, companions and existing troops were left untouched.";
         return true;
     }
 
-    public bool HasActiveProject(Settlement settlement, out int remainingDays, out string targetCultureName)
+    public string DescribeCurrentSettlement()
     {
-        remainingDays = 0;
-        targetCultureName = string.Empty;
-        if (settlement == null) return false;
-
-        var id = settlement.StringId;
-        if (!_targetCultureBySettlement.TryGetValue(id, out var cultureId) ||
-            !_completionDayBySettlement.TryGetValue(id, out var completionDay))
-        {
-            return false;
-        }
-
-        var culture = MBObjectManager.Instance.GetObject<CultureObject>(cultureId);
-        targetCultureName = culture?.Name?.ToString() ?? cultureId;
-        remainingDays = Math.Max(0, (int)Math.Ceiling(completionDay - CampaignTime.Now.ToDays));
-        return true;
+        var settlement = Settlement.CurrentSettlement;
+        if (settlement == null) return "No settlement is currently open.";
+        var clanCulture = GetPlayerClanCulture();
+        return $"{settlement.StringId}: settlement culture={settlement.Culture?.StringId ?? "<null>"}, " +
+               $"player clan culture={clanCulture?.StringId ?? "<null>"}, owner clan={settlement.OwnerClan?.StringId ?? "<null>"}, " +
+               $"player clan tier={Clan.PlayerClan?.Tier.ToString() ?? "<null>"}.";
     }
 
-    public IEnumerable<string> DescribeProjects()
+    private static CultureObject GetPlayerClanCulture()
+        => Clan.PlayerClan?.Culture ?? Hero.MainHero?.Culture;
+
+    private static bool ValidateTargetCulture(CultureObject targetCulture, Settlement settlement, out string reason)
     {
-        foreach (var settlementId in _targetCultureBySettlement.Keys.OrderBy(x => x, StringComparer.Ordinal))
-        {
-            var settlement = Settlement.All.FirstOrDefault(x => string.Equals(x.StringId, settlementId, StringComparison.Ordinal));
-            if (settlement == null) continue;
-            if (!HasActiveProject(settlement, out var days, out var cultureName)) continue;
-            yield return $"{settlement.StringId} = {settlement.Name}: -> {cultureName}, {days} day(s) remaining";
-        }
-    }
-
-    private void OnDailyTickSettlement(Settlement settlement)
-    {
-        if (!_runtimeEnabled || settlement == null) return;
-        var id = settlement.StringId;
-        if (!_completionDayBySettlement.TryGetValue(id, out var completionDay)) return;
-
-        if (!_sponsorClanBySettlement.TryGetValue(id, out var sponsorClanId) ||
-            settlement.OwnerClan == null ||
-            !string.Equals(settlement.OwnerClan.StringId, sponsorClanId, StringComparison.Ordinal))
-        {
-            CancelProject(id, settlement, "ownership changed");
-            return;
-        }
-
-        if (CampaignTime.Now.ToDays < completionDay) return;
-
-        if (!_targetCultureBySettlement.TryGetValue(id, out var targetCultureId))
-        {
-            RemoveProject(id);
-            return;
-        }
-
-        var targetCulture = MBObjectManager.Instance.GetObject<CultureObject>(targetCultureId);
         if (targetCulture == null)
         {
-            CancelProject(id, settlement, "target culture no longer exists");
-            return;
+            reason = "KaiTOR could not determine the player clan culture.";
+            return false;
         }
 
-        CompleteAssimilation(settlement, targetCulture);
-        RemoveProject(id);
-
-        if (settlement.OwnerClan == Clan.PlayerClan)
+        // Dynamic rather than hard-coded race list: this supports every TOR culture that
+        // exposes a valid settlement recruitment tree, including cultures added by TOR later.
+        if (targetCulture.BasicTroop == null)
         {
-            InformationManager.DisplayMessage(new InformationMessage(
-                $"KaiTOR: cultural assimilation completed in {settlement.Name}. New culture: {targetCulture.Name}."));
+            reason = $"Culture '{targetCulture.StringId}' has no BasicTroop and cannot safely supply settlement recruits.";
+            return false;
         }
+
+        if (targetCulture.EliteBasicTroop == null && settlement?.BoundVillages?.Any(v => v?.Village?.Bound?.IsCastle == true) == true)
+        {
+            reason = $"Culture '{targetCulture.StringId}' has no EliteBasicTroop for castle-bound village recruitment.";
+            return false;
+        }
+
+        reason = string.Empty;
+        return true;
     }
 
-    private void OnSettlementOwnerChanged(
-        Settlement settlement,
-        bool openToClaim,
-        Hero newOwner,
-        Hero oldOwner,
-        Hero capturerHero,
-        ChangeOwnerOfSettlementAction.ChangeOwnerOfSettlementDetail detail)
+    private static bool ValidateNotableTemplates(CultureObject targetCulture, Settlement settlement, out string reason)
     {
-        if (settlement == null) return;
-        var id = settlement.StringId;
-        if (!_completionDayBySettlement.ContainsKey(id)) return;
-
-        if (!_sponsorClanBySettlement.TryGetValue(id, out var sponsorClanId) ||
-            settlement.OwnerClan == null ||
-            !string.Equals(settlement.OwnerClan.StringId, sponsorClanId, StringComparison.Ordinal))
+        foreach (var notable in settlement.Notables)
         {
-            CancelProject(id, settlement, "the settlement was captured");
+            if (notable == null) continue;
+            var occupation = notable.Occupation;
+            if (!targetCulture.NotableTemplates.Any(template => template != null && template.Occupation == occupation))
+            {
+                reason = $"Culture '{targetCulture.StringId}' has no notable template for occupation '{occupation}' required by {settlement.Name}.";
+                return false;
+            }
         }
+
+        reason = string.Empty;
+        return true;
     }
 
-    private static void CompleteAssimilation(Settlement settlement, CultureObject targetCulture)
+    private static IEnumerable<Settlement> GetAffectedSettlements(Settlement settlement)
     {
-        ApplyCultureToSettlementAndNotables(settlement, targetCulture);
+        yield return settlement;
 
-        if (settlement.BoundVillages == null) return;
+        if (settlement.BoundVillages == null) yield break;
         foreach (var village in settlement.BoundVillages)
         {
-            if (village?.Settlement == null) continue;
-            ApplyCultureToSettlementAndNotables(village.Settlement, targetCulture);
+            if (village?.Settlement != null)
+                yield return village.Settlement;
         }
     }
 
@@ -327,48 +299,10 @@ public sealed class KaiCultureAssimilationBehavior : CampaignBehaviorBase
             KillCharacterAction.ApplyByRemove(notable);
             var replacement = HeroCreator.CreateNotable(occupation, settlement);
             if (replacement != null)
-            {
                 EnterSettlementAction.ApplyForCharacterOnly(replacement, settlement);
-            }
         }
     }
 
-    private void ReconcileProjects()
-    {
-        var ids = _completionDayBySettlement.Keys.ToArray();
-        foreach (var id in ids)
-        {
-            var settlement = Settlement.All.FirstOrDefault(x => string.Equals(x.StringId, id, StringComparison.Ordinal));
-            if (settlement == null)
-            {
-                RemoveProject(id);
-                continue;
-            }
-
-            if (!_sponsorClanBySettlement.TryGetValue(id, out var sponsorClanId) ||
-                settlement.OwnerClan == null ||
-                !string.Equals(settlement.OwnerClan.StringId, sponsorClanId, StringComparison.Ordinal))
-            {
-                RemoveProject(id);
-            }
-        }
-    }
-
-    private void CancelProject(string id, Settlement settlement, string reason)
-    {
-        var wasPlayerOwned = settlement?.OwnerClan == Clan.PlayerClan;
-        RemoveProject(id);
-        if (wasPlayerOwned)
-        {
-            InformationManager.DisplayMessage(new InformationMessage(
-                $"KaiTOR: assimilation in {settlement.Name} cancelled because {reason}."));
-        }
-    }
-
-    private void RemoveProject(string id)
-    {
-        _targetCultureBySettlement.Remove(id);
-        _sponsorClanBySettlement.Remove(id);
-        _completionDayBySettlement.Remove(id);
-    }
+    private static bool IsTorSpecialSettlement(Settlement settlement)
+        => string.Equals(settlement?.StringId, TorSpecialSettlementId, StringComparison.Ordinal);
 }
