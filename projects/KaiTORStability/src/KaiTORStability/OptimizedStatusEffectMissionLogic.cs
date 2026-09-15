@@ -19,16 +19,23 @@ namespace KaiTORStability
         private readonly MethodInfo _synchronizeBaseValuesMethod;
         private readonly MethodInfo _checkPermanentEffectsMethod;
         private readonly float _rescanIntervalSeconds;
+        private readonly bool _activationHookAvailable;
 
         private readonly Dictionary<Agent, AgentComponent> _components = new Dictionary<Agent, AgentComponent>();
+        private readonly HashSet<AgentComponent> _knownComponents = new HashSet<AgentComponent>();
         private readonly HashSet<AgentComponent> _activeComponents = new HashSet<AgentComponent>();
         private readonly Queue<Agent> _pendingPermanentEffects = new Queue<Agent>();
         private readonly List<AgentComponent> _scratch = new List<AgentComponent>();
+
+        private readonly object _activationQueueLock = new object();
+        private readonly Queue<AgentComponent> _pendingActivations = new Queue<AgentComponent>();
+        private readonly HashSet<AgentComponent> _queuedActivations = new HashSet<AgentComponent>();
 
         private float _rescanAccumulator;
         private float _telemetryAccumulator;
         private int _framesSinceTelemetry;
         private int _rescansSinceTelemetry;
+        private int _activationNotificationsSinceTelemetry;
 
         private OptimizedStatusEffectMissionLogic(
             object originalLogic,
@@ -39,7 +46,8 @@ namespace KaiTORStability
             MethodInfo onTickMethod,
             MethodInfo synchronizeBaseValuesMethod,
             MethodInfo checkPermanentEffectsMethod,
-            float rescanIntervalSeconds)
+            float rescanIntervalSeconds,
+            bool activationHookAvailable)
         {
             _originalLogic = originalLogic;
             _componentType = componentType;
@@ -49,10 +57,14 @@ namespace KaiTORStability
             _onTickMethod = onTickMethod;
             _synchronizeBaseValuesMethod = synchronizeBaseValuesMethod;
             _checkPermanentEffectsMethod = checkPermanentEffectsMethod;
-            _rescanIntervalSeconds = Math.Max(0.05f, Math.Min(1.0f, rescanIntervalSeconds));
+            _rescanIntervalSeconds = Math.Max(0.05f, Math.Min(10.0f, rescanIntervalSeconds));
+            _activationHookAvailable = activationHookAvailable;
         }
 
-        public static OptimizedStatusEffectMissionLogic TryCreate(object originalLogic, float rescanIntervalSeconds)
+        public static OptimizedStatusEffectMissionLogic TryCreate(
+            object originalLogic,
+            float fallbackRescanIntervalSeconds,
+            float hookedSafetyRescanIntervalSeconds)
         {
             if (originalLogic == null)
             {
@@ -91,6 +103,11 @@ namespace KaiTORStability
                     return null;
                 }
 
+                var activationHookAvailable = StatusEffectActivationBridge.EnsureInstalled(componentType);
+                var selectedRescanSeconds = activationHookAvailable
+                    ? hookedSafetyRescanIntervalSeconds
+                    : fallbackRescanIntervalSeconds;
+
                 var getComponent = getComponentDefinition.MakeGenericMethod(componentType);
                 return new OptimizedStatusEffectMissionLogic(
                     originalLogic,
@@ -101,7 +118,8 @@ namespace KaiTORStability
                     onTick,
                     syncBase,
                     checkPermanent,
-                    rescanIntervalSeconds);
+                    selectedRescanSeconds,
+                    activationHookAvailable);
             }
             catch (Exception ex)
             {
@@ -177,6 +195,7 @@ namespace KaiTORStability
             _telemetryAccumulator += dt;
 
             DrainPermanentEffectQueue();
+            DrainActivationQueue();
 
             if (_rescanAccumulator >= _rescanIntervalSeconds)
             {
@@ -200,25 +219,49 @@ namespace KaiTORStability
             {
                 StabilityLog.Event(
                     "BATTLE_TELEMETRY",
-                    "knownComponents=" + _components.Count +
+                    "knownComponents=" + _knownComponents.Count +
                     "; activeComponents=" + _activeComponents.Count +
                     "; frames=" + _framesSinceTelemetry +
                     "; fullRescans=" + _rescansSinceTelemetry +
+                    "; activationNotifications=" + _activationNotificationsSinceTelemetry +
+                    "; activationHook=" + _activationHookAvailable +
                     "; rescanMs=" + (int)(_rescanIntervalSeconds * 1000f));
 
                 _telemetryAccumulator = 0f;
                 _framesSinceTelemetry = 0;
                 _rescansSinceTelemetry = 0;
+                _activationNotificationsSinceTelemetry = 0;
             }
         }
 
         public override void OnRemoveBehavior()
         {
+            StatusEffectActivationBridge.UnregisterOwner(this);
             _components.Clear();
+            _knownComponents.Clear();
             _activeComponents.Clear();
             _pendingPermanentEffects.Clear();
             _scratch.Clear();
+            lock (_activationQueueLock)
+            {
+                _pendingActivations.Clear();
+                _queuedActivations.Clear();
+            }
             base.OnRemoveBehavior();
+        }
+
+        internal void NotifyComponentActivated(AgentComponent component)
+        {
+            if (component == null) return;
+
+            lock (_activationQueueLock)
+            {
+                if (_queuedActivations.Add(component))
+                {
+                    _pendingActivations.Enqueue(component);
+                    _activationNotificationsSinceTelemetry++;
+                }
+            }
         }
 
         private AgentComponent GetOrCreateComponent(Agent agent, out bool created)
@@ -244,6 +287,8 @@ namespace KaiTORStability
             if (existing != null)
             {
                 _components[agent] = existing;
+                _knownComponents.Add(existing);
+                StatusEffectActivationBridge.Register(existing, this);
                 if (NeedsTick(existing))
                 {
                     _activeComponents.Add(existing);
@@ -275,7 +320,9 @@ namespace KaiTORStability
             AgentComponent component;
             if (_components.TryGetValue(agent, out component))
             {
+                StatusEffectActivationBridge.Unregister(component);
                 _activeComponents.Remove(component);
+                _knownComponents.Remove(component);
                 _components.Remove(agent);
             }
         }
@@ -294,6 +341,25 @@ namespace KaiTORStability
             }
         }
 
+        private void DrainActivationQueue()
+        {
+            while (true)
+            {
+                AgentComponent component;
+                lock (_activationQueueLock)
+                {
+                    if (_pendingActivations.Count == 0) break;
+                    component = _pendingActivations.Dequeue();
+                    _queuedActivations.Remove(component);
+                }
+
+                if (component != null && _knownComponents.Contains(component) && NeedsTick(component))
+                {
+                    _activeComponents.Add(component);
+                }
+            }
+        }
+
         private void ForceRescan()
         {
             _rescanAccumulator = _rescanIntervalSeconds;
@@ -302,7 +368,7 @@ namespace KaiTORStability
         private void RescanForActiveComponents()
         {
             _rescansSinceTelemetry++;
-            foreach (var component in _components.Values)
+            foreach (var component in _knownComponents)
             {
                 if (component != null && NeedsTick(component))
                 {
