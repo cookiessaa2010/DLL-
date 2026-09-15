@@ -13,6 +13,8 @@ namespace KaiTORStability
         private static bool _enabled;
         private static int _singleLoadoutCopies = 1;
         private static bool _installed;
+        private static bool _lowMemorySafeMode;
+        private static double _physicalRamGb;
 
         public static void Install(StabilitySettings settings)
         {
@@ -20,6 +22,25 @@ namespace KaiTORStability
 
             try
             {
+                var memory = SystemMemoryProbe.TryRead();
+                _physicalRamGb = memory != null ? memory.TotalPhysicalGb : 0d;
+                _lowMemorySafeMode = settings.EnableLowMemoryShaderRoster &&
+                                     memory != null &&
+                                     memory.TotalPhysicalGb <= settings.LowMemoryPhysicalRamThresholdGb;
+
+                if (memory != null)
+                {
+                    StabilityLog.Event("MEMORY_PROFILE", memory.Describe());
+                    if (_lowMemorySafeMode)
+                    {
+                        StabilityLog.Event(
+                            "LOW_MEMORY_SHADER_MODE",
+                            "enabled=true; physicalGB=" + memory.TotalPhysicalGb.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) +
+                            "; thresholdGB=" + settings.LowMemoryPhysicalRamThresholdGb +
+                            "; TOR full shader-build soldiers will be collapsed to one roster copy.");
+                    }
+                }
+
                 var targetType = AccessTools.TypeByName("TOR_Core.GameManagers.TORShaderGameManager");
                 if (targetType == null)
                 {
@@ -41,7 +62,9 @@ namespace KaiTORStability
                 _installed = true;
 
                 StabilityLog.Event("SHADER_ACCELERATOR_READY",
-                    "TOR Build Shader Cache roster patch installed; variantAware=true; singleLoadoutCopies=" + _singleLoadoutCopies + ".");
+                    "TOR Build Shader Cache roster patch installed; variantAware=true; singleLoadoutCopies=" + _singleLoadoutCopies +
+                    "; lowMemorySafeMode=" + _lowMemorySafeMode +
+                    "; physicalGB=" + _physicalRamGb.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + ".");
             }
             catch (Exception ex)
             {
@@ -85,6 +108,7 @@ namespace KaiTORStability
                 var optimizedCount = 0;
                 var collapsedSingle = 0;
                 var collapsedVariantAware = 0;
+                var collapsedLowMemory = 0;
                 var preservedFourPlus = 0;
 
                 foreach (var group in orderedGroups)
@@ -94,23 +118,31 @@ namespace KaiTORStability
 
                     if (group.Character.IsSoldier && group.OriginalCopies > 1)
                     {
-                        // Count up to 5 only: 4+ variants means TOR's original four copies are preserved.
-                        var variantCount = group.Character.BattleEquipments.Take(5).Count();
                         int desired;
-                        if (variantCount <= 1)
+                        if (_lowMemorySafeMode)
                         {
-                            desired = _singleLoadoutCopies;
-                            if (desired < group.OriginalCopies) collapsedSingle++;
-                        }
-                        else if (variantCount < 4)
-                        {
-                            desired = variantCount;
-                            if (desired < group.OriginalCopies) collapsedVariantAware++;
+                            desired = 1;
+                            if (desired < group.OriginalCopies) collapsedLowMemory++;
                         }
                         else
                         {
-                            desired = group.OriginalCopies;
-                            preservedFourPlus++;
+                            // Count up to 5 only: 4+ variants means TOR's original four copies are preserved.
+                            var variantCount = group.Character.BattleEquipments.Take(5).Count();
+                            if (variantCount <= 1)
+                            {
+                                desired = _singleLoadoutCopies;
+                                if (desired < group.OriginalCopies) collapsedSingle++;
+                            }
+                            else if (variantCount < 4)
+                            {
+                                desired = variantCount;
+                                if (desired < group.OriginalCopies) collapsedVariantAware++;
+                            }
+                            else
+                            {
+                                desired = group.OriginalCopies;
+                                preservedFourPlus++;
+                            }
                         }
 
                         copies = Math.Min(group.OriginalCopies, Math.Max(1, desired));
@@ -128,6 +160,8 @@ namespace KaiTORStability
                     "; optimized=" + optimizedCount +
                     "; saved=" + Math.Max(0, originalCount - optimizedCount) +
                     "; uniqueCharacters=" + orderedGroups.Count +
+                    "; lowMemorySafeMode=" + _lowMemorySafeMode +
+                    "; collapsedLowMemoryTroops=" + collapsedLowMemory +
                     "; collapsedSingleLoadoutTroops=" + collapsedSingle +
                     "; collapsedVariantAwareTroops=" + collapsedVariantAware +
                     "; preservedFourPlusVariantTroops=" + preservedFourPlus + ".");
