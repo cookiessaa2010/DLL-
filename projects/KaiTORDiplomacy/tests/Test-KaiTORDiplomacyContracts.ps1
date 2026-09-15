@@ -14,6 +14,7 @@ $deathPath = Join-Path $srcRoot 'Models\KaiHeroDeathProbabilityModel.cs'
 $dynastyPath = Join-Path $srcRoot 'Runtime\KaiDynastyAiBehavior.cs'
 $racialPath = Join-Path $srcRoot 'Runtime\KaiRacialPopulationBehavior.cs'
 $dawiAssetPath = Join-Path $srcRoot 'Models\DawiWomenAssetBridge.cs'
+$dawiPopulationPath = Join-Path $srcRoot 'Runtime\KaiDawiWomenBehavior.cs'
 
 if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
     throw "Manifest missing: $manifestPath"
@@ -46,6 +47,7 @@ $deathSource = Get-Content -LiteralPath $deathPath -Raw
 $dynastySource = Get-Content -LiteralPath $dynastyPath -Raw
 $racialSource = Get-Content -LiteralPath $racialPath -Raw
 $dawiAssetSource = Get-Content -LiteralPath $dawiAssetPath -Raw
+$dawiPopulationSource = Get-Content -LiteralPath $dawiPopulationPath -Raw
 
 foreach ($expectedType in @(
     'TOR_Core.Models.TORDiplomacyModel',
@@ -120,7 +122,9 @@ foreach ($requiredPattern in @(
     'TryApplyBloodKiss',
     'FaceGen.GetRaceOrDefault("vampire")',
     'DawiWomenAssetBridge',
-    'kaitor_dawi_woman_lord'
+    'kaitor_dawi_woman_lord',
+    'KaiDawiWomenBehavior',
+    'kaitor_dawi_women_generation_cooldown_v1'
 )) {
     if ($source -notmatch [regex]::Escape($requiredPattern)) {
         throw "Required diplomacy/culture/save/family/dynasty/racial pattern missing: $requiredPattern"
@@ -180,6 +184,24 @@ foreach ($dawiPattern in @(
     if ($dawiAssetSource -notmatch [regex]::Escape($dawiPattern)) {
         throw "Dawi female asset safety gate missing: $dawiPattern"
     }
+}
+
+# Female Dawi population bootstrap must remain bounded, asset-gated and AI-only.
+foreach ($dawiPopulationPattern in @(
+    'DawiWomenAssetBridge.IsAvailable',
+    'DawiFemaleMinimumAge = 30',
+    'MaximumGeneratedWomenPerClan = 3',
+    'GenerationCooldownDays = 336',
+    'clan == Clan.PlayerClan',
+    'template.Race != dwarfRace',
+    'KillCharacterAction.ApplyByRemove(hero)'
+)) {
+    if ($dawiPopulationSource -notmatch [regex]::Escape($dawiPopulationPattern)) {
+        throw "Dawi women population safety contract missing: $dawiPopulationPattern"
+    }
+}
+if ($source -notmatch 'new KaiDawiWomenBehavior\(\)') {
+    throw 'Dawi women behavior is not registered in the campaign module.'
 }
 
 # Greenskins must grow through off-screen spore population, never Bannerlord pregnancy.
@@ -266,6 +288,7 @@ Write-Output '  Full settlement culture conversion and TOR cultural service hook
 Write-Output '  World NPC marriages restored through Bannerlord native RomanceCampaignBehavior.'
 Write-Output '  Cross-race/undead pregnancy safety applies to the whole world.'
 Write-Output '  Dawi pregnancy remains gated behind the real female-dwarf asset sentinel.'
+Write-Output '  Female Dawi AI population bootstrap is bounded, asset-gated and player-clan safe.'
 Write-Output '  Greenskin population continuity uses bounded off-screen spore-born adult heroes.'
 Write-Output '  Vampire population continuity uses bounded Blood Kiss race conversion.'
 Write-Output '  TOR frozen lifecycle is re-enabled with race-aware natural mortality.'
