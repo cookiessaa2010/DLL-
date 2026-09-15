@@ -7,6 +7,7 @@ on:
       - kaitor-diplomacy
     paths:
       - 'projects/KaiTORDiplomacy/src/Runtime/KaiDawiWomenBehavior.cs'
+      - 'projects/KaiTORDiplomacy/src/Runtime/KaiDawiWomenCommands.cs'
       - 'projects/KaiTORDiplomacy/src/Models/DawiWomenAssetBridge.cs'
       - 'projects/KaiTORDawiWomen/**'
       - '.github/workflows/kaitor-dawi-bootstrap-build.yml'
@@ -61,6 +62,10 @@ jobs:
           )) {
             if ($source -notmatch [regex]::Escape($required)) { throw "Missing Dawi safety contract: $required" }
           }
+          $commands = Get-Content projects/KaiTORDiplomacy/src/Runtime/KaiDawiWomenCommands.cs -Raw
+          foreach ($required in @('kaitor_dawi_women','MISSING/SAFE-OFF','Dawi pregnancy is blocked')) {
+            if ($commands -notmatch [regex]::Escape($required)) { throw "Missing Dawi diagnostic contract: $required" }
+          }
           $sub = Get-Content projects/KaiTORDiplomacy/src/SubModule.cs -Raw
           if ($sub -notmatch 'new KaiDawiWomenBehavior\(\)') { throw 'Dawi behavior is not registered in build checkout.' }
 
@@ -77,6 +82,7 @@ jobs:
           if (Test-Path $pdb) { Copy-Item $pdb (Join-Path $bin 'KaiTOR_Diplomacy.pdb') -Force }
           Copy-Item 'projects/KaiTORDawiWomen/README_RU.md' (Join-Path $package 'DAWI_WOMEN_README_RU.md') -Force
           Copy-Item 'projects/KaiTORDawiWomen/tools/Audit-DawiAssets.ps1' (Join-Path $package 'Audit-DawiAssets.ps1') -Force
+          Copy-Item 'projects/KaiTORDawiWomen/templates/kaitor_dawi_woman_lord.xml.template' (Join-Path $package 'kaitor_dawi_woman_lord.xml.template') -Force
 
       - name: Upload Dawi bootstrap
         uses: actions/upload-artifact@v4
