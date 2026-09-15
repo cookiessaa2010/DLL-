@@ -1,189 +1,191 @@
-# KaiTOR Diplomacy v0.1.0 — первый live-test
+# KaiTOR Diplomacy v0.2.0 — live-test TOR 1.3.15
 
-Цель первого прогона: доказать, что отдельный мод загружается поверх TOR 1.3.15, не заменяет модели TOR и корректно сохраняет собственное дипломатическое состояние.
+Цель прогона: доказать, что KaiTOR загружается поверх TOR 1.3.15, сохраняет собственное состояние без хрупких save-типов, не ломает TOR diplomacy/assimilation и безопасно обслуживает culture conversion + player-family marriage.
 
 ## Требования
 
 - Mount & Blade II: Bannerlord `1.3.15.110062`.
 - The Old Realms `v1.3.15`.
 - Порядок модулей: `Native -> SandBoxCore -> Sandbox -> TOR_Armory -> TOR_Environment -> TOR_Core -> KaiTOR_Diplomacy`.
-- На первый тест не подключать KaiTOR Online/Coop: дипломатия тестируется отдельно.
+- На этот тест не подключать KaiTOR Online/Coop.
+- Сделать резервную копию тестового save перед первым запуском новой DLL.
 
-## Сборка и установка
-
-```powershell
-.\Build-KaiTORDiplomacy.ps1 `
-  -BannerlordRoot "C:\PATH\TO\Mount & Blade II Bannerlord" `
-  -Install
-```
-
-Ожидаемая строка:
-
-```text
-KaiTOR Diplomacy build: PASS
-```
-
-До запуска игры выполнить:
+## Preflight
 
 ```powershell
 .\tests\Test-KaiTORDiplomacyContracts.ps1
+.\Test-KaiTORDiplomacyReadiness.ps1 -BannerlordRoot "C:\PATH\TO\Mount & Blade II Bannerlord"
+```
+
+Ожидается `PASS` в обоих тестах.
+
+## Проверка запуска и save schema
+
+После загрузки кампании:
+
+```text
+kaitor_diplomacy.status
+kaitor_diplomacy.save_status
+kaitor_diplomacy.culture_support
 ```
 
 Ожидается:
 
-```text
-KaiTOR Diplomacy contract tests: PASS
-```
+- TOR compatibility gate PASS;
+- save schema поддерживается текущей DLL;
+- culture support matrix не содержит BLOCKED для тестируемой культуры.
 
-После установки выполнить полный preflight:
+### Existing-save upgrade
 
-```powershell
-.\Test-KaiTORDiplomacyReadiness.ps1 `
-  -BannerlordRoot "C:\PATH\TO\Mount & Blade II Bannerlord"
-```
+1. загрузить существующий TOR/KaiTOR save;
+2. ничего не менять и сразу сохранить в новый слот;
+3. выйти в главное меню;
+4. загрузить новый слот;
+5. повторить `save_status`;
+6. проверить TOR diplomacy, поселения, героев и инвентари.
 
-Если TOR Workshop лежит в другой Steam-библиотеке, добавить:
+Старый save без KaiTOR schema должен мягко перейти с schema 0 на текущую schema 1. KaiTOR не должен создавать custom SaveableTypeDefiner/Hero/Settlement graph.
 
-```text
--WorkshopRoot "D:\steam\steamapps\workshop\content\261550"
-```
+## NAP / trust
 
-Финальная ожидаемая строка:
-
-```text
-KaiTOR Diplomacy readiness: PASS
-```
-
-## Проверка запуска
-
-Запустить TOR-кампанию. После загрузки должна появиться строка:
-
-```text
-KaiTOR Diplomacy: TOR 1.3.15 compatibility gate PASS.
-```
-
-Если мод пишет `disabled`, тест остановить и сохранить точный текст причины.
-
-## Smoke-команды
-
-```text
-kaitor_diplomacy.status
-kaitor_diplomacy.kingdoms
-kaitor_diplomacy.ledger
-```
-
-`status` должен показать PASS, `kingdoms` — реальные StringId активных королевств текущей TOR-кампании. На чистом save `ledger` может быть пустым.
-
-## Тест пакта о ненападении
-
-Выбрать два невоюющих королевства, которые TOR разрешает как дипломатически совместимые:
+Выбрать два невоюющих совместимых по TOR королевства:
 
 ```text
 kaitor_diplomacy.nap <kingdomA> <kingdomB> 30
 kaitor_diplomacy.inspect <kingdomA> <kingdomB>
-kaitor_diplomacy.status
-```
-
-Ожидается NAP на 30 дней, trust `0`, breaches `0`, cooldown `0`.
-
-Затем:
-
-1. сохранить игру;
-2. выйти в главное меню/из игры;
-3. загрузить тот же save;
-4. снова выполнить `kaitor_diplomacy.inspect <kingdomA> <kingdomB>`.
-
-Пакт должен сохраниться, а оставшийся срок не должен сброситься на 30 дней.
-
-## Естественное завершение NAP
-
-Дождаться завершения срока договора без войны и без ручного разрыва. После следующего campaign daily tick:
-
-```text
-kaitor_diplomacy.inspect <kingdomA> <kingdomB>
 kaitor_diplomacy.ledger
 ```
+
+Проверить save/load. Срок NAP, trust, breaches и cooldown должны сохраниться.
+
+Естественное окончание: trust `+5`.
+Ручной разрыв: trust `-10`, cooldown `10` дней.
+Война при активном NAP: breach `+1`, trust `-30`, cooldown `30` дней; сама война остаётся под TOR.
+
+## Full settlement culture conversion
+
+Требуется:
+
+- town/castle игрока;
+- clan tier >= 3;
+- >= 100,000 denars;
+- поселение другой культуры;
+- не siege;
+- не TOR special `castle_BK1`.
+
+До конверсии записать:
+
+```text
+kaitor_diplomacy.settlement
+kaitor_diplomacy.culture_support
+```
+
+Также проверить вручную:
+
+- culture города/замка и bound villages;
+- notables + volunteers;
+- tavern mercenary;
+- wanderer;
+- caravan troops;
+- spell trainer;
+- enchanter/alchemist;
+- Empire Bounty Master, если целевая культура Empire;
+- Greenskin Kwartamasta, если целевая культура Greenskin;
+- ассортимент магазина.
+
+После оплаты 100,000 проверить:
+
+- settlement + villages получили clan culture;
+- старые локальные notables заменены культурно корректными;
+- recruits/tavern/wanderer/caravans соответствуют новой культуре;
+- spell/enchant cultural services обновились;
+- Empire town получает корректного Bounty Master;
+- Greenskin-owned fortification получает ровно одного Kwartamasta;
+- будущая workshop/shop production использует новую культуру;
+- старый market stock может временно оставаться и естественно уходить.
+
+Сохранить, выйти и загрузить. Culture должна остаться новой: её persistence принадлежит TOR `AssimilationCampaignBehavior`, а не отдельной таблице KaiTOR.
+
+### Landmark regression
+
+Проверить, что conversion НЕ клонирует:
+
+- Nuln Master Engineer в другие города;
+- Altdorf Prestige Noble в другие города;
+- Dawi Karak guildmasters в обычный Dawi town;
+- Lithanel envoys в обычный Eonir town;
+- settlement-id priests/shrines в произвольные города.
+
+Для настоящего Karak под Dawi guildmasters должны работать штатно. Для Lithanel под Eonir — envoys штатно.
+
+## Player-family marriage safety
+
+Полная матрица описана в `FAMILY_COMPATIBILITY_RU.md`.
+
+KaiTOR разрешает player-clan social marriage между:
+
+`Empire / Bretonnia / Sylvania / Mousillon / Asrai / Eonir / Dawi`
+
+Greenskins исключены.
+
+### Тест Dawi -> Human/Elf
+
+1. player или член player clan культуры Dawi;
+2. выбрать допустимую свободную человеческую/эльфийскую героиню;
+3. убедиться, что marriage suitability больше не отбрасывается только из-за другого Bannerlord Race id;
+4. оформить брак штатным player-facing механизмом;
+5. прожить минимум несколько недель campaign time;
+6. сохранить/загрузить несколько раз.
 
 Ожидается:
 
-- NAP отсутствует;
-- trust увеличился ровно на `+5`;
-- breaches не изменились;
-- cooldown отсутствует.
+- супруги остаются корректными;
+- pregnancy не создаётся для Dawi cross-race пары;
+- не появляется broken child Hero;
+- save продолжает загружаться.
 
-## Ручной досрочный разрыв
+### Тест Human -> Human и Elf -> Elf
 
-Создать новый допустимый NAP и выполнить:
+Для пары с одинаковым безопасным `CharacterObject.Race` оригинальный active PregnancyModel должен продолжить работать без изменения своих вероятностей.
 
-```text
-kaitor_diplomacy.break_nap <kingdomA> <kingdomB>
-kaitor_diplomacy.inspect <kingdomA> <kingdomB>
-```
+Проверить отдельно:
 
-Ожидается:
+- Empire-compatible same-race pair;
+- Bretonnian same-race pair;
+- Asrai/Eonir elf pair, если оба реально `race=elf`.
 
-- NAP удалён;
-- trust уменьшается на `10`;
-- новый NAP заблокирован на `10` campaign days;
-- немедленная попытка `kaitor_diplomacy.nap ...` получает `NAP refused`.
+### Тест Vampire
 
-## TOR lore-gate
+Женщина-вампир может быть marriage partner, но TOR vampire/undead hero не должен получать vanilla pregnancy. Прожить несколько недель + save/load.
 
-Попробовать создать NAP для пары, которую `TORKingdomDecisionPermissionModel` запрещает (например, Chaos или несовместимая по TOR религия пара, если такая доступна в текущей кампании).
+### Тест Greenskin
 
-Ожидается `NAP refused` с причиной TOR. Мод не должен обходить это ограничение.
+Orc/Greenskin не должен становиться допустимым marriage/family partner. Технические `townswoman_greenskins` не считать женскими Orc templates.
 
-## Война во время NAP
+## TOR regressions
 
-Если война между сторонами начинается штатной логикой TOR или тестовым способом:
+После всех операций проверить:
 
-- NAP удаляется;
-- breach count увеличивается на `1`;
-- trust уменьшается на `30`;
-- новый NAP блокируется на `30` campaign days;
-- выводится сообщение о нарушении;
-- KaiTOR Diplomacy не отменяет и не переопределяет саму войну;
-- TOR продолжает вести alliance-war/Chaos/peace логику самостоятельно.
-
-После войны:
-
-```text
-kaitor_diplomacy.inspect <kingdomA> <kingdomB>
-kaitor_diplomacy.ledger
-```
-
-Пакта уже быть не должно, а breach/trust/cooldown должны сохраниться после save/load.
-
-## Проверка read-only diagnostics
-
-Несколько раз подряд выполнить:
-
-```text
-kaitor_diplomacy.status
-kaitor_diplomacy.inspect <kingdomA> <kingdomB>
-kaitor_diplomacy.ledger
-```
-
-Значения trust, breaches, срок NAP и cooldown не должны меняться только из-за просмотра состояния.
-
-## Регрессии TOR
-
-Обязательно проверить, что без изменений работают:
-
-- обычное объявление войны TOR;
-- мир TOR;
-- запрет мира с Chaos;
-- TOR alliances и вызов союзника в войну;
-- TOR trade agreements;
-- отсутствие vanilla marriage (до отдельного marriage-этапа KaiTOR Diplomacy).
+- TOR war/peace;
+- Chaos restrictions;
+- alliances + ally call;
+- trade agreements;
+- religion/faith systems;
+- spell trainers/enchanters;
+- bounty master;
+- Dawi/Eonir landmark services;
+- Greenskin Teef/Kwartamasta;
+- save/load минимум 3 цикла;
+- загрузку старого save после замены только KaiTOR DLL.
 
 ## Что прислать при ошибке
 
-- скрин/текст ошибки;
-- `rgl_log_*.txt` / relevant crash report;
-- точную команду, после которой появилась ошибка;
+- точный скрин/текст exception;
+- `rgl_log_*.txt` / crash report;
 - `kaitor_diplomacy.status`;
-- `kaitor_diplomacy.inspect <kingdomA> <kingdomB>`;
-- какие два kingdom StringId использовались;
-- новый save или существующий;
-- стадия: startup / create NAP / save / load / expiry / manual break / war / TOR alliance / TOR trade.
+- `kaitor_diplomacy.save_status`;
+- `kaitor_diplomacy.culture_support`;
+- `kaitor_diplomacy.settlement`, если ошибка в settlement;
+- культуры/race пары, если ошибка family;
+- новый или существующий save;
+- действие непосредственно перед ошибкой: startup / save / load / NAP / culture conversion / marriage / pregnancy / TOR service.
