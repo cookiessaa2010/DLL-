@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Reflection;
 using System.Reflection.Emit;
 using System.Threading;
 using HarmonyLib;
@@ -11,15 +12,11 @@ using TaleWorlds.MountAndBlade.View.Tableaus;
 namespace KaiTORPortraitFix
 {
     /// <summary>
-    /// BasicCharacterTableau is the legacy Save/Load-only renderer. Unlike the normal
-    /// CharacterTableau it creates a simplified skeleton and starts "act_inventory_idle".
-    /// TOR characters are rendering as a fully textured but horizontal/prone model while
-    /// the separately-rendered mount stays upright. The normal CharacterTableau uses
-    /// "act_inventory_idle_start" as its default idle action.
-    ///
-    /// This experimental compatibility patch changes ONLY the Save/Load BasicCharacterTableau
-    /// idle action from act_inventory_idle to act_inventory_idle_start. It does not modify
-    /// saves, equipment, races, campaign visuals, or the normal CharacterTableau.
+    /// Save/Load uses BasicCharacterTableau. Bannerlord 1.3.x loads the cached
+    /// ActionIndexCache.act_inventory_idle field directly, so replacing a string literal
+    /// does not affect the real method body. This patch replaces that field load with
+    /// ActionIndexCache.act_inventory_idle_start. A legacy string replacement is retained
+    /// as a fallback for nearby game builds.
     /// </summary>
     [HarmonyPatch(typeof(BasicCharacterTableau), "RefreshCharacterTableau")]
     internal static class BasicPreviewPosePatch
@@ -30,22 +27,39 @@ namespace KaiTORPortraitFix
         internal static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
         {
             var list = new List<CodeInstruction>(instructions);
-            var replacements = 0;
+            var idleField = AccessTools.Field(typeof(ActionIndexCache), "act_inventory_idle");
+            var idleStartField = AccessTools.Field(typeof(ActionIndexCache), "act_inventory_idle_start");
+            var fieldReplacements = 0;
+            var stringReplacements = 0;
 
             foreach (var instruction in list)
             {
+                if (idleField != null && idleStartField != null &&
+                    instruction.opcode == OpCodes.Ldsfld &&
+                    Equals(instruction.operand as FieldInfo, idleField))
+                {
+                    instruction.operand = idleStartField;
+                    fieldReplacements++;
+                    continue;
+                }
+
                 if (instruction.opcode == OpCodes.Ldstr &&
                     string.Equals(instruction.operand as string, "act_inventory_idle", StringComparison.Ordinal))
                 {
                     instruction.operand = "act_inventory_idle_start";
-                    replacements++;
+                    stringReplacements++;
                 }
             }
 
+            var replacements = fieldReplacements + stringReplacements;
             PortraitFixLog.Event(
                 "POSE_PATCH",
                 "applied=" + (replacements > 0) +
                 "; replacements=" + replacements +
+                "; fieldReplacements=" + fieldReplacements +
+                "; stringFallbackReplacements=" + stringReplacements +
+                "; idleFieldFound=" + (idleField != null) +
+                "; idleStartFieldFound=" + (idleStartField != null) +
                 "; from=act_inventory_idle; to=act_inventory_idle_start");
 
             return list;
