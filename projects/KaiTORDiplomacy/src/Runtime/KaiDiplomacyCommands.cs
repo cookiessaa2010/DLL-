@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using KaiTOR.Diplomacy.Models;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.Library;
 
@@ -21,6 +22,61 @@ public static class KaiDiplomacyCommands
         return pacts.Length == 0
             ? "KaiTOR Diplomacy: PASS; no active non-aggression pacts.\n" + behavior.DescribeSaveCompatibility()
             : "KaiTOR Diplomacy: PASS\n" + behavior.DescribeSaveCompatibility() + "\n" + string.Join("\n", pacts);
+    }
+
+    [CommandLineFunctionality.CommandLineArgumentFunction("world_status", "kaitor_diplomacy")]
+    public static string WorldStatus(List<string> arguments)
+    {
+        if (arguments.Count != 0) return "Usage: kaitor_diplomacy.world_status";
+        if (Campaign.Current == null) return "No campaign is active.";
+
+        var marriedPairs = Hero.AllAliveHeroes.Count(hero =>
+            hero?.Spouse != null &&
+            hero.Spouse.IsAlive &&
+            string.CompareOrdinal(hero.StringId, hero.Spouse.StringId) < 0);
+
+        var activeKingdoms = Kingdom.All.Count(kingdom => kingdom != null && !kingdom.IsEliminated);
+        var activeClans = Clan.All.Count(clan => clan != null && !clan.IsEliminated);
+
+        return string.Join("\n", new[]
+        {
+            $"KaiTOR world lifecycle: {(CampaignOptions.IsLifeDeathCycleDisabled ? "DISABLED" : "ENABLED")}",
+            $"MarriageModel: {Campaign.Current.Models.MarriageModel?.GetType().FullName ?? "<null>"}",
+            $"PregnancyModel: {Campaign.Current.Models.PregnancyModel?.GetType().FullName ?? "<null>"}",
+            $"HeroDeathModel: {Campaign.Current.Models.HeroDeathProbabilityCalculationModel?.GetType().FullName ?? "<null>"}",
+            $"Active kingdoms: {activeKingdoms}",
+            $"Active clans: {activeClans}",
+            $"Living married couples: {marriedPairs}"
+        });
+    }
+
+    [CommandLineFunctionality.CommandLineArgumentFunction("marriages", "kaitor_diplomacy")]
+    public static string Marriages(List<string> arguments)
+    {
+        if (arguments.Count != 0) return "Usage: kaitor_diplomacy.marriages";
+        if (Campaign.Current == null) return "No campaign is active.";
+
+        var pairs = Hero.AllAliveHeroes
+            .Where(hero =>
+                hero?.Spouse != null &&
+                hero.Spouse.IsAlive &&
+                string.CompareOrdinal(hero.StringId, hero.Spouse.StringId) < 0)
+            .OrderBy(hero => hero.Clan?.Name?.ToString() ?? string.Empty, StringComparer.Ordinal)
+            .ThenBy(hero => hero.Name?.ToString() ?? string.Empty, StringComparer.Ordinal)
+            .Select(hero =>
+            {
+                var spouse = hero.Spouse;
+                var fertility = TorFamilySafety.CanUseVanillaPregnancy(hero, spouse)
+                    ? "offspring-safe"
+                    : "childless";
+                return $"{hero.Name} [{hero.Culture?.Name}; {hero.Clan?.Name ?? hero.Name}] <-> " +
+                       $"{spouse.Name} [{spouse.Culture?.Name}; {spouse.Clan?.Name ?? spouse.Name}] ({fertility})";
+            })
+            .ToArray();
+
+        return pairs.Length == 0
+            ? "KaiTOR world marriages: none."
+            : $"KaiTOR world marriages ({pairs.Length}):\n" + string.Join("\n", pairs);
     }
 
     [CommandLineFunctionality.CommandLineArgumentFunction("save_status", "kaitor_diplomacy")]
