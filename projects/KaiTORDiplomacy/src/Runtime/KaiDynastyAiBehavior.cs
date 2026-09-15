@@ -278,7 +278,6 @@ public sealed class KaiDynastyAiBehavior : CampaignBehaviorBase
         newClan.ChangeClanName(clanName, clanName);
         newClan.Culture = culture;
         newClan.Banner = Banner.CreateRandomClanBanner(-1);
-        newClan.Tier = Campaign.Current.Models.ClanTierModel.CompanionToLordClanStartingTier;
         newClan.SetInitialHomeSettlement(fief);
         newClan.IsNoble = true;
 
@@ -290,6 +289,13 @@ public sealed class KaiDynastyAiBehavior : CampaignBehaviorBase
 
         founder.Clan = newClan;
         newClan.SetLeader(founder);
+
+        // Clan.Tier has no public setter for mods. AddRenown is the native public path
+        // that recalculates and updates Tier internally through the active ClanTierModel.
+        var startingTier = Campaign.Current.Models.ClanTierModel.CompanionToLordClanStartingTier;
+        var startingRenown = Campaign.Current.Models.ClanTierModel.GetRequiredRenownForTier(startingTier);
+        newClan.AddRenown(startingRenown, false);
+
         CampaignEventDispatcher.Instance.OnClanCreated(newClan, true);
 
         ChangeKingdomAction.ApplyByJoinToKingdom(
