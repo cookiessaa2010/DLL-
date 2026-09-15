@@ -25,8 +25,8 @@ public sealed class KaiCultureAssimilationBehavior : CampaignBehaviorBase
 
     public override void SyncData(IDataStore dataStore)
     {
-        // Intentional: culture is persisted by TOR's own AssimilationCampaignBehavior.
-        // KaiTOR does not maintain a competing settlement-culture save map.
+        // Settlement culture persistence remains owned by TOR's AssimilationCampaignBehavior.
+        // KaiTOR deliberately does not create a competing settlement-culture save table.
     }
 
     private void OnSessionLaunched(CampaignGameStarter starter)
@@ -40,7 +40,7 @@ public sealed class KaiCultureAssimilationBehavior : CampaignBehaviorBase
         starter.AddGameMenuOption(
             "town",
             "kaitor_change_town_culture",
-            "KaiTOR: Change settlement culture to your clan (100,000 denars)",
+            "KaiTOR: Convert settlement to your clan culture (100,000 denars)",
             CultureMenuCondition,
             CultureMenuConsequence,
             false,
@@ -49,7 +49,7 @@ public sealed class KaiCultureAssimilationBehavior : CampaignBehaviorBase
         starter.AddGameMenuOption(
             "castle",
             "kaitor_change_castle_culture",
-            "KaiTOR: Change settlement culture to your clan (100,000 denars)",
+            "KaiTOR: Convert settlement to your clan culture (100,000 denars)",
             CultureMenuCondition,
             CultureMenuConsequence,
             false,
@@ -74,18 +74,25 @@ public sealed class KaiCultureAssimilationBehavior : CampaignBehaviorBase
             return true;
         }
 
+        if (settlement.IsUnderSiege)
+        {
+            args.IsEnabled = false;
+            args.Tooltip = new TextObject("Settlement culture cannot be converted during a siege.");
+            return true;
+        }
+
         if (Clan.PlayerClan == null || Clan.PlayerClan.Tier < RequiredClanTier)
         {
             args.IsEnabled = false;
-            args.Tooltip = new TextObject($"Clan tier {RequiredClanTier} or higher is required to change settlement culture.");
+            args.Tooltip = new TextObject($"Clan tier {RequiredClanTier} or higher is required to convert a settlement.");
             return true;
         }
 
         var targetCulture = GetPlayerClanCulture();
-        if (!ValidateTargetCulture(targetCulture, settlement, out var cultureReason))
+        if (targetCulture == null)
         {
             args.IsEnabled = false;
-            args.Tooltip = new TextObject(cultureReason);
+            args.Tooltip = new TextObject("KaiTOR could not determine your clan culture.");
             return true;
         }
 
@@ -93,6 +100,13 @@ public sealed class KaiCultureAssimilationBehavior : CampaignBehaviorBase
         {
             args.IsEnabled = false;
             args.Tooltip = new TextObject("This settlement already uses your clan culture.");
+            return true;
+        }
+
+        if (!TorSettlementCultureBridge.ValidateFullConversion(targetCulture, settlement, out var supportReason))
+        {
+            args.IsEnabled = false;
+            args.Tooltip = new TextObject("Full TOR culture conversion is not safe here: " + supportReason);
             return true;
         }
 
@@ -104,9 +118,9 @@ public sealed class KaiCultureAssimilationBehavior : CampaignBehaviorBase
         }
 
         args.Tooltip = new TextObject(
-            $"Immediately change {settlement.Name} and its bound villages to {targetCulture.Name}. " +
-            "Local notables are rebuilt for that culture so TOR recruitment uses the correct troop pools. " +
-            "Lords, companions, clan members, hero race and existing garrison troops are not changed.");
+            $"Immediately rebuild {settlement.Name} as a {targetCulture.Name} settlement. " +
+            "The town/castle, bound villages, notables, volunteer pools, tavern mercenaries, caravan guards, militia/scene population and future tavern wanderers will use your clan culture. " +
+            "Existing named lords and members of other clans are not rewritten.");
         return true;
     }
 
@@ -116,13 +130,14 @@ public sealed class KaiCultureAssimilationBehavior : CampaignBehaviorBase
         var targetCulture = GetPlayerClanCulture();
         if (settlement == null || targetCulture == null) return;
 
-        var title = "KaiTOR settlement culture";
-        var body = $"Immediately change {settlement.Name} to {targetCulture.Name}?\n\n" +
+        var title = "KaiTOR full settlement conversion";
+        var body = $"Convert {settlement.Name} completely to {targetCulture.Name}?\n\n" +
                    $"Cost: {CultureChangeCost:N0} denars\n" +
                    $"Requirement: clan tier {RequiredClanTier}+\n\n" +
-                   "This changes the town/castle, its bound villages and their local notable/recruitment population. " +
-                   "It does NOT change your lords, companions, clan members, hero race or existing armies. " +
-                   "If the settlement is captured later, TOR can assimilate it again to the new owner's faction culture.";
+                   "This is intended to behave like the settlement had been assigned your clan's race/culture from the moment of conquest: " +
+                   "bound villages and local notables are rebuilt, volunteer recruitment is refreshed, town tavern mercenaries are regenerated, " +
+                   "wrong-culture tavern wanderers are replaced, and home caravans refresh their culture-specific guards/mercenaries.\n\n" +
+                   "Named lords and heroes belonging to other clans are not converted. If the settlement is captured later, normal TOR assimilation may change it again.";
 
         InformationManager.ShowInquiry(
             new InquiryData(
@@ -130,14 +145,14 @@ public sealed class KaiCultureAssimilationBehavior : CampaignBehaviorBase
                 body,
                 true,
                 true,
-                "Change culture",
+                "Convert",
                 "Cancel",
                 () =>
                 {
                     if (TryChangeCultureImmediately(settlement, out var reason))
                         InformationManager.DisplayMessage(new InformationMessage(reason));
                     else
-                        InformationManager.DisplayMessage(new InformationMessage("KaiTOR culture change refused: " + reason));
+                        InformationManager.DisplayMessage(new InformationMessage("KaiTOR culture conversion refused: " + reason));
                 },
                 null,
                 string.Empty,
@@ -167,13 +182,19 @@ public sealed class KaiCultureAssimilationBehavior : CampaignBehaviorBase
 
         if (settlement.OwnerClan != Clan.PlayerClan)
         {
-            reason = "You can only change culture in settlements owned by your clan.";
+            reason = "You can only convert settlements owned by your clan.";
             return false;
         }
 
         if (IsTorSpecialSettlement(settlement))
         {
             reason = "TOR marks this settlement as special and excludes it from normal assimilation.";
+            return false;
+        }
+
+        if (settlement.IsUnderSiege)
+        {
+            reason = "Settlement culture cannot be converted during a siege.";
             return false;
         }
 
@@ -184,8 +205,11 @@ public sealed class KaiCultureAssimilationBehavior : CampaignBehaviorBase
         }
 
         var targetCulture = GetPlayerClanCulture();
-        if (!ValidateTargetCulture(targetCulture, settlement, out reason))
+        if (targetCulture == null)
+        {
+            reason = "KaiTOR could not determine your clan culture.";
             return false;
+        }
 
         if (settlement.Culture == targetCulture)
         {
@@ -199,23 +223,24 @@ public sealed class KaiCultureAssimilationBehavior : CampaignBehaviorBase
             return false;
         }
 
-        // Validate every affected settlement before changing any state or charging gold.
+        // Full fail-closed preflight before any notable is removed or any money is charged.
+        if (!TorSettlementCultureBridge.ValidateFullConversion(targetCulture, settlement, out reason))
+            return false;
+
         var affected = GetAffectedSettlements(settlement).ToArray();
         foreach (var affectedSettlement in affected)
-        {
-            if (!ValidateNotableTemplates(targetCulture, affectedSettlement, out reason))
-                return false;
-        }
-
-        foreach (var affectedSettlement in affected)
-        {
             ApplyCultureToSettlementAndNotables(affectedSettlement, targetCulture);
+
+        if (!TorSettlementCultureBridge.RefreshAfterCultureChange(settlement, targetCulture, out reason))
+        {
+            reason = "Culture fields changed, but a TOR subsystem refresh failed. Save diagnostics before continuing: " + reason;
+            return false;
         }
 
         GiveGoldAction.ApplyBetweenCharacters(Hero.MainHero, null, CultureChangeCost, false);
 
-        reason = $"{settlement.Name} changed culture to {targetCulture.Name}. {CultureChangeCost:N0} denars paid. " +
-                 "Recruitment population refreshed; lords, companions and existing troops were left untouched.";
+        reason = $"{settlement.Name} fully converted to {targetCulture.Name}. {CultureChangeCost:N0} denars paid. " +
+                 "Villages, notables, volunteers, tavern mercenaries, culture-specific wanderers and caravan recruitment were refreshed.";
         return true;
     }
 
@@ -229,62 +254,19 @@ public sealed class KaiCultureAssimilationBehavior : CampaignBehaviorBase
                $"player clan tier={Clan.PlayerClan?.Tier.ToString() ?? "<null>"}.";
     }
 
+    public IEnumerable<string> DescribeCultureSupport()
+        => TorSettlementCultureBridge.DescribePlayableCultureSupport();
+
     private static CultureObject GetPlayerClanCulture()
         => Clan.PlayerClan?.Culture ?? Hero.MainHero?.Culture;
-
-    private static bool ValidateTargetCulture(CultureObject targetCulture, Settlement settlement, out string reason)
-    {
-        if (targetCulture == null)
-        {
-            reason = "KaiTOR could not determine the player clan culture.";
-            return false;
-        }
-
-        // Dynamic rather than hard-coded race list: this supports every TOR culture that
-        // exposes a valid settlement recruitment tree, including cultures added by TOR later.
-        if (targetCulture.BasicTroop == null)
-        {
-            reason = $"Culture '{targetCulture.StringId}' has no BasicTroop and cannot safely supply settlement recruits.";
-            return false;
-        }
-
-        if (targetCulture.EliteBasicTroop == null && settlement?.BoundVillages?.Any(v => v?.Bound?.IsCastle == true) == true)
-        {
-            reason = $"Culture '{targetCulture.StringId}' has no EliteBasicTroop for castle-bound village recruitment.";
-            return false;
-        }
-
-        reason = string.Empty;
-        return true;
-    }
-
-    private static bool ValidateNotableTemplates(CultureObject targetCulture, Settlement settlement, out string reason)
-    {
-        foreach (var notable in settlement.Notables)
-        {
-            if (notable == null) continue;
-            var occupation = notable.Occupation;
-            if (!targetCulture.NotableTemplates.Any(template => template != null && template.Occupation == occupation))
-            {
-                reason = $"Culture '{targetCulture.StringId}' has no notable template for occupation '{occupation}' required by {settlement.Name}.";
-                return false;
-            }
-        }
-
-        reason = string.Empty;
-        return true;
-    }
 
     private static IEnumerable<Settlement> GetAffectedSettlements(Settlement settlement)
     {
         yield return settlement;
-
         if (settlement.BoundVillages == null) yield break;
         foreach (var village in settlement.BoundVillages)
-        {
             if (village?.Settlement != null)
                 yield return village.Settlement;
-        }
     }
 
     private static void ApplyCultureToSettlementAndNotables(Settlement settlement, CultureObject targetCulture)
