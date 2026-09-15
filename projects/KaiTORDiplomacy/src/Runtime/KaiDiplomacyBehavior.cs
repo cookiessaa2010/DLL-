@@ -11,6 +11,7 @@ namespace KaiTOR.Diplomacy.Runtime;
 
 public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
 {
+    private const int CurrentSaveSchemaVersion = 1;
     private const int NaturalExpiryTrustBonus = 5;
     private const int VoluntaryBreakTrustPenalty = 10;
     private const int WarBreachTrustPenalty = 30;
@@ -21,9 +22,13 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
     private Dictionary<string, int> _breachCounts = new();
     private Dictionary<string, int> _diplomaticTrust = new();
     private Dictionary<string, double> _napCooldownExpiryDays = new();
+    private int _saveSchemaVersion;
+    private bool _saveSchemaCompatible = true;
     private bool _runtimeEnabled;
 
     public bool RuntimeEnabled => _runtimeEnabled;
+    public int SaveSchemaVersion => _saveSchemaVersion;
+    public bool SaveSchemaCompatible => _saveSchemaCompatible;
 
     public override void RegisterEvents()
     {
@@ -35,10 +40,13 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
 
     public override void SyncData(IDataStore dataStore)
     {
+        // Keep these keys stable. Existing KaiTOR saves must continue to deserialize
+        // without creating custom SaveableObject/SaveableTypeDefiner dependencies.
         dataStore.SyncData("kaitor_diplomacy_nap_expiry_days_v2", ref _nonAggressionExpiryDays);
         dataStore.SyncData("kaitor_diplomacy_breach_counts", ref _breachCounts);
         dataStore.SyncData("kaitor_diplomacy_trust", ref _diplomaticTrust);
         dataStore.SyncData("kaitor_diplomacy_nap_cooldown_expiry_days", ref _napCooldownExpiryDays);
+        dataStore.SyncData("kaitor_diplomacy_save_schema", ref _saveSchemaVersion);
 
         _nonAggressionExpiryDays ??= new Dictionary<string, double>();
         _breachCounts ??= new Dictionary<string, int>();
@@ -48,13 +56,24 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
 
     private void OnSessionLaunched(CampaignGameStarter starter)
     {
+        ValidateAndMigrateSaveSchema();
+        if (!_saveSchemaCompatible)
+        {
+            _runtimeEnabled = false;
+            InformationManager.DisplayMessage(new InformationMessage(
+                $"KaiTOR Diplomacy disabled: save schema {_saveSchemaVersion} is newer than supported schema {CurrentSaveSchemaVersion}. The save was not rewritten."));
+            return;
+        }
+
+        NormalizeLoadedState();
+
         _runtimeEnabled = TorCompatibilityGate.TryValidate(out var reason);
         if (_runtimeEnabled)
         {
             CleanupExpiredPacts();
             CleanupExpiredCooldowns();
             InformationManager.DisplayMessage(new InformationMessage(
-                "KaiTOR Diplomacy: TOR 1.3.15 compatibility gate PASS."));
+                $"KaiTOR Diplomacy: TOR 1.3.15 compatibility gate PASS; save schema {_saveSchemaVersion} PASS."));
         }
         else
         {
@@ -230,6 +249,13 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
         return GetCooldownRemainingDays(TreatyKey.For(first, second));
     }
 
+    public string DescribeSaveCompatibility()
+    {
+        var status = _saveSchemaCompatible ? "PASS" : "BLOCKED";
+        return $"KaiTOR save compatibility: {status}; schema={_saveSchemaVersion}; supported={CurrentSaveSchemaVersion}; " +
+               "state=primitive dictionaries only; TOR settlement culture persistence remains TOR-owned.";
+    }
+
     public IEnumerable<string> DescribeActivePacts()
     {
         var currentDay = CampaignTime.Now.ToDays;
@@ -256,6 +282,80 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
             var cooldown = GetCooldownRemainingDays(key);
             yield return $"{firstId} <-> {secondId}: trust {GetTrust(key)}, breaches {breaches}, NAP cooldown {cooldown} day(s)";
         }
+    }
+
+    private void ValidateAndMigrateSaveSchema()
+    {
+        if (_saveSchemaVersion < 0) _saveSchemaVersion = 0;
+
+        if (_saveSchemaVersion > CurrentSaveSchemaVersion)
+        {
+            _saveSchemaCompatible = false;
+            return;
+        }
+
+        // Schema 0 is every KaiTOR Diplomacy save made before an explicit schema key existed.
+        // Its four persisted dictionaries already have the same types/keys as schema 1,
+        // therefore migration is metadata-only and never rewrites TOR-owned state.
+        if (_saveSchemaVersion == 0)
+            _saveSchemaVersion = CurrentSaveSchemaVersion;
+
+        _saveSchemaCompatible = true;
+    }
+
+    private void NormalizeLoadedState()
+    {
+        var knownKingdomIds = new HashSet<string>(
+            Kingdom.All.Where(x => x != null).Select(x => x.StringId),
+            StringComparer.Ordinal);
+
+        var allKeys = new HashSet<string>(_nonAggressionExpiryDays.Keys, StringComparer.Ordinal);
+        allKeys.UnionWith(_breachCounts.Keys);
+        allKeys.UnionWith(_diplomaticTrust.Keys);
+        allKeys.UnionWith(_napCooldownExpiryDays.Keys);
+
+        foreach (var key in allKeys)
+        {
+            if (!TreatyKey.TrySplit(key, out var firstId, out var secondId) ||
+                string.Equals(firstId, secondId, StringComparison.Ordinal) ||
+                !knownKingdomIds.Contains(firstId) ||
+                !knownKingdomIds.Contains(secondId))
+            {
+                RemovePairState(key);
+            }
+        }
+
+        foreach (var pair in _nonAggressionExpiryDays.ToArray())
+        {
+            if (double.IsNaN(pair.Value) || double.IsInfinity(pair.Value) || pair.Value <= 0d)
+                _nonAggressionExpiryDays.Remove(pair.Key);
+        }
+
+        foreach (var pair in _napCooldownExpiryDays.ToArray())
+        {
+            if (double.IsNaN(pair.Value) || double.IsInfinity(pair.Value) || pair.Value <= 0d)
+                _napCooldownExpiryDays.Remove(pair.Key);
+        }
+
+        foreach (var pair in _breachCounts.ToArray())
+        {
+            if (pair.Value <= 0) _breachCounts.Remove(pair.Key);
+        }
+
+        foreach (var pair in _diplomaticTrust.ToArray())
+        {
+            var clamped = Math.Max(-100, Math.Min(100, pair.Value));
+            if (clamped == 0) _diplomaticTrust.Remove(pair.Key);
+            else _diplomaticTrust[pair.Key] = clamped;
+        }
+    }
+
+    private void RemovePairState(string key)
+    {
+        _nonAggressionExpiryDays.Remove(key);
+        _breachCounts.Remove(key);
+        _diplomaticTrust.Remove(key);
+        _napCooldownExpiryDays.Remove(key);
     }
 
     private static bool TorAllowsDiplomaticCompatibility(Kingdom first, Kingdom second, out string reason)
