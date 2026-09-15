@@ -43,7 +43,7 @@ public sealed class KaiMarriageWarningBehavior : CampaignBehaviorBase
         starter.AddPlayerLine(
             "kaitor_childless_marriage_continue",
             "kaitor_childless_marriage_warning_options",
-            "hero_courtship_final_barter_setup",
+            "hero_courtship_final_barter",
             "{=kaitor_childless_marriage_continue}I understand. Continue with the marriage arrangements.",
             null,
             AcknowledgeCurrentMarriage,
@@ -70,6 +70,10 @@ public sealed class KaiMarriageWarningBehavior : CampaignBehaviorBase
             return false;
 
         if (!KaiPlayerMarriageModel.InvolvesPlayerClan(Hero.MainHero, partner))
+            return false;
+
+        var pairKey = MakePairKey(Hero.MainHero, partner);
+        if (!string.IsNullOrEmpty(pairKey) && string.Equals(pairKey, _acknowledgedPairKey, StringComparison.Ordinal))
             return false;
 
         return !TorFamilySafety.CanUseVanillaPregnancy(Hero.MainHero, partner);
