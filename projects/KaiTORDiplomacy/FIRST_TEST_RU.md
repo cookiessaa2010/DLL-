@@ -128,6 +128,27 @@ KaiTOR разрешает player-clan social marriage между:
 
 Greenskins исключены.
 
+### Тест предупреждения о бездетном браке
+
+Выбрать пару, для которой KaiTOR разрешает свадьбу, но `TorFamilySafety` запрещает vanilla pregnancy, например Dawi ↔ Human или Dawi ↔ Elf.
+
+Дойти до финальной стадии брачных договорённостей.
+
+До открытия обычного marriage barter должно появиться предупреждение KaiTOR о том, что:
+
+- брак разрешён;
+- биологических детей у этой пары не будет;
+- KaiTOR не будет генерировать offspring для этой пары.
+
+Проверить обе кнопки:
+
+1. `I understand. Continue with the marriage arrangements.` — после неё должен открыться обычный Bannerlord marriage barter и свадьба может завершиться штатно;
+2. `Not now. I want to reconsider this marriage.` — диалог должен закрыться без свадьбы и без изменения spouse/state.
+
+После успешной свадьбы не должно быть повторного дублирующего warning для обычного courtship path. Для alternate arranged/barter path допускается резервное информационное сообщение на `BeforeHeroesMarried`.
+
+Сделать save/load сразу после свадьбы: warning behavior не должен добавлять сериализуемые данные.
+
 ### Тест Dawi -> Human/Elf
 
 1. player или член player clan культуры Dawi;
