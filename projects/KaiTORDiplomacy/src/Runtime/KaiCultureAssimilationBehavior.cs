@@ -248,7 +248,7 @@ public sealed class KaiCultureAssimilationBehavior : CampaignBehaviorBase
             return false;
         }
 
-        if (targetCulture.EliteBasicTroop == null && settlement?.BoundVillages?.Any(v => v?.Village?.Bound?.IsCastle == true) == true)
+        if (targetCulture.EliteBasicTroop == null && settlement?.BoundVillages?.Any(v => v?.Bound?.IsCastle == true) == true)
         {
             reason = $"Culture '{targetCulture.StringId}' has no EliteBasicTroop for castle-bound village recruitment.";
             return false;
