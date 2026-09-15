@@ -16,7 +16,7 @@ if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
 if ($manifest.Module.Id.value -ne 'KaiTOR_Diplomacy') {
     throw 'Unexpected module id.'
 }
-if ($manifest.Module.Version.value -ne 'v0.1.0') {
+if ($manifest.Module.Version.value -ne 'v0.2.0') {
     throw 'Unexpected module version.'
 }
 
@@ -52,10 +52,20 @@ foreach ($requiredPattern in @(
     'kaitor_diplomacy_trust',
     'kaitor_diplomacy_nap_cooldown_expiry_days',
     'WarBreachTrustPenalty',
-    'NaturalExpiryTrustBonus'
+    'NaturalExpiryTrustBonus',
+    'CultureChangeCost = 100000',
+    'RequiredClanTier = 3',
+    'TorSettlementCultureBridge',
+    'TorCulturalServiceBridge',
+    'TorMarketCultureBridge',
+    'IsItemPreferredForTown',
+    'UpdateSupplyAndDemand',
+    'BasicMercenaryTroops',
+    'UpdateCurrentMercenaryTroopAndCount',
+    'TORCompanionsCampaignBehavior'
 )) {
     if ($source -notmatch [regex]::Escape($requiredPattern)) {
-        throw "Required diplomacy safety/state pattern missing: $requiredPattern"
+        throw "Required diplomacy/culture safety pattern missing: $requiredPattern"
     }
 }
 
@@ -82,4 +92,6 @@ Write-Output "  C# files: $($sourceFiles.Count)"
 Write-Output '  TOR model ownership preserved.'
 Write-Output '  Treaty time storage matches Bannerlord 1.3.15 CampaignTime precision.'
 Write-Output '  Trust/breach/cooldown state contract present.'
+Write-Output '  Full culture conversion contract present: tier 3+, 100,000 denars.'
+Write-Output '  Recruitment, companions, cultural services and culture-aware market hooks present.'
 Write-Output '  No Harmony/model replacement/forced war-peace-marriage actions detected.'
