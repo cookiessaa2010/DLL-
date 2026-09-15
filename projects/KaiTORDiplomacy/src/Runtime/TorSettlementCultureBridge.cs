@@ -88,6 +88,14 @@ internal static class TorSettlementCultureBridge
 
         if (rootSettlement?.IsTown == true)
         {
+            // TOR's SpawnWanderer intentionally uses Settlement.Owner.Culture rather than Settlement.Culture.
+            // If those disagree, spawning would silently create a companion from the wrong race.
+            if (rootSettlement.Owner?.Culture != targetCulture)
+            {
+                reason = $"Town owner culture '{rootSettlement.Owner?.Culture?.StringId ?? "<null>"}' does not match clan target culture '{targetCulture.StringId}'.";
+                return false;
+            }
+
             if (targetCulture.BasicMercenaryTroops == null || targetCulture.BasicMercenaryTroops.Count == 0)
             {
                 reason = $"Culture '{targetCulture.StringId}' has no tavern mercenary pool.";
