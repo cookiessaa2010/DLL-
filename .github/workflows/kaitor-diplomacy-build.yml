@@ -1,0 +1,90 @@
+name: KaiTOR Diplomacy 1.3.15 Build
+
+on:
+  push:
+    branches:
+      - kaitor-diplomacy
+    paths:
+      - 'projects/KaiTORDiplomacy/**'
+      - '.github/workflows/kaitor-diplomacy-build.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build against Bannerlord 1.3.15 reference assemblies
+        shell: pwsh
+        run: |
+          dotnet build projects/KaiTORDiplomacy/src/KaiTOR_Diplomacy.csproj `
+            -c Release `
+            -p:UseBannerlordReferenceAssemblies=true `
+            --nologo
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Verify gameplay contracts
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = 'projects/KaiTORDiplomacy'
+          $dll = Join-Path $root 'build/bin/Win64_Shipping_Client/KaiTOR_Diplomacy.dll'
+          if (-not (Test-Path -LiteralPath $dll -PathType Leaf)) { throw "Missing DLL: $dll" }
+
+          $module = Get-Content (Join-Path $root 'module/SubModule.xml') -Raw
+          if ($module -notmatch 'v0\.2\.0') { throw 'SubModule version is not v0.2.0.' }
+
+          $culture = Get-Content (Join-Path $root 'src/Runtime/KaiCultureAssimilationBehavior.cs') -Raw
+          foreach ($required in @(
+            'CultureChangeCost = 100000',
+            'RequiredClanTier = 3',
+            'TorSettlementCultureBridge.ValidateFullConversion',
+            'TorSettlementCultureBridge.RefreshAfterCultureChange'
+          )) {
+            if ($culture -notmatch [regex]::Escape($required)) { throw "Missing culture contract: $required" }
+          }
+
+          $bridge = Get-Content (Join-Path $root 'src/Runtime/TorSettlementCultureBridge.cs') -Raw
+          foreach ($required in @(
+            'TOR_Core.CampaignMechanics.Companions.TORCompanionsCampaignBehavior',
+            'UpdateCurrentMercenaryTroopAndCount',
+            'UpdateVolunteersOfNotablesInSettlement',
+            'DailyTickParty',
+            '"empire"', '"vlandia"', '"khuzait"', '"mousillon"',
+            '"battania"', '"eonir"', '"sturgia"', '"aserai"'
+          )) {
+            if ($bridge -notmatch [regex]::Escape($required)) { throw "Missing full-conversion contract: $required" }
+          }
+
+          Write-Host 'KaiTOR Diplomacy v0.2.0 gameplay contracts: PASS'
+
+      - name: Assemble module
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = 'projects/KaiTORDiplomacy'
+          $package = 'artifact/KaiTOR_Diplomacy'
+          $bin = Join-Path $package 'bin/Win64_Shipping_Client'
+          New-Item -ItemType Directory -Path $bin -Force | Out-Null
+          Copy-Item (Join-Path $root 'module/SubModule.xml') (Join-Path $package 'SubModule.xml') -Force
+          Copy-Item (Join-Path $root 'build/bin/Win64_Shipping_Client/KaiTOR_Diplomacy.dll') (Join-Path $bin 'KaiTOR_Diplomacy.dll') -Force
+          $pdb = Join-Path $root 'build/bin/Win64_Shipping_Client/KaiTOR_Diplomacy.pdb'
+          if (Test-Path $pdb) { Copy-Item $pdb (Join-Path $bin 'KaiTOR_Diplomacy.pdb') -Force }
+          Copy-Item (Join-Path $root 'README.md') (Join-Path $package 'README.md') -Force
+          Copy-Item (Join-Path $root 'FIRST_TEST_RU.md') (Join-Path $package 'FIRST_TEST_RU.md') -Force
+
+      - name: Upload ready module
+        uses: actions/upload-artifact@v4
+        with:
+          name: KaiTOR-Diplomacy-v0.2.0
+          path: artifact/KaiTOR_Diplomacy
+          if-no-files-found: error
+          retention-days: 30
