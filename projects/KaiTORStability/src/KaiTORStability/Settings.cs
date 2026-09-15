@@ -14,6 +14,8 @@ namespace KaiTORStability
         public int ShaderTelemetryIntervalMs { get; private set; } = 500;
         public bool EnableShaderCacheAcceleration { get; private set; } = true;
         public int ShaderCacheSingleLoadoutCopies { get; private set; } = 1;
+        public bool EnableLowMemoryShaderRoster { get; private set; } = true;
+        public int LowMemoryPhysicalRamThresholdGb { get; private set; } = 24;
         public bool DisableGameplayPatchesWhenCoopActive { get; private set; } = true;
 
         public static StabilitySettings Load()
@@ -84,6 +86,18 @@ namespace KaiTORStability
                     if (int.TryParse((string)acceleratorNode.Attribute("singleLoadoutCopies"), out copies))
                     {
                         settings.ShaderCacheSingleLoadoutCopies = Math.Max(1, Math.Min(4, copies));
+                    }
+
+                    bool lowMemorySafeMode;
+                    if (bool.TryParse((string)acceleratorNode.Attribute("lowMemorySafeMode"), out lowMemorySafeMode))
+                    {
+                        settings.EnableLowMemoryShaderRoster = lowMemorySafeMode;
+                    }
+
+                    int thresholdGb;
+                    if (int.TryParse((string)acceleratorNode.Attribute("lowMemoryPhysicalRamThresholdGb"), out thresholdGb))
+                    {
+                        settings.LowMemoryPhysicalRamThresholdGb = Math.Max(8, Math.Min(64, thresholdGb));
                     }
                 }
 
