@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  DO NOT load this file directly. Build tooling must replace the two equipment placeholders
+  with female-dwarf-rig-compatible equipment before registering this NPCCharacter.
+-->
+<NPCCharacters>
+  <NPCCharacter
+      id="kaitor_dawi_woman_lord"
+      default_group="infantry"
+      name="{FIRSTNAME}"
+      occupation="Lord"
+      culture="Culture.sturgia"
+      voice="curt"
+      age="30"
+      skill_template="SkillSet.tor_custombattle_generic"
+      race="dwarf"
+      is_female="true"
+      is_template="true"
+      is_hero="false">
+    <Traits>
+      <Trait id="BalancedFightingSkills" value="5" />
+      <Trait id="Commander" value="5" />
+      <Trait id="Politician" value="5" />
+      <Trait id="Manager" value="6" />
+      <Trait id="Honor" value="1" />
+    </Traits>
+    <Equipments>
+      <EquipmentSet id="__KAI_DAWI_FEMALE_BATTLE_EQUIPMENT__" />
+      <EquipmentSet id="__KAI_DAWI_FEMALE_CIVILIAN_EQUIPMENT__" civilian="true" />
+    </Equipments>
+  </NPCCharacter>
+</NPCCharacters>
