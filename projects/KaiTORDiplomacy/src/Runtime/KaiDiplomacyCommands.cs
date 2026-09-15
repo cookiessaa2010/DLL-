@@ -15,12 +15,20 @@ public static class KaiDiplomacyCommands
 
         var behavior = GetBehavior();
         if (behavior == null) return "KaiTOR Diplomacy behavior is not loaded.";
-        if (!behavior.RuntimeEnabled) return DisabledMessage;
+        if (!behavior.RuntimeEnabled) return DisabledMessage + " " + behavior.DescribeSaveCompatibility();
 
         var pacts = behavior.DescribeActivePacts().ToArray();
         return pacts.Length == 0
-            ? "KaiTOR Diplomacy: PASS; no active non-aggression pacts."
-            : "KaiTOR Diplomacy: PASS\n" + string.Join("\n", pacts);
+            ? "KaiTOR Diplomacy: PASS; no active non-aggression pacts.\n" + behavior.DescribeSaveCompatibility()
+            : "KaiTOR Diplomacy: PASS\n" + behavior.DescribeSaveCompatibility() + "\n" + string.Join("\n", pacts);
+    }
+
+    [CommandLineFunctionality.CommandLineArgumentFunction("save_status", "kaitor_diplomacy")]
+    public static string SaveStatus(List<string> arguments)
+    {
+        if (arguments.Count != 0) return "Usage: kaitor_diplomacy.save_status";
+        var behavior = GetBehavior();
+        return behavior?.DescribeSaveCompatibility() ?? "KaiTOR Diplomacy behavior is not loaded.";
     }
 
     [CommandLineFunctionality.CommandLineArgumentFunction("culture_support", "kaitor_diplomacy")]
