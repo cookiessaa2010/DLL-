@@ -44,7 +44,6 @@ internal static class TorSettlementCultureBridge
             return false;
         }
 
-        // Settlement recruitment and scene population primitives.
         if (targetCulture.BasicTroop == null || targetCulture.EliteBasicTroop == null)
         {
             reason = $"Culture '{targetCulture.StringId}' is missing BasicTroop or EliteBasicTroop.";
@@ -88,8 +87,6 @@ internal static class TorSettlementCultureBridge
 
         if (rootSettlement?.IsTown == true)
         {
-            // TOR's SpawnWanderer intentionally uses Settlement.Owner.Culture rather than Settlement.Culture.
-            // If those disagree, spawning would silently create a companion from the wrong race.
             if (rootSettlement.Owner?.Culture != targetCulture)
             {
                 reason = $"Town owner culture '{rootSettlement.Owner?.Culture?.StringId ?? "<null>"}' does not match clan target culture '{targetCulture.StringId}'.";
@@ -128,6 +125,9 @@ internal static class TorSettlementCultureBridge
                 reason = $"TOR has no wanderer/companion template for culture '{targetCulture.StringId}'.";
                 return false;
             }
+
+            if (!TorCulturalServiceBridge.Validate(targetCulture, rootSettlement, out reason))
+                return false;
         }
 
         var assimilation = FindBehavior(TorAssimilationBehaviorType);
@@ -151,6 +151,8 @@ internal static class TorSettlementCultureBridge
             RefreshVolunteersAndTavernMercenaries(rootSettlement);
             RefreshTownWanderer(rootSettlement, targetCulture);
             RefreshHomeCaravans(rootSettlement);
+            if (!TorCulturalServiceBridge.Refresh(rootSettlement, targetCulture, out reason))
+                return false;
             return true;
         }
         catch (Exception ex)
@@ -181,6 +183,9 @@ internal static class TorSettlementCultureBridge
             var companions = FindBehavior(TorCompanionsBehaviorType);
             if (companions == null || !HasCompanionTemplate(companions, cultureId)) issues.Add("wanderer template");
 
+            var services = TorCulturalServiceBridge.Describe(culture);
+            if (!string.Equals(services, "services FULL", StringComparison.Ordinal)) issues.Add(services);
+
             yield return issues.Count == 0
                 ? $"{cultureId}: FULL"
                 : $"{cultureId}: BLOCKED ({string.Join(", ", issues)})";
@@ -199,7 +204,6 @@ internal static class TorSettlementCultureBridge
 
         if (!rootSettlement.IsTown) return;
 
-        // Clear any cached troop from the previous culture before forcing the normal native refresh.
         var mercenaryData = recruitment.GetMercenaryData(rootSettlement.Town);
         mercenaryData.ChangeMercenaryType(null, 0);
         updateMercenaries!.Invoke(recruitment, new object[] { rootSettlement.Town, true });
@@ -312,7 +316,6 @@ internal static class TorSettlementCultureBridge
         }
         catch
         {
-            // Fail over to the exact TOR 1.3.15 set pinned by this module.
         }
 
         return KnownPlayableCultures.OrderBy(x => x, StringComparer.Ordinal).ToArray();
