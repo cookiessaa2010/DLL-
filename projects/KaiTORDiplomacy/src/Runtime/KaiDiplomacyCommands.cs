@@ -23,6 +23,28 @@ public static class KaiDiplomacyCommands
             : "KaiTOR Diplomacy: PASS\n" + string.Join("\n", pacts);
     }
 
+    [CommandLineFunctionality.CommandLineArgumentFunction("culture_support", "kaitor_diplomacy")]
+    public static string CultureSupport(List<string> arguments)
+    {
+        if (arguments.Count != 0) return "Usage: kaitor_diplomacy.culture_support";
+        if (Campaign.Current == null) return "No campaign is active.";
+
+        var behavior = Campaign.Current.GetCampaignBehavior<KaiCultureAssimilationBehavior>();
+        if (behavior == null) return "KaiTOR culture conversion behavior is not loaded.";
+
+        return "KaiTOR TOR culture support matrix:\n" + string.Join("\n", behavior.DescribeCultureSupport());
+    }
+
+    [CommandLineFunctionality.CommandLineArgumentFunction("settlement", "kaitor_diplomacy")]
+    public static string SettlementStatus(List<string> arguments)
+    {
+        if (arguments.Count != 0) return "Usage: kaitor_diplomacy.settlement";
+        if (Campaign.Current == null) return "No campaign is active.";
+
+        var behavior = Campaign.Current.GetCampaignBehavior<KaiCultureAssimilationBehavior>();
+        return behavior?.DescribeCurrentSettlement() ?? "KaiTOR culture conversion behavior is not loaded.";
+    }
+
     [CommandLineFunctionality.CommandLineArgumentFunction("kingdoms", "kaitor_diplomacy")]
     public static string Kingdoms(List<string> arguments)
     {
