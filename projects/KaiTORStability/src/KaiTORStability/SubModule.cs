@@ -26,8 +26,9 @@ namespace KaiTORStability
 
             StabilityLog.Event(
                 "MODULE_LOAD",
-                "KaiTOR Stability 0.4.4 loaded after TOR_Core; optimization=" + _settings.EnableStatusEffectOptimization +
-                "; rescanMs=" + _settings.FullRescanIntervalMs +
+                "KaiTOR Stability 0.5.0 loaded after TOR_Core; optimization=" + _settings.EnableStatusEffectOptimization +
+                "; fallbackRescanMs=" + _settings.FullRescanIntervalMs +
+                "; hookedSafetyRescanMs=" + _settings.HookedSafetyRescanIntervalMs +
                 "; shaderTelemetry=" + _settings.EnableShaderTelemetry +
                 "; shaderSampleMs=" + _settings.ShaderTelemetryIntervalMs +
                 "; shaderAcceleration=" + _settings.EnableShaderCacheAcceleration +
@@ -134,7 +135,8 @@ namespace KaiTORStability
 
                 var replacement = OptimizedStatusEffectMissionLogic.TryCreate(
                     torLogic,
-                    _settings.FullRescanIntervalMs / 1000f);
+                    _settings.FullRescanIntervalMs / 1000f,
+                    _settings.HookedSafetyRescanIntervalMs / 1000f);
 
                 if (replacement == null)
                 {
@@ -147,7 +149,9 @@ namespace KaiTORStability
 
                 StabilityLog.Event(
                     "OPTIMIZATION_ACTIVE",
-                    "Replaced TOR StatusEffectMissionLogic; full-rescan interval=" + _settings.FullRescanIntervalMs + "ms.");
+                    "Replaced TOR StatusEffectMissionLogic; event-driven activation is attempted with safety rescans. " +
+                    "fallbackRescanMs=" + _settings.FullRescanIntervalMs +
+                    "; hookedSafetyRescanMs=" + _settings.HookedSafetyRescanIntervalMs + ".");
             }
             catch (Exception ex)
             {
