@@ -7,8 +7,7 @@ namespace KaiTOR.Diplomacy.Models;
 
 /// <summary>
 /// Small reflection bridge for TOR hero biology flags. KaiTOR deliberately does not
-/// reference TOR_Core at compile time so the module can still fail closed through its
-/// runtime compatibility gate when TOR internals move.
+/// reference TOR_Core at compile time so the module can fail closed when TOR internals move.
 /// </summary>
 internal static class TorFamilySafety
 {
@@ -16,6 +15,12 @@ internal static class TorFamilySafety
 
     private static readonly MethodInfo IsVampireMethod = FindHeroExtension("IsVampire");
     private static readonly MethodInfo IsUndeadMethod = FindHeroExtension("IsUndead");
+
+    public static bool IsVampire(Hero hero)
+        => TryInvokeFlag(IsVampireMethod, hero, out var value) && value;
+
+    public static bool IsUndead(Hero hero)
+        => TryInvokeFlag(IsUndeadMethod, hero, out var value) && value;
 
     public static bool IsUndeadNonVampire(Hero hero)
     {
@@ -64,7 +69,7 @@ internal static class TorFamilySafety
         return true;
     }
 
-    private static bool IsCulture(Hero hero, string id)
+    public static bool IsCulture(Hero hero, string id)
         => string.Equals(hero?.Culture?.StringId, id, StringComparison.Ordinal);
 
     private static bool IsVampireCulture(Hero hero)
@@ -97,8 +102,8 @@ internal static class TorFamilySafety
         }
         catch
         {
-            // Family safety is conservative: callers treat unknown vampire state in
-            // vampire cultures as non-fertile rather than risking an invalid offspring.
+            // Family/lifecycle safety is conservative: callers avoid unsafe biological
+            // assumptions when TOR reflection hooks cannot be resolved.
         }
 
         return false;
