@@ -8,10 +8,11 @@ using TaleWorlds.CampaignSystem.Extensions;
 namespace KaiTORPortraitFix
 {
     /// <summary>
-    /// Restores the Save/Load hero visual code when Bannerlord clears it because of a module
-    /// discrepancy. The exact SavedGameVM constructor signature varies across Bannerlord builds,
-    /// so this patch deliberately targets every declared instance constructor instead of relying
-    /// on Harmony to resolve one implicit constructor overload.
+    /// Bannerlord blanks MainHeroVisualCode when a save has a module discrepancy. TOR saves
+    /// commonly hit that gate when the active module set changed even though metadata still
+    /// contains a valid character visual code. Restore only the preview property; never write
+    /// back to the save. We apply after construction and after RefreshValues so the preview stays
+    /// recoverable if another UI refresh rebuilds/clears the VM state.
     /// </summary>
     [HarmonyPatch]
     internal static class SavedGamePreviewCodePatch
@@ -30,51 +31,71 @@ namespace KaiTORPortraitFix
         [HarmonyPostfix]
         internal static void Postfix(SavedGameVM __instance)
         {
-            if (__instance == null)
+            SavePreviewCodeRestore.TryRestore(__instance, "ctor");
+        }
+    }
+
+    [HarmonyPatch(typeof(SavedGameVM), "RefreshValues")]
+    internal static class SavedGamePreviewRefreshPatch
+    {
+        [HarmonyPostfix]
+        internal static void Postfix(SavedGameVM __instance)
+        {
+            SavePreviewCodeRestore.TryRestore(__instance, "refresh");
+        }
+    }
+
+    internal static class SavePreviewCodeRestore
+    {
+        internal static void TryRestore(SavedGameVM instance, string source)
+        {
+            if (instance == null)
                 return;
 
             try
             {
-                var before = __instance.MainHeroVisualCode;
-                var metadataCode = __instance.Save != null && __instance.Save.MetaData != null
-                    ? __instance.Save.MetaData.GetCharacterVisualCode()
+                var before = instance.MainHeroVisualCode;
+                var metadataCode = instance.Save != null && instance.Save.MetaData != null
+                    ? instance.Save.MetaData.GetCharacterVisualCode()
                     : string.Empty;
 
                 PortraitFixLog.Event(
                     "SAVE_VM",
-                    "corrupted=" + __instance.IsCorrupted +
-                    "; discrepancy=" + __instance.IsModuleDiscrepancyDetected +
+                    "source=" + source +
+                    "; corrupted=" + instance.IsCorrupted +
+                    "; discrepancy=" + instance.IsModuleDiscrepancyDetected +
                     "; vmCodeEmpty=" + string.IsNullOrEmpty(before) +
                     "; metadataCodeEmpty=" + string.IsNullOrEmpty(metadataCode) +
                     "; metadataCodeLen=" + (metadataCode == null ? 0 : metadataCode.Length));
 
-                if (__instance.IsCorrupted)
+                if (instance.IsCorrupted)
                 {
-                    PortraitFixLog.Event("SAVE_VM_FIX", "applied=false; reason=corrupted-save");
+                    PortraitFixLog.Event("SAVE_VM_FIX", "source=" + source + "; applied=false; reason=corrupted-save");
                     return;
                 }
 
                 if (!string.IsNullOrEmpty(before))
                 {
-                    PortraitFixLog.Event("SAVE_VM_FIX", "applied=false; reason=vm-code-already-present");
+                    PortraitFixLog.Event("SAVE_VM_FIX", "source=" + source + "; applied=false; reason=vm-code-already-present");
                     return;
                 }
 
                 if (string.IsNullOrEmpty(metadataCode))
                 {
-                    PortraitFixLog.Event("SAVE_VM_FIX", "applied=false; reason=metadata-code-empty");
+                    PortraitFixLog.Event("SAVE_VM_FIX", "source=" + source + "; applied=false; reason=metadata-code-empty");
                     return;
                 }
 
-                __instance.MainHeroVisualCode = metadataCode;
+                instance.MainHeroVisualCode = metadataCode;
                 PortraitFixLog.Event(
                     "SAVE_VM_FIX",
-                    "applied=true; reason=restore-preview-code; discrepancy=" + __instance.IsModuleDiscrepancyDetected +
+                    "source=" + source +
+                    "; applied=true; reason=restore-preview-code; discrepancy=" + instance.IsModuleDiscrepancyDetected +
                     "; codeLen=" + metadataCode.Length);
             }
             catch (Exception ex)
             {
-                PortraitFixLog.Event("SAVE_VM_FIX", "applied=false; error=" + ex.GetType().FullName + ": " + ex.Message);
+                PortraitFixLog.Event("SAVE_VM_FIX", "source=" + source + "; applied=false; error=" + ex.GetType().FullName + ": " + ex.Message);
             }
         }
     }
