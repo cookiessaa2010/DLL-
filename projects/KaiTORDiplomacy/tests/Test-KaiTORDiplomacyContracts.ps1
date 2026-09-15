@@ -7,6 +7,8 @@ Set-StrictMode -Version Latest
 $root = Split-Path -Parent $PSScriptRoot
 $manifestPath = Join-Path $root 'module\SubModule.xml'
 $srcRoot = Join-Path $root 'src'
+$marriagePath = Join-Path $srcRoot 'Models\KaiPlayerMarriageModel.cs'
+$pregnancyPath = Join-Path $srcRoot 'Models\KaiPregnancyModel.cs'
 
 if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
     throw "Manifest missing: $manifestPath"
@@ -32,6 +34,8 @@ if ($sourceFiles.Count -eq 0) {
     throw 'No C# source files found.'
 }
 $source = ($sourceFiles | Get-Content -Raw) -join "`n"
+$marriageSource = Get-Content -LiteralPath $marriagePath -Raw
+$pregnancySource = Get-Content -LiteralPath $pregnancyPath -Raw
 
 foreach ($expectedType in @(
     'TOR_Core.Models.TORDiplomacyModel',
@@ -76,10 +80,15 @@ foreach ($requiredPattern in @(
     '_settlementToBountyMasterMap',
     'TeefBehavior',
     'tor_kwartamasta_greenskins_0',
-    'ValidateKwartaMasters'
+    'ValidateKwartaMasters',
+    'KaiPregnancyModel',
+    'TorFamilySafety',
+    'GetDailyChanceOfPregnancyForHero',
+    'CanUseVanillaPregnancy',
+    'TOR_Core.Extensions.HeroExtensions, TOR_Core'
 )) {
     if ($source -notmatch [regex]::Escape($requiredPattern)) {
-        throw "Required diplomacy/culture/save safety pattern missing: $requiredPattern"
+        throw "Required diplomacy/culture/save/family safety pattern missing: $requiredPattern"
     }
 }
 
@@ -98,6 +107,18 @@ foreach ($forbidden in @(
     }
 }
 
+# Marriage and reproduction are deliberately separate. A direct race-equality veto in
+# the marriage model would regress Dawi <-> human/elf marriages requested by design.
+if ($marriageSource -match 'CharacterObject\.Race\s*!=') {
+    throw 'Marriage model regressed to a direct race-equality veto; cross-race social marriage must remain possible.'
+}
+
+# Pregnancy must fail closed before Bannerlord HeroCreator.DeliverOffSpring sees a
+# cross-race player marriage.
+if ($pregnancySource -notmatch 'TorFamilySafety\.CanUseVanillaPregnancy') {
+    throw 'Pregnancy model no longer delegates offspring race safety to TorFamilySafety.'
+}
+
 # CampaignTime.Now.ToDays is double in Bannerlord 1.3.15. A float expiry map would
 # either fail compilation or require lossy casts, so make that regression explicit.
 if ($source -match 'Dictionary<string, float> _nonAggressionExpiryDays') {
@@ -114,4 +135,6 @@ Write-Output '  No custom SaveableTypeDefiner/SaveableField/SaveableProperty dep
 Write-Output '  Full culture conversion contract present: tier 3+, 100,000 denars.'
 Write-Output '  Recruitment, companions, cultural services and culture-aware market hooks present.'
 Write-Output '  Empire Bounty Master and Greenskin Kwartamasta refresh contracts present.'
+Write-Output '  Player marriage is decoupled from TOR offspring race safety.'
+Write-Output '  Cross-race pregnancy guard is installed without altering TOR NPC families.'
 Write-Output '  No Harmony/model replacement/forced war-peace-marriage actions detected.'
