@@ -48,6 +48,11 @@ jobs:
             if ($audit -notmatch [regex]::Escape($required)) { throw "Missing Dawi audit contract: $required" }
           }
 
+          $stage = Get-Content projects/KaiTORDawiWomen/tools/Stage-DawiAssetCandidates.ps1 -Raw
+          foreach ($required in @('AssetPackages_CANDIDATE_ONLY','BLOCKED_MISSING_BINARY_RESOURCES','sk_dwarf_bm_f1_body','dwarf_skeleton_a')) {
+            if ($stage -notmatch [regex]::Escape($required)) { throw "Missing Dawi staging contract: $required" }
+          }
+
       - name: Assemble safe-off module
         shell: pwsh
         run: |
@@ -60,6 +65,7 @@ jobs:
           Copy-Item projects/KaiTORDawiWomen/build/bin/Win64_Shipping_Client/KaiTOR_DawiWomen.dll (Join-Path $bin 'KaiTOR_DawiWomen.dll') -Force
           Copy-Item projects/KaiTORDawiWomen/README_RU.md (Join-Path $package 'README_RU.md') -Force
           Copy-Item projects/KaiTORDawiWomen/tools/Audit-DawiAssets.ps1 (Join-Path $tools 'Audit-DawiAssets.ps1') -Force
+          Copy-Item projects/KaiTORDawiWomen/tools/Stage-DawiAssetCandidates.ps1 (Join-Path $tools 'Stage-DawiAssetCandidates.ps1') -Force
           Copy-Item projects/KaiTORDawiWomen/templates/kaitor_dawi_woman_lord.xml.template (Join-Path $tools 'kaitor_dawi_woman_lord.xml.template') -Force
 
       - name: Upload safe-off module
