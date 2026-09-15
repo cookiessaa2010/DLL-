@@ -91,10 +91,9 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
     private void OnPeaceMade(IFaction firstFaction, IFaction secondFaction, MakePeaceAction.MakePeaceDetail detail)
     {
         // TOR owns peace rules. We deliberately do not auto-create a pact here.
-        // A treaty is an explicit layer above TOR peace, never a replacement for it.
     }
 
-    public bool TryCreateNonAggressionPact(Kingdom first, Kingdom second, int durationDays, out string reason)
+    public bool CanCreateNonAggressionPact(Kingdom first, Kingdom second, int durationDays, out string reason)
     {
         reason = string.Empty;
 
@@ -137,9 +136,16 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
         var key = TreatyKey.For(first, second);
         ReconcilePair(key);
 
-        if (GetCooldownRemainingDays(key) > 0)
+        if (IsNonAggressionPactActive(first, second))
         {
-            reason = $"A new non-aggression pact is blocked for another {GetCooldownRemainingDays(key)} day(s) after the previous breach.";
+            reason = $"A non-aggression pact is already active for another {GetRemainingDays(first, second)} day(s).";
+            return false;
+        }
+
+        var cooldown = GetCooldownRemainingDays(key);
+        if (cooldown > 0)
+        {
+            reason = $"A new non-aggression pact is blocked for another {cooldown} day(s) after the previous breach.";
             return false;
         }
 
@@ -151,9 +157,33 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
             return false;
         }
 
+        return true;
+    }
+
+    public bool TryCreateNonAggressionPact(Kingdom first, Kingdom second, int durationDays, out string reason)
+    {
+        if (!CanCreateNonAggressionPact(first, second, durationDays, out reason))
+            return false;
+
+        var key = TreatyKey.For(first, second);
         _nonAggressionExpiryDays[key] = CampaignTime.Now.ToDays + durationDays;
         reason = $"Non-aggression pact active for {durationDays} days. Current trust: {GetTrust(first, second)}.";
         return true;
+    }
+
+    public int GetNapAcceptanceScore(Kingdom proposer, Kingdom target)
+    {
+        if (proposer == null || target == null || proposer.IsEliminated || target.IsEliminated)
+            return int.MinValue;
+
+        var trust = GetTrust(proposer, target);
+        var relation = 0;
+        if (proposer.RulingClan != null && target.RulingClan != null)
+            relation = target.RulingClan.GetRelationWithClan(proposer.RulingClan);
+
+        // Trust is pair history owned by KaiTOR; clan relation is native/TOR political history.
+        // Keeping this deliberately simple avoids overriding TOR's own war/peace scoring model.
+        return Math.Max(-200, Math.Min(200, trust + relation));
     }
 
     public bool BreakNonAggressionPact(Kingdom first, Kingdom second)
@@ -254,14 +284,10 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
     private void ReconcilePair(string key)
     {
         if (_nonAggressionExpiryDays.TryGetValue(key, out var expiryDay) && expiryDay <= CampaignTime.Now.ToDays)
-        {
             ExpirePactNaturally(key);
-        }
 
         if (_napCooldownExpiryDays.TryGetValue(key, out var cooldownExpiry) && cooldownExpiry <= CampaignTime.Now.ToDays)
-        {
             _napCooldownExpiryDays.Remove(key);
-        }
     }
 
     private void CleanupExpiredPacts()
@@ -274,9 +300,7 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
             .ToArray();
 
         foreach (var key in expired)
-        {
             ExpirePactNaturally(key);
-        }
     }
 
     private void ExpirePactNaturally(string key)
@@ -295,9 +319,7 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
             .ToArray();
 
         foreach (var key in expired)
-        {
             _napCooldownExpiryDays.Remove(key);
-        }
     }
 
     private int GetCooldownRemainingDays(string key)
@@ -314,12 +336,8 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
     {
         var next = Math.Max(-100, Math.Min(100, GetTrust(key) + delta));
         if (next == 0)
-        {
             _diplomaticTrust.Remove(key);
-        }
         else
-        {
             _diplomaticTrust[key] = next;
-        }
     }
 }
