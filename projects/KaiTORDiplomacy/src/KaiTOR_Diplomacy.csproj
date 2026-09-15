@@ -11,14 +11,20 @@
     <OutputPath>..\build\bin\Win64_Shipping_Client\</OutputPath>
     <DebugType>portable</DebugType>
     <Deterministic>true</Deterministic>
+    <UseBannerlordReferenceAssemblies Condition="'$(UseBannerlordReferenceAssemblies)' == ''">false</UseBannerlordReferenceAssemblies>
   </PropertyGroup>
 
-  <PropertyGroup>
+  <PropertyGroup Condition="'$(UseBannerlordReferenceAssemblies)' != 'true'">
     <BannerlordRoot Condition="'$(BannerlordRoot)' == ''">$(BANNERLORD_ROOT)</BannerlordRoot>
     <BannerlordBin>$(BannerlordRoot)\bin\Win64_Shipping_Client</BannerlordBin>
   </PropertyGroup>
 
-  <ItemGroup>
+  <ItemGroup Condition="'$(UseBannerlordReferenceAssemblies)' == 'true'">
+    <PackageReference Include="Bannerlord.ReferenceAssemblies" Version="1.3.15.110062" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net48" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(UseBannerlordReferenceAssemblies)' != 'true'">
     <Reference Include="TaleWorlds.CampaignSystem">
       <HintPath>$(BannerlordBin)\TaleWorlds.CampaignSystem.dll</HintPath>
       <Private>false</Private>
