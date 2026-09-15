@@ -117,7 +117,7 @@ public sealed class KaiCultureAssimilationBehavior : CampaignBehaviorBase
 
         args.Tooltip = new TextObject(
             $"Immediately rebuild {settlement.Name} as a {targetCulture.Name} settlement. " +
-            "The town/castle, bound villages, notables, volunteer pools, tavern mercenaries, caravan guards, militia/scene population and future tavern wanderers will use your clan culture. " +
+            "The town/castle, bound villages, notables, recruits, tavern mercenaries, caravans, militia/scene population, future wanderers, cultural trainers/services and market production will use your clan culture. " +
             "Existing named lords and members of other clans are not rewritten.");
         return true;
     }
@@ -133,8 +133,9 @@ public sealed class KaiCultureAssimilationBehavior : CampaignBehaviorBase
                    $"Cost: {CultureChangeCost:N0} denars\n" +
                    $"Requirement: clan tier {RequiredClanTier}+\n\n" +
                    "This is intended to behave like the settlement had been assigned your clan's race/culture from the moment of conquest: " +
-                   "bound villages and local notables are rebuilt, volunteer recruitment is refreshed, town tavern mercenaries are regenerated, " +
-                   "wrong-culture tavern wanderers are replaced, and home caravans refresh their culture-specific guards/mercenaries.\n\n" +
+                   "bound villages and local notables are rebuilt, volunteer recruitment is refreshed, tavern mercenaries and future wanderers follow the new culture, " +
+                   "home caravans refresh culture-specific troops, cultural magic/crafting services are synchronized, and all future workshop/shop production uses the new faction culture.\n\n" +
+                   "Existing market stock is not destroyed: old-culture goods already on the shelves may remain until sold or consumed, while newly produced merchandise follows the new culture immediately.\n\n" +
                    "Named lords and heroes belonging to other clans are not converted. If the settlement is captured later, normal TOR assimilation may change it again.";
 
         InformationManager.ShowInquiry(
@@ -192,7 +193,7 @@ public sealed class KaiCultureAssimilationBehavior : CampaignBehaviorBase
         GiveGoldAction.ApplyBetweenCharacters(Hero.MainHero, null, CultureChangeCost, false);
 
         reason = $"{settlement.Name} fully converted to {targetCulture.Name}. {CultureChangeCost:N0} denars paid. " +
-                 "Villages, notables, volunteers, tavern mercenaries, culture-specific wanderers and caravan recruitment were refreshed.";
+                 "Villages, recruitment, tavern population, caravans, cultural services and faction market production were refreshed.";
         return true;
     }
 
