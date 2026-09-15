@@ -12,6 +12,8 @@ $pregnancyPath = Join-Path $srcRoot 'Models\KaiPregnancyModel.cs'
 $warningPath = Join-Path $srcRoot 'Runtime\KaiMarriageWarningBehavior.cs'
 $deathPath = Join-Path $srcRoot 'Models\KaiHeroDeathProbabilityModel.cs'
 $dynastyPath = Join-Path $srcRoot 'Runtime\KaiDynastyAiBehavior.cs'
+$racialPath = Join-Path $srcRoot 'Runtime\KaiRacialPopulationBehavior.cs'
+$dawiAssetPath = Join-Path $srcRoot 'Models\DawiWomenAssetBridge.cs'
 
 if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
     throw "Manifest missing: $manifestPath"
@@ -21,7 +23,7 @@ if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
 if ($manifest.Module.Id.value -ne 'KaiTOR_Diplomacy') {
     throw 'Unexpected module id.'
 }
-if ($manifest.Module.Version.value -ne 'v0.2.0') {
+if ($manifest.Module.Version.value -ne 'v0.3.0') {
     throw 'Unexpected module version.'
 }
 
@@ -42,6 +44,8 @@ $pregnancySource = Get-Content -LiteralPath $pregnancyPath -Raw
 $warningSource = Get-Content -LiteralPath $warningPath -Raw
 $deathSource = Get-Content -LiteralPath $deathPath -Raw
 $dynastySource = Get-Content -LiteralPath $dynastyPath -Raw
+$racialSource = Get-Content -LiteralPath $racialPath -Raw
+$dawiAssetSource = Get-Content -LiteralPath $dawiAssetPath -Raw
 
 foreach ($expectedType in @(
     'TOR_Core.Models.TORDiplomacyModel',
@@ -106,10 +110,20 @@ foreach ($requiredPattern in @(
     'Clan.CreateClan',
     'ChangeKingdomAction.ApplyByJoinToKingdom',
     'ChangeOwnerOfSettlementAction.ApplyByGift',
-    'kaitor_dynasty_house_cooldown_v1'
+    'kaitor_dynasty_house_cooldown_v1',
+    'KaiRacialPopulationBehavior',
+    'kaitor_racial_spore_pressure_v1',
+    'kaitor_racial_spore_cooldown_v1',
+    'kaitor_racial_bloodkiss_cooldown_v1',
+    'tor_wanderer_greenskins_0',
+    'HeroCreator.CreateSpecialHero',
+    'TryApplyBloodKiss',
+    'FaceGen.GetRaceOrDefault("vampire")',
+    'DawiWomenAssetBridge',
+    'kaitor_dawi_woman_lord'
 )) {
     if ($source -notmatch [regex]::Escape($requiredPattern)) {
-        throw "Required diplomacy/culture/save/family/dynasty pattern missing: $requiredPattern"
+        throw "Required diplomacy/culture/save/family/dynasty/racial pattern missing: $requiredPattern"
     }
 }
 
@@ -153,6 +167,51 @@ if ($pregnancySource -notmatch 'TorFamilySafety\.CanUseVanillaPregnancy') {
 }
 if ($pregnancySource -match 'InvolvesPlayerClan') {
     throw 'Pregnancy safety regressed to player-only; restored NPC marriages require world-wide offspring safety.'
+}
+
+# Dawi pregnancy may only unlock when the actual female dwarf asset chain registers its
+# sentinel template. A culture check alone is not enough to prove render safety.
+foreach ($dawiPattern in @(
+    'FemaleDawiLordTemplateId = "kaitor_dawi_woman_lord"',
+    'MBObjectManager.Instance',
+    'template.IsFemale',
+    'FaceGen.GetRaceOrDefault("dwarf")'
+)) {
+    if ($dawiAssetSource -notmatch [regex]::Escape($dawiPattern)) {
+        throw "Dawi female asset safety gate missing: $dawiPattern"
+    }
+}
+
+# Greenskins must grow through off-screen spore population, never Bannerlord pregnancy.
+foreach ($sporePattern in @(
+    'SporePressureThreshold = 100d',
+    'SporeSpawnCooldownDays = 84',
+    'TrySpawnSporeBornHero',
+    'TorFamilySafety.TryAddAttribute(hero, "AICompanion")',
+    'KillCharacterAction.ApplyByRemove(hero)'
+)) {
+    if ($racialSource -notmatch [regex]::Escape($sporePattern)) {
+        throw "Greenskin spore lifecycle contract missing: $sporePattern"
+    }
+}
+if ($racialSource -match 'DeliverOffSpring|GetDailyChanceOfPregnancyForHero') {
+    throw 'Racial population behavior must not route Greenskins/vampires through Bannerlord pregnancy.'
+}
+
+# Blood Kiss must mutate an existing mortal hero's race and must not manufacture a
+# biological vampire child or force a career/religion change owned by TOR.
+foreach ($bloodPattern in @(
+    'BloodKissCooldownDays = 180',
+    'MaximumVampireScions = 8',
+    'IsEligibleForBloodKiss',
+    'TorFamilySafety.TryApplyBloodKiss(candidate)'
+)) {
+    if ($racialSource -notmatch [regex]::Escape($bloodPattern)) {
+        throw "Vampire Blood Kiss contract missing: $bloodPattern"
+    }
+}
+if ($racialSource -match 'AddCareer|DominantReligion|AddReligiousInfluence') {
+    throw 'KaiTOR racial population behavior must not fabricate TOR vampire careers or religion.'
 }
 
 # Restoring life/death without a race-aware mortality wrapper would make long-lived TOR
@@ -206,6 +265,9 @@ Write-Output '  Treaty/save primitive-state contracts present.'
 Write-Output '  Full settlement culture conversion and TOR cultural service hooks present.'
 Write-Output '  World NPC marriages restored through Bannerlord native RomanceCampaignBehavior.'
 Write-Output '  Cross-race/undead pregnancy safety applies to the whole world.'
+Write-Output '  Dawi pregnancy remains gated behind the real female-dwarf asset sentinel.'
+Write-Output '  Greenskin population continuity uses bounded off-screen spore-born adult heroes.'
+Write-Output '  Vampire population continuity uses bounded Blood Kiss race conversion.'
 Write-Output '  TOR frozen lifecycle is re-enabled with race-aware natural mortality.'
 Write-Output '  AI kingdoms can recruit existing clans through native barter or found bounded cadet houses.'
 Write-Output '  Childless player marriages retain pre-barter continue/cancel warning.'
