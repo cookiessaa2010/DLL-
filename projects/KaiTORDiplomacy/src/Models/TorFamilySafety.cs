@@ -1,0 +1,106 @@
+using System;
+using System.Linq;
+using System.Reflection;
+using TaleWorlds.CampaignSystem;
+
+namespace KaiTOR.Diplomacy.Models;
+
+/// <summary>
+/// Small reflection bridge for TOR hero biology flags. KaiTOR deliberately does not
+/// reference TOR_Core at compile time so the module can still fail closed through its
+/// runtime compatibility gate when TOR internals move.
+/// </summary>
+internal static class TorFamilySafety
+{
+    private const string HeroExtensionsTypeName = "TOR_Core.Extensions.HeroExtensions, TOR_Core";
+
+    private static readonly MethodInfo IsVampireMethod = FindHeroExtension("IsVampire");
+    private static readonly MethodInfo IsUndeadMethod = FindHeroExtension("IsUndead");
+
+    public static bool IsUndeadNonVampire(Hero hero)
+    {
+        if (hero == null) return false;
+
+        var undeadKnown = TryInvokeFlag(IsUndeadMethod, hero, out var undead);
+        if (!undeadKnown || !undead) return false;
+
+        var vampireKnown = TryInvokeFlag(IsVampireMethod, hero, out var vampire);
+        return !vampireKnown || !vampire;
+    }
+
+    public static bool CanUseVanillaPregnancy(Hero firstHero, Hero secondHero)
+    {
+        if (firstHero?.CharacterObject == null || secondHero?.CharacterObject == null)
+            return false;
+
+        // Bannerlord 1.3.x DeliverOffSpring asserts that both parents use the same
+        // CharacterObject.Race. Never allow the vanilla pregnancy pipeline to reach
+        // that method for a cross-race marriage.
+        if (firstHero.CharacterObject.Race != secondHero.CharacterObject.Race)
+            return false;
+
+        // TOR currently has no actual female Dawi character body/templates in its
+        // townspeople data. Greenskins reproduce outside Bannerlord family mechanics.
+        if (IsCulture(firstHero, "sturgia") || IsCulture(secondHero, "sturgia") ||
+            IsCulture(firstHero, "aserai") || IsCulture(secondHero, "aserai"))
+            return false;
+
+        // Vampires/other undead do not use Bannerlord biological reproduction.
+        // If TOR's vampire hook cannot be resolved, fail closed for the two cultures
+        // that can contain vampires rather than risk creating a broken child.
+        var firstVampireKnown = TryInvokeFlag(IsVampireMethod, firstHero, out var firstVampire);
+        var secondVampireKnown = TryInvokeFlag(IsVampireMethod, secondHero, out var secondVampire);
+        if ((firstVampireKnown && firstVampire) || (secondVampireKnown && secondVampire))
+            return false;
+        if ((!firstVampireKnown && IsVampireCulture(firstHero)) ||
+            (!secondVampireKnown && IsVampireCulture(secondHero)))
+            return false;
+
+        if (TryInvokeFlag(IsUndeadMethod, firstHero, out var firstUndead) && firstUndead)
+            return false;
+        if (TryInvokeFlag(IsUndeadMethod, secondHero, out var secondUndead) && secondUndead)
+            return false;
+
+        return true;
+    }
+
+    private static bool IsCulture(Hero hero, string id)
+        => string.Equals(hero?.Culture?.StringId, id, StringComparison.Ordinal);
+
+    private static bool IsVampireCulture(Hero hero)
+        => IsCulture(hero, "khuzait") || IsCulture(hero, "mousillon");
+
+    private static MethodInfo FindHeroExtension(string methodName)
+    {
+        var type = Type.GetType(HeroExtensionsTypeName, false);
+        return type?.GetMethods(BindingFlags.Public | BindingFlags.Static)
+            .FirstOrDefault(method =>
+            {
+                if (!string.Equals(method.Name, methodName, StringComparison.Ordinal)) return false;
+                var parameters = method.GetParameters();
+                return parameters.Length == 1 && parameters[0].ParameterType == typeof(Hero) && method.ReturnType == typeof(bool);
+            });
+    }
+
+    private static bool TryInvokeFlag(MethodInfo method, Hero hero, out bool value)
+    {
+        value = false;
+        if (method == null || hero == null) return false;
+
+        try
+        {
+            if (method.Invoke(null, new object[] { hero }) is bool result)
+            {
+                value = result;
+                return true;
+            }
+        }
+        catch
+        {
+            // Family safety is conservative: callers treat unknown vampire state in
+            // vampire cultures as non-fertile rather than risking an invalid offspring.
+        }
+
+        return false;
+    }
+}
