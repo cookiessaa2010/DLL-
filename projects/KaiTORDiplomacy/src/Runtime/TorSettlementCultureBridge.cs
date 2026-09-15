@@ -128,6 +128,9 @@ internal static class TorSettlementCultureBridge
 
             if (!TorCulturalServiceBridge.Validate(targetCulture, rootSettlement, out reason))
                 return false;
+
+            if (!TorMarketCultureBridge.Validate(targetCulture, rootSettlement, out reason))
+                return false;
         }
 
         var assimilation = FindBehavior(TorAssimilationBehaviorType);
@@ -152,6 +155,8 @@ internal static class TorSettlementCultureBridge
             RefreshTownWanderer(rootSettlement, targetCulture);
             RefreshHomeCaravans(rootSettlement);
             if (!TorCulturalServiceBridge.Refresh(rootSettlement, targetCulture, out reason))
+                return false;
+            if (!TorMarketCultureBridge.Refresh(rootSettlement, targetCulture, out reason))
                 return false;
             return true;
         }
@@ -185,6 +190,9 @@ internal static class TorSettlementCultureBridge
 
             var services = TorCulturalServiceBridge.Describe(culture);
             if (!string.Equals(services, "services FULL", StringComparison.Ordinal)) issues.Add(services);
+
+            var market = TorMarketCultureBridge.Describe(culture);
+            if (!string.Equals(market, "market FULL", StringComparison.Ordinal)) issues.Add(market);
 
             yield return issues.Count == 0
                 ? $"{cultureId}: FULL"
