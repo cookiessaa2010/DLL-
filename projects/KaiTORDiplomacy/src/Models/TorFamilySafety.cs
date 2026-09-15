@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Reflection;
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.Core;
 
 namespace KaiTOR.Diplomacy.Models;
 
@@ -16,6 +17,9 @@ internal static class TorFamilySafety
     private static readonly MethodInfo IsVampireMethod = FindHeroExtension("IsVampire");
     private static readonly MethodInfo IsUndeadMethod = FindHeroExtension("IsUndead");
     private static readonly MethodInfo IsAiCompanionMethod = FindHeroExtension("IsAICompanion");
+    private static readonly MethodInfo AddAttributeMethod = FindHeroMutation("AddAttribute");
+
+    public static bool CanAddAttribute => AddAttributeMethod != null;
 
     public static bool IsVampire(Hero hero)
         => TryInvokeFlag(IsVampireMethod, hero, out var value) && value;
@@ -48,11 +52,19 @@ internal static class TorFamilySafety
         if (firstHero.CharacterObject.Race != secondHero.CharacterObject.Race)
             return false;
 
-        // TOR currently has no actual female Dawi character body/templates in its
-        // townspeople data. Greenskins reproduce outside Bannerlord family mechanics.
-        if (IsCulture(firstHero, "sturgia") || IsCulture(secondHero, "sturgia") ||
-            IsCulture(firstHero, "aserai") || IsCulture(secondHero, "aserai"))
+        // Greenskins reproduce through the off-screen spore lifecycle, never through
+        // Bannerlord pregnancy.
+        if (IsCulture(firstHero, "aserai") || IsCulture(secondHero, "aserai"))
             return false;
+
+        // Dawi use normal same-race family mechanics only when the complete optional
+        // female-Dawi asset chain is actually registered. Until then they remain
+        // fail-closed rather than producing a child the installed race cannot render.
+        if (IsCulture(firstHero, "sturgia") || IsCulture(secondHero, "sturgia"))
+        {
+            if (!DawiWomenAssetBridge.IsSupportedDawiPair(firstHero, secondHero))
+                return false;
+        }
 
         // Vampires/other undead do not use Bannerlord biological reproduction.
         // If TOR's vampire hook cannot be resolved, fail closed for the two cultures
@@ -73,6 +85,41 @@ internal static class TorFamilySafety
         return true;
     }
 
+    /// <summary>
+    /// Applies the same public race mutation TOR uses for its player Blood Kiss flows.
+    /// No career/religion is fabricated here; KaiTOR only changes biological race and
+    /// lets TOR systems continue to own careers, spells, religion and resources.
+    /// </summary>
+    public static bool TryApplyBloodKiss(Hero hero)
+    {
+        if (hero?.CharacterObject == null || IsVampire(hero))
+            return false;
+
+        var vampireRace = FaceGen.GetRaceOrDefault("vampire");
+        var humanRace = FaceGen.GetRaceOrDefault("human");
+        if (vampireRace == humanRace)
+            return false;
+
+        hero.CharacterObject.Race = vampireRace;
+        return IsVampire(hero);
+    }
+
+    public static bool TryAddAttribute(Hero hero, string attribute)
+    {
+        if (AddAttributeMethod == null || hero == null || string.IsNullOrWhiteSpace(attribute))
+            return false;
+
+        try
+        {
+            AddAttributeMethod.Invoke(null, new object[] { hero, attribute });
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     public static bool IsCulture(Hero hero, string id)
         => string.Equals(hero?.Culture?.StringId, id, StringComparison.Ordinal);
 
@@ -88,6 +135,21 @@ internal static class TorFamilySafety
                 if (!string.Equals(method.Name, methodName, StringComparison.Ordinal)) return false;
                 var parameters = method.GetParameters();
                 return parameters.Length == 1 && parameters[0].ParameterType == typeof(Hero) && method.ReturnType == typeof(bool);
+            });
+    }
+
+    private static MethodInfo FindHeroMutation(string methodName)
+    {
+        var type = Type.GetType(HeroExtensionsTypeName, false);
+        return type?.GetMethods(BindingFlags.Public | BindingFlags.Static)
+            .FirstOrDefault(method =>
+            {
+                if (!string.Equals(method.Name, methodName, StringComparison.Ordinal)) return false;
+                var parameters = method.GetParameters();
+                return parameters.Length == 2 &&
+                       parameters[0].ParameterType == typeof(Hero) &&
+                       parameters[1].ParameterType == typeof(string) &&
+                       method.ReturnType == typeof(void);
             });
     }
 
