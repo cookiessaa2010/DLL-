@@ -1,0 +1,71 @@
+name: KaiTOR Dawi Women Module Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - kaitor-diplomacy
+    paths:
+      - 'projects/KaiTORDawiWomen/**'
+      - '.github/workflows/kaitor-dawi-women-module-build.yml'
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build Bannerlord 1.3.15 module
+        shell: pwsh
+        run: |
+          dotnet build projects/KaiTORDawiWomen/src/KaiTOR_DawiWomen.csproj `
+            -c Release `
+            -p:UseBannerlordReferenceAssemblies=true `
+            --nologo
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Verify safe-off asset contract
+        shell: pwsh
+        run: |
+          $manifest = Get-Content projects/KaiTORDawiWomen/module/SubModule.xml -Raw
+          if ($manifest -notmatch 'KaiTOR_DawiWomen') { throw 'Unexpected Dawi module id.' }
+          if ($manifest -notmatch 'v0\.1\.0') { throw 'Unexpected Dawi module version.' }
+          if ($manifest -match '<Xmls>') { throw 'Female template must remain unloaded until binary asset chain is staged and verified.' }
+
+          $blueprint = Get-Content projects/KaiTORDawiWomen/templates/kaitor_dawi_woman_lord.xml.template -Raw
+          foreach ($required in @('kaitor_dawi_woman_lord','race="dwarf"','is_female="true"','__KAI_DAWI_FEMALE_BATTLE_EQUIPMENT__')) {
+            if ($blueprint -notmatch [regex]::Escape($required)) { throw "Missing female Dawi blueprint contract: $required" }
+          }
+
+          $audit = Get-Content projects/KaiTORDawiWomen/tools/Audit-DawiAssets.ps1 -Raw
+          foreach ($required in @('dwarf_skeleton_a','as_dwarf_female_warrior','sk_dwarf_bm_f1_body','sk_dwarf_underwear_female_a','READY_FOR_MANUAL_RIG_TEST')) {
+            if ($audit -notmatch [regex]::Escape($required)) { throw "Missing Dawi audit contract: $required" }
+          }
+
+      - name: Assemble safe-off module
+        shell: pwsh
+        run: |
+          $package = 'artifact/KaiTOR_DawiWomen'
+          $bin = Join-Path $package 'bin/Win64_Shipping_Client'
+          $tools = Join-Path $package 'Tools'
+          New-Item -ItemType Directory -Path $bin -Force | Out-Null
+          New-Item -ItemType Directory -Path $tools -Force | Out-Null
+          Copy-Item projects/KaiTORDawiWomen/module/SubModule.xml (Join-Path $package 'SubModule.xml') -Force
+          Copy-Item projects/KaiTORDawiWomen/build/bin/Win64_Shipping_Client/KaiTOR_DawiWomen.dll (Join-Path $bin 'KaiTOR_DawiWomen.dll') -Force
+          Copy-Item projects/KaiTORDawiWomen/README_RU.md (Join-Path $package 'README_RU.md') -Force
+          Copy-Item projects/KaiTORDawiWomen/tools/Audit-DawiAssets.ps1 (Join-Path $tools 'Audit-DawiAssets.ps1') -Force
+          Copy-Item projects/KaiTORDawiWomen/templates/kaitor_dawi_woman_lord.xml.template (Join-Path $tools 'kaitor_dawi_woman_lord.xml.template') -Force
+
+      - name: Upload safe-off module
+        uses: actions/upload-artifact@v4
+        with:
+          name: KaiTOR-DawiWomen-v0.1.0-SafeOff
+          path: artifact/KaiTOR_DawiWomen
+          if-no-files-found: error
+          retention-days: 30
