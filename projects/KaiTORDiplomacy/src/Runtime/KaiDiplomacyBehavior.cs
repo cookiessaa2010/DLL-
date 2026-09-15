@@ -41,7 +41,7 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
     public override void SyncData(IDataStore dataStore)
     {
         // Keep these keys stable. Existing KaiTOR saves must continue to deserialize
-        // without creating custom SaveableObject/SaveableTypeDefiner dependencies.
+        // using only primitive dictionary state and no custom save-type registration.
         dataStore.SyncData("kaitor_diplomacy_nap_expiry_days_v2", ref _nonAggressionExpiryDays);
         dataStore.SyncData("kaitor_diplomacy_breach_counts", ref _breachCounts);
         dataStore.SyncData("kaitor_diplomacy_trust", ref _diplomaticTrust);
