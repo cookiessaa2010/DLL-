@@ -1,6 +1,6 @@
-# KaiTOR Diplomacy v0.2.0 — live-test TOR 1.3.15
+# KaiTOR Diplomacy v0.3.0 — live-test TOR 1.3.15
 
-Цель прогона: доказать, что KaiTOR загружается поверх TOR 1.3.15, сохраняет собственное состояние без хрупких save-типов, не ломает TOR diplomacy/assimilation и безопасно обслуживает culture conversion + player-family marriage.
+Цель прогона: доказать, что KaiTOR загружается поверх TOR 1.3.15, сохраняет собственное состояние без хрупких save-типов, не ломает TOR diplomacy/assimilation и безопасно обслуживает settlement conversion, world marriages, aging, AI vassals и race-specific population lifecycle.
 
 ## Требования
 
@@ -8,7 +8,7 @@
 - The Old Realms `v1.3.15`.
 - Порядок модулей: `Native -> SandBoxCore -> Sandbox -> TOR_Armory -> TOR_Environment -> TOR_Core -> KaiTOR_Diplomacy`.
 - На этот тест не подключать KaiTOR Online/Coop.
-- Сделать резервную копию тестового save перед первым запуском новой DLL.
+- Сделать резервную копию test-save перед первым запуском новой DLL.
 
 ## Preflight
 
@@ -19,32 +19,38 @@
 
 Ожидается `PASS` в обоих тестах.
 
-## Проверка запуска и save schema
+## Базовая диагностика
 
-После загрузки кампании:
+После загрузки кампании выполнить:
 
 ```text
 kaitor_diplomacy.status
 kaitor_diplomacy.save_status
+kaitor_diplomacy.world_status
+kaitor_diplomacy.marriages
+kaitor_diplomacy.racial_status
 kaitor_diplomacy.culture_support
 ```
 
 Ожидается:
 
 - TOR compatibility gate PASS;
-- save schema поддерживается текущей DLL;
-- culture support matrix не содержит BLOCKED для тестируемой культуры.
+- `KaiTOR world lifecycle: ENABLED`;
+- активны `KaiPlayerMarriageModel`, `KaiPregnancyModel`, `KaiHeroDeathProbabilityModel`;
+- `racial_status` показывает Greenskin spore pressure, Vampire Blood Kiss cooldown и Dawi asset gate;
+- без отдельного female-Dawi asset pack строка Dawi должна быть `MISSING/SAFE-OFF`, а не ошибкой загрузки.
 
-### Existing-save upgrade
+## Existing-save upgrade и aging catch-up
 
 1. загрузить существующий TOR/KaiTOR save;
-2. ничего не менять и сразу сохранить в новый слот;
-3. выйти в главное меню;
-4. загрузить новый слот;
-5. повторить `save_status`;
-6. проверить TOR diplomacy, поселения, героев и инвентари.
+2. записать возраст 3–5 героев разных рас;
+3. сохранить в новый слот и перезагрузить;
+4. промотать campaign time;
+5. снова проверить возраст и `world_status`.
 
-Старый save без KaiTOR schema должен мягко перейти с schema 0 на текущую schema 1. KaiTOR не должен создавать custom SaveableTypeDefiner/Hero/Settlement graph.
+Проверить особенно старый TOR-save, который долго жил с `IsLifeDeathCycleDisabled=true`: возможен заметный возрастной catch-up. Если появляется лавина мгновенных old-age deaths, зафиксировать save и лог — это отдельный hardening case, а не повод отключать lifecycle обратно.
+
+Save schema KaiTOR остаётся примитивной: dictionaries/string/double/int без custom Saveable Hero/Settlement graph.
 
 ## NAP / trust
 
@@ -58,130 +64,133 @@ kaitor_diplomacy.ledger
 
 Проверить save/load. Срок NAP, trust, breaches и cooldown должны сохраниться.
 
-Естественное окончание: trust `+5`.
-Ручной разрыв: trust `-10`, cooldown `10` дней.
-Война при активном NAP: breach `+1`, trust `-30`, cooldown `30` дней; сама война остаётся под TOR.
+- естественное окончание: trust `+5`;
+- ручной разрыв: trust `-10`, cooldown `10` дней;
+- война при активном NAP: breach `+1`, trust `-30`, cooldown `30` дней; сама война остаётся под TOR.
 
 ## Full settlement culture conversion
 
-Требуется:
+Требуется player-owned town/castle, clan tier >= 3, >= 100,000 denars, другая культура, без siege и не `castle_BK1`.
 
-- town/castle игрока;
-- clan tier >= 3;
-- >= 100,000 denars;
-- поселение другой культуры;
-- не siege;
-- не TOR special `castle_BK1`.
-
-До конверсии записать:
+До/после проверить:
 
 ```text
 kaitor_diplomacy.settlement
 kaitor_diplomacy.culture_support
 ```
 
-Также проверить вручную:
+Проверки:
 
-- culture города/замка и bound villages;
-- notables + volunteers;
-- tavern mercenary;
-- wanderer;
-- caravan troops;
-- spell trainer;
-- enchanter/alchemist;
-- Empire Bounty Master, если целевая культура Empire;
-- Greenskin Kwartamasta, если целевая культура Greenskin;
-- ассортимент магазина.
+- settlement + bound villages получают clan culture;
+- старые локальные notables заменяются корректно;
+- recruits/tavern/wanderer/caravans меняют культурную экосистему;
+- spell/enchant services обновляются;
+- Empire Bounty Master и Greenskin Kwartamasta появляются только там, где должны;
+- future workshop/shop production следует новой культуре;
+- legacy market stock не обязан исчезать мгновенно;
+- landmark-сервисы Nuln/Altdorf/Karak/Lithanel не клонируются в чужие города;
+- save/load сохраняет новую culture через TOR `AssimilationCampaignBehavior`.
 
-После оплаты 100,000 проверить:
+## World marriages
 
-- settlement + villages получили clan culture;
-- старые локальные notables заменены культурно корректными;
-- recruits/tavern/wanderer/caravans соответствуют новой культуре;
-- spell/enchant cultural services обновились;
-- Empire town получает корректного Bounty Master;
-- Greenskin-owned fortification получает ровно одного Kwartamasta;
-- будущая workshop/shop production использует новую культуру;
-- старый market stock может временно оставаться и естественно уходить.
+TOR отключает NPC marriage; KaiTOR должен восстановить его для всего мира через native `RomanceCampaignBehavior`, а не прямой `MarriageAction`.
 
-Сохранить, выйти и загрузить. Culture должна остаться новой: её persistence принадлежит TOR `AssimilationCampaignBehavior`, а не отдельной таблице KaiTOR.
+Промотать несколько недель/месяцев и повторить:
 
-### Landmark regression
+```text
+kaitor_diplomacy.marriages
+```
 
-Проверить, что conversion НЕ клонирует:
+Проверить появление новых NPC-браков между допустимыми культурами.
 
-- Nuln Master Engineer в другие города;
-- Altdorf Prestige Noble в другие города;
-- Dawi Karak guildmasters в обычный Dawi town;
-- Lithanel envoys в обычный Eonir town;
-- settlement-id priests/shrines в произвольные города.
+### Бездетные cross-race браки
 
-Для настоящего Karak под Dawi guildmasters должны работать штатно. Для Lithanel под Eonir — envoys штатно.
+Для Dawi ↔ Human/Elf или другой разрешённой social-marriage пары с несовместимым `CharacterObject.Race`:
 
-## Player-family marriage safety
+- свадьба разрешена;
+- player-facing путь показывает предупреждение до финального barter;
+- pregnancy не создаётся;
+- broken child Hero не появляется;
+- save/load работает.
 
-Полная матрица описана в `FAMILY_COMPATIBILITY_RU.md`.
+### Безопасные пары
 
-KaiTOR разрешает player-clan social marriage между:
+Human↔Human и Elf↔Elf с одинаковым реальным `CharacterObject.Race` должны продолжать использовать оригинальный active PregnancyModel без изменения его вероятностей.
 
-`Empire / Bretonnia / Sylvania / Mousillon / Asrai / Eonir / Dawi`
+## Dawi
 
-Greenskins исключены.
+До установки отдельного `KaiTOR_DawiWomen` asset pack:
 
-### Тест предупреждения о бездетном браке
+- same-race Dawi pregnancy должна оставаться выключенной;
+- `racial_status` должен показывать Dawi female asset gate `MISSING/SAFE-OFF`;
+- Dawi не должны получать фальшивых женщин на male mesh.
 
-Выбрать пару, для которой KaiTOR разрешает свадьбу, но `TorFamilySafety` запрещает vanilla pregnancy, например Dawi ↔ Human или Dawi ↔ Elf.
+После будущего подключения полного female asset pack sentinel-template `kaitor_dawi_woman_lord` должен переводить gate в `READY`. Только после этого разрешается same-race Dawi pregnancy. Cross-race Dawi marriage остаётся социальным и бездетным.
 
-Дойти до финальной стадии брачных договорённостей.
+## Greenskin spores
 
-До открытия обычного marriage barter должно появиться предупреждение KaiTOR о том, что:
+Greenskins не используют marriage/pregnancy для размножения. KaiTOR накапливает скрытый spore pressure от контролируемых fortifications.
 
-- брак разрешён;
-- биологических детей у этой пары не будет;
-- KaiTOR не будет генерировать offspring для этой пары.
+Тест:
 
-Проверить обе кнопки:
+1. выбрать AI Greenskin kingdom с хотя бы одним fortification;
+2. записать `kaitor_diplomacy.racial_status`;
+3. промотать недели;
+4. pressure должен расти;
+5. при достижении порога и отсутствии cooldown должен появиться новый взрослый Greenskin AI companion из TOR templates;
+6. после spawn pressure уменьшается, начинается cooldown;
+7. новый Hero должен быть `Occupation.Special + AICompanion`, принадлежать реальному clan и нормально переживать save/load;
+8. он может позднее стать founder нового Greenskin cadet house через `KaiDynastyAiBehavior`.
 
-1. `I understand. Continue with the marriage arrangements.` — после неё должен открыться обычный Bannerlord marriage barter и свадьба может завершиться штатно;
-2. `Not now. I want to reconsider this marriage.` — диалог должен закрыться без свадьбы и без изменения spouse/state.
+Ограничения, которые обязательно проверить:
 
-После успешной свадьбы не должно быть повторного дублирующего warning для обычного courtship path. Для alternate arranged/barter path допускается резервное информационное сообщение на `BeforeHeroesMarried`.
+- максимум Greenskin AI companions ограничен;
+- не создаётся ребёнок/мать/pregnancy;
+- при провале TOR `AICompanion` attribute bridge созданный special Hero удаляется, а не остаётся сломанным;
+- player kingdom не получает автономные spore decisions.
 
-Сделать save/load сразу после свадьбы: warning behavior не должен добавлять сериализуемые данные.
+## Vampire Blood Kiss
 
-### Тест Dawi -> Human/Elf
+Vampires не используют pregnancy. Новые вампиры должны появляться редким обращением существующих смертных.
 
-1. player или член player clan культуры Dawi;
-2. выбрать допустимую свободную человеческую/эльфийскую героиню;
-3. убедиться, что marriage suitability больше не отбрасывается только из-за другого Bannerlord Race id;
-4. оформить брак штатным player-facing механизмом;
-5. прожить минимум несколько недель campaign time;
-6. сохранить/загрузить несколько раз.
+Тест:
 
-Ожидается:
+1. выбрать AI Sylvania или Mousillon kingdom;
+2. убедиться, что там есть хотя бы один существующий vampire sponsor;
+3. выполнить `racial_status`;
+4. найти подходящего unmarried/childless adult human lord или TOR AI companion с non-negative relation к sponsor;
+5. промотать время до срабатывания;
+6. выбранный Hero должен сохранить identity/clan/name, но получить vampire race;
+7. old-age mortality для него должна стать 0 через `KaiHeroDeathProbabilityModel`;
+8. career/religion/spells KaiTOR сам не должен переписывать;
+9. после обращения действует 180-day cooldown;
+10. save/load минимум 3 раза.
 
-- супруги остаются корректными;
-- pregnancy не создаётся для Dawi cross-race пары;
-- не появляется broken child Hero;
-- save продолжает загружаться.
+Не допускать автоматического Blood Kiss для Dawi, Elf, Greenskin или другого custom race до отдельного решения по лору.
 
-### Тест Human -> Human и Elf -> Elf
+## AI vassals / cadet houses
 
-Для пары с одинаковым безопасным `CharacterObject.Race` оригинальный active PregnancyModel должен продолжить работать без изменения своих вероятностей.
+Для AI kingdom с deficit по noble clans:
 
-Проверить отдельно:
+1. KaiTOR сначала пытается native `JoinKingdomAsClanBarterable`;
+2. если recruit не прошёл, ruler с >=30,000 gold и >=2 fortifications может выделить новый cadet house;
+3. founder — unmarried/childless adult lord или TOR AI companion;
+4. новый `kaitor_house_*` должен быть реальным `Clan`, войти в kingdom через `ChangeKingdomAction`, получить fief через `ChangeOwnerOfSettlementAction` и seed gold;
+5. cooldown создания дома — 180 дней;
+6. target noble clans ограничен максимумом 10.
 
-- Empire-compatible same-race pair;
-- Bretonnian same-race pair;
-- Asrai/Eonir elf pair, если оба реально `race=elf`.
+Отдельно проверить Dawi и Greenskins: Dawi могут поддерживать политическую преемственность cadet houses даже до female asset pack; Greenskin spore-born AI companions должны становиться валидными кандидатами founder.
 
-### Тест Vampire
+## Race-aware natural death
 
-Женщина-вампир может быть marriage partner, но TOR vampire/undead hero не должен получать vanilla pregnancy. Прожить несколько недель + save/load.
+Проверить при длительной промотке:
 
-### Тест Greenskin
-
-Orc/Greenskin не должен становиться допустимым marriage/family partner. Технические `townswoman_greenskins` не считать женскими Orc templates.
+- Humans: обычная Bannerlord/TOR old-age death;
+- Dawi: old-age mortality начинается примерно после 180, hard max около 420;
+- Asrai/Eonir: no old-age death в обычном campaign horizon;
+- Greenskins: no old-age death;
+- Vampires/other undead: no old-age death;
+- battle/mission death остаётся рабочей для всех.
 
 ## TOR regressions
 
@@ -191,7 +200,8 @@ Orc/Greenskin не должен становиться допустимым marr
 - Chaos restrictions;
 - alliances + ally call;
 - trade agreements;
-- religion/faith systems;
+- religion/faith;
+- careers/spells/resources;
 - spell trainers/enchanters;
 - bounty master;
 - Dawi/Eonir landmark services;
@@ -201,12 +211,15 @@ Orc/Greenskin не должен становиться допустимым marr
 
 ## Что прислать при ошибке
 
-- точный скрин/текст exception;
+- точный exception/скрин;
 - `rgl_log_*.txt` / crash report;
 - `kaitor_diplomacy.status`;
 - `kaitor_diplomacy.save_status`;
+- `kaitor_diplomacy.world_status`;
+- `kaitor_diplomacy.marriages`;
+- `kaitor_diplomacy.racial_status`;
 - `kaitor_diplomacy.culture_support`;
 - `kaitor_diplomacy.settlement`, если ошибка в settlement;
-- культуры/race пары, если ошибка family;
+- культуры/race затронутых Hero;
 - новый или существующий save;
-- действие непосредственно перед ошибкой: startup / save / load / NAP / culture conversion / marriage / pregnancy / TOR service.
+- действие перед ошибкой: startup / save / load / aging / NAP / conversion / marriage / pregnancy / spore spawn / Blood Kiss / clan recruit / cadet house.
