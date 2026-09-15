@@ -1,0 +1,26 @@
+<Module>
+  <Name value="KaiTOR Dawi Women" />
+  <Id value="KaiTOR_DawiWomen" />
+  <Version value="v0.1.0" />
+  <ModuleCategory value="Singleplayer" />
+  <DependedModules>
+    <DependedModule Id="Native" DependentVersion="v1.3.15" />
+    <DependedModule Id="SandBoxCore" DependentVersion="v1.3.15" />
+    <DependedModule Id="Sandbox" DependentVersion="v1.3.15" />
+    <DependedModule Id="TOR_Armory" DependentVersion="v1.3.15" />
+    <DependedModule Id="TOR_Environment" DependentVersion="v1.3.15" />
+    <DependedModule Id="TOR_Core" DependentVersion="v1.3.15" />
+    <DependedModule Id="KaiTOR_Diplomacy" DependentVersion="v0.3.0" />
+  </DependedModules>
+  <SubModules>
+    <SubModule>
+      <Name value="KaiTOR Dawi Women" />
+      <DLLName value="KaiTOR_DawiWomen.dll" />
+      <SubModuleClassType value="KaiTOR.DawiWomen.SubModule" />
+      <Tags>
+        <Tag key="DedicatedServerType" value="none" />
+        <Tag key="IsNoRenderModeElement" value="false" />
+      </Tags>
+    </SubModule>
+  </SubModules>
+</Module>
