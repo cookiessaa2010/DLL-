@@ -19,6 +19,7 @@ public sealed class SubModule : MBSubModuleBase
 
         InstallPermissionWrapper(campaignStarter);
         InstallMarriageWrapper(campaignStarter);
+        InstallPregnancyWrapper(campaignStarter);
 
         campaignStarter.AddBehavior(new KaiDiplomacyBehavior());
         campaignStarter.AddBehavior(new KaiDiplomacyOfficeBehavior());
@@ -42,5 +43,17 @@ public sealed class SubModule : MBSubModuleBase
             return;
 
         starter.AddModel<MarriageModel>(new KaiPlayerMarriageModel(torModel));
+    }
+
+    private static void InstallPregnancyWrapper(CampaignGameStarter starter)
+    {
+        var activeModel = starter.GetModel<PregnancyModel>();
+        if (activeModel == null || activeModel is KaiPregnancyModel)
+            return;
+
+        // The decorator forwards every TOR/Bannerlord pregnancy setting unchanged and
+        // only vetoes unsafe player-family pregnancies before DeliverOffSpring can see
+        // parents with incompatible TOR race ids.
+        starter.AddModel<PregnancyModel>(new KaiPregnancyModel(activeModel));
     }
 }
