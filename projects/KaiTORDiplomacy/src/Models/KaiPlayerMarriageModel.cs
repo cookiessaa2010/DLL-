@@ -6,17 +6,15 @@ using TaleWorlds.CampaignSystem.GameComponents;
 namespace KaiTOR.Diplomacy.Models;
 
 /// <summary>
-/// Player-facing marriage compatibility layer for TOR.
-/// TOR disables vanilla marriage globally. KaiTOR re-enables only marriages
-/// involving the player clan while NPC-to-NPC dynastic automation remains off.
-///
-/// Marriage compatibility is intentionally broader than biological reproduction:
-/// Dawi, humans and elves may marry across TOR race ids, while KaiPregnancyModel
-/// prevents Bannerlord from attempting unsafe cross-race offspring generation.
+/// World marriage compatibility layer for TOR.
+/// TOR disables vanilla marriage globally. KaiTOR restores Bannerlord's normal
+/// player and NPC dynastic marriage flow for supported TOR cultures while keeping
+/// biological reproduction behind a separate race/undead safety gate.
 /// </summary>
 public sealed class KaiPlayerMarriageModel : DefaultMarriageModel
 {
     public const string ExpectedTorBaseType = "TOR_Core.Models.TORMarriageModel";
+    private const float ChildlessNpcMarriageChanceMultiplier = 0.25f;
 
     private readonly MarriageModel _torBase;
 
@@ -32,14 +30,11 @@ public sealed class KaiPlayerMarriageModel : DefaultMarriageModel
         if (firstHero == null || secondHero == null)
             return false;
 
-        if (!InvolvesPlayerClan(firstHero, secondHero))
-            return false;
-
         if (!AreCulturesCompatible(firstHero.Culture?.StringId, secondHero.Culture?.StringId))
             return false;
 
-        // TOR vampires can participate in social/dynastic marriage, but non-vampire
-        // undead (skeleton/wight-style heroes) are not a valid family partner.
+        // TOR vampires may form social/dynastic marriages. Non-vampire undead do not
+        // participate in the ordinary family system.
         if (TorFamilySafety.IsUndeadNonVampire(firstHero) || TorFamilySafety.IsUndeadNonVampire(secondHero))
             return false;
 
@@ -61,17 +56,33 @@ public sealed class KaiPlayerMarriageModel : DefaultMarriageModel
         => clan != null && IsSupportedMarriageCulture(clan.Culture?.StringId) && base.IsClanSuitableForMarriage(clan);
 
     public override float NpcCoupleMarriageChance(Hero firstHero, Hero secondHero)
-        => 0f;
+    {
+        var chance = base.NpcCoupleMarriageChance(firstHero, secondHero);
+        if (chance <= 0f)
+            return 0f;
+
+        // Same biologically safe pairings keep Bannerlord's native dynastic rate.
+        // Social marriages that KaiTOR deliberately makes childless are rarer for AI,
+        // so mixed-species unions exist in the world without overwhelming dynasties.
+        return TorFamilySafety.CanUseVanillaPregnancy(firstHero, secondHero)
+            ? chance
+            : chance * ChildlessNpcMarriageChanceMultiplier;
+    }
 
     public override bool ShouldNpcMarriageBetweenClansBeAllowed(Clan consideringClan, Clan targetClan)
-        => false;
+    {
+        if (consideringClan == null || targetClan == null)
+            return false;
+        if (!AreCulturesCompatible(consideringClan.Culture?.StringId, targetClan.Culture?.StringId))
+            return false;
+        return base.ShouldNpcMarriageBetweenClansBeAllowed(consideringClan, targetClan);
+    }
 
     /// <summary>
-    /// Social marriage policy for TOR's eight playable cultures.
+    /// Social marriage policy for TOR's playable family cultures.
     /// Empire, Bretonnia, Sylvania/Mousillon, Asrai, Eonir and Dawi can intermarry
-    /// when the vanilla age/sex/family checks also pass. Greenskins are excluded:
-    /// TOR has no female Orc family templates and Warhammer Greenskins do not use
-    /// normal sexual reproduction/family mechanics.
+    /// when Bannerlord's age/sex/kinship/current-marriage checks also pass.
+    /// Greenskins remain outside ordinary marriage/family mechanics.
     /// </summary>
     public static bool AreCulturesCompatible(string firstCulture, string secondCulture)
         => IsSupportedMarriageCulture(firstCulture) && IsSupportedMarriageCulture(secondCulture);
