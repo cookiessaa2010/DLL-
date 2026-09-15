@@ -21,6 +21,8 @@ public sealed class SubModule : MBSubModuleBase
         InstallMarriageWrapper(campaignStarter);
 
         campaignStarter.AddBehavior(new KaiDiplomacyBehavior());
+        campaignStarter.AddBehavior(new KaiDiplomacyOfficeBehavior());
+        campaignStarter.AddBehavior(new KaiDiplomacyAiBehavior());
         campaignStarter.AddBehavior(new KaiCultureAssimilationBehavior());
     }
 
