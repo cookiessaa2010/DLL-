@@ -17,9 +17,15 @@ public sealed class SubModule : MBSubModuleBase
         if (gameStarterObject is not CampaignGameStarter campaignStarter)
             return;
 
+        // TOR intentionally freezes Bannerlord's life/death cycle. KaiTOR restores it
+        // so age, children, dynasties and natural succession can advance. This executes
+        // after TOR_Core's OnGameStart because KaiTOR depends on TOR_Core.
+        CampaignOptions.IsLifeDeathCycleDisabled = false;
+
         InstallPermissionWrapper(campaignStarter);
         InstallMarriageWrapper(campaignStarter);
         InstallPregnancyWrapper(campaignStarter);
+        InstallHeroDeathWrapper(campaignStarter);
 
         campaignStarter.AddBehavior(new KaiDiplomacyBehavior());
         campaignStarter.AddBehavior(new KaiDiplomacyOfficeBehavior());
@@ -52,9 +58,17 @@ public sealed class SubModule : MBSubModuleBase
         if (activeModel == null || activeModel is KaiPregnancyModel)
             return;
 
-        // The decorator forwards every TOR/Bannerlord pregnancy setting unchanged and
-        // only vetoes unsafe player-family pregnancies before DeliverOffSpring can see
-        // parents with incompatible TOR race ids.
+        // The decorator forwards every Bannerlord/TOR pregnancy setting unchanged and
+        // vetoes unsafe pregnancies for every restored world marriage.
         starter.AddModel<PregnancyModel>(new KaiPregnancyModel(activeModel));
+    }
+
+    private static void InstallHeroDeathWrapper(CampaignGameStarter starter)
+    {
+        var activeModel = starter.GetModel<HeroDeathProbabilityCalculationModel>();
+        if (activeModel == null || activeModel is KaiHeroDeathProbabilityModel)
+            return;
+
+        starter.AddModel<HeroDeathProbabilityCalculationModel>(new KaiHeroDeathProbabilityModel(activeModel));
     }
 }
