@@ -9,6 +9,7 @@ $manifestPath = Join-Path $root 'module\SubModule.xml'
 $srcRoot = Join-Path $root 'src'
 $marriagePath = Join-Path $srcRoot 'Models\KaiPlayerMarriageModel.cs'
 $pregnancyPath = Join-Path $srcRoot 'Models\KaiPregnancyModel.cs'
+$warningPath = Join-Path $srcRoot 'Runtime\KaiMarriageWarningBehavior.cs'
 
 if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
     throw "Manifest missing: $manifestPath"
@@ -36,6 +37,7 @@ if ($sourceFiles.Count -eq 0) {
 $source = ($sourceFiles | Get-Content -Raw) -join "`n"
 $marriageSource = Get-Content -LiteralPath $marriagePath -Raw
 $pregnancySource = Get-Content -LiteralPath $pregnancyPath -Raw
+$warningSource = Get-Content -LiteralPath $warningPath -Raw
 
 foreach ($expectedType in @(
     'TOR_Core.Models.TORDiplomacyModel',
@@ -85,7 +87,11 @@ foreach ($requiredPattern in @(
     'TorFamilySafety',
     'GetDailyChanceOfPregnancyForHero',
     'CanUseVanillaPregnancy',
-    'TOR_Core.Extensions.HeroExtensions, TOR_Core'
+    'TOR_Core.Extensions.HeroExtensions, TOR_Core',
+    'KaiMarriageWarningBehavior',
+    'hero_courtship_final_barter',
+    'BeforeHeroesMarried',
+    'will not be able to have biological children'
 )) {
     if ($source -notmatch [regex]::Escape($requiredPattern)) {
         throw "Required diplomacy/culture/save/family safety pattern missing: $requiredPattern"
@@ -119,6 +125,20 @@ if ($pregnancySource -notmatch 'TorFamilySafety\.CanUseVanillaPregnancy') {
     throw 'Pregnancy model no longer delegates offspring race safety to TorFamilySafety.'
 }
 
+# A childless marriage must warn the player before the normal final barter and give a
+# real chance to back out. Warning state must remain non-persistent.
+foreach ($warningPattern in @(
+    'kaitor_childless_marriage_warning_options',
+    'Continue with the marriage arrangements',
+    'reconsider this marriage',
+    'public override void SyncData(IDataStore dataStore)',
+    'Intentionally empty'
+)) {
+    if ($warningSource -notmatch [regex]::Escape($warningPattern)) {
+        throw "Childless marriage warning contract missing: $warningPattern"
+    }
+}
+
 # CampaignTime.Now.ToDays is double in Bannerlord 1.3.15. A float expiry map would
 # either fail compilation or require lossy casts, so make that regression explicit.
 if ($source -match 'Dictionary<string, float> _nonAggressionExpiryDays') {
@@ -136,5 +156,6 @@ Write-Output '  Full culture conversion contract present: tier 3+, 100,000 denar
 Write-Output '  Recruitment, companions, cultural services and culture-aware market hooks present.'
 Write-Output '  Empire Bounty Master and Greenskin Kwartamasta refresh contracts present.'
 Write-Output '  Player marriage is decoupled from TOR offspring race safety.'
+Write-Output '  Childless player marriages show a pre-barter warning with continue/cancel choices.'
 Write-Output '  Cross-race pregnancy guard is installed without altering TOR NPC families.'
 Write-Output '  No Harmony/model replacement/forced war-peace-marriage actions detected.'
