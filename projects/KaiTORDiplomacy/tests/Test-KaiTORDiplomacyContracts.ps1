@@ -49,8 +49,16 @@ foreach ($requiredPattern in @(
     'IsStartAllianceDecisionAllowedBetweenKingdoms',
     'FactionManager.IsAtWarAgainstFaction',
     'Dictionary<string, double> _nonAggressionExpiryDays',
+    'kaitor_diplomacy_nap_expiry_days_v2',
+    'kaitor_diplomacy_breach_counts',
     'kaitor_diplomacy_trust',
     'kaitor_diplomacy_nap_cooldown_expiry_days',
+    'kaitor_diplomacy_save_schema',
+    'CurrentSaveSchemaVersion = 1',
+    'ValidateAndMigrateSaveSchema',
+    'NormalizeLoadedState',
+    'DescribeSaveCompatibility',
+    'save_status',
     'WarBreachTrustPenalty',
     'NaturalExpiryTrustBonus',
     'CultureChangeCost = 100000',
@@ -71,7 +79,7 @@ foreach ($requiredPattern in @(
     'ValidateKwartaMasters'
 )) {
     if ($source -notmatch [regex]::Escape($requiredPattern)) {
-        throw "Required diplomacy/culture safety pattern missing: $requiredPattern"
+        throw "Required diplomacy/culture/save safety pattern missing: $requiredPattern"
     }
 }
 
@@ -80,10 +88,13 @@ foreach ($forbidden in @(
     'AddModel(new',
     'DeclareWarAction.Apply',
     'MakePeaceAction.Apply',
-    'MarriageAction.Apply'
+    'MarriageAction.Apply',
+    'SaveableTypeDefiner',
+    '[SaveableField',
+    '[SaveableProperty'
 )) {
     if ($source -match [regex]::Escape($forbidden)) {
-        throw "Forbidden invasive diplomacy pattern found: $forbidden"
+        throw "Forbidden invasive/save-fragile pattern found: $forbidden"
     }
 }
 
@@ -98,6 +109,8 @@ Write-Output "  C# files: $($sourceFiles.Count)"
 Write-Output '  TOR model ownership preserved.'
 Write-Output '  Treaty time storage matches Bannerlord 1.3.15 CampaignTime precision.'
 Write-Output '  Trust/breach/cooldown state contract present.'
+Write-Output '  Save schema migration and stable primitive SyncData contract present.'
+Write-Output '  No custom SaveableTypeDefiner/SaveableField/SaveableProperty dependencies detected.'
 Write-Output '  Full culture conversion contract present: tier 3+, 100,000 denars.'
 Write-Output '  Recruitment, companions, cultural services and culture-aware market hooks present.'
 Write-Output '  Empire Bounty Master and Greenskin Kwartamasta refresh contracts present.'
