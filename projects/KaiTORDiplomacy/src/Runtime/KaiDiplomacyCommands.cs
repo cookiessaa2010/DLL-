@@ -79,6 +79,18 @@ public static class KaiDiplomacyCommands
             : $"KaiTOR world marriages ({pairs.Length}):\n" + string.Join("\n", pairs);
     }
 
+    [CommandLineFunctionality.CommandLineArgumentFunction("racial_status", "kaitor_diplomacy")]
+    public static string RacialStatus(List<string> arguments)
+    {
+        if (arguments.Count != 0) return "Usage: kaitor_diplomacy.racial_status";
+        if (Campaign.Current == null) return "No campaign is active.";
+
+        var behavior = Campaign.Current.GetCampaignBehavior<KaiRacialPopulationBehavior>();
+        if (behavior == null) return "KaiTOR racial population behavior is not loaded.";
+
+        return "KaiTOR racial population status:\n" + string.Join("\n", behavior.DescribeStatus());
+    }
+
     [CommandLineFunctionality.CommandLineArgumentFunction("save_status", "kaitor_diplomacy")]
     public static string SaveStatus(List<string> arguments)
     {
