@@ -62,7 +62,13 @@ foreach ($requiredPattern in @(
     'UpdateSupplyAndDemand',
     'BasicMercenaryTroops',
     'UpdateCurrentMercenaryTroopAndCount',
-    'TORCompanionsCampaignBehavior'
+    'TORCompanionsCampaignBehavior',
+    'BountyMasterCampaignBehavior',
+    'tor_bountymaster_empire_0',
+    '_settlementToBountyMasterMap',
+    'TeefBehavior',
+    'tor_kwartamasta_greenskins_0',
+    'ValidateKwartaMasters'
 )) {
     if ($source -notmatch [regex]::Escape($requiredPattern)) {
         throw "Required diplomacy/culture safety pattern missing: $requiredPattern"
@@ -94,4 +100,5 @@ Write-Output '  Treaty time storage matches Bannerlord 1.3.15 CampaignTime preci
 Write-Output '  Trust/breach/cooldown state contract present.'
 Write-Output '  Full culture conversion contract present: tier 3+, 100,000 denars.'
 Write-Output '  Recruitment, companions, cultural services and culture-aware market hooks present.'
+Write-Output '  Empire Bounty Master and Greenskin Kwartamasta refresh contracts present.'
 Write-Output '  No Harmony/model replacement/forced war-peace-marriage actions detected.'
