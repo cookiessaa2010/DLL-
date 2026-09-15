@@ -1,0 +1,87 @@
+name: KaiTOR Dawi Bootstrap Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - kaitor-diplomacy
+    paths:
+      - 'projects/KaiTORDiplomacy/src/Runtime/KaiDawiWomenBehavior.cs'
+      - 'projects/KaiTORDiplomacy/src/Models/DawiWomenAssetBridge.cs'
+      - 'projects/KaiTORDawiWomen/**'
+      - '.github/workflows/kaitor-dawi-bootstrap-build.yml'
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Enable gated Dawi behavior in build checkout
+        shell: pwsh
+        run: |
+          $path = 'projects/KaiTORDiplomacy/src/SubModule.cs'
+          $source = Get-Content -LiteralPath $path -Raw
+          $anchor = 'campaignStarter.AddBehavior(new KaiRacialPopulationBehavior());'
+          $replacement = $anchor + "`r`n        campaignStarter.AddBehavior(new KaiDawiWomenBehavior());"
+          if ($source -notmatch [regex]::Escape('KaiDawiWomenBehavior')) {
+            if ($source -notmatch [regex]::Escape($anchor)) { throw 'Dawi registration anchor not found.' }
+            $source = $source.Replace($anchor, $replacement)
+            Set-Content -LiteralPath $path -Value $source -Encoding UTF8
+          }
+
+      - name: Build Bannerlord 1.3.15 DLL
+        shell: pwsh
+        run: |
+          dotnet build projects/KaiTORDiplomacy/src/KaiTOR_Diplomacy.csproj `
+            -c Release `
+            -p:UseBannerlordReferenceAssemblies=true `
+            --nologo
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Verify diplomacy and Dawi contracts
+        shell: pwsh
+        run: |
+          & projects/KaiTORDiplomacy/tests/Test-KaiTORDiplomacyContracts.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $source = Get-Content projects/KaiTORDiplomacy/src/Runtime/KaiDawiWomenBehavior.cs -Raw
+          foreach ($required in @(
+            'kaitor_dawi_women_generation_cooldown_v1',
+            'FemaleDawiLordTemplateId',
+            'DawiFemaleMinimumAge = 30',
+            'MaximumGeneratedWomenPerClan = 3',
+            'clan == Clan.PlayerClan',
+            'template.Race != dwarfRace'
+          )) {
+            if ($source -notmatch [regex]::Escape($required)) { throw "Missing Dawi safety contract: $required" }
+          }
+          $sub = Get-Content projects/KaiTORDiplomacy/src/SubModule.cs -Raw
+          if ($sub -notmatch 'new KaiDawiWomenBehavior\(\)') { throw 'Dawi behavior is not registered in build checkout.' }
+
+      - name: Assemble experimental package
+        shell: pwsh
+        run: |
+          $root = 'projects/KaiTORDiplomacy'
+          $package = 'artifact/KaiTOR_Diplomacy'
+          $bin = Join-Path $package 'bin/Win64_Shipping_Client'
+          New-Item -ItemType Directory -Path $bin -Force | Out-Null
+          Copy-Item (Join-Path $root 'module/SubModule.xml') (Join-Path $package 'SubModule.xml') -Force
+          Copy-Item (Join-Path $root 'build/bin/Win64_Shipping_Client/KaiTOR_Diplomacy.dll') (Join-Path $bin 'KaiTOR_Diplomacy.dll') -Force
+          $pdb = Join-Path $root 'build/bin/Win64_Shipping_Client/KaiTOR_Diplomacy.pdb'
+          if (Test-Path $pdb) { Copy-Item $pdb (Join-Path $bin 'KaiTOR_Diplomacy.pdb') -Force }
+          Copy-Item 'projects/KaiTORDawiWomen/README_RU.md' (Join-Path $package 'DAWI_WOMEN_README_RU.md') -Force
+          Copy-Item 'projects/KaiTORDawiWomen/tools/Audit-DawiAssets.ps1' (Join-Path $package 'Audit-DawiAssets.ps1') -Force
+
+      - name: Upload Dawi bootstrap
+        uses: actions/upload-artifact@v4
+        with:
+          name: KaiTOR-Diplomacy-v0.3.0-DawiBootstrap
+          path: artifact/KaiTOR_Diplomacy
+          if-no-files-found: error
+          retention-days: 30
