@@ -9,6 +9,7 @@ namespace KaiTORStability
     {
         public bool EnableStatusEffectOptimization { get; private set; } = true;
         public int FullRescanIntervalMs { get; private set; } = 100;
+        public int HookedSafetyRescanIntervalMs { get; private set; } = 1500;
         public bool EnableShaderTelemetry { get; private set; } = true;
         public int ShaderTelemetryIntervalMs { get; private set; } = 500;
         public bool EnableShaderCacheAcceleration { get; private set; } = true;
@@ -45,6 +46,12 @@ namespace KaiTORStability
                     if (int.TryParse((string)battleNode.Attribute("fullRescanIntervalMs"), out interval))
                     {
                         settings.FullRescanIntervalMs = Math.Max(50, Math.Min(1000, interval));
+                    }
+
+                    int safetyInterval;
+                    if (int.TryParse((string)battleNode.Attribute("hookedSafetyRescanIntervalMs"), out safetyInterval))
+                    {
+                        settings.HookedSafetyRescanIntervalMs = Math.Max(500, Math.Min(10000, safetyInterval));
                     }
                 }
 
