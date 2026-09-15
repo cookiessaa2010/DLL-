@@ -25,6 +25,7 @@ public sealed class SubModule : MBSubModuleBase
         campaignStarter.AddBehavior(new KaiDiplomacyOfficeBehavior());
         campaignStarter.AddBehavior(new KaiDiplomacyAiBehavior());
         campaignStarter.AddBehavior(new KaiCultureAssimilationBehavior());
+        campaignStarter.AddBehavior(new KaiMarriageWarningBehavior());
     }
 
     private static void InstallPermissionWrapper(CampaignGameStarter starter)
