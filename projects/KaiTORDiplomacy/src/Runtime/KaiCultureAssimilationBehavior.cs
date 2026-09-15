@@ -117,8 +117,8 @@ public sealed class KaiCultureAssimilationBehavior : CampaignBehaviorBase
 
         args.Tooltip = new TextObject(
             $"Immediately rebuild {settlement.Name} as a {targetCulture.Name} settlement. " +
-            "The town/castle, bound villages, notables, recruits, tavern mercenaries, caravans, militia/scene population, future wanderers, cultural trainers/services and market production will use your clan culture. " +
-            "Existing named lords and members of other clans are not rewritten.");
+            "The town/castle, bound villages, notables, recruits, tavern mercenaries, caravans, militia/scene population, future wanderers, faction service NPCs, cultural trainers/services and market production will use your clan culture. " +
+            "Existing named lords and members of other clans are not rewritten. TOR landmark priests, shrines and unique location NPCs remain tied to their original locations.");
         return true;
     }
 
@@ -134,8 +134,9 @@ public sealed class KaiCultureAssimilationBehavior : CampaignBehaviorBase
                    $"Requirement: clan tier {RequiredClanTier}+\n\n" +
                    "This is intended to behave like the settlement had been assigned your clan's race/culture from the moment of conquest: " +
                    "bound villages and local notables are rebuilt, volunteer recruitment is refreshed, tavern mercenaries and future wanderers follow the new culture, " +
-                   "home caravans refresh culture-specific troops, cultural magic/crafting services are synchronized, and all future workshop/shop production uses the new faction culture.\n\n" +
-                   "Existing market stock is not destroyed: old-culture goods already on the shelves may remain until sold or consumed, while newly produced merchandise follows the new culture immediately.\n\n" +
+                   "home caravans refresh culture-specific troops, cultural magic/crafting services and faction service NPCs are synchronized, and all future workshop/shop production uses the new faction culture.\n\n" +
+                   "Empire towns are checked for their Bounty Master and Greenskin towns/castles for their Kwartamasta. Existing market stock is not destroyed: old-culture goods already on the shelves may remain until sold or consumed.\n\n" +
+                   "TOR landmark religion/location content is preserved: fixed cult priests, shrines, the Nuln engineer, Altdorf prestige noble, Karak-only guilds and Lithanel-only envoys are not cloned into ordinary converted settlements.\n\n" +
                    "Named lords and heroes belonging to other clans are not converted. If the settlement is captured later, normal TOR assimilation may change it again.";
 
         InformationManager.ShowInquiry(
@@ -193,7 +194,7 @@ public sealed class KaiCultureAssimilationBehavior : CampaignBehaviorBase
         GiveGoldAction.ApplyBetweenCharacters(Hero.MainHero, null, CultureChangeCost, false);
 
         reason = $"{settlement.Name} fully converted to {targetCulture.Name}. {CultureChangeCost:N0} denars paid. " +
-                 "Villages, recruitment, tavern population, caravans, cultural services and faction market production were refreshed.";
+                 "Villages, recruitment, tavern population, caravans, faction/cultural services and faction market production were refreshed.";
         return true;
     }
 
