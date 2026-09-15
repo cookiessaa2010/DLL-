@@ -1,14 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <KaiTORStability>
-  <!-- Experimental battle optimization. Set enabled="false" for instant rollback without uninstalling the module. -->
-  <BattleStatusOptimization enabled="true" fullRescanIntervalMs="100" />
+  <!-- Battle optimization.
+       When the TOR AddEffect activation hook is available, newly activated components are queued immediately
+       and this slower safety rescan is only a fallback. If the hook cannot be installed, the conservative
+       fullRescanIntervalMs path remains active automatically. -->
+  <BattleStatusOptimization enabled="true" fullRescanIntervalMs="100" hookedSafetyRescanIntervalMs="1500" />
 
   <!-- Lightweight engine telemetry used by KaiTOR Load Monitor for real shader progress/ETA. -->
   <ShaderTelemetry enabled="true" sampleIntervalMs="500" />
 
   <!-- Conservative TOR Build Shader Cache optimization.
-       Soldiers with only one battle-equipment variant do not need TOR's four duplicate roster entries.
-       Multi-loadout troops keep TOR's original multiplicity. -->
+       Soldiers with one loadout collapse to one copy; 2-3 loadout troops keep enough copies to cover their
+       variants; 4+ variant troops preserve TOR's original multiplicity. -->
   <ShaderCacheAcceleration enabled="true" singleLoadoutCopies="1" />
 
   <!-- Safe default for KaiTOR Online / Bannerlord Coop. Loading/shader features stay active,
