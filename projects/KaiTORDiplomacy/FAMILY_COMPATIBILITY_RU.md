@@ -1,10 +1,8 @@
-# KaiTOR — расы, женщины, браки и безопасное потомство
+# KaiTOR — расы, браки, потомство и жизненный цикл
 
-Этот документ фиксирует правила для The Old Realms 1.3.15, чтобы KaiTOR не создавал несовместимые семьи/детей и не повреждал кампанию.
+Этот документ фиксирует правила для The Old Realms 1.3.15, чтобы KaiTOR возвращал живые династии, не создавая несовместимых детей и не ломая save.
 
-## Важное различие: культура TOR != раса Bannerlord
-
-TOR переиспользует vanilla culture id:
+## TOR culture id != лоровая раса
 
 - `empire` = Empire
 - `vlandia` = Bretonnia
@@ -15,131 +13,141 @@ TOR переиспользует vanilla culture id:
 - `sturgia` = Dawi
 - `aserai` = Greenskins
 
-В интерфейсе KaiTOR эти vanilla-названия не должны трактоваться буквально. Например `sturgia` — это Dawi, а не Стургия Bannerlord.
+В интерфейсе KaiTOR `sturgia` всегда трактуется как Dawi, а не vanilla Sturgia.
 
-## Аудит женщин: лор + фактические шаблоны TOR
+## Женщины и семейная система
 
-| TOR культура | Лоровая раса/общество | Женщины в лоре | Женские шаблоны TOR | Решение KaiTOR |
-|---|---|---:|---:|---|
-| Empire (`empire`) | люди Империи | Да | Да | Брак разрешён |
-| Bretonnia (`vlandia`) | бретоннские люди | Да | Да: Damsel/Prophetess и др. | Брак разрешён |
-| Sylvania (`khuzait`) | смертные + вампиры | Да | Да: смертные женщины и Lahmian vampires | Брак разрешён; вампирам pregnancy запрещена |
-| Mousillon (`mousillon`) | смертные + нежить/вампиры | Да | Да: Hedge Witch и другие женские шаблоны | Брак разрешён; нежити pregnancy запрещена |
-| Asrai (`battania`) | эльфы Athel Loren | Да | Да | Брак разрешён |
-| Eonir (`eonir`) | эльфы Laurelorn | Да | Да | Брак разрешён |
-| Dawi (`sturgia`) | дворфы | Да, но редки | **Нет полноценной female Dawi реализации в текущем TOR**: `townswoman_dawi`/`village_woman_dawi` имеют `is_female=false` | Брак разрешён, включая Dawi ↔ Human/Elf; vanilla pregnancy запрещена |
-| Greenskins (`aserai`) | Orc/Goblin Greenskins | Нет обычной половой/семейной модели; споровое размножение | Нет настоящих female Orc шаблонов; системные `townswoman` slots остаются Orc male body | Брак и pregnancy запрещены |
+| TOR культура | Женщины в лоре | Реализация TOR | Правило KaiTOR |
+|---|---:|---|---|
+| Empire | Да | женские hero/notable templates есть | брак + безопасное человеческое потомство |
+| Bretonnia | Да | Damsel/Prophetess и другие | брак + безопасное человеческое потомство |
+| Sylvania | Да | смертные женщины + Lahmian vampires | брак; vampire/undead pregnancy запрещена |
+| Mousillon | Да | смертные женские templates, undead/vampire mix | брак; undead/vampire pregnancy запрещена |
+| Asrai | Да | female elf templates | брак + elf offspring при совместимом `Race` |
+| Eonir | Да | female elf templates | брак + elf offspring при совместимом `Race` |
+| Dawi (`sturgia`) | Да, редки | полноценной female Dawi body/template chain сейчас нет; `townswoman_dawi`/`village_woman_dawi` имеют `is_female=false` | брак разрешён, vanilla pregnancy запрещена |
+| Greenskins (`aserai`) | нет обычной половой семейной модели | технические female culture slots используют Orc body | обычный брак/pregnancy запрещены |
 
-### Неплейабельные/вспомогательные культуры TOR
+Неплейабельные Druchii/Chaos/Beastmen пока не включены в автоматическую marriage matrix стабильной версии.
 
-- Druchii: женщины существуют (Sorceresses, Witch Elves и т.п.), но культура не входит в TOR playable `Cultures.All`; KaiTOR marriage пока не включает её.
-- Chaos/Norsca: женщины существуют в лоре, но TOR `chaos_culture` не входит в нашу поддерживаемую player-family матрицу.
-- Beastmen: Beastwomen существуют в лоре, но TOR beastmen — отдельные неплейабельные race/culture templates; семейная механика KaiTOR их не включает.
-- Skeleton/Wight и прочая нежить: биологическое потомство запрещено; non-vampire undead не считается допустимым супругом KaiTOR.
+## Все браки мира, а не только PlayerClan
 
-## Матрица брака
+TOR `TORMarriageModel` отключает vanilla marriage полностью. KaiTOR заменяет этот запрет на world marriage policy:
 
-KaiTOR разрешает player-clan social marriage между любыми героями из поддерживаемых семи культур:
+- штатный `RomanceCampaignBehavior` Bannerlord снова рассматривает NPC ↔ NPC пары;
+- родство, возраст, текущий супруг, engagement и прочие vanilla ограничения остаются;
+- поддерживаемые культуры: Empire / Bretonnia / Sylvania / Mousillon / Asrai / Eonir / Dawi;
+- Greenskins и non-vampire undead исключены;
+- NPC marriage выполняется самим Bannerlord через его стандартный `MarriageAction`, а не прямым действием KaiTOR;
+- одновидовые/биологически безопасные пары используют native NPC marriage chance;
+- разрешённые, но бездетные межрасовые/межвидовые союзы у AI получают множитель шанса `0.25`, поэтому встречаются, но не заполняют весь мир.
 
-`Empire / Bretonnia / Sylvania / Mousillon / Asrai / Eonir / Dawi`
+Так в мире могут появляться, например, Dawi ↔ Human, Dawi ↔ Elf, Human ↔ Elf и Vampire ↔ mortal социальные союзы.
 
-при условии, что стандартный `DefaultMarriageModel` Bannerlord также считает конкретных героев подходящими по возрасту, полу, текущему семейному состоянию и другим vanilla-условиям.
+## Межрасовый брак != гибридный ребёнок
 
-Это намеренно позволяет, например:
+Stable policy KaiTOR:
 
-- Dawi ↔ Empire
-- Dawi ↔ Bretonnia
-- Dawi ↔ Asrai/Eonir
-- Human ↔ Elf
-- Human ↔ Vampire-culture hero
-- Vampire-culture ↔ Vampire-culture
+- межрасовый/межвидовой брак допустим как социальный и династический союз;
+- гибридных детей нет;
+- KaiTOR не создаёт half-dwarf/half-elf/custom race;
+- `KaiPregnancyModel` проверяет **все браки мира**, а не только PlayerClan.
 
-Greenskins исключены полностью из marriage/family pipeline.
+Vanilla pregnancy допускается только когда:
 
-NPC-to-NPC автоматические династические браки остаются выключенными, как и в TOR. KaiTOR открывает только семьи, связанные с `Clan.PlayerClan`.
+1. `CharacterObject.Race` родителей совпадает;
+2. ни один родитель не Dawi;
+3. ни один родитель не Greenskin;
+4. ни один родитель не Vampire;
+5. ни один родитель не Undead.
 
-## Лоровое правило межрасовых браков
+После этого шанс/длительность/двойня/пол/материнская смертность остаются полностью у исходного Bannerlord/TOR `PregnancyModel`.
 
-Межрасовый/межвидовой брак в KaiTOR может существовать как социальный и династический союз. Но гибридных детей KaiTOR не создаёт.
+Причина дополнительной технической защиты: Bannerlord 1.3.x `HeroCreator.DeliverOffSpring` требует одинаковый `CharacterObject.Race` родителей.
 
-Примеры:
+## Warning для игрока
 
-- Dawi ↔ Human: брак допустим, биологических детей нет;
-- Dawi ↔ Elf: брак допустим, биологических детей нет;
-- Human ↔ Elf: брак допустим, биологических детей нет;
-- Vampire ↔ mortal: брак допустим, обычных биологических детей Bannerlord нет.
-
-Это сознательное лоровое правило стабильной версии: мы не вводим полу-дворфов, полу-эльфов или другие гибридные расы, которых TOR не поддерживает готовыми hero/body/template цепочками.
-
-Важно: культура и биологическая раса не одно и то же. Empire и Bretonnia — человеческие общества, Asrai и Eonir — эльфийские общества. Однако Bannerlord/TOR может использовать разные технические `CharacterObject.Race` для визуальных наборов. Пока отдельная безопасная нормализация offspring templates не проверена, pregnancy gate остаётся консервативным и требует совместимый технический race pipeline.
-
-## Предупреждение перед свадьбой
-
-Если KaiTOR разрешает брак, но `TorFamilySafety` блокирует обычное деторождение, перед финальным marriage barter показывается предупреждение:
+Если player-facing marriage разрешён, но biological offspring запрещён, перед финальным marriage barter показывается warning:
 
 > брак разрешён, но эта пара не сможет иметь биологических детей; KaiTOR не будет генерировать потомство для этой пары.
 
-Игрок получает два выбора:
+Игрок может продолжить или отменить финальную стадию. Для обходных arranged/barter путей остаётся резервное информационное сообщение на `BeforeHeroesMarried`.
 
-- продолжить брачные договорённости, понимая, что союз будет бездетным;
-- отменить финальную стадию и передумать.
+Warning behavior ничего не сериализует.
 
-Для альтернативного arranged/barter marriage path есть резервное уведомление на `CampaignEvents.BeforeHeroesMarried`. Оно информационное; фактическую защиту всё равно обеспечивает `KaiPregnancyModel`.
+## Религия после брака
 
-Warning behavior не сохраняет никакого состояния в save.
+Свадьба не конвертирует религию супруга.
 
-## Матрица деторождения
+TOR хранит религию на Hero. Для новых nobles TOR сам определяет dominant religion в порядке:
 
-Брак не означает автоматическую совместимость с Bannerlord offspring pipeline.
+1. отец;
+2. clan leader;
+3. culture.
 
-KaiTOR позволяет vanilla pregnancy только если одновременно выполняется всё:
+KaiTOR не переписывает этот механизм. Поэтому межрасовый/межкультурный союз не означает автоматическое обращение в веру супруга.
 
-1. брак связан с player clan;
-2. оба героя принадлежат поддерживаемым marriage-культурам;
-3. `CharacterObject.Race` обоих родителей **совпадает**;
-4. ни один родитель не Dawi (`sturgia`);
-5. ни один родитель не Greenskin (`aserai`);
-6. TOR не считает ни одного родителя Vampire;
-7. TOR не считает ни одного родителя Undead.
+## Жизненный цикл
 
-После этих проверок KaiTOR полностью делегирует шанс беременности оригинальному активному `PregnancyModel` Bannerlord/TOR.
+TOR 1.3.15 сам устанавливает `CampaignOptions.IsLifeDeathCycleDisabled = true`, поэтому без KaiTOR:
 
-### Почему cross-race marriage не получает vanilla child
+- `Hero.Age` остаётся на `_defaultAge`;
+- естественное старение фактически заморожено;
+- old-age death не работает;
+- vanilla pregnancy/child growth lifecycle не может полноценно работать.
 
-В стабильной политике KaiTOR межрасовые/межвидовые союзы являются бездетными по дизайну. Технически это дополнительно защищается тем, что Bannerlord 1.3.x `HeroCreator.DeliverOffSpring` требует равенства `mother.CharacterObject.Race` и `father.CharacterObject.Race`.
+KaiTOR после загрузки TOR возвращает `IsLifeDeathCycleDisabled = false`.
 
-Поэтому Dawi ↔ Elf или Dawi ↔ Human безопасно поженить, но такую пару нельзя отправлять в стандартный child generator.
+### Естественная смерть по расам
 
-## Dawi: специальное решение
+KaiTOR не меняет battle death. `KaiHeroDeathProbabilityModel` меняет только natural old-age mortality:
 
-В Warhammer Dwarf women существуют и являются редкими. Однако TOR 1.3.15 не предоставляет нормальную female Dawi body/template цепочку для семейной генерации. Поэтому KaiTOR:
+- Empire/Bretonnia и смертные Sylvania/Mousillon: исходная human curve активного Bannerlord/TOR model;
+- Dawi: old age начинает учитываться после ~180 лет, hard cap ~420;
+- Asrai/Eonir: vanilla human old-age death = 0 в горизонте кампании;
+- Vampire/Undead: old-age death = 0;
+- Greenskins: old-age death = 0.
 
-- не придумывает собственную dwarf female модель;
-- не меняет TOR XML;
-- разрешает Dawi вступать в брак с Human/Elf;
-- предупреждает перед свадьбой, что такой союз будет бездетным;
-- блокирует vanilla pregnancy для Dawi, чтобы не породить героя с неправильным body/race/equipment template.
+TOR `TORCampaignTimeModel` сохраняется без изменений. В обычном режиме его год = 84 campaign days; в Fast calendar = 24 campaign days, поэтому поколения могут реально меняться в долгой кампании.
 
-## Vampires: специальное решение
+### Нерешённое противоречие: возраст совершеннолетия
 
-Женщины-вампиры каноничны и TOR их реализует (например Lahmian templates). Брак разрешён. Но Vampire — нежить; KaiTOR не использует обычную беременность Bannerlord для vampire hero.
+Bannerlord `AgeModel` глобальный и не принимает Hero/race. Сейчас child stages остаются vanilla:
 
-Проверка Vampire/Undead выполняется через runtime reflection к `TOR_Core.Extensions.HeroExtensions`. Если TOR изменит контракт и vampire hook не удастся определить, KaiTOR fail-closed блокирует pregnancy для Sylvania/Mousillon вместо риска создать некорректного ребёнка.
+- infant 3;
+- child 6;
+- teenager 14;
+- adult 18.
 
-## Greenskins: специальное решение
+Это удобно для gameplay, но не является точным возрастом взросления долгоживущих рас. Пока KaiTOR трактует 18 как **игровой возраст полной активности героя**, а не буквальную лоровую биологическую зрелость эльфа/Dawi. Если мы захотим race-specific maturity, потребуется отдельный behavior для marriage/party/governorship/education activation.
 
-TOR содержит технические `townswoman_greenskins`/`village_woman_greenskins`, потому что Bannerlord требует соответствующие culture slots. Это не доказательство наличия Orc women: эти персонажи используют Orc body и не объявлены female. KaiTOR не трактует их как женщин и не включает Greenskins в marriage/pregnancy.
+## Dawi
 
-## Save-safety
+Warhammer Dwarf women существуют и редки, но TOR 1.3.15 не даёт безопасной female Dawi template chain. Поэтому:
 
-- KaiTOR не сериализует новые Hero/Child/Race объекты.
-- Pregnancy guard не записывает собственное состояние в save.
-- Marriage warning behavior не записывает собственное состояние в save.
-- Неопасные пары используют оригинальный PregnancyModel без изменения его коэффициентов.
-- Небезопасные player-family пары получают chance `0` до `MakePregnantAction` и до `HeroCreator.DeliverOffSpring`.
-- Мир TOR вне player clan не переписывается.
-- Уже существующие TOR семьи/отношения не мигрируются и не изменяются автоматически.
+- Dawi могут вступать в брак с Human/Elf;
+- такие союзы бездетны;
+- Dawi vanilla pregnancy вообще отключена;
+- династическая устойчивость Dawi поддерживается долгой жизнью и механизмом новых/cadet houses, а не генерацией несуществующих female templates.
+
+## Vampires
+
+Female vampires существуют и TOR их реализует. Social marriage разрешён. Обычная Bannerlord pregnancy запрещена. Vampire/Undead определяется через TOR `HeroExtensions` reflection bridge.
+
+## Greenskins
+
+Greenskins не участвуют в обычной marriage/pregnancy системе. Их фракции могут продолжать развиваться через политическое перемещение clans и создание новых vassal houses/boss clans, но не через human family reproduction.
+
+## Save safety
+
+- KaiTOR не сериализует custom Hero/Child/Race graph;
+- pregnancy guard не хранит state;
+- marriage warning не хранит state;
+- lifecycle использует существующие `BirthDay/Age` данные Bannerlord;
+- new AI house cooldown хранится как primitive `Dictionary<string,double>`;
+- созданные новые clans — штатные Bannerlord `Clan` objects, а не custom save types;
+- existing TOR families не мигрируются насильно.
 
 ## Гибридные дети
 
-Для стабильной версии KaiTOR гибридных детей не будет. Если когда-нибудь это правило будет сознательно изменено, понадобится отдельная система наследования race/body, offspring templates, оборудования, возрастных моделей и большой save/load тест. Обход vanilla assert сам по себе недопустим.
+В стабильной версии их не будет. Изменение этого правила потребовало бы отдельного offspring pipeline: explicit race/body, template, equipment, age stages, inheritance и многократный save/load/ взросление test.
