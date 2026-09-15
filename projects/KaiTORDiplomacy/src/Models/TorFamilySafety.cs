@@ -6,8 +6,8 @@ using TaleWorlds.CampaignSystem;
 namespace KaiTOR.Diplomacy.Models;
 
 /// <summary>
-/// Small reflection bridge for TOR hero biology flags. KaiTOR deliberately does not
-/// reference TOR_Core at compile time so the module can fail closed when TOR internals move.
+/// Small reflection bridge for TOR hero biology/role flags. KaiTOR deliberately does
+/// not reference TOR_Core at compile time so the module can fail closed when TOR internals move.
 /// </summary>
 internal static class TorFamilySafety
 {
@@ -15,12 +15,16 @@ internal static class TorFamilySafety
 
     private static readonly MethodInfo IsVampireMethod = FindHeroExtension("IsVampire");
     private static readonly MethodInfo IsUndeadMethod = FindHeroExtension("IsUndead");
+    private static readonly MethodInfo IsAiCompanionMethod = FindHeroExtension("IsAICompanion");
 
     public static bool IsVampire(Hero hero)
         => TryInvokeFlag(IsVampireMethod, hero, out var value) && value;
 
     public static bool IsUndead(Hero hero)
         => TryInvokeFlag(IsUndeadMethod, hero, out var value) && value;
+
+    public static bool IsAiCompanion(Hero hero)
+        => TryInvokeFlag(IsAiCompanionMethod, hero, out var value) && value;
 
     public static bool IsUndeadNonVampire(Hero hero)
     {
@@ -102,8 +106,8 @@ internal static class TorFamilySafety
         }
         catch
         {
-            // Family/lifecycle safety is conservative: callers avoid unsafe biological
-            // assumptions when TOR reflection hooks cannot be resolved.
+            // Family/lifecycle safety is conservative: callers avoid unsafe assumptions
+            // when TOR reflection hooks cannot be resolved.
         }
 
         return false;
