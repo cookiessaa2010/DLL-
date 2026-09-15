@@ -1,0 +1,148 @@
+name: KaiTOR Stability 0.5.0 Hardening Build
+
+on:
+  push:
+    branches:
+      - kaitor-stability-0.5.0-hardening
+    paths:
+      - 'projects/KaiTORStability/**'
+      - '.github/workflows/kaitor-stability-050-build.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        shell: pwsh
+        run: |
+          dotnet restore ./projects/KaiTORStability/src/KaiTORStability/KaiTORStability.csproj
+          dotnet restore ./projects/KaiTORStability/src/KaiTORLoadMonitor/KaiTORLoadMonitor.csproj
+
+      - name: Build Bannerlord module
+        shell: pwsh
+        run: dotnet build ./projects/KaiTORStability/src/KaiTORStability/KaiTORStability.csproj -c Release --no-restore -p:NuGetAudit=false
+
+      - name: Build observability monitor
+        shell: pwsh
+        run: dotnet build ./projects/KaiTORStability/src/KaiTORLoadMonitor/KaiTORLoadMonitor.csproj -c Release --no-restore -p:NuGetAudit=false
+
+      - name: Monitor helper self-test
+        shell: pwsh
+        run: |
+          $exe = Resolve-Path ./projects/KaiTORStability/src/KaiTORLoadMonitor/bin/Release/net472/KaiTORLoadMonitor.exe
+          $p = Start-Process -FilePath $exe -ArgumentList '--self-test' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Load monitor self-test failed: $($p.ExitCode)" }
+
+      - name: Validate 0.5.0 contracts
+        shell: pwsh
+        run: |
+          [xml]$xml = Get-Content ./projects/KaiTORStability/module/SubModule.xml -Raw
+          if ($xml.Module.Version.value -ne 'v0.5.0') { throw 'Expected module v0.5.0.' }
+
+          $sub = Get-Content ./projects/KaiTORStability/src/KaiTORStability/SubModule.cs -Raw
+          if ($sub -notmatch 'KaiTOR Stability 0.5.0') { throw 'Runtime version marker missing.' }
+          if ($sub -notmatch 'HookedSafetyRescanIntervalMs') { throw 'Hooked safety-rescan wiring missing.' }
+
+          $bridge = Get-Content ./projects/KaiTORStability/src/KaiTORStability/StatusEffectActivationBridge.cs -Raw
+          foreach ($required in @('AddEffect','STATUS_ACTIVATION_HOOK_READY','Register','UnregisterOwner')) {
+            if ($bridge -notmatch [regex]::Escape($required)) { throw "Activation bridge missing: $required" }
+          }
+
+          $logic = Get-Content ./projects/KaiTORStability/src/KaiTORStability/OptimizedStatusEffectMissionLogic.cs -Raw
+          foreach ($required in @('DrainActivationQueue','activationHook','activationNotifications','hookedSafetyRescanIntervalSeconds')) {
+            if ($logic -notmatch [regex]::Escape($required)) { throw "Battle optimizer missing: $required" }
+          }
+
+          [xml]$cfg = Get-Content ./projects/KaiTORStability/module/ModuleData/KaiTORStability.config.xml -Raw
+          if (-not $cfg.KaiTORStability.BattleStatusOptimization.hookedSafetyRescanIntervalMs) { throw 'hookedSafetyRescanIntervalMs config missing.' }
+
+          $monitor = Get-Content ./projects/KaiTORStability/src/KaiTORLoadMonitor/LiveLoadMonitorForm44.cs -Raw
+          foreach ($required in @('rgl_log_','load-history-v2.csv','SHADER_BUILD_RAM','RAM_SAMPLE','FirstLaunchWarmup')) {
+            if ($monitor -notmatch [regex]::Escape($required)) { throw "Monitor contract missing: $required" }
+          }
+          if ($monitor -match 'PriorityClass = ProcessPriorityClass.AboveNormal') { throw 'Monitor must not boost Bannerlord priority.' }
+
+      - name: Assemble root-installable test package
+        shell: pwsh
+        run: |
+          $stage = Join-Path $env:RUNNER_TEMP 'KaiTORStability-0.5.0'
+          $module = Join-Path $stage 'Modules/KaiTOR_Stability'
+          $bin = Join-Path $module 'bin/Win64_Shipping_Client'
+          $tools = Join-Path $stage 'Tools'
+          New-Item -ItemType Directory -Force -Path $bin,$tools,(Join-Path $module 'ModuleData') | Out-Null
+
+          Copy-Item ./projects/KaiTORStability/module/SubModule.xml (Join-Path $module 'SubModule.xml')
+          Copy-Item ./projects/KaiTORStability/module/ModuleData/KaiTORStability.config.xml (Join-Path $module 'ModuleData/KaiTORStability.config.xml')
+          Copy-Item ./projects/KaiTORStability/src/KaiTORStability/bin/Release/net472/KaiTORStability.dll (Join-Path $bin 'KaiTORStability.dll')
+          Copy-Item ./projects/KaiTORStability/src/KaiTORLoadMonitor/bin/Release/net472/KaiTORLoadMonitor.exe (Join-Path $tools 'KaiTORLoadMonitor.exe')
+          Copy-Item ./projects/KaiTORStability/COOP_COMPATIBILITY_RU.md (Join-Path $stage 'COOP_COMPATIBILITY_RU.md')
+
+          @'
+          @echo off
+          setlocal
+          cd /d "%~dp0.."
+          start "KaiTOR Monitor" "%~dp0KaiTORLoadMonitor.exe" --game-root "%CD%"
+          '@ | Set-Content (Join-Path $tools 'START_KAITOR_MONITOR_0.5.0.bat') -Encoding ASCII
+
+          @'
+          KaiTOR Stability 0.5.0 — hardening test
+          Bannerlord 1.3.15.110062 / TOR 1.3.15
+
+          Главная проверка 0.5.0:
+          - TOR StatusEffectComponent.AddEffect должен дать STATUS_ACTIVATION_HOOK_READY.
+          - В бою BATTLE_TELEMETRY должен показывать activationHook=True.
+          - При активном hook safety full rescan идёт раз в 1500 ms вместо 100 ms.
+          - Новые эффекты должны включаться сразу через activationNotifications, без задержки до safety rescan.
+          - Если TOR API не совпал, мод автоматически остаётся на прежнем 100 ms fallback path.
+
+          Тест:
+          1. Обычный бой 5-10 минут с магией/status effects.
+          2. Проверить появление/исчезновение DoT/баффов и визуальных эффектов.
+          3. Проверить посадку/спешивание.
+          4. Проверить reinforcement wave.
+          5. После боя прислать KaiTORStability.log.
+
+          Логи:
+          %LOCALAPPDATA%\KaiTORStability\KaiTORStability.log
+          %LOCALAPPDATA%\KaiTORStability\KaiTORMonitor.log
+          %LOCALAPPDATA%\KaiTORStability\load-history-v2.csv
+          '@ | Set-Content (Join-Path $stage 'TEST_PLAN_0.5.0_RU.txt') -Encoding UTF8
+
+          @'
+          0.5.0 hardening
+          - Event-driven activation hook on TOR StatusEffectComponent.AddEffect.
+          - Active components are queued immediately when a status effect is added.
+          - Periodic full scan becomes a 1500 ms safety net when the hook is available.
+          - Automatic fallback to the previous 100 ms scan if the TOR private contract changes.
+          - Existing 0.4.4 RGL/RAM monitor and shader-cache roster optimization are retained.
+          '@ | Set-Content (Join-Path $stage 'CHANGELOG_0.5.0.txt') -Encoding UTF8
+
+          $forbidden = Get-ChildItem $stage -Recurse -File | Where-Object { $_.Name -like 'TaleWorlds*.dll' -or $_.Name -eq '0Harmony.dll' }
+          if ($forbidden) { throw 'Reference/runtime dependencies must not be redistributed.' }
+
+          $zip = Join-Path $env:RUNNER_TEMP 'KaiTORStability-0.5.0-Bannerlord-1.3.15-hardening.zip'
+          Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $zip -Force
+          $hashFile = Join-Path $env:RUNNER_TEMP 'SHA256.txt'
+          $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $([IO.Path]::GetFileName($zip))" | Set-Content $hashFile -Encoding ascii
+          "KAITOR_STABILITY_ZIP=$zip" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "KAITOR_STABILITY_HASH=$hashFile" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: KaiTORStability-0.5.0-hardening
+          path: |
+            ${{ env.KAITOR_STABILITY_ZIP }}
+            ${{ env.KAITOR_STABILITY_HASH }}
+          if-no-files-found: error
+          retention-days: 30
