@@ -5,8 +5,9 @@ namespace KaiTOR.Diplomacy.Models;
 
 /// <summary>
 /// Transparent decorator over the active Bannerlord/TOR pregnancy model.
-/// It changes only player-family fertility for marriages that KaiTOR enables.
-/// Every probability/duration remains owned by the underlying model.
+/// KaiTOR restores world marriages, so offspring safety must apply to every married
+/// hero, not only the player clan. All probability/duration values remain owned by
+/// the underlying model for biologically safe pairings.
 /// </summary>
 public sealed class KaiPregnancyModel : PregnancyModel
 {
@@ -34,14 +35,9 @@ public sealed class KaiPregnancyModel : PregnancyModel
         if (spouse == null)
             return _baseModel.GetDailyChanceOfPregnancyForHero(hero);
 
-        // Do not rewrite TOR's world simulation. This guard applies only to marriages
-        // involving the player clan, which are the marriages KaiTOR re-enables.
-        if (!KaiPlayerMarriageModel.InvolvesPlayerClan(hero, spouse))
-            return _baseModel.GetDailyChanceOfPregnancyForHero(hero);
-
-        if (!KaiPlayerMarriageModel.AreCulturesCompatible(hero.Culture?.StringId, spouse.Culture?.StringId))
-            return 0f;
-
+        // This is a biological guard, not a social-marriage rule. Cross-race pairs,
+        // Dawi, Greenskins, vampires and other undead never enter Bannerlord's vanilla
+        // offspring generator. Every safe pairing keeps the original model unchanged.
         return TorFamilySafety.CanUseVanillaPregnancy(hero, spouse)
             ? _baseModel.GetDailyChanceOfPregnancyForHero(hero)
             : 0f;
