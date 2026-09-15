@@ -40,7 +40,10 @@ jobs:
           if (-not (Test-Path -LiteralPath $dll -PathType Leaf)) { throw "Missing DLL: $dll" }
 
           $module = Get-Content (Join-Path $root 'module/SubModule.xml') -Raw
-          if ($module -notmatch 'v0\.2\.0') { throw 'SubModule version is not v0.2.0.' }
+          if ($module -notmatch 'v0\.3\.0') { throw 'SubModule version is not v0.3.0.' }
+
+          & (Join-Path $root 'tests/Test-KaiTORDiplomacyContracts.ps1')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
           $culture = Get-Content (Join-Path $root 'src/Runtime/KaiCultureAssimilationBehavior.cs') -Raw
           foreach ($required in @(
@@ -64,7 +67,7 @@ jobs:
             if ($bridge -notmatch [regex]::Escape($required)) { throw "Missing full-conversion contract: $required" }
           }
 
-          Write-Host 'KaiTOR Diplomacy v0.2.0 gameplay contracts: PASS'
+          Write-Host 'KaiTOR Diplomacy v0.3.0 gameplay contracts: PASS'
 
       - name: Assemble module
         shell: pwsh
@@ -80,11 +83,12 @@ jobs:
           if (Test-Path $pdb) { Copy-Item $pdb (Join-Path $bin 'KaiTOR_Diplomacy.pdb') -Force }
           Copy-Item (Join-Path $root 'README.md') (Join-Path $package 'README.md') -Force
           Copy-Item (Join-Path $root 'FIRST_TEST_RU.md') (Join-Path $package 'FIRST_TEST_RU.md') -Force
+          Copy-Item (Join-Path $root 'FAMILY_COMPATIBILITY_RU.md') (Join-Path $package 'FAMILY_COMPATIBILITY_RU.md') -Force
 
       - name: Upload ready module
         uses: actions/upload-artifact@v4
         with:
-          name: KaiTOR-Diplomacy-v0.2.0
+          name: KaiTOR-Diplomacy-v0.3.0
           path: artifact/KaiTOR_Diplomacy
           if-no-files-found: error
           retention-days: 30
