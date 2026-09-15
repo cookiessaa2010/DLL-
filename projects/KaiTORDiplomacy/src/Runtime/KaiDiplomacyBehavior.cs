@@ -4,6 +4,7 @@ using System.Linq;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
 using TaleWorlds.Core;
+using TaleWorlds.Library;
 using TaleWorlds.Localization;
 
 namespace KaiTOR.Diplomacy.Runtime;
@@ -181,8 +182,6 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
         if (proposer.RulingClan != null && target.RulingClan != null)
             relation = target.RulingClan.GetRelationWithClan(proposer.RulingClan);
 
-        // Trust is pair history owned by KaiTOR; clan relation is native/TOR political history.
-        // Keeping this deliberately simple avoids overriding TOR's own war/peace scoring model.
         return Math.Max(-200, Math.Min(200, trust + relation));
     }
 
@@ -203,8 +202,7 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
     {
         if (first == null || second == null) return false;
         var key = TreatyKey.For(first, second);
-        return _nonAggressionExpiryDays.TryGetValue(key, out var expiryDay) &&
-               expiryDay > CampaignTime.Now.ToDays;
+        return _nonAggressionExpiryDays.TryGetValue(key, out var expiryDay) && expiryDay > CampaignTime.Now.ToDays;
     }
 
     public int GetRemainingDays(Kingdom first, Kingdom second)
@@ -235,9 +233,7 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
     public IEnumerable<string> DescribeActivePacts()
     {
         var currentDay = CampaignTime.Now.ToDays;
-        foreach (var pair in _nonAggressionExpiryDays
-                     .Where(x => x.Value > currentDay)
-                     .OrderBy(x => x.Key, StringComparer.Ordinal))
+        foreach (var pair in _nonAggressionExpiryDays.Where(x => x.Value > currentDay).OrderBy(x => x.Key, StringComparer.Ordinal))
         {
             if (!TreatyKey.TrySplit(pair.Key, out var firstId, out var secondId)) continue;
             var remaining = Math.Max(1, (int)Math.Ceiling(pair.Value - currentDay));
@@ -294,13 +290,8 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
     {
         if (_nonAggressionExpiryDays.Count == 0) return;
         var currentDay = CampaignTime.Now.ToDays;
-        var expired = _nonAggressionExpiryDays
-            .Where(pair => pair.Value <= currentDay)
-            .Select(pair => pair.Key)
-            .ToArray();
-
-        foreach (var key in expired)
-            ExpirePactNaturally(key);
+        var expired = _nonAggressionExpiryDays.Where(pair => pair.Value <= currentDay).Select(pair => pair.Key).ToArray();
+        foreach (var key in expired) ExpirePactNaturally(key);
     }
 
     private void ExpirePactNaturally(string key)
@@ -313,13 +304,8 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
     {
         if (_napCooldownExpiryDays.Count == 0) return;
         var currentDay = CampaignTime.Now.ToDays;
-        var expired = _napCooldownExpiryDays
-            .Where(pair => pair.Value <= currentDay)
-            .Select(pair => pair.Key)
-            .ToArray();
-
-        foreach (var key in expired)
-            _napCooldownExpiryDays.Remove(key);
+        var expired = _napCooldownExpiryDays.Where(pair => pair.Value <= currentDay).Select(pair => pair.Key).ToArray();
+        foreach (var key in expired) _napCooldownExpiryDays.Remove(key);
     }
 
     private int GetCooldownRemainingDays(string key)
@@ -329,15 +315,12 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
         return remaining <= 0 ? 0 : Math.Max(1, (int)Math.Ceiling(remaining));
     }
 
-    private int GetTrust(string key)
-        => _diplomaticTrust.TryGetValue(key, out var trust) ? trust : 0;
+    private int GetTrust(string key) => _diplomaticTrust.TryGetValue(key, out var trust) ? trust : 0;
 
     private void ChangeTrust(string key, int delta)
     {
         var next = Math.Max(-100, Math.Min(100, GetTrust(key) + delta));
-        if (next == 0)
-            _diplomaticTrust.Remove(key);
-        else
-            _diplomaticTrust[key] = next;
+        if (next == 0) _diplomaticTrust.Remove(key);
+        else _diplomaticTrust[key] = next;
     }
 }
