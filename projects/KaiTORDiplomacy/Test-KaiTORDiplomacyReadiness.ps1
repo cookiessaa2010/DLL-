@@ -12,7 +12,7 @@ Set-StrictMode -Version Latest
 
 $ExpectedBannerlordVersion = '1.3.15.110062'
 $ExpectedTorVersion = 'v1.3.15'
-$ExpectedKaiVersion = 'v0.1.0'
+$ExpectedKaiVersion = 'v0.2.0'
 $RequiredTorIds = @('TOR_Armory', 'TOR_Environment', 'TOR_Core')
 
 function Read-ModuleIdentity {
