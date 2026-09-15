@@ -31,6 +31,13 @@ public sealed class KaiPlayerMarriageModel : DefaultMarriageModel
         if (!InvolvesPlayerClan(firstHero, secondHero))
             return false;
 
+        // Bannerlord offspring creation expects both parents to use the same race id.
+        // This is more important in TOR than vanilla because cultures can represent
+        // humans, vampires, elves, dwarfs and greenskins with different skeleton/body data.
+        if (firstHero.CharacterObject == null || secondHero.CharacterObject == null ||
+            firstHero.CharacterObject.Race != secondHero.CharacterObject.Race)
+            return false;
+
         if (!AreCulturesCompatible(firstHero.Culture?.StringId, secondHero.Culture?.StringId))
             return false;
 
@@ -41,9 +48,6 @@ public sealed class KaiPlayerMarriageModel : DefaultMarriageModel
     {
         if (maidenOrSuitor == null)
             return false;
-
-        // Candidate visibility can use vanilla safety checks; pair compatibility is
-        // enforced separately in IsCoupleSuitableForMarriage.
         return base.IsSuitableForMarriage(maidenOrSuitor);
     }
 
@@ -61,8 +65,8 @@ public sealed class KaiPlayerMarriageModel : DefaultMarriageModel
         if (string.IsNullOrWhiteSpace(firstCulture) || string.IsNullOrWhiteSpace(secondCulture))
             return false;
 
-        // Greenskins and Chaos are intentionally excluded from the first marriage release.
-        // They require dedicated lore/race handling instead of vanilla family mechanics.
+        // Greenskins and unsupported/non-playable cultures remain excluded from vanilla
+        // family mechanics until TOR supplies explicit reproduction/dynasty rules for them.
         if (IsForbiddenMarriageCulture(firstCulture) || IsForbiddenMarriageCulture(secondCulture))
             return false;
 
