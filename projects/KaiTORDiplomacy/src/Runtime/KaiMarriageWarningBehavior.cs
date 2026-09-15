@@ -4,6 +4,7 @@ using KaiTOR.Diplomacy.Models;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Conversation;
 using TaleWorlds.Core;
+using TaleWorlds.Library;
 
 namespace KaiTOR.Diplomacy.Runtime;
 
