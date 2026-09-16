@@ -6,12 +6,62 @@ namespace KaiCleave
 {
     internal static class CleaveRules
     {
-        internal static bool IsEligible(
+        internal static bool IsDamageHitEligible(
             Agent attacker,
             Agent victim,
             in AttackCollisionData collisionData,
             in MissionWeapon attackerWeapon,
             int inflictedDamage)
+        {
+            if (!IsBaseEligible(attacker, victim, in collisionData, in attackerWeapon))
+                return false;
+
+            if (collisionData.CollisionResult != CombatCollisionResult.StrikeAgent)
+                return false;
+
+            if (collisionData.AttackBlockedWithShield)
+                return false;
+
+            return inflictedDamage > 0;
+        }
+
+        internal static bool CanTraverseCollision(
+            Agent attacker,
+            Agent victim,
+            in AttackCollisionData collisionData,
+            in MissionWeapon attackerWeapon,
+            int inflictedDamage)
+        {
+            if (!IsBaseEligible(attacker, victim, in collisionData, in attackerWeapon))
+                return false;
+
+            WeaponClass weaponClass = attackerWeapon.CurrentUsageItem.WeaponClass;
+            bool heavy = KaiSettings.IsHeavyTraversalWeapon(weaponClass);
+
+            if (collisionData.AttackBlockedWithShield)
+            {
+                bool allow = heavy && KaiSettings.HeavyShieldContinue;
+                if (allow)
+                    DebugLogger.WriteBlock("heavy-shield-continue", attacker, victim, in collisionData, weaponClass);
+                return allow;
+            }
+
+            if (collisionData.CollisionResult == CombatCollisionResult.Blocked)
+            {
+                bool allow = heavy && KaiSettings.HeavyWeaponBlockContinue;
+                if (allow)
+                    DebugLogger.WriteBlock("heavy-weapon-block-continue", attacker, victim, in collisionData, weaponClass);
+                return allow;
+            }
+
+            return collisionData.CollisionResult == CombatCollisionResult.StrikeAgent && inflictedDamage > 0;
+        }
+
+        private static bool IsBaseEligible(
+            Agent attacker,
+            Agent victim,
+            in AttackCollisionData collisionData,
+            in MissionWeapon attackerWeapon)
         {
             if (!KaiSettings.Enabled || !CoopRuntime.CombatPatchesAllowed)
                 return false;
@@ -29,15 +79,6 @@ namespace KaiCleave
                 return false;
 
             if (collisionData.IsMissile || collisionData.IsAlternativeAttack)
-                return false;
-
-            if (collisionData.CollisionResult != CombatCollisionResult.StrikeAgent)
-                return false;
-
-            if (collisionData.AttackBlockedWithShield)
-                return false;
-
-            if (inflictedDamage <= 0)
                 return false;
 
             if (!KaiSettings.AllowThrusts && (StrikeType)collisionData.StrikeType != StrikeType.Swing)
@@ -64,7 +105,9 @@ namespace KaiCleave
             var started = System.Diagnostics.Stopwatch.GetTimestamp();
             try
             {
-                if (!CleaveRules.IsEligible(attacker, victim, in collisionData, in attackerWeapon, b.InflictedDamage))
+                // Only real damage hits enter the duplicate/target-count registry.
+                // Shield/weapon blocks may allow traversal, but they are not counted as damaged targets.
+                if (!CleaveRules.IsDamageHitEligible(attacker, victim, in collisionData, in attackerWeapon, b.InflictedDamage))
                     return true;
 
                 return SwingTracker.TryRegisterHit(attacker, victim, in collisionData, in attackerWeapon);
@@ -98,7 +141,7 @@ namespace KaiCleave
                 if (isCrushThrough)
                     return true;
 
-                if (!CleaveRules.IsEligible(attacker, victim, in collisionData, in attackerWeapon, b.InflictedDamage))
+                if (!CleaveRules.CanTraverseCollision(attacker, victim, in collisionData, in attackerWeapon, b.InflictedDamage))
                     return true;
 
                 if (momentumRemaining <= 0f || !SwingTracker.CanContinueAfterCurrent(attacker, in collisionData, in attackerWeapon))
@@ -107,6 +150,7 @@ namespace KaiCleave
                 DebugLogger.WriteHit("momentum-preserved", attacker, victim, in collisionData, in attackerWeapon,
                     b.InflictedDamage, momentumRemaining, null, null);
 
+                // Skip native momentum reduction for accepted cleave traversal.
                 return false;
             }
             finally
@@ -159,7 +203,7 @@ namespace KaiCleave
             if (!KaiSettings.ForceSlicedThrough)
                 return;
 
-            if (!CleaveRules.IsEligible(attacker, defender, in collisionData, in attackerWeapon,
+            if (!CleaveRules.CanTraverseCollision(attacker, defender, in collisionData, in attackerWeapon,
                     registeredBlow.InflictedDamage))
                 return;
 
