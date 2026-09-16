@@ -1,7 +1,7 @@
 <Module>
   <Name value="KaiTOR Diplomacy" />
   <Id value="KaiTOR_Diplomacy" />
-  <Version value="v0.4.1" />
+  <Version value="v0.4.2" />
   <ModuleCategory value="Singleplayer" />
   <DependedModules>
     <DependedModule Id="Native" DependentVersion="v1.3.15" />
