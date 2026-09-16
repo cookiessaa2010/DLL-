@@ -40,8 +40,7 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
 
     public override void SyncData(IDataStore dataStore)
     {
-        // Keep these keys stable. Existing KaiTOR saves must continue to deserialize
-        // using only primitive dictionary state and no custom save-type registration.
+        // Stable internal save keys; player-facing UI does not expose module branding.
         dataStore.SyncData("kaitor_diplomacy_nap_expiry_days_v2", ref _nonAggressionExpiryDays);
         dataStore.SyncData("kaitor_diplomacy_breach_counts", ref _breachCounts);
         dataStore.SyncData("kaitor_diplomacy_trust", ref _diplomaticTrust);
@@ -61,24 +60,22 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
         {
             _runtimeEnabled = false;
             InformationManager.DisplayMessage(new InformationMessage(
-                $"KaiTOR Diplomacy disabled: save schema {_saveSchemaVersion} is newer than supported schema {CurrentSaveSchemaVersion}. The save was not rewritten."));
+                "Дополнительные дипломатические действия отключены: сохранение создано более новой версией системы договоров."));
             return;
         }
 
         NormalizeLoadedState();
 
-        _runtimeEnabled = TorCompatibilityGate.TryValidate(out var reason);
+        _runtimeEnabled = TorCompatibilityGate.TryValidate(out _);
         if (_runtimeEnabled)
         {
             CleanupExpiredPacts();
             CleanupExpiredCooldowns();
-            InformationManager.DisplayMessage(new InformationMessage(
-                $"KaiTOR Diplomacy: TOR 1.3.15 compatibility gate PASS; save schema {_saveSchemaVersion} PASS."));
         }
         else
         {
             InformationManager.DisplayMessage(new InformationMessage(
-                "KaiTOR Diplomacy disabled: " + reason));
+                "Дополнительные дипломатические действия сейчас недоступны."));
         }
     }
 
@@ -104,13 +101,13 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
         _napCooldownExpiryDays[key] = CampaignTime.Now.ToDays + WarBreachCooldownDays;
 
         InformationManager.DisplayMessage(new InformationMessage(
-            $"KaiTOR Diplomacy: non-aggression pact broken by war between {first.Name} and {second.Name}. " +
-            $"Trust -{WarBreachTrustPenalty}; new NAP blocked for {WarBreachCooldownDays} days."));
+            $"Пакт о ненападении между {first.Name} и {second.Name} нарушен объявлением войны. " +
+            $"Доверие: -{WarBreachTrustPenalty}. Новый пакт будет недоступен {WarBreachCooldownDays} дней."));
     }
 
     private void OnPeaceMade(IFaction firstFaction, IFaction secondFaction, MakePeaceAction.MakePeaceDetail detail)
     {
-        // TOR owns peace rules. We deliberately do not auto-create a pact here.
+        // Base world rules own peace. No automatic pact is created here.
     }
 
     public bool CanCreateNonAggressionPact(Kingdom first, Kingdom second, int durationDays, out string reason)
@@ -119,37 +116,37 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
 
         if (!_runtimeEnabled)
         {
-            reason = "KaiTOR Diplomacy runtime is disabled by the TOR compatibility gate.";
+            reason = "Дополнительные дипломатические действия сейчас недоступны.";
             return false;
         }
 
         if (first == null || second == null)
         {
-            reason = "Both kingdoms are required.";
+            reason = "Необходимо выбрать два королевства.";
             return false;
         }
 
         if (ReferenceEquals(first, second))
         {
-            reason = "A kingdom cannot make a pact with itself.";
+            reason = "Королевство не может заключить пакт само с собой.";
             return false;
         }
 
         if (first.IsEliminated || second.IsEliminated)
         {
-            reason = "Eliminated kingdoms cannot sign treaties.";
+            reason = "Уничтоженные королевства не могут заключать договоры.";
             return false;
         }
 
         if (durationDays < 1 || durationDays > 365)
         {
-            reason = "Treaty duration must be between 1 and 365 days.";
+            reason = "Срок договора должен составлять от 1 до 365 дней.";
             return false;
         }
 
         if (FactionManager.IsAtWarAgainstFaction(first, second))
         {
-            reason = "The kingdoms are currently at war. TOR must resolve peace first.";
+            reason = "Королевства находятся в состоянии войны. Сначала необходимо заключить мир.";
             return false;
         }
 
@@ -158,22 +155,22 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
 
         if (IsNonAggressionPactActive(first, second))
         {
-            reason = $"A non-aggression pact is already active for another {GetRemainingDays(first, second)} day(s).";
+            reason = $"Пакт о ненападении уже действует ещё {GetRemainingDays(first, second)} дн.";
             return false;
         }
 
         var cooldown = GetCooldownRemainingDays(key);
         if (cooldown > 0)
         {
-            reason = $"A new non-aggression pact is blocked for another {cooldown} day(s) after the previous breach.";
+            reason = $"После предыдущего нарушения новый пакт будет доступен через {cooldown} дн.";
             return false;
         }
 
-        if (!TorAllowsDiplomaticCompatibility(first, second, out var torReason))
+        if (!TorAllowsDiplomaticCompatibility(first, second, out var worldReason))
         {
-            reason = string.IsNullOrWhiteSpace(torReason)
-                ? "TOR diplomacy rules reject this pairing."
-                : torReason;
+            reason = string.IsNullOrWhiteSpace(worldReason)
+                ? "Особые дипломатические правила мира не позволяют заключить этот договор."
+                : worldReason;
             return false;
         }
 
@@ -187,7 +184,7 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
 
         var key = TreatyKey.For(first, second);
         _nonAggressionExpiryDays[key] = CampaignTime.Now.ToDays + durationDays;
-        reason = $"Non-aggression pact active for {durationDays} days. Current trust: {GetTrust(first, second)}.";
+        reason = $"Пакт о ненападении заключён на {durationDays} дней. Текущее доверие: {GetTrust(first, second)}.";
         return true;
     }
 
@@ -249,6 +246,7 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
         return GetCooldownRemainingDays(TreatyKey.For(first, second));
     }
 
+    // Diagnostic-only output used by console commands.
     public string DescribeSaveCompatibility()
     {
         var status = _saveSchemaCompatible ? "PASS" : "BLOCKED";
@@ -294,9 +292,6 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
             return;
         }
 
-        // Schema 0 is every KaiTOR Diplomacy save made before an explicit schema key existed.
-        // Its four persisted dictionaries already have the same types/keys as schema 1,
-        // therefore migration is metadata-only and never rewrites TOR-owned state.
         if (_saveSchemaVersion == 0)
             _saveSchemaVersion = CurrentSaveSchemaVersion;
 
@@ -364,13 +359,13 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
         var permissionModel = Campaign.Current?.Models?.KingdomDecisionPermissionModel;
         if (permissionModel == null)
         {
-            reason = "TOR kingdom decision permission model is unavailable.";
+            reason = "Дипломатические правила мира сейчас недоступны.";
             return false;
         }
 
-        if (!permissionModel.IsStartAllianceDecisionAllowedBetweenKingdoms(first, second, out TextObject torReason))
+        if (!permissionModel.IsStartAllianceDecisionAllowedBetweenKingdoms(first, second, out TextObject worldReason))
         {
-            reason = torReason?.ToString() ?? string.Empty;
+            reason = worldReason?.ToString() ?? string.Empty;
             return false;
         }
 
