@@ -3,7 +3,7 @@ name: KaiTOR Diplomacy 1.3.15 Build
 on:
   push:
     branches:
-      - kaitor-diplomacy
+      - kaitor-diplomacy-v0.4-ui
     paths:
       - 'projects/KaiTORDiplomacy/**'
       - '.github/workflows/kaitor-diplomacy-build.yml'
@@ -40,7 +40,7 @@ jobs:
           if (-not (Test-Path -LiteralPath $dll -PathType Leaf)) { throw "Missing DLL: $dll" }
 
           $module = Get-Content (Join-Path $root 'module/SubModule.xml') -Raw
-          if ($module -notmatch 'v0\.3\.1') { throw 'SubModule version is not v0.3.1.' }
+          if ($module -notmatch 'v0\.4\.0') { throw 'SubModule version is not v0.4.0.' }
 
           & (Join-Path $root 'tests/Test-KaiTORDiplomacyContracts.ps1')
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -67,7 +67,23 @@ jobs:
             if ($bridge -notmatch [regex]::Escape($required)) { throw "Missing full-conversion contract: $required" }
           }
 
-          Write-Host 'KaiTOR Diplomacy v0.3.1 gameplay contracts: PASS'
+          $dawi = Get-Content (Join-Path $root 'src/Models/DawiWomenAssetBridge.cs') -Raw
+          if ($dawi -notmatch 'ForceSafeOffForLiveTest\s*=\s*true') {
+            throw 'Dawi SAFE-OFF latch is not enabled for v0.4.0.'
+          }
+
+          $office = Get-Content (Join-Path $root 'src/Runtime/KaiDiplomacyOfficeBehavior.cs') -Raw
+          foreach ($required in @(
+            'KaiTOR: Дипломатия',
+            'Предложить пакт о ненападении',
+            'Разорвать пакт о ненападении',
+            'Дипломатический журнал KaiTOR',
+            'SAFE-OFF'
+          )) {
+            if ($office -notmatch [regex]::Escape($required)) { throw "Missing Russian UI contract: $required" }
+          }
+
+          Write-Host 'KaiTOR Diplomacy v0.4.0 RU LoadSafe contracts: PASS'
 
       - name: Assemble module
         shell: pwsh
@@ -88,7 +104,7 @@ jobs:
       - name: Upload ready module
         uses: actions/upload-artifact@v4
         with:
-          name: KaiTOR-Diplomacy-v0.3.1-LoadSafe
+          name: KaiTOR-Diplomacy-v0.4.0-RU-LoadSafe
           path: artifact/KaiTOR_Diplomacy
           if-no-files-found: error
           retention-days: 30
