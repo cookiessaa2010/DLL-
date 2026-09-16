@@ -6,12 +6,23 @@ Set-StrictMode -Version Latest
 
 $root = Split-Path -Parent $PSScriptRoot
 $manifestPath = Join-Path $root 'module\SubModule.xml'
+$projectPath = Join-Path $root 'src\KaiTOR_Diplomacy.csproj'
 $srcRoot = Join-Path $root 'src'
 
 if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) { throw "Manifest missing: $manifestPath" }
 [xml]$manifest = Get-Content -LiteralPath $manifestPath -Raw
 if ($manifest.Module.Id.value -ne 'KaiTOR_Diplomacy') { throw 'Unexpected module id.' }
-if ($manifest.Module.Version.value -ne 'v0.4.3') { throw 'Unexpected module version.' }
+if ($manifest.Module.Version.value -ne 'v0.4.4') { throw 'Unexpected module version.' }
+
+$project = Get-Content -LiteralPath $projectPath -Raw
+foreach ($required in @(
+    '<Version>0.4.4</Version>',
+    '<AssemblyVersion>0.4.4.0</AssemblyVersion>',
+    '<FileVersion>0.4.4.0</FileVersion>',
+    '<InformationalVersion>0.4.4-LoadSafe-WorldTickFix</InformationalVersion>'
+)) {
+    if ($project -notmatch [regex]::Escape($required)) { throw "Assembly version stamp missing: $required" }
+}
 
 $dependencyIds = @($manifest.Module.DependedModules.DependedModule | ForEach-Object { $_.Id })
 foreach ($required in @('Native','SandBoxCore','Sandbox','TOR_Armory','TOR_Environment','TOR_Core')) {
@@ -28,6 +39,7 @@ $office = Get-Content (Join-Path $srcRoot 'Runtime\KaiDiplomacyOfficeBehavior.cs
 $culture = Get-Content (Join-Path $srcRoot 'Runtime\KaiCultureAssimilationBehavior.cs') -Raw
 $dynasty = Get-Content (Join-Path $srcRoot 'Runtime\KaiDynastyAiBehavior.cs') -Raw
 $dynastyCommands = Get-Content (Join-Path $srcRoot 'Runtime\KaiDynastyCommands.cs') -Raw
+$racial = Get-Content (Join-Path $srcRoot 'Runtime\KaiRacialPopulationBehavior.cs') -Raw
 $dawi = Get-Content (Join-Path $srcRoot 'Models\DawiWomenAssetBridge.cs') -Raw
 
 foreach ($expectedType in @(
@@ -54,14 +66,43 @@ foreach ($required in @(
 if ($subModule -notmatch 'LoadSafeDiagnostics\s*=\s*true') { throw 'LoadSafeDiagnostics must remain enabled.' }
 if ($dawi -notmatch 'ForceSafeOffForLiveTest\s*=\s*true') { throw 'Dawi SAFE-OFF latch is not enabled.' }
 
-# Conversation safety regression test: LoadSafe must not register marriage/courtship dialog hooks.
-$marriageWarningRegistration = 'campaignStarter\.AddBehavior\(new KaiMarriageWarningBehavior\(\)\);'
-$warningMatches = [regex]::Matches($subModule, $marriageWarningRegistration)
-if ($warningMatches.Count -ne 1) { throw "Expected exactly one marriage warning registration, found $($warningMatches.Count)." }
-$loadSafeFamilyBlock = [regex]::Match($subModule, 'if \(!LoadSafeDiagnostics\)\s*\{(?<body>[\s\S]*?)\n\s*\}\s*\n\s*campaignStarter\.AddBehavior\(new KaiDiplomacyBehavior')
-if (-not $loadSafeFamilyBlock.Success) { throw 'Could not verify LoadSafe family block.' }
-if ($loadSafeFamilyBlock.Groups['body'].Value -notmatch $marriageWarningRegistration) {
-    throw 'Marriage warning behavior is not isolated inside the non-LoadSafe family block.'
+# LoadSafe family/world mutation regression: conversation hooks and autonomous hero
+# creation behaviors must exist only inside the non-LoadSafe block.
+$nonLoadSafeBlock = [regex]::Match(
+    $subModule,
+    'if \(!LoadSafeDiagnostics\)\s*\{(?<body>[\s\S]*?)\n\s*\}\s*\n\s*// LoadSafe runtime:')
+if (-not $nonLoadSafeBlock.Success) { throw 'Could not verify non-LoadSafe isolation block.' }
+$nonLoadSafeBody = $nonLoadSafeBlock.Groups['body'].Value
+
+foreach ($behavior in @(
+    'KaiMarriageWarningBehavior',
+    'KaiRacialPopulationBehavior',
+    'KaiDawiWomenBehavior'
+)) {
+    $registration = "campaignStarter\.AddBehavior\(new $behavior\(\)\);"
+    if ([regex]::Matches($subModule, $registration).Count -ne 1) {
+        throw "Expected exactly one $behavior registration."
+    }
+    if ($nonLoadSafeBody -notmatch $registration) {
+        throw "$behavior escaped the non-LoadSafe isolation block."
+    }
+}
+
+# Core safe runtime remains available in LoadSafe.
+foreach ($behavior in @(
+    'KaiDiplomacyBehavior',
+    'KaiDiplomacyOfficeBehavior',
+    'KaiDiplomacyAiBehavior',
+    'KaiCultureAssimilationBehavior',
+    'KaiDynastyAiBehavior'
+)) {
+    $registration = "campaignStarter\.AddBehavior\(new $behavior\(\)\);"
+    if ([regex]::Matches($subModule, $registration).Count -ne 1) {
+        throw "Expected exactly one $behavior registration."
+    }
+    if ($nonLoadSafeBody -match $registration) {
+        throw "$behavior was accidentally moved behind the non-LoadSafe gate."
+    }
 }
 
 foreach ($required in @(
@@ -116,25 +157,34 @@ foreach ($forbiddenUi in @(
     if ($office -match [regex]::Escape($forbiddenUi)) { throw "Mod branding leaked into player-facing UI: $forbiddenUi" }
 }
 
+# v0.4.4 world-tick safety: rulers may recruit existing clans only. Runtime clan
+# creation remains source-preserved for future full mode but cannot be reached now.
 foreach ($required in @(
     'MaximumTargetNobleClans = 12',
-    'MaximumKingdomGrowthActionsPerWeek = 3',
-    'NewHouseCooldownDays = 42',
+    'MaximumKingdomGrowthActionsPerWeek = 1',
+    'EnableCadetHouseCreation = false',
     'k.Leader != Hero.MainHero',
     'GetTargetNobleClanCount(k) - GetCurrentNobleClanCount(k)',
     'TryRecruitExistingClan(need.Kingdom)',
-    'TryFoundCadetHouse(need.Kingdom)',
+    'EnableCadetHouseCreation && TryFoundCadetHouse(need.Kingdom)',
     'JoinKingdomAsClanBarterable',
     'ExecuteAiBarter',
-    'Clan.CreateClan',
-    'ChangeKingdomAction.ApplyByJoinToKingdom',
-    'ChangeOwnerOfSettlementAction.ApplyByGift',
+    'RECRUIT-ONLY',
     'DescribeStatus()'
 )) {
-    if ($dynasty -notmatch [regex]::Escape($required)) { throw "Dynasty growth contract missing: $required" }
+    if ($dynasty -notmatch [regex]::Escape($required)) { throw "Recruitment-only dynasty contract missing: $required" }
+}
+if ($dynasty -match 'if\s*\(TryFoundCadetHouse\(need\.Kingdom\)\)') {
+    throw 'Unguarded cadet-house creation is still reachable on weekly tick.'
 }
 if ($dynasty -match 'k != playerKingdom') { throw 'Player-served kingdom is still excluded from dynasty AI.' }
 if ($dynastyCommands -notmatch 'dynasty_status') { throw 'Dynasty status console command is missing.' }
+
+# The risky full-mode implementation remains available for future certification, but
+# LoadSafe must not register the behavior that invokes its hero-spawn/Blood Kiss path.
+foreach ($required in @('HeroCreator.CreateSpecialHero','TryApplyBloodKiss','GreenskinWandererTemplateIds')) {
+    if ($racial -notmatch [regex]::Escape($required)) { throw "Racial population source unexpectedly missing: $required" }
+}
 
 foreach ($required in @(
     'KaiPregnancyModel',
@@ -161,11 +211,13 @@ foreach ($forbidden in @(
     if ($source -match [regex]::Escape($forbidden)) { throw "Forbidden invasive/save-fragile pattern found: $forbidden" }
 }
 
-Write-Output 'KaiTOR Diplomacy v0.4.3 contract tests: PASS'
+Write-Output 'KaiTOR Diplomacy v0.4.4 contract tests: PASS'
 Write-Output "  C# files: $($sourceFiles.Count)"
-Write-Output '  LoadSafe gate accepts untouched TOR marriage/permission models.'
+Write-Output '  Assembly/file version is explicitly stamped 0.4.4.0 for crash reports.'
 Write-Output '  LoadSafe registers no marriage/courtship conversation behavior.'
+Write-Output '  LoadSafe registers no autonomous racial/Dawi hero-population behavior.'
 Write-Output '  Dawi women/pregnancy remains hard SAFE-OFF.'
+Write-Output '  AI rulers use native barter recruitment only; runtime cadet clan creation is SAFE-OFF.'
+Write-Output '  At most one ruler recruitment may succeed per week world-wide.'
 Write-Output '  Player-facing diplomacy/culture UI contains no module branding.'
-Write-Output '  AI rulers rebuild under-populated kingdoms, including the kingdom the player serves.'
 Write-Output '  No Harmony/custom Saveable graph/direct forced war-peace-marriage action detected.'
