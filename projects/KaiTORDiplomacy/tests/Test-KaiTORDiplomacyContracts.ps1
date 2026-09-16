@@ -11,7 +11,7 @@ $srcRoot = Join-Path $root 'src'
 if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) { throw "Manifest missing: $manifestPath" }
 [xml]$manifest = Get-Content -LiteralPath $manifestPath -Raw
 if ($manifest.Module.Id.value -ne 'KaiTOR_Diplomacy') { throw 'Unexpected module id.' }
-if ($manifest.Module.Version.value -ne 'v0.4.1') { throw 'Unexpected module version.' }
+if ($manifest.Module.Version.value -ne 'v0.4.2') { throw 'Unexpected module version.' }
 
 $dependencyIds = @($manifest.Module.DependedModules.DependedModule | ForEach-Object { $_.Id })
 foreach ($required in @('Native','SandBoxCore','Sandbox','TOR_Armory','TOR_Environment','TOR_Core')) {
@@ -26,9 +26,10 @@ $subModule = Get-Content (Join-Path $srcRoot 'SubModule.cs') -Raw
 $gate = Get-Content (Join-Path $srcRoot 'Runtime\TorCompatibilityGate.cs') -Raw
 $office = Get-Content (Join-Path $srcRoot 'Runtime\KaiDiplomacyOfficeBehavior.cs') -Raw
 $culture = Get-Content (Join-Path $srcRoot 'Runtime\KaiCultureAssimilationBehavior.cs') -Raw
+$dynasty = Get-Content (Join-Path $srcRoot 'Runtime\KaiDynastyAiBehavior.cs') -Raw
+$dynastyCommands = Get-Content (Join-Path $srcRoot 'Runtime\KaiDynastyCommands.cs') -Raw
 $dawi = Get-Content (Join-Path $srcRoot 'Models\DawiWomenAssetBridge.cs') -Raw
 
-# TOR remains authoritative for the three core diplomacy model slots.
 foreach ($expectedType in @(
     'TOR_Core.Models.TORDiplomacyModel',
     'TOR_Core.Models.TORAllianceModel',
@@ -39,8 +40,6 @@ foreach ($expectedType in @(
     if ($source -notmatch [regex]::Escape($expectedType)) { throw "TOR ownership contract missing: $expectedType" }
 }
 
-# v0.4.1 regression: LoadSafe must accept the untouched TOR marriage/permission models,
-# while future full mode may use KaiTOR wrappers over those exact TOR models.
 foreach ($required in @(
     'HasTorMarriageOwnership',
     'HasTorPermissionOwnership',
@@ -52,13 +51,9 @@ foreach ($required in @(
     if ($gate -notmatch [regex]::Escape($required)) { throw "LoadSafe gate contract missing: $required" }
 }
 
-# LoadSafe remains enabled: family/lifecycle wrappers are intentionally not installed.
 if ($subModule -notmatch 'LoadSafeDiagnostics\s*=\s*true') { throw 'LoadSafeDiagnostics must remain enabled.' }
-
-# Dawi women/pregnancy stays hard-disabled for this live-test line.
 if ($dawi -notmatch 'ForceSafeOffForLiveTest\s*=\s*true') { throw 'Dawi SAFE-OFF latch is not enabled.' }
 
-# Treaty/save state remains primitive and stable.
 foreach ($required in @(
     'Dictionary<string, double> _nonAggressionExpiryDays',
     'kaitor_diplomacy_nap_expiry_days_v2',
@@ -78,12 +73,12 @@ foreach ($required in @(
 }
 if ($source -match 'Dictionary<string, float> _nonAggressionExpiryDays') { throw 'NAP expiry storage regressed to float.' }
 
-# Settlement conversion must remain full TOR-aware conversion, not a culture-field-only edit.
 foreach ($required in @(
     'CultureChangeCost = 100000',
     'RequiredClanTier = 3',
     'TorSettlementCultureBridge.ValidateFullConversion',
-    'TorSettlementCultureBridge.RefreshAfterCultureChange'
+    'TorSettlementCultureBridge.RefreshAfterCultureChange',
+    'Сменить культуру поселения'
 )) {
     if ($culture -notmatch [regex]::Escape($required)) { throw "Culture conversion contract missing: $required" }
 }
@@ -91,18 +86,48 @@ foreach ($required in @('TorCulturalServiceBridge','TorMarketCultureBridge','TOR
     if ($source -notmatch [regex]::Escape($required)) { throw "TOR culture/service bridge contract missing: $required" }
 }
 
-# Russian UI and explicit LoadSafe/Dawi status remain visible to the player.
+# Player-facing diplomacy must look like a normal native game system.
 foreach ($required in @(
-    'KaiTOR: Дипломатия',
+    '"Дипломатия"',
+    'Договоры и дипломатическое доверие',
     'Предложить пакт о ненападении',
     'Разорвать пакт о ненападении',
-    'Дипломатический журнал KaiTOR',
-    'SAFE-OFF'
+    'Дипломатический журнал',
+    'Смена культуры поселений'
 )) {
-    if ($office -notmatch [regex]::Escape($required)) { throw "Russian UI contract missing: $required" }
+    if ($office -notmatch [regex]::Escape($required)) { throw "Native Russian UI contract missing: $required" }
+}
+foreach ($forbiddenUi in @(
+    '"KaiTOR: Дипломатия"',
+    '"KaiTOR — Дипломатия"',
+    'Дипломатический журнал KaiTOR',
+    'Поддержка смены культуры TOR',
+    'заглушкой SAFE-OFF'
+)) {
+    if ($office -match [regex]::Escape($forbiddenUi)) { throw "Mod branding leaked into player-facing UI: $forbiddenUi" }
 }
 
-# Preserve the existing family/racial safety implementation even though LoadSafe does not install model wrappers.
+# AI rulers must actively rebuild under-populated kingdoms, including the faction the player serves.
+foreach ($required in @(
+    'MaximumTargetNobleClans = 12',
+    'MaximumKingdomGrowthActionsPerWeek = 3',
+    'NewHouseCooldownDays = 42',
+    'k.Leader != Hero.MainHero',
+    'GetTargetNobleClanCount(k) - GetCurrentNobleClanCount(k)',
+    'TryRecruitExistingClan(need.Kingdom)',
+    'TryFoundCadetHouse(need.Kingdom)',
+    'JoinKingdomAsClanBarterable',
+    'ExecuteAiBarter',
+    'Clan.CreateClan',
+    'ChangeKingdomAction.ApplyByJoinToKingdom',
+    'ChangeOwnerOfSettlementAction.ApplyByGift',
+    'DescribeStatus()'
+)) {
+    if ($dynasty -notmatch [regex]::Escape($required)) { throw "Dynasty growth contract missing: $required" }
+}
+if ($dynasty -match 'k != playerKingdom') { throw 'Player-served kingdom is still excluded from dynasty AI.' }
+if ($dynastyCommands -notmatch 'dynasty_status') { throw 'Dynasty status console command is missing.' }
+
 foreach ($required in @(
     'KaiPregnancyModel',
     'TorFamilySafety',
@@ -116,7 +141,6 @@ foreach ($required in @(
     if ($source -notmatch [regex]::Escape($required)) { throw "Family/racial safety source missing: $required" }
 }
 
-# No invasive patching or direct forced diplomacy/marriage actions.
 foreach ($forbidden in @(
     'HarmonyLib',
     'DeclareWarAction.Apply',
@@ -129,11 +153,13 @@ foreach ($forbidden in @(
     if ($source -match [regex]::Escape($forbidden)) { throw "Forbidden invasive/save-fragile pattern found: $forbidden" }
 }
 
-Write-Output 'KaiTOR Diplomacy v0.4.1 contract tests: PASS'
+Write-Output 'KaiTOR Diplomacy v0.4.2 contract tests: PASS'
 Write-Output "  C# files: $($sourceFiles.Count)"
 Write-Output '  LoadSafe gate accepts untouched TOR marriage/permission models.'
-Write-Output '  Future KaiTOR wrappers remain accepted only over the exact TOR base models.'
 Write-Output '  Dawi women/pregnancy remains hard SAFE-OFF.'
-Write-Output '  Treaty save schema and full TOR culture conversion contracts preserved.'
-Write-Output '  Russian diplomacy UI contract preserved.'
+Write-Output '  Player-facing diplomacy/culture UI contains no module branding.'
+Write-Output '  AI rulers rebuild under-populated kingdoms, including the kingdom the player serves.'
+Write-Output '  11 fortifications imply target 8 noble clans under the current formula.'
+Write-Output '  Up to three kingdom growth actions may succeed per week world-wide.'
+Write-Output '  Dynasty status diagnostic command is present.'
 Write-Output '  No Harmony/custom Saveable graph/direct forced war-peace-marriage action detected.'
