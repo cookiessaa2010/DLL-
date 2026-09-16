@@ -50,7 +50,7 @@ jobs:
           }
 
           $patch = Get-Content 'ci/KaiCleave/CleavePatch.cs' -Raw
-          foreach ($required in @('IsDamageHitEligible','CanTraverseCollision','AttackBlockedWithShield','CombatCollisionResult.Blocked','HeavyShieldContinue','HeavyWeaponBlockContinue')) {
+          foreach ($required in @('IsDamageHitEligible','CanTraverseCollision','AttackBlockedWithShield','CombatCollisionResult.Blocked','CombatCollisionResult.Parried','CombatCollisionResult.ChamberBlocked','HeavyShieldContinue','HeavyWeaponBlockContinue','heavy-shield-continue','heavy-weapon-block-continue','DebugLogger.WriteBlock')) {
             if ($patch -notmatch [regex]::Escape($required)) { throw "Heavy-block patch missing marker: $required" }
           }
 
@@ -60,7 +60,7 @@ jobs:
           }
 
           $logger = Get-Content 'ci/KaiCleave/DebugLogger.cs' -Raw
-          foreach ($required in @('ConcurrentQueue','AutoResetEvent','AsyncLogging=True','CLEAVE_TIMING','heavy-shield-continue','heavy-weapon-block-continue')) {
+          foreach ($required in @('ConcurrentQueue','AutoResetEvent','AsyncLogging=True','CLEAVE_TIMING','WriteBlock')) {
             if ($logger -notmatch [regex]::Escape($required)) { throw "Async logger missing marker: $required" }
           }
           if ($logger -match 'lock \(Sync\).*File.AppendAllText') { throw 'Synchronous combat logging pattern still present.' }
