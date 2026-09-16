@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
+using System.Text;
 using TaleWorlds.Core;
 
 namespace KaiCleave
@@ -17,6 +18,11 @@ namespace KaiCleave
         internal static int MaxTargetsPerSwing = 12;
         internal static bool DebugLogging = true;
         internal static bool ShowLoadMessage = true;
+
+        // Heavy traversal is intentionally player-only through CoopRuntime.
+        // Shield continuation defaults ON for v0.3 testing; weapon-block/parry continuation is opt-in.
+        internal static bool HeavyShieldContinue = true;
+        internal static bool HeavyWeaponBlockContinue = false;
 
         internal static bool OneHandedSword = true;
         internal static bool TwoHandedSword = true;
@@ -39,7 +45,7 @@ namespace KaiCleave
             ResolvePaths();
 
             if (!File.Exists(ConfigPath))
-                File.WriteAllText(ConfigPath, DefaultConfig);
+                File.WriteAllText(ConfigPath, BuildConfig());
 
             var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (string raw in File.ReadAllLines(ConfigPath))
@@ -64,6 +70,8 @@ namespace KaiCleave
             MaxTargetsPerSwing = ReadInt(values, nameof(MaxTargetsPerSwing), MaxTargetsPerSwing, 1, 32);
             DebugLogging = ReadBool(values, nameof(DebugLogging), DebugLogging);
             ShowLoadMessage = ReadBool(values, nameof(ShowLoadMessage), ShowLoadMessage);
+            HeavyShieldContinue = ReadBool(values, nameof(HeavyShieldContinue), HeavyShieldContinue);
+            HeavyWeaponBlockContinue = ReadBool(values, nameof(HeavyWeaponBlockContinue), HeavyWeaponBlockContinue);
 
             OneHandedSword = ReadBool(values, nameof(OneHandedSword), OneHandedSword);
             TwoHandedSword = ReadBool(values, nameof(TwoHandedSword), TwoHandedSword);
@@ -76,6 +84,20 @@ namespace KaiCleave
             TwoHandedMace = ReadBool(values, nameof(TwoHandedMace), TwoHandedMace);
             Dagger = ReadBool(values, nameof(Dagger), Dagger);
             Pick = ReadBool(values, nameof(Pick), Pick);
+        }
+
+        internal static void Save()
+        {
+            try
+            {
+                ResolvePaths();
+                File.WriteAllText(ConfigPath, BuildConfig());
+                DebugLogger.Write("settings saved | " + DescribeRuntimeSettings());
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Write("settings save failed: " + ex.GetType().Name + " " + ex.Message);
+            }
         }
 
         internal static bool IsWeaponEnabled(WeaponClass weaponClass)
@@ -95,6 +117,33 @@ namespace KaiCleave
                 case WeaponClass.Pick: return Pick;
                 default: return false;
             }
+        }
+
+        internal static bool IsHeavyTraversalWeapon(WeaponClass weaponClass)
+        {
+            switch (weaponClass)
+            {
+                case WeaponClass.TwoHandedSword:
+                case WeaponClass.TwoHandedAxe:
+                case WeaponClass.TwoHandedMace:
+                case WeaponClass.OneHandedPolearm:
+                case WeaponClass.TwoHandedPolearm:
+                case WeaponClass.LowGripPolearm:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        internal static string DescribeRuntimeSettings()
+        {
+            return "enabled=" + Enabled +
+                   " maxTargets=" + MaxTargetsPerSwing +
+                   " heavyShield=" + HeavyShieldContinue +
+                   " heavyWeaponBlock=" + HeavyWeaponBlockContinue +
+                   " friendly=" + AllowFriendlyTargets +
+                   " thrusts=" + AllowThrusts +
+                   " debug=" + DebugLogging;
         }
 
         private static void ResolvePaths()
@@ -118,37 +167,47 @@ namespace KaiCleave
             return Math.Max(min, Math.Min(max, v));
         }
 
-        internal const string DefaultConfig = @"# KaiCleave v0.2.0-beta
-# Bannerlord 1.3.15.110062 / The Old Realms 1.3.15
-
-[General]
-Enabled=true
-PlayerOnly=true
-MaxTargetsPerSwing=12
-DebugLogging=true
-ShowLoadMessage=true
-
-[Cleave]
-# true = every accepted target receives the same pre-armor attack momentum.
-FullMomentum=true
-# true = force native traversal to continue after a valid enemy hit.
-ForceSlicedThrough=true
-# false is recommended: horizontal/overhead swings cleave, thrusts do not.
-AllowThrusts=false
-AllowFriendlyTargets=false
-
-[Weapons]
-OneHandedSword=true
-TwoHandedSword=true
-OneHandedAxe=true
-TwoHandedAxe=true
-OneHandedPolearm=true
-TwoHandedPolearm=true
-LowGripPolearm=true
-Mace=false
-TwoHandedMace=false
-Dagger=false
-Pick=false
-";
+        private static string BuildConfig()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("# KaiCleave v0.3.0-heavy-block-ui");
+            sb.AppendLine("# Bannerlord 1.3.15.110062 / The Old Realms 1.3.15");
+            sb.AppendLine("# Press F10 in game to change these settings without editing this file.");
+            sb.AppendLine("# NPC cleave remains disabled by default. KaiTOR Coop always fails closed to player-owned attackers.");
+            sb.AppendLine();
+            sb.AppendLine("[General]");
+            sb.AppendLine("Enabled=" + Enabled);
+            sb.AppendLine("PlayerOnly=" + PlayerOnly);
+            sb.AppendLine("MaxTargetsPerSwing=" + MaxTargetsPerSwing);
+            sb.AppendLine("DebugLogging=" + DebugLogging);
+            sb.AppendLine("ShowLoadMessage=" + ShowLoadMessage);
+            sb.AppendLine();
+            sb.AppendLine("[Cleave]");
+            sb.AppendLine("# Full damage per accepted target; no progressive damage falloff.");
+            sb.AppendLine("FullMomentum=" + FullMomentum);
+            sb.AppendLine("ForceSlicedThrough=" + ForceSlicedThrough);
+            sb.AppendLine("AllowThrusts=" + AllowThrusts);
+            sb.AppendLine("AllowFriendlyTargets=" + AllowFriendlyTargets);
+            sb.AppendLine();
+            sb.AppendLine("[HeavyBlock]");
+            sb.AppendLine("# Applies only to two-handed weapons and polearms. One-handed weapons still stop on blocks.");
+            sb.AppendLine("HeavyShieldContinue=" + HeavyShieldContinue);
+            sb.AppendLine("# Weapon block/parry continuation is separate because it changes duel balance more strongly.");
+            sb.AppendLine("HeavyWeaponBlockContinue=" + HeavyWeaponBlockContinue);
+            sb.AppendLine();
+            sb.AppendLine("[Weapons]");
+            sb.AppendLine("OneHandedSword=" + OneHandedSword);
+            sb.AppendLine("TwoHandedSword=" + TwoHandedSword);
+            sb.AppendLine("OneHandedAxe=" + OneHandedAxe);
+            sb.AppendLine("TwoHandedAxe=" + TwoHandedAxe);
+            sb.AppendLine("OneHandedPolearm=" + OneHandedPolearm);
+            sb.AppendLine("TwoHandedPolearm=" + TwoHandedPolearm);
+            sb.AppendLine("LowGripPolearm=" + LowGripPolearm);
+            sb.AppendLine("Mace=" + Mace);
+            sb.AppendLine("TwoHandedMace=" + TwoHandedMace);
+            sb.AppendLine("Dagger=" + Dagger);
+            sb.AppendLine("Pick=" + Pick);
+            return sb.ToString();
+        }
     }
 }
