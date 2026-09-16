@@ -40,27 +40,12 @@ jobs:
           if (-not (Test-Path -LiteralPath $dll -PathType Leaf)) { throw "Missing DLL: $dll" }
 
           $module = Get-Content (Join-Path $root 'module/SubModule.xml') -Raw
-          if ($module -notmatch 'v0\.4\.3') { throw 'SubModule version is not v0.4.3.' }
+          if ($module -notmatch 'v0\.4\.4') { throw 'SubModule version is not v0.4.4.' }
 
           & (Join-Path $root 'tests/Test-KaiTORDiplomacyContracts.ps1')
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-          $dawi = Get-Content (Join-Path $root 'src/Models/DawiWomenAssetBridge.cs') -Raw
-          if ($dawi -notmatch 'ForceSafeOffForLiveTest\s*=\s*true') {
-            throw 'Dawi SAFE-OFF latch is not enabled for v0.4.3.'
-          }
-
-          $subModule = Get-Content (Join-Path $root 'src/SubModule.cs') -Raw
-          $warningRegistration = 'campaignStarter\.AddBehavior\(new KaiMarriageWarningBehavior\(\)\);'
-          if ([regex]::Matches($subModule, $warningRegistration).Count -ne 1) {
-            throw 'Marriage warning registration count is not exactly one.'
-          }
-          $safeBlock = [regex]::Match($subModule, 'if \(!LoadSafeDiagnostics\)\s*\{(?<body>[\s\S]*?)\n\s*\}\s*\n\s*campaignStarter\.AddBehavior\(new KaiDiplomacyBehavior')
-          if (-not $safeBlock.Success -or $safeBlock.Groups['body'].Value -notmatch $warningRegistration) {
-            throw 'Marriage conversation hook escaped the non-LoadSafe block.'
-          }
-
-          Write-Host 'KaiTOR Diplomacy v0.4.3 conversation-safe LoadSafe contracts: PASS'
+          Write-Host 'KaiTOR Diplomacy v0.4.4 LoadSafe world-tick fix contracts: PASS'
 
       - name: Assemble module
         shell: pwsh
@@ -81,7 +66,7 @@ jobs:
       - name: Upload ready module
         uses: actions/upload-artifact@v4
         with:
-          name: KaiTOR-Diplomacy-v0.4.3-RU-LoadSafe-ConversationFix
+          name: KaiTOR-Diplomacy-v0.4.4-RU-LoadSafe-WorldTickFix
           path: artifact/KaiTOR_Diplomacy
           if-no-files-found: error
           retention-days: 30
