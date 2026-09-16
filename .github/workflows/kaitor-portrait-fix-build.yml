@@ -1,9 +1,9 @@
-name: KaiTOR Portrait Fix 0.5.0 Vanilla Rule Test Build
+name: KaiTOR Portrait Fix 0.5.1 Action Binding Diagnostics Build
 
 on:
   push:
     branches:
-      - kaitor-portrait-fix-0.5.0-vanilla-rule-test
+      - kaitor-portrait-fix-0.5.1-action-binding-diagnostics
     paths:
       - 'projects/KaiTORPortraitFix/**'
       - '.github/workflows/kaitor-portrait-fix-build.yml'
@@ -29,12 +29,12 @@ jobs:
         shell: pwsh
         run: dotnet build ./projects/KaiTORPortraitFix/src/KaiTORPortraitFix/KaiTORPortraitFix.csproj -c Release --no-restore -p:NuGetAudit=false
 
-      - name: Validate portrait-fix contracts
+      - name: Validate diagnostic contracts
         shell: pwsh
         run: |
           [xml]$xml = Get-Content ./projects/KaiTORPortraitFix/module/SubModule.xml -Raw
           if ($xml.Module.Id.value -ne 'KaiTOR_PortraitFix') { throw 'Unexpected module id.' }
-          if ($xml.Module.Version.value -ne 'v0.5.0') { throw 'Expected v0.5.0.' }
+          if ($xml.Module.Version.value -ne 'v0.5.1') { throw 'Expected v0.5.1.' }
 
           $vm = Get-Content ./projects/KaiTORPortraitFix/src/KaiTORPortraitFix/SavedGamePreviewCodePatch.cs -Raw
           foreach ($required in @('SavedGameVM','MainHeroVisualCode','GetCharacterVisualCode','SAVE_VM_FIX','restore-preview-code')) {
@@ -42,41 +42,28 @@ jobs:
           }
 
           $pose = Get-Content ./projects/KaiTORPortraitFix/src/KaiTORPortraitFix/BasicPreviewPosePatch.cs -Raw
-          foreach ($required in @(
-            '[HarmonyPatch',
-            'BasicCharacterTableau',
-            'RefreshCharacterTableau',
-            'act_inventory_idle',
-            'act_inventory_idle_start',
-            'ResolveInventoryIdleLikeCharacterTableau',
-            'VANILLA_IDLE_PATCH',
-            'VANILLA_IDLE_RESOLVE',
-            'OpCodes.Ldsfld',
-            'OpCodes.Call'
-          )) {
-            if ($pose -notmatch [regex]::Escape($required)) { throw "Missing vanilla-rule pose contract: $required" }
+          if ($pose -match '\[HarmonyPatch') { throw 'Pose mutator must be disabled in 0.5.1 diagnostics.' }
+          foreach ($required in @('Enabled = false','MUTATOR_DISABLED','basic-preview-pose','0.5.1-action-binding-diagnostics')) {
+            if ($pose -notmatch [regex]::Escape($required)) { throw "Missing disabled pose contract: $required" }
           }
 
-          $gender = Get-Content ./projects/KaiTORPortraitFix/src/KaiTORPortraitFix/SavePreviewGenderPatch.cs -Raw
-          if ($gender -match '\[HarmonyPatch') { throw 'Gender mutator must stay disabled in vanilla-rule test.' }
-          foreach ($required in @('Enabled = false','MUTATOR_DISABLED','save-preview-gender','safe-isolation')) {
-            if ($gender -notmatch [regex]::Escape($required)) { throw "Missing disabled gender contract: $required" }
+          $diag = Get-Content ./projects/KaiTORPortraitFix/src/KaiTORPortraitFix/ActionBindingDiagnostics.cs -Raw
+          foreach ($required in @('BasicCharacterTableau','CharacterTableau','ACTION_BIND_TARGETS','ACTION_BIND','ACTION_BIND_FIELD','ACTION_BIND_OBJECT','ACTION_BIND_GETTER','ACTION_BIND_SURFACE','act_inventory_idle','act_inventory_idle_start')) {
+            if ($diag -notmatch [regex]::Escape($required)) { throw "Missing action-binding diagnostic contract: $required" }
           }
-
-          $diag = Get-Content ./projects/KaiTORPortraitFix/src/KaiTORPortraitFix/SaveLoadPipelineDiagnostics.cs -Raw
-          if ($diag -notmatch 'PIPE_HEROCODE') { throw 'Pipeline diagnostics missing.' }
 
           $sub = Get-Content ./projects/KaiTORPortraitFix/src/KaiTORPortraitFix/SubModule.cs -Raw
-          if ($sub -notmatch '0.5.0-vanilla-rule-test') { throw 'Runtime version marker missing.' }
-          if ($sub -notmatch 'basicTableauVanillaIdleRule=true') { throw 'Vanilla-rule state marker missing.' }
+          if ($sub -notmatch '0.5.1-action-binding-diagnostics') { throw 'Runtime version marker missing.' }
+          if ($sub -notmatch 'actionBindingDiagnostics=true') { throw 'Diagnostic state marker missing.' }
+          if ($sub -notmatch 'basicPoseMutator=false') { throw 'Pose mutator state marker missing.' }
 
           $proj = Get-Content ./projects/KaiTORPortraitFix/src/KaiTORPortraitFix/KaiTORPortraitFix.csproj -Raw
-          if ($proj -notmatch '<AssemblyVersion>0.5.0.0</AssemblyVersion>') { throw 'Assembly version missing.' }
+          if ($proj -notmatch '<AssemblyVersion>0.5.1.0</AssemblyVersion>') { throw 'Assembly version missing.' }
 
       - name: Assemble root-installable package
         shell: pwsh
         run: |
-          $stage = Join-Path $env:RUNNER_TEMP 'KaiTOR-PortraitFix-0.5.0-vanilla-rule-test'
+          $stage = Join-Path $env:RUNNER_TEMP 'KaiTOR-PortraitFix-0.5.1-action-binding-diagnostics'
           $module = Join-Path $stage 'Modules/KaiTOR_PortraitFix'
           $bin = Join-Path $module 'bin/Win64_Shipping_Client'
           New-Item -ItemType Directory -Force -Path $bin | Out-Null
@@ -86,51 +73,41 @@ jobs:
           Copy-Item ./projects/KaiTORPortraitFix/README_RU.md (Join-Path $stage 'README_RU.md')
 
           @'
-          KaiTOR Portrait Fix 0.5.0 VANILLA RULE TEST
+          KaiTOR Portrait Fix 0.5.1 ACTION BINDING DIAGNOSTICS
           Bannerlord 1.3.15.110062
 
-          Goal:
-          - keep the confirmed SavedGameVM visual-code restore;
-          - make Save/Load BasicCharacterTableau resolve its inventory idle like the normal in-game CharacterTableau path;
-          - avoid the cached ActionIndexCache.act_inventory_idle field and dynamically resolve act_inventory_idle_start at render time;
-          - fall back to a dynamically resolved act_inventory_idle only when idle_start is unavailable.
+          Purpose:
+          - keep the confirmed SavedGameVM visual-code restore that removes black placeholders;
+          - disable the failed 0.5.0 idle-action mutator;
+          - observe BasicCharacterTableau and normal CharacterTableau before/after refresh;
+          - record race, skeleton, action indices, interesting runtime fields, action/skeleton objects,
+            available action/animation getter surfaces, and safe getter results where possible.
 
-          Not changed:
-          - race;
-          - skeleton name;
-          - equipment/body properties;
-          - agent/mount spawn frames;
-          - save files;
-          - in-game CharacterTableau;
-          - gender transpiler remains disabled.
+          This build is read-only with respect to pose rendering. It does not change race, skeleton,
+          action, equipment, spawn frames or save files.
 
           Test:
-          1. Replace Modules/KaiTOR_PortraitFix with this build.
-          2. Unblock-File the DLL.
-          3. Restart the game completely.
-          4. First verify Inventory/Clan/Encyclopedia character previews are unchanged.
-          5. Open Saved Campaigns and inspect the same saves that previously showed prone/horizontal heroes.
-          6. Capture screenshots for race 0 human and any TOR custom race available.
-          7. Send %LOCALAPPDATA%\KaiTORPortraitFix\KaiTORPortraitFix.log.
+          1. Replace Modules/KaiTOR_PortraitFix with this build and Unblock-File the DLL.
+          2. Restart the game completely.
+          3. Open Saved Campaigns and select the same broken portrait.
+          4. Load the campaign and open the Skills/Character screen where the same hero lies horizontally.
+          5. If convenient, also open Inventory/Clan/Encyclopedia previews.
+          6. Send %LOCALAPPDATA%\KaiTORPortraitFix\KaiTORPortraitFix.log plus screenshots.
 
-          Expected startup markers:
-          SESSION_START|KaiTOR Portrait Fix 0.5.0-vanilla-rule-test
-          VANILLA_IDLE_PATCH|applied=True; replacements=1 ...
-          PATCH_APPLY|success=true; ... basicTableauVanillaIdleRule=true
-
-          Key diagnostic markers:
-          VANILLA_IDLE_RESOLVE|cachedIdleIndex=...; cachedIdleStartIndex=...; dynamicIdleIndex=...; dynamicIdleStartIndex=...; selected=...
-          SAVE_VM_FIX|applied=true ...
-
-          Interpretation:
-          - If the hero becomes upright, the Save/Load bind pose was caused by the BasicCharacterTableau idle-action path.
-          - If the hero stays prone but VANILLA_IDLE_PATCH applied and dynamicIdleStartIndex is valid, the next test must move to race/action-set/skeleton creation rather than changing save data.
-          '@ | Set-Content (Join-Path $stage 'TEST_0.5.0_RU.txt') -Encoding UTF8
+          Key log markers:
+          ACTION_BIND_TARGETS
+          ACTION_BIND
+          ACTION_BIND_FIELD
+          ACTION_BIND_OBJECT
+          ACTION_BIND_GETTER
+          ACTION_BIND_SURFACE
+          SAVE_VM_FIX
+          '@ | Set-Content (Join-Path $stage 'TEST_0.5.1_RU.txt') -Encoding UTF8
 
           $forbidden = Get-ChildItem $stage -Recurse -File | Where-Object { $_.Name -like 'TaleWorlds*.dll' -or $_.Name -eq '0Harmony.dll' }
           if ($forbidden) { throw 'Reference/runtime dependencies must not be redistributed.' }
 
-          $zip = Join-Path $env:RUNNER_TEMP 'KaiTOR-PortraitFix-0.5.0-vanilla-rule-test-Bannerlord-1.3.15.110062.zip'
+          $zip = Join-Path $env:RUNNER_TEMP 'KaiTOR-PortraitFix-0.5.1-action-binding-diagnostics-Bannerlord-1.3.15.110062.zip'
           Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $zip -Force
           $hashFile = Join-Path $env:RUNNER_TEMP 'SHA256.txt'
           $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -141,7 +118,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: KaiTOR-PortraitFix-0.5.0-vanilla-rule-test
+          name: KaiTOR-PortraitFix-0.5.1-action-binding-diagnostics
           path: |
             ${{ env.PORTRAIT_FIX_ZIP }}
             ${{ env.PORTRAIT_FIX_HASH }}
