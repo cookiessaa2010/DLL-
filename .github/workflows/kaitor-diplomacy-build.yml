@@ -40,12 +40,12 @@ jobs:
           if (-not (Test-Path -LiteralPath $dll -PathType Leaf)) { throw "Missing DLL: $dll" }
 
           $module = Get-Content (Join-Path $root 'module/SubModule.xml') -Raw
-          if ($module -notmatch 'v0\.4\.4') { throw 'SubModule version is not v0.4.4.' }
+          if ($module -notmatch 'v0\.4\.5') { throw 'SubModule version is not v0.4.5.' }
 
           & (Join-Path $root 'tests/Test-KaiTORDiplomacyContracts.ps1')
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-          Write-Host 'KaiTOR Diplomacy v0.4.4 LoadSafe world-tick fix contracts: PASS'
+          Write-Host 'KaiTOR Diplomacy v0.4.5 native-marriage/cadet-queue/town-nationality contracts: PASS'
 
       - name: Assemble module
         shell: pwsh
@@ -66,7 +66,7 @@ jobs:
       - name: Upload ready module
         uses: actions/upload-artifact@v4
         with:
-          name: KaiTOR-Diplomacy-v0.4.4-RU-LoadSafe-WorldTickFix
+          name: KaiTOR-Diplomacy-v0.4.5-RU-NativeMarriage-CadetQueue-TownNationality
           path: artifact/KaiTOR_Diplomacy
           if-no-files-found: error
           retention-days: 30
