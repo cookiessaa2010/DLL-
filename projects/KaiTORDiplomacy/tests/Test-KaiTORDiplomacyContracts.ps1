@@ -24,7 +24,7 @@ if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
 if ($manifest.Module.Id.value -ne 'KaiTOR_Diplomacy') {
     throw 'Unexpected module id.'
 }
-if ($manifest.Module.Version.value -ne 'v0.3.1') {
+if ($manifest.Module.Version.value -ne 'v0.4.0') {
     throw 'Unexpected module version.'
 }
 
@@ -168,6 +168,7 @@ if ($pregnancySource -match 'InvolvesPlayerClan') {
 
 foreach ($dawiPattern in @(
     'FemaleDawiLordTemplateId = "kaitor_dawi_woman_lord"',
+    'ForceSafeOffForLiveTest = true',
     'MBObjectManager.Instance',
     'template.IsFemale',
     'FaceGen.GetRaceOrDefault("dwarf")'
@@ -268,8 +269,8 @@ Write-Output '  Treaty/save primitive-state contracts present.'
 Write-Output '  Full settlement culture conversion and TOR cultural service hooks present.'
 Write-Output '  World NPC marriages restored through Bannerlord native RomanceCampaignBehavior.'
 Write-Output '  Cross-race/undead pregnancy safety applies to the whole world.'
-Write-Output '  Dawi pregnancy remains gated behind the real female-dwarf asset sentinel.'
-Write-Output '  Female Dawi AI population bootstrap is bounded, asset-gated and player-clan safe.'
+Write-Output '  Dawi asset bridge is hard SAFE-OFF for v0.4.0 live testing.'
+Write-Output '  Female Dawi AI population bootstrap remains bounded and cannot run while SAFE-OFF is active.'
 Write-Output '  Greenskin population continuity uses bounded off-screen spore-born adult heroes.'
 Write-Output '  Vampire population continuity uses bounded Blood Kiss race conversion.'
 Write-Output '  TOR frozen lifecycle is re-enabled with race-aware natural mortality.'
