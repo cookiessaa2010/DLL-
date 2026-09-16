@@ -37,12 +37,14 @@ public sealed class SubModule : MBSubModuleBase
             campaignStarter.AddBehavior(new KaiDawiWomenBehavior());
         }
 
-        // Safe runtime systems. The mercy behavior only listens for the native
-        // post-battle release event and never mutates prisoners on its own.
+        // Safe runtime systems. Family adoption only acts on an existing player
+        // companion through Bannerlord's public family/clan actions; it never creates a
+        // new hero. New AI houses are committed outside daily/weekly world ticks.
         campaignStarter.AddBehavior(new KaiDiplomacyBehavior());
         campaignStarter.AddBehavior(new KaiDiplomacyOfficeBehavior());
         campaignStarter.AddBehavior(new KaiDiplomacyAiBehavior());
         campaignStarter.AddBehavior(new KaiCultureAssimilationBehavior());
+        campaignStarter.AddBehavior(new KaiFamilyAffairsBehavior());
         campaignStarter.AddBehavior(new KaiDynastyAiBehavior());
         campaignStarter.AddBehavior(new KaiCadetHouseSafeBehavior());
         campaignStarter.AddBehavior(new KaiMercyRelationBehavior());
