@@ -31,35 +31,35 @@ namespace KaiCleave
             _menuOpen = true;
             var options = new List<InquiryElement>
             {
-                Entry("enabled", "Cleave: " + OnOff(KaiSettings.Enabled),
-                    "Master switch. Applies immediately."),
-                Entry("maxTargets", "Max targets per swing: " + KaiSettings.MaxTargetsPerSwing,
-                    "Damaged targets only. Shield/weapon blocks do not consume this limit."),
-                Entry("shield", "2H / polearm through shield: " + OnOff(KaiSettings.HeavyShieldContinue),
-                    "If ON, two-handed weapons and polearms may keep travelling after a shield block. One-handed weapons still stop."),
-                Entry("weaponBlock", "2H / polearm through weapon block: " + OnOff(KaiSettings.HeavyWeaponBlockContinue),
-                    "If ON, two-handed weapons and polearms may keep travelling after a weapon block/parry. This changes duel balance more strongly."),
-                Entry("thrusts", "Thrust cleave: " + OnOff(KaiSettings.AllowThrusts),
-                    "Recommended OFF. Horizontal/overhead swings remain the normal cleave path."),
-                Entry("friendly", "Friendly targets: " + OnOff(KaiSettings.AllowFriendlyTargets),
-                    "Recommended OFF."),
-                Entry("weapons", "Weapon classes...",
-                    "Enable/disable cleave by weapon class. This is not a damage/falloff profile."),
-                Entry("debug", "Debug logging: " + OnOff(KaiSettings.DebugLogging),
-                    "Async diagnostic log for hit/block/timing analysis."),
-                Entry("loadMessage", "Load message: " + OnOff(KaiSettings.ShowLoadMessage),
-                    "Show KaiCleave version and runtime mode on load.")
+                Entry("enabled", "Клив: " + OnOff(KaiSettings.Enabled),
+                    "Главный переключатель мода. Изменение применяется сразу."),
+                Entry("maxTargets", "Максимум целей за взмах: " + KaiSettings.MaxTargetsPerSwing,
+                    "Считаются только цели, получившие урон. Блок щитом или оружием лимит не расходует."),
+                Entry("shield", "Двуручное / древковое проходит через щит: " + OnOff(KaiSettings.HeavyShieldContinue),
+                    "Если включено, двуручное и древковое оружие может продолжить взмах после блока щитом. Одноручное оружие по-прежнему останавливается."),
+                Entry("weaponBlock", "Двуручное / древковое проходит через блок оружием: " + OnOff(KaiSettings.HeavyWeaponBlockContinue),
+                    "Если включено, двуручное и древковое оружие может продолжить взмах после блока оружием, парирования или chamber-блока. Сильнее влияет на баланс дуэлей."),
+                Entry("thrusts", "Клив колющими атаками: " + OnOff(KaiSettings.AllowThrusts),
+                    "Рекомендуется выключить. Обычный клив рассчитан на рубящие и вертикальные взмахи."),
+                Entry("friendly", "Удары по союзникам: " + OnOff(KaiSettings.AllowFriendlyTargets),
+                    "Рекомендуется выключить."),
+                Entry("weapons", "Классы оружия...",
+                    "Включение или отключение клива для отдельных классов оружия. Это не профиль урона и не снижение урона по цепочке."),
+                Entry("debug", "Отладочный лог: " + OnOff(KaiSettings.DebugLogging),
+                    "Асинхронный диагностический лог ударов, блоков и таймингов."),
+                Entry("loadMessage", "Сообщение при загрузке: " + OnOff(KaiSettings.ShowLoadMessage),
+                    "Показывать версию KaiCleave и режим работы при загрузке мода.")
             };
 
             MBInformationManager.ShowMultiSelectionInquiry(new MultiSelectionInquiryData(
-                "KaiCleave v0.3.0 Settings",
-                "Changes apply immediately and are saved to KaiCleave.ini. NPC cleave is intentionally not exposed here.\n\nSelect one item and press CHANGE.",
+                "KaiCleave v0.3.1 — Настройки",
+                "Изменения применяются сразу и сохраняются в KaiCleave.ini. Клив для NPC намеренно не добавлен.\n\nВыберите один пункт и нажмите ИЗМЕНИТЬ.",
                 options,
                 true,
                 1,
                 1,
-                "CHANGE",
-                "CLOSE",
+                "ИЗМЕНИТЬ",
+                "ЗАКРЫТЬ",
                 OnRootSelected,
                 OnClosed));
         }
@@ -122,21 +122,21 @@ namespace KaiCleave
             {
                 options.Add(new InquiryElement(
                     value,
-                    (value == KaiSettings.MaxTargetsPerSwing ? "[CURRENT] " : string.Empty) + value + " targets",
+                    (value == KaiSettings.MaxTargetsPerSwing ? "[ТЕКУЩЕЕ] " : string.Empty) + value + " целей",
                     null,
                     true,
-                    "Maximum damaged targets accepted during one tracked swing."));
+                    "Максимальное количество целей, которые могут получить урон за один отслеживаемый взмах."));
             }
 
             MBInformationManager.ShowMultiSelectionInquiry(new MultiSelectionInquiryData(
-                "KaiCleave - Max Targets",
-                "Choose the maximum number of damaged targets per swing.",
+                "KaiCleave — Максимум целей",
+                "Выберите максимальное количество целей, получающих урон за один взмах.",
                 options,
                 true,
                 1,
                 1,
-                "SET",
-                "BACK",
+                "УСТАНОВИТЬ",
+                "НАЗАД",
                 selected =>
                 {
                     _menuOpen = false;
@@ -158,28 +158,28 @@ namespace KaiCleave
             _menuOpen = true;
             var options = new List<InquiryElement>
             {
-                WeaponEntry("1hs", "One-handed sword", KaiSettings.OneHandedSword),
-                WeaponEntry("2hs", "Two-handed sword", KaiSettings.TwoHandedSword),
-                WeaponEntry("1ha", "One-handed axe", KaiSettings.OneHandedAxe),
-                WeaponEntry("2ha", "Two-handed axe", KaiSettings.TwoHandedAxe),
-                WeaponEntry("1hp", "One-handed polearm", KaiSettings.OneHandedPolearm),
-                WeaponEntry("2hp", "Two-handed polearm", KaiSettings.TwoHandedPolearm),
-                WeaponEntry("lgp", "Low-grip polearm", KaiSettings.LowGripPolearm),
-                WeaponEntry("mace", "Mace", KaiSettings.Mace),
-                WeaponEntry("2hm", "Two-handed mace", KaiSettings.TwoHandedMace),
-                WeaponEntry("dagger", "Dagger", KaiSettings.Dagger),
-                WeaponEntry("pick", "Pick", KaiSettings.Pick)
+                WeaponEntry("1hs", "Одноручный меч", KaiSettings.OneHandedSword),
+                WeaponEntry("2hs", "Двуручный меч", KaiSettings.TwoHandedSword),
+                WeaponEntry("1ha", "Одноручный топор", KaiSettings.OneHandedAxe),
+                WeaponEntry("2ha", "Двуручный топор", KaiSettings.TwoHandedAxe),
+                WeaponEntry("1hp", "Одноручное древковое", KaiSettings.OneHandedPolearm),
+                WeaponEntry("2hp", "Двуручное древковое", KaiSettings.TwoHandedPolearm),
+                WeaponEntry("lgp", "Древковое с низким хватом", KaiSettings.LowGripPolearm),
+                WeaponEntry("mace", "Булава", KaiSettings.Mace),
+                WeaponEntry("2hm", "Двуручная булава", KaiSettings.TwoHandedMace),
+                WeaponEntry("dagger", "Кинжал", KaiSettings.Dagger),
+                WeaponEntry("pick", "Кирка", KaiSettings.Pick)
             };
 
             MBInformationManager.ShowMultiSelectionInquiry(new MultiSelectionInquiryData(
-                "KaiCleave - Weapon Classes",
-                "Select one class to toggle it, then press TOGGLE.",
+                "KaiCleave — Классы оружия",
+                "Выберите один класс оружия и нажмите ПЕРЕКЛЮЧИТЬ.",
                 options,
                 true,
                 1,
                 1,
-                "TOGGLE",
-                "BACK",
+                "ПЕРЕКЛЮЧИТЬ",
+                "НАЗАД",
                 OnWeaponSelected,
                 OnBack));
         }
@@ -226,18 +226,18 @@ namespace KaiCleave
 
         private static InquiryElement WeaponEntry(string id, string name, bool enabled)
         {
-            return Entry(id, name + ": " + OnOff(enabled), "Toggle cleave for this weapon class.");
+            return Entry(id, name + ": " + OnOff(enabled), "Переключить клив для этого класса оружия.");
         }
 
         private static string OnOff(bool value)
         {
-            return value ? "ON" : "OFF";
+            return value ? "ВКЛ" : "ВЫКЛ";
         }
 
         private static void SaveAndReturn()
         {
             KaiSettings.Save();
-            InformationManager.DisplayMessage(new InformationMessage("[KaiCleave] Settings saved | " + KaiSettings.DescribeRuntimeSettings()));
+            InformationManager.DisplayMessage(new InformationMessage("[KaiCleave] Настройки сохранены | " + KaiSettings.DescribeRuntimeSettings()));
             _reopenRoot = true;
         }
 
