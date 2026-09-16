@@ -8,7 +8,7 @@ namespace KaiCleave
     public sealed class SubModule : MBSubModuleBase
     {
         internal const string HarmonyId = "kai.cleave.bannerlord.1.3.15";
-        internal const string Version = "0.3.0-heavy-block-ui";
+        internal const string Version = "0.3.1-ru-ui";
 
         private Harmony _harmony;
         private bool _combatPatchesActive;
