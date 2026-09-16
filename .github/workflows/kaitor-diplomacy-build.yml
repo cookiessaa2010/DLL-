@@ -40,7 +40,7 @@ jobs:
           if (-not (Test-Path -LiteralPath $dll -PathType Leaf)) { throw "Missing DLL: $dll" }
 
           $module = Get-Content (Join-Path $root 'module/SubModule.xml') -Raw
-          if ($module -notmatch 'v0\.3\.0') { throw 'SubModule version is not v0.3.0.' }
+          if ($module -notmatch 'v0\.3\.1') { throw 'SubModule version is not v0.3.1.' }
 
           & (Join-Path $root 'tests/Test-KaiTORDiplomacyContracts.ps1')
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -67,7 +67,7 @@ jobs:
             if ($bridge -notmatch [regex]::Escape($required)) { throw "Missing full-conversion contract: $required" }
           }
 
-          Write-Host 'KaiTOR Diplomacy v0.3.0 gameplay contracts: PASS'
+          Write-Host 'KaiTOR Diplomacy v0.3.1 gameplay contracts: PASS'
 
       - name: Assemble module
         shell: pwsh
@@ -88,7 +88,7 @@ jobs:
       - name: Upload ready module
         uses: actions/upload-artifact@v4
         with:
-          name: KaiTOR-Diplomacy-v0.3.0
+          name: KaiTOR-Diplomacy-v0.3.1-LoadSafe
           path: artifact/KaiTOR_Diplomacy
           if-no-files-found: error
           retention-days: 30
