@@ -1,9 +1,9 @@
-name: KaiTOR Portrait Fix 0.5.2 Static Action Cache Recovery Build
+name: KaiTOR Portrait Fix 0.6.0 Stable Build
 
 on:
   push:
     branches:
-      - kaitor-portrait-fix-0.5.2-static-action-cache-recovery
+      - kaitor-portrait-fix-0.6.0-stable
     paths:
       - 'projects/KaiTORPortraitFix/**'
       - '.github/workflows/kaitor-portrait-fix-build.yml'
@@ -29,60 +29,61 @@ jobs:
         shell: pwsh
         run: dotnet build ./projects/KaiTORPortraitFix/src/KaiTORPortraitFix/KaiTORPortraitFix.csproj -c Release --no-restore -p:NuGetAudit=false
 
-      - name: Validate recovery contracts
+      - name: Validate stable contracts
         shell: pwsh
         run: |
           [xml]$xml = Get-Content ./projects/KaiTORPortraitFix/module/SubModule.xml -Raw
           if ($xml.Module.Id.value -ne 'KaiTOR_PortraitFix') { throw 'Unexpected module id.' }
-          if ($xml.Module.Version.value -ne 'v0.5.2') { throw 'Expected v0.5.2.' }
+          if ($xml.Module.Version.value -ne 'v0.6.0') { throw 'Expected v0.6.0.' }
 
           $vm = Get-Content ./projects/KaiTORPortraitFix/src/KaiTORPortraitFix/SavedGamePreviewCodePatch.cs -Raw
           foreach ($required in @('SavedGameVM','MainHeroVisualCode','GetCharacterVisualCode','SAVE_VM_FIX','restore-preview-code')) {
-            if ($vm -notmatch [regex]::Escape($required)) { throw "Missing VM fix contract: $required" }
+            if ($vm -notmatch [regex]::Escape($required)) { throw "Missing VM restore contract: $required" }
           }
+          if ($vm -match '\.Save\s*=') { throw 'Stable preview patch must not write the save object.' }
 
-          $repair = Get-Content ./projects/KaiTORPortraitFix/src/KaiTORPortraitFix/StaticActionCacheRecoveryPatch.cs -Raw
+          $repair = Get-Content ./projects/KaiTORPortraitFix/src/KaiTORPortraitFix/ActionIndexCacheRepair.cs -Raw
           foreach ($required in @(
             'MBAnimation.GetNumActionCodes',
             'MBAnimation.GetActionCodeWithName',
             'act_inventory_idle_start',
             'act_inventory_idle',
             'field.SetValue',
-            'STATIC_CACHE_GATE',
-            'STATIC_CACHE_FIELD',
-            'STATIC_CACHE_RECOVERY',
-            'STATIC_CACHE_FALLBACK',
+            'candidate.Index != liveIndex',
+            'ACTION_CACHE_FIELD',
+            'ACTION_CACHE_REPAIR',
+            'ACTION_CACHE_FALLBACK',
+            'MaxAttempts = 3',
             'CharacterTableau',
             'BasicCharacterTableau',
             'GetIdleAction'
           )) {
-            if ($repair -notmatch [regex]::Escape($required)) { throw "Missing static-cache recovery contract: $required" }
+            if ($repair -notmatch [regex]::Escape($required)) { throw "Missing stable action-cache contract: $required" }
           }
 
-          $deep = Get-Content ./projects/KaiTORPortraitFix/src/KaiTORPortraitFix/ActionBindingDiagnostics.cs -Raw
-          if ($deep -match '\[HarmonyPatch') { throw '0.5.1 deep action-binding diagnostics must be disabled in 0.5.2.' }
-          foreach ($required in @('Enabled = false','DIAGNOSTIC_DISABLED','0.5.2-static-action-cache-recovery')) {
-            if ($deep -notmatch [regex]::Escape($required)) { throw "Missing disabled diagnostic marker: $required" }
+          foreach ($obsolete in @(
+            './projects/KaiTORPortraitFix/src/KaiTORPortraitFix/ActionBindingDiagnostics.cs',
+            './projects/KaiTORPortraitFix/src/KaiTORPortraitFix/SaveLoadPipelineDiagnostics.cs',
+            './projects/KaiTORPortraitFix/src/KaiTORPortraitFix/BasicPreviewPosePatch.cs',
+            './projects/KaiTORPortraitFix/src/KaiTORPortraitFix/SavePreviewGenderPatch.cs',
+            './projects/KaiTORPortraitFix/src/KaiTORPortraitFix/StaticActionCacheRecoveryPatch.cs'
+          )) {
+            if (Test-Path $obsolete) { throw "Obsolete experiment must not ship in stable build: $obsolete" }
           }
-
-          $pose = Get-Content ./projects/KaiTORPortraitFix/src/KaiTORPortraitFix/BasicPreviewPosePatch.cs -Raw
-          if ($pose -match '\[HarmonyPatch') { throw 'Legacy pose mutator must remain disabled.' }
-
-          $gender = Get-Content ./projects/KaiTORPortraitFix/src/KaiTORPortraitFix/SavePreviewGenderPatch.cs -Raw
-          if ($gender -match '\[HarmonyPatch') { throw 'Gender mutator must remain disabled.' }
 
           $sub = Get-Content ./projects/KaiTORPortraitFix/src/KaiTORPortraitFix/SubModule.cs -Raw
-          if ($sub -notmatch '0.5.2-static-action-cache-recovery') { throw 'Runtime version marker missing.' }
-          if ($sub -notmatch 'staticActionCacheRecovery=true') { throw 'Recovery state marker missing.' }
-          if ($sub -notmatch 'actionBindingDiagnostics=false') { throw 'Diagnostic state marker missing.' }
+          foreach ($required in @('0.6.0-stable','vmPreviewRestore=true','actionIndexCacheRepair=true','diagnostics=false')) {
+            if ($sub -notmatch [regex]::Escape($required)) { throw "Missing stable runtime marker: $required" }
+          }
 
           $proj = Get-Content ./projects/KaiTORPortraitFix/src/KaiTORPortraitFix/KaiTORPortraitFix.csproj -Raw
-          if ($proj -notmatch '<AssemblyVersion>0.5.2.0</AssemblyVersion>') { throw 'Assembly version missing.' }
+          if ($proj -notmatch '<AssemblyVersion>0.6.0.0</AssemblyVersion>') { throw 'Assembly version missing.' }
+          if ($proj -notmatch '<FileVersion>0.6.0.0</FileVersion>') { throw 'File version missing.' }
 
       - name: Assemble root-installable package
         shell: pwsh
         run: |
-          $stage = Join-Path $env:RUNNER_TEMP 'KaiTOR-PortraitFix-0.5.2-static-action-cache-recovery'
+          $stage = Join-Path $env:RUNNER_TEMP 'KaiTOR-PortraitFix-0.6.0-stable'
           $module = Join-Path $stage 'Modules/KaiTOR_PortraitFix'
           $bin = Join-Path $module 'bin/Win64_Shipping_Client'
           New-Item -ItemType Directory -Force -Path $bin | Out-Null
@@ -92,65 +93,57 @@ jobs:
           Copy-Item ./projects/KaiTORPortraitFix/README_RU.md (Join-Path $stage 'README_RU.md')
 
           @'
-          KaiTOR Portrait Fix 0.5.2 STATIC ACTION CACHE RECOVERY TEST
-          Bannerlord 1.3.15.110062
+          KaiTOR Portrait Fix 0.6.0 STABLE
+          Bannerlord 1.3.15.110062 + The Old Realms 1.3.15
 
-          Why this build exists:
-          - 0.5.1 showed CharacterTableau._idleAction is the normal act_none sentinel (-1), while
-            live ActionIndexCache.Create lookups already resolve inventory idle actions correctly.
-          - Bannerlord CharacterTableau falls back to static ActionIndexCache.act_inventory_idle_start.
-          - BasicCharacterTableau consumes static ActionIndexCache.act_inventory_idle.
-          - If ActionIndexCache initialized before action types loaded, those static readonly values can
-            remain -1 for the session even though live lookups later succeed.
+          Stable fixes:
+          1. Save/Load black placeholder:
+             Restores MainHeroVisualCode from the save metadata only for the preview VM when Bannerlord
+             cleared the preview because of module discrepancy. The .sav file is never rewritten.
 
-          What this test does:
-          - gates on MBAnimation without touching ActionIndexCache first;
-          - checks only act_inventory_idle_start and act_inventory_idle;
-          - if a static is already healthy, leaves it untouched;
-          - if a static is -1 while the live lookup is valid, writes the live value back by reflection
-            and immediately re-reads it to verify the write;
-          - runs immediately before CharacterTableau/BasicCharacterTableau refresh consumes the value;
-          - includes narrow call-site fallbacks only if the runtime refuses initonly reflection writes;
-          - keeps the confirmed SavedGameVM preview-code restore;
-          - does not modify save files, race, equipment, body properties, frames or TOR data.
+          2. Horizontal / prone UI character:
+             Repairs only ActionIndexCache.act_inventory_idle_start and act_inventory_idle when the
+             static values are poisoned (-1) but the live MBAnimation lookups are already valid.
+             Healthy values are never overwritten; reflection writes are immediately re-read and verified.
 
-          Test:
-          1. Replace Modules/KaiTOR_PortraitFix with this build and Unblock-File the DLL.
-          2. Fully restart Bannerlord. Do not test in the same running process as an older build.
-          3. Open Saved Campaigns and select the broken horizontal portrait.
-          4. Load the campaign and open the Skills/Character screen that previously showed the hero prone.
-          5. Send screenshots and %LOCALAPPDATA%\KaiTORPortraitFix\KaiTORPortraitFix.log.
+          Confirmed during 0.5.2 testing on Bannerlord 1.3.15.110062:
+          - act_inventory_idle_start: before=-1, live=4014, after=4014, repaired=True
+          - act_inventory_idle:       before=-1, live=4216, after=4216, repaired=True
+          - Save/Load, Skills and Party character previews returned to normal standing poses.
+          - Human and TOR orc previews both rendered correctly after recovery.
 
-          Key markers:
-          SESSION_START|KaiTOR Portrait Fix 0.5.2-static-action-cache-recovery
-          STATIC_CACHE_GATE
-          STATIC_CACHE_FIELD
-          STATIC_CACHE_RECOVERY
-          STATIC_CACHE_FALLBACK (only expected if reflection write is refused)
-          SAVE_VM_FIX
+          Stable cleanup:
+          - removed heavy action-binding diagnostics;
+          - removed Save/Load pipeline tracing;
+          - removed failed pose experiment;
+          - removed obsolete gender experiment;
+          - capped routine success/skip/fallback logging.
 
-          Strong confirmation of the root cause looks like:
-          STATIC_CACHE_FIELD|field=act_inventory_idle_start; ... before=-1; live=<positive>; after=<positive>; repaired=True
-          STATIC_CACHE_FIELD|field=act_inventory_idle; ... before=-1; live=<positive>; after=<positive>; repaired=True
+          Install:
+          Extract this archive into the Bannerlord game root, then unblock:
+          Modules\KaiTOR_PortraitFix\bin\Win64_Shipping_Client\KaiTORPortraitFix.dll
 
-          If both statics were already healthy, this build will log reason=already-healthy and perform no write.
-          '@ | Set-Content (Join-Path $stage 'TEST_0.5.2_RU.txt') -Encoding UTF8
+          Log:
+          %LOCALAPPDATA%\KaiTORPortraitFix\KaiTORPortraitFix.log
+          '@ | Set-Content (Join-Path $stage 'RELEASE_NOTES_0.6.0_RU.txt') -Encoding UTF8
 
           $forbidden = Get-ChildItem $stage -Recurse -File | Where-Object { $_.Name -like 'TaleWorlds*.dll' -or $_.Name -eq '0Harmony.dll' }
           if ($forbidden) { throw 'Reference/runtime dependencies must not be redistributed.' }
 
-          $zip = Join-Path $env:RUNNER_TEMP 'KaiTOR-PortraitFix-0.5.2-static-action-cache-recovery-Bannerlord-1.3.15.110062.zip'
+          $zip = Join-Path $env:RUNNER_TEMP 'KaiTOR-PortraitFix-0.6.0-stable-Bannerlord-1.3.15.110062.zip'
           Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $zip -Force
+
           $hashFile = Join-Path $env:RUNNER_TEMP 'SHA256.txt'
           $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
           "$hash  $([IO.Path]::GetFileName($zip))" | Set-Content $hashFile -Encoding ascii
+
           "PORTRAIT_FIX_ZIP=$zip" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "PORTRAIT_FIX_HASH=$hashFile" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: KaiTOR-PortraitFix-0.5.2-static-action-cache-recovery
+          name: KaiTOR-PortraitFix-0.6.0-stable
           path: |
             ${{ env.PORTRAIT_FIX_ZIP }}
             ${{ env.PORTRAIT_FIX_HASH }}
