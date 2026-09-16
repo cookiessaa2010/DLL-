@@ -24,7 +24,7 @@ if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
 if ($manifest.Module.Id.value -ne 'KaiTOR_Diplomacy') {
     throw 'Unexpected module id.'
 }
-if ($manifest.Module.Version.value -ne 'v0.3.0') {
+if ($manifest.Module.Version.value -ne 'v0.3.1') {
     throw 'Unexpected module version.'
 }
 
@@ -146,14 +146,9 @@ foreach ($forbidden in @(
     }
 }
 
-# Marriage and reproduction are deliberately separate. A direct race-equality veto in
-# the marriage model would regress Dawi <-> human/elf marriages requested by design.
 if ($marriageSource -match 'CharacterObject\.Race\s*!=') {
     throw 'Marriage model regressed to a direct race-equality veto; cross-race social marriage must remain possible.'
 }
-
-# TOR disables NPC marriage entirely. KaiTOR must restore a nonzero native chance and
-# let Bannerlord RomanceCampaignBehavior perform MarriageAction itself.
 if ($marriageSource -match 'NpcCoupleMarriageChance\(Hero firstHero, Hero secondHero\)\s*=>\s*0f') {
     throw 'World dynastic marriage regressed to disabled NPC marriage.'
 }
@@ -164,8 +159,6 @@ if ($marriageSource -notmatch 'ChildlessNpcMarriageChanceMultiplier') {
     throw 'Childless inter-species AI marriage rarity control is missing.'
 }
 
-# Pregnancy must fail closed before Bannerlord HeroCreator.DeliverOffSpring sees any
-# cross-race world marriage, not just marriages involving the player clan.
 if ($pregnancySource -notmatch 'TorFamilySafety\.CanUseVanillaPregnancy') {
     throw 'Pregnancy model no longer delegates offspring race safety to TorFamilySafety.'
 }
@@ -173,8 +166,6 @@ if ($pregnancySource -match 'InvolvesPlayerClan') {
     throw 'Pregnancy safety regressed to player-only; restored NPC marriages require world-wide offspring safety.'
 }
 
-# Dawi pregnancy may only unlock when the actual female dwarf asset chain registers its
-# sentinel template. A culture check alone is not enough to prove render safety.
 foreach ($dawiPattern in @(
     'FemaleDawiLordTemplateId = "kaitor_dawi_woman_lord"',
     'MBObjectManager.Instance',
@@ -186,7 +177,6 @@ foreach ($dawiPattern in @(
     }
 }
 
-# Female Dawi population bootstrap must remain bounded, asset-gated and AI-only.
 foreach ($dawiPopulationPattern in @(
     'DawiWomenAssetBridge.IsAvailable',
     'DawiFemaleMinimumAge = 30',
@@ -204,7 +194,6 @@ if ($source -notmatch 'new KaiDawiWomenBehavior\(\)') {
     throw 'Dawi women behavior is not registered in the campaign module.'
 }
 
-# Greenskins must grow through off-screen spore population, never Bannerlord pregnancy.
 foreach ($sporePattern in @(
     'SporePressureThreshold = 100d',
     'SporeSpawnCooldownDays = 84',
@@ -220,8 +209,6 @@ if ($racialSource -match 'DeliverOffSpring|GetDailyChanceOfPregnancyForHero') {
     throw 'Racial population behavior must not route Greenskins/vampires through Bannerlord pregnancy.'
 }
 
-# Blood Kiss must mutate an existing mortal hero's race and must not manufacture a
-# biological vampire child or force a career/religion change owned by TOR.
 foreach ($bloodPattern in @(
     'BloodKissCooldownDays = 180',
     'MaximumVampireScions = 8',
@@ -236,8 +223,6 @@ if ($racialSource -match 'AddCareer|DominantReligion|AddReligiousInfluence') {
     throw 'KaiTOR racial population behavior must not fabricate TOR vampire careers or religion.'
 }
 
-# Restoring life/death without a race-aware mortality wrapper would make long-lived TOR
-# races inherit Bannerlord human old-age limits.
 if ($deathSource -notmatch 'HeroDeathProbabilityCalculationModel') {
     throw 'Race-aware natural death model is missing.'
 }
@@ -247,7 +232,6 @@ foreach ($lifePattern in @('"sturgia"', '"battania"', '"eonir"', '"aserai"', 'Is
     }
 }
 
-# Dynasty growth must prefer native political barter and must be bounded.
 foreach ($dynastyPattern in @(
     'MaximumTargetNobleClans = 10',
     'NewHouseCooldownDays = 180',
@@ -261,8 +245,6 @@ foreach ($dynastyPattern in @(
     }
 }
 
-# A childless player marriage must warn before the normal final barter and give a real
-# chance to back out. Warning state must remain non-persistent.
 foreach ($warningPattern in @(
     'kaitor_childless_marriage_warning_options',
     'Continue with the marriage arrangements',
@@ -275,7 +257,6 @@ foreach ($warningPattern in @(
     }
 }
 
-# CampaignTime.Now.ToDays is double in Bannerlord 1.3.15.
 if ($source -match 'Dictionary<string, float> _nonAggressionExpiryDays') {
     throw 'NAP expiry storage regressed to float; Bannerlord 1.3.15 CampaignTime.ToDays is double.'
 }
