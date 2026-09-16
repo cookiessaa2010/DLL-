@@ -31,7 +31,7 @@ internal static class TorCompatibilityGate
         if (!HasTorPermissionOwnership(models.KingdomDecisionPermissionModel, out reason))
             return false;
 
-        reason = "TOR diplomacy stack verified. LoadSafe accepts TOR-owned family/permission models; KaiTOR wrappers are also accepted when enabled.";
+        reason = "TOR diplomacy stack verified. Marriage may be TOR-owned directly or wrapped by the native-marriage compatibility layer; permission ownership remains TOR-safe.";
         return true;
     }
 
@@ -39,14 +39,15 @@ internal static class TorCompatibilityGate
     {
         var actualType = model?.GetType().FullName ?? "<null>";
 
-        // LoadSafe diagnostics deliberately leave TOR's marriage model untouched.
+        // Safe fallback: untouched TOR marriage ownership is accepted.
         if (string.Equals(actualType, KaiPlayerMarriageModel.ExpectedTorBaseType, StringComparison.Ordinal))
         {
             reason = string.Empty;
             return true;
         }
 
-        // Future full mode may install the additive KaiTOR wrapper over that exact TOR model.
+        // v0.4.5 LoadSafe selectively installs the additive marriage wrapper over the
+        // exact TOR model while leaving pregnancy/death/lifecycle wrappers disabled.
         if (model is KaiPlayerMarriageModel marriage &&
             string.Equals(marriage.UnderlyingModelTypeName, KaiPlayerMarriageModel.ExpectedTorBaseType, StringComparison.Ordinal))
         {
@@ -54,7 +55,7 @@ internal static class TorCompatibilityGate
             return true;
         }
 
-        reason = $"TOR compatibility gate failed: MarriageModel is '{actualType}', expected TOR model '{KaiPlayerMarriageModel.ExpectedTorBaseType}' or its KaiTOR wrapper.";
+        reason = $"TOR compatibility gate failed: MarriageModel is '{actualType}', expected TOR model '{KaiPlayerMarriageModel.ExpectedTorBaseType}' or its native-marriage compatibility wrapper.";
         return false;
     }
 
@@ -62,14 +63,12 @@ internal static class TorCompatibilityGate
     {
         var actualType = model?.GetType().FullName ?? "<null>";
 
-        // LoadSafe diagnostics deliberately leave TOR's permission model untouched.
         if (string.Equals(actualType, KaiKingdomDecisionPermissionModel.ExpectedTorBaseType, StringComparison.Ordinal))
         {
             reason = string.Empty;
             return true;
         }
 
-        // Future full mode may install the additive KaiTOR wrapper over that exact TOR model.
         if (model is KaiKingdomDecisionPermissionModel permissions &&
             string.Equals(permissions.UnderlyingModelTypeName, KaiKingdomDecisionPermissionModel.ExpectedTorBaseType, StringComparison.Ordinal))
         {
@@ -77,7 +76,7 @@ internal static class TorCompatibilityGate
             return true;
         }
 
-        reason = $"TOR compatibility gate failed: KingdomDecisionPermissionModel is '{actualType}', expected TOR model '{KaiKingdomDecisionPermissionModel.ExpectedTorBaseType}' or its KaiTOR wrapper.";
+        reason = $"TOR compatibility gate failed: KingdomDecisionPermissionModel is '{actualType}', expected TOR model '{KaiKingdomDecisionPermissionModel.ExpectedTorBaseType}' or its compatibility wrapper.";
         return false;
     }
 
