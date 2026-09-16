@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using KaiTOR.Diplomacy.Models;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
 using TaleWorlds.CampaignSystem.Party;
@@ -14,7 +15,10 @@ namespace KaiTOR.Diplomacy.Runtime;
 /// WeeklyTick only selects a candidate and stores primitive IDs. The actual clan graph
 /// mutation is deferred until the player has safely entered a fortification, so it does
 /// not run inside TOR's daily/weekly hero-generation burst on the campaign map.
-/// No new hero is generated: the founder must already be an adult lord of the ruling clan.
+/// No new hero is generated: the founder must already be an adult lord or an existing
+/// clan companion who can be elevated through Bannerlord's native companion-to-lord path.
+/// This deliberately lets cultures without an active family lifecycle (for example Dawi
+/// during SAFE-OFF and greenskins) still grow politically through new noble houses.
 /// </summary>
 public sealed class KaiCadetHouseSafeBehavior : CampaignBehaviorBase
 {
@@ -178,11 +182,18 @@ public sealed class KaiCadetHouseSafeBehavior : CampaignBehaviorBase
     {
         if (hero == null || hero == ruler || hero == ruler.Spouse)
             return false;
-        if (!hero.IsAlive || !hero.IsActive || hero.IsTemplate || hero.IsMinorFactionHero || !hero.IsLord)
+        if (!hero.IsAlive || !hero.IsActive || hero.IsTemplate || hero.IsMinorFactionHero)
             return false;
         if (hero.Clan != rulingClan)
             return false;
         if (hero.Age < Campaign.Current.Models.AgeModel.HeroComesOfAge)
+            return false;
+
+        // A founder may already be a lord, or may be an existing clan companion that
+        // Bannerlord can elevate to lord status. This is important for TOR cultures
+        // whose family lifecycle is intentionally disabled during LoadSafe testing.
+        var canBeElevated = hero.IsLord || hero.CompanionOf == rulingClan || TorFamilySafety.IsAiCompanion(hero);
+        if (!canBeElevated)
             return false;
 
         // Splitting a married parent would require moving an entire family graph at once.
@@ -213,6 +224,9 @@ public sealed class KaiCadetHouseSafeBehavior : CampaignBehaviorBase
         else
             score += 40;
 
+        if (!hero.IsLord && (hero.CompanionOf != null || TorFamilySafety.IsAiCompanion(hero)))
+            score += 35;
+
         score += ruler.GetRelation(hero);
         score += Math.Min(30, hero.Level / 2);
         return score;
@@ -232,7 +246,8 @@ public sealed class KaiCadetHouseSafeBehavior : CampaignBehaviorBase
             return false;
 
         // Follow Bannerlord's own clan-creation ordering: create and initialize the clan,
-        // attach its existing hero, join the kingdom, transfer the fief, then dispatch
+        // elevate an existing companion through the native companion-to-lord path when
+        // needed, attach the founder, join the kingdom, transfer the fief, then dispatch
         // OnClanCreated only after the object graph has reached a coherent state.
         var newClan = Clan.CreateClan(clanId);
         var clanName = NameGenerator.Current.GenerateClanName(culture, fief) ?? founder.Name;
@@ -241,6 +256,12 @@ public sealed class KaiCadetHouseSafeBehavior : CampaignBehaviorBase
         newClan.Banner = Banner.CreateRandomClanBanner(-1);
         newClan.SetInitialHomeSettlement(fief);
         newClan.IsNoble = true;
+
+        if (founder.CompanionOf != null)
+            RemoveCompanionAction.ApplyByByTurningToLord(founder.CompanionOf, founder);
+
+        if (!founder.IsLord)
+            founder.SetNewOccupation(Occupation.Lord);
 
         founder.Clan = newClan;
         newClan.SetLeader(founder);
@@ -257,7 +278,7 @@ public sealed class KaiCadetHouseSafeBehavior : CampaignBehaviorBase
 
         CampaignEventDispatcher.Instance.OnClanCreated(newClan, true);
 
-        return newClan.Kingdom == kingdom && founder.Clan == newClan && fief.OwnerClan == newClan;
+        return newClan.Kingdom == kingdom && founder.Clan == newClan && founder.IsLord && fief.OwnerClan == newClan;
     }
 
     public IEnumerable<string> DescribeStatus()
@@ -265,7 +286,7 @@ public sealed class KaiCadetHouseSafeBehavior : CampaignBehaviorBase
         var pending = HasPendingHouse()
             ? $"pending={_pendingKingdomId}/{_pendingFounderId}/{_pendingFiefId}, readyIn={Math.Max(0d, _pendingReadyAfterDay - CampaignTime.Now.ToDays):0.0}d"
             : "pending=none";
-        yield return $"Cadet-house safe queue: {pending}; globalCooldown={Math.Max(0d, _globalCooldownUntilDay - CampaignTime.Now.ToDays):0.0}d; perKingdomCooldown={PerKingdomCooldownDays}d; minimumDeficit={MinimumClanDeficitForCadetHouse}.";
+        yield return $"Cadet-house safe queue: {pending}; globalCooldown={Math.Max(0d, _globalCooldownUntilDay - CampaignTime.Now.ToDays):0.0}d; perKingdomCooldown={PerKingdomCooldownDays}d; minimumDeficit={MinimumClanDeficitForCadetHouse}; founders=lords+eligible companions.";
     }
 
     private bool HasPendingHouse()
