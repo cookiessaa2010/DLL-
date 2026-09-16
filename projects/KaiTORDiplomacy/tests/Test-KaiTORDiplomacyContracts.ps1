@@ -11,7 +11,7 @@ $srcRoot = Join-Path $root 'src'
 if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) { throw "Manifest missing: $manifestPath" }
 [xml]$manifest = Get-Content -LiteralPath $manifestPath -Raw
 if ($manifest.Module.Id.value -ne 'KaiTOR_Diplomacy') { throw 'Unexpected module id.' }
-if ($manifest.Module.Version.value -ne 'v0.4.2') { throw 'Unexpected module version.' }
+if ($manifest.Module.Version.value -ne 'v0.4.3') { throw 'Unexpected module version.' }
 
 $dependencyIds = @($manifest.Module.DependedModules.DependedModule | ForEach-Object { $_.Id })
 foreach ($required in @('Native','SandBoxCore','Sandbox','TOR_Armory','TOR_Environment','TOR_Core')) {
@@ -54,6 +54,16 @@ foreach ($required in @(
 if ($subModule -notmatch 'LoadSafeDiagnostics\s*=\s*true') { throw 'LoadSafeDiagnostics must remain enabled.' }
 if ($dawi -notmatch 'ForceSafeOffForLiveTest\s*=\s*true') { throw 'Dawi SAFE-OFF latch is not enabled.' }
 
+# Conversation safety regression test: LoadSafe must not register marriage/courtship dialog hooks.
+$marriageWarningRegistration = 'campaignStarter\.AddBehavior\(new KaiMarriageWarningBehavior\(\)\);'
+$warningMatches = [regex]::Matches($subModule, $marriageWarningRegistration)
+if ($warningMatches.Count -ne 1) { throw "Expected exactly one marriage warning registration, found $($warningMatches.Count)." }
+$loadSafeFamilyBlock = [regex]::Match($subModule, 'if \(!LoadSafeDiagnostics\)\s*\{(?<body>[\s\S]*?)\n\s*\}\s*\n\s*campaignStarter\.AddBehavior\(new KaiDiplomacyBehavior')
+if (-not $loadSafeFamilyBlock.Success) { throw 'Could not verify LoadSafe family block.' }
+if ($loadSafeFamilyBlock.Groups['body'].Value -notmatch $marriageWarningRegistration) {
+    throw 'Marriage warning behavior is not isolated inside the non-LoadSafe family block.'
+}
+
 foreach ($required in @(
     'Dictionary<string, double> _nonAggressionExpiryDays',
     'kaitor_diplomacy_nap_expiry_days_v2',
@@ -86,7 +96,6 @@ foreach ($required in @('TorCulturalServiceBridge','TorMarketCultureBridge','TOR
     if ($source -notmatch [regex]::Escape($required)) { throw "TOR culture/service bridge contract missing: $required" }
 }
 
-# Player-facing diplomacy must look like a normal native game system.
 foreach ($required in @(
     '"Дипломатия"',
     'Договоры и дипломатическое доверие',
@@ -107,7 +116,6 @@ foreach ($forbiddenUi in @(
     if ($office -match [regex]::Escape($forbiddenUi)) { throw "Mod branding leaked into player-facing UI: $forbiddenUi" }
 }
 
-# AI rulers must actively rebuild under-populated kingdoms, including the faction the player serves.
 foreach ($required in @(
     'MaximumTargetNobleClans = 12',
     'MaximumKingdomGrowthActionsPerWeek = 3',
@@ -153,13 +161,11 @@ foreach ($forbidden in @(
     if ($source -match [regex]::Escape($forbidden)) { throw "Forbidden invasive/save-fragile pattern found: $forbidden" }
 }
 
-Write-Output 'KaiTOR Diplomacy v0.4.2 contract tests: PASS'
+Write-Output 'KaiTOR Diplomacy v0.4.3 contract tests: PASS'
 Write-Output "  C# files: $($sourceFiles.Count)"
 Write-Output '  LoadSafe gate accepts untouched TOR marriage/permission models.'
+Write-Output '  LoadSafe registers no marriage/courtship conversation behavior.'
 Write-Output '  Dawi women/pregnancy remains hard SAFE-OFF.'
 Write-Output '  Player-facing diplomacy/culture UI contains no module branding.'
 Write-Output '  AI rulers rebuild under-populated kingdoms, including the kingdom the player serves.'
-Write-Output '  11 fortifications imply target 8 noble clans under the current formula.'
-Write-Output '  Up to three kingdom growth actions may succeed per week world-wide.'
-Write-Output '  Dynasty status diagnostic command is present.'
 Write-Output '  No Harmony/custom Saveable graph/direct forced war-peace-marriage action detected.'
