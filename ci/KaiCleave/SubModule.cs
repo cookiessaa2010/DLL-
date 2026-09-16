@@ -1,4 +1,5 @@
 using HarmonyLib;
+using TaleWorlds.InputSystem;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
 
@@ -7,7 +8,7 @@ namespace KaiCleave
     public sealed class SubModule : MBSubModuleBase
     {
         internal const string HarmonyId = "kai.cleave.bannerlord.1.3.15";
-        internal const string Version = "0.2.2-perf-test";
+        internal const string Version = "0.3.0-heavy-block-ui";
 
         private Harmony _harmony;
         private bool _combatPatchesActive;
@@ -19,6 +20,7 @@ namespace KaiCleave
             KaiSettings.Load();
             DebugLogger.StartSession(Version);
             DebugLogger.Write("runtime " + CoopRuntime.Describe());
+            DebugLogger.Write("settings " + KaiSettings.DescribeRuntimeSettings());
 
             _combatPatchesActive = CoopRuntime.CombatPatchesAllowed;
             if (_combatPatchesActive)
@@ -45,8 +47,17 @@ namespace KaiCleave
 
                 InformationManager.DisplayMessage(
                     new InformationMessage("[KaiCleave] " + Version +
-                                           " loaded | Bannerlord 1.3.15.110062 | " + authority));
+                                           " loaded | F10 settings | Bannerlord 1.3.15.110062 | " + authority));
             }
+        }
+
+        protected override void OnApplicationTick(float dt)
+        {
+            base.OnApplicationTick(dt);
+            InGameSettings.Tick();
+
+            if (Input.IsKeyPressed(InputKey.F10))
+                InGameSettings.OpenRoot();
         }
 
         protected override void OnBeforeInitialModuleScreenSetAsRoot()
