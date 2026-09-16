@@ -32,7 +32,7 @@ public sealed class KaiDiplomacyOfficeBehavior : CampaignBehaviorBase
         starter.AddGameMenuOption(
             "town",
             "kaitor_diplomacy_office_town",
-            "KaiTOR: Diplomacy office",
+            "KaiTOR: Дипломатия",
             OfficeCondition,
             _ => ShowOffice(),
             false,
@@ -41,7 +41,7 @@ public sealed class KaiDiplomacyOfficeBehavior : CampaignBehaviorBase
         starter.AddGameMenuOption(
             "castle",
             "kaitor_diplomacy_office_castle",
-            "KaiTOR: Diplomacy office",
+            "KaiTOR: Дипломатия",
             OfficeCondition,
             _ => ShowOffice(),
             false,
@@ -66,23 +66,23 @@ public sealed class KaiDiplomacyOfficeBehavior : CampaignBehaviorBase
         var canRule = IsPlayerRuler(playerKingdom);
         var options = new List<InquiryElement>
         {
-            new("ledger", "Treaties and diplomatic trust", null),
-            new("offer", "Propose a non-aggression pact", null, canRule, canRule ? string.Empty : "Only the ruling clan may sign kingdom treaties."),
-            new("break", "Break a non-aggression pact", null, canRule && HasActivePlayerPact(diplomacy, playerKingdom), canRule ? "No active pact to break." : "Only the ruling clan may break kingdom treaties."),
-            new("marriage", "Marriage compatibility rules", null),
-            new("culture", "TOR culture conversion support", null),
+            new("ledger", "Договоры и дипломатическое доверие", null),
+            new("offer", "Предложить пакт о ненападении", null, canRule, canRule ? string.Empty : "Подписывать межгосударственные договоры может только правящий клан."),
+            new("break", "Разорвать пакт о ненападении", null, canRule && HasActivePlayerPact(diplomacy, playerKingdom), canRule ? "Нет активного пакта, который можно разорвать." : "Разрывать межгосударственные договоры может только правящий клан."),
+            new("marriage", "Правила совместимости браков", null),
+            new("culture", "Поддержка смены культуры TOR", null),
         };
 
         MBInformationManager.ShowMultiSelectionInquiry(
             new MultiSelectionInquiryData(
-                "KaiTOR Diplomacy",
-                $"Kingdom: {playerKingdom.Name}.  Your role: {(canRule ? "ruler" : "vassal (read-only diplomacy)")}.",
+                "KaiTOR — Дипломатия",
+                $"Королевство: {playerKingdom.Name}. Ваша роль: {(canRule ? "правитель" : "вассал — дипломатия только для просмотра")}.",
                 options,
                 true,
                 1,
                 1,
-                "Open",
-                "Close",
+                "Открыть",
+                "Закрыть",
                 selected =>
                 {
                     if (selected.Count == 0) return;
@@ -112,11 +112,11 @@ public sealed class KaiDiplomacyOfficeBehavior : CampaignBehaviorBase
             var cooldown = diplomacy.GetNapCooldownRemainingDays(playerKingdom, other);
             if (!nap && trust == 0 && breaches == 0 && cooldown == 0) continue;
 
-            lines.Add($"{other.Name}: NAP={(nap ? remaining + "d" : "none")}, trust={trust}, breaches={breaches}, cooldown={cooldown}d");
+            lines.Add($"{other.Name}: пакт={(nap ? remaining + " дн." : "нет")}, доверие={trust}, нарушений={breaches}, блокировка={cooldown} дн.");
         }
 
-        if (lines.Count == 0) lines.Add("No KaiTOR treaty history for your kingdom yet.");
-        ShowText("KaiTOR diplomatic ledger", string.Join("\n", lines));
+        if (lines.Count == 0) lines.Add("У вашего королевства пока нет истории договоров KaiTOR.");
+        ShowText("Дипломатический журнал KaiTOR", string.Join("\n", lines));
     }
 
     private static void ShowNapTargets(KaiDiplomacyBehavior diplomacy, Kingdom playerKingdom)
@@ -126,20 +126,20 @@ public sealed class KaiDiplomacyOfficeBehavior : CampaignBehaviorBase
         {
             var allowed = diplomacy.CanCreateNonAggressionPact(playerKingdom, other, DefaultNapDays, out var reason);
             var score = diplomacy.GetNapAcceptanceScore(playerKingdom, other);
-            var title = $"{other.Name}  [acceptance {score:+#;-#;0}]";
+            var title = $"{other.Name}  [готовность {score:+#;-#;0}]";
             targets.Add(new InquiryElement(other, title, null, allowed, allowed ? string.Empty : reason));
         }
 
         MBInformationManager.ShowMultiSelectionInquiry(
             new MultiSelectionInquiryData(
-                "Propose non-aggression pact",
-                "Choose a kingdom. Acceptance uses KaiTOR trust plus ruling-clan relations; TOR lore restrictions are checked first.",
+                "Предложить пакт о ненападении",
+                "Выберите королевство. Готовность к договору зависит от дипломатического доверия KaiTOR и отношений между правящими кланами. Ограничения мира The Old Realms проверяются в первую очередь.",
                 targets,
                 true,
                 1,
                 1,
-                "Choose",
-                "Cancel",
+                "Выбрать",
+                "Отмена",
                 selected =>
                 {
                     if (selected.Count == 0 || selected[0].Identifier is not Kingdom target) return;
@@ -153,19 +153,19 @@ public sealed class KaiDiplomacyOfficeBehavior : CampaignBehaviorBase
     private static void ShowNapDurations(KaiDiplomacyBehavior diplomacy, Kingdom playerKingdom, Kingdom target)
     {
         var durations = NapDurations
-            .Select(days => new InquiryElement(days, $"{days} campaign days", null))
+            .Select(days => new InquiryElement(days, $"{days} дней кампании", null))
             .ToList();
 
         MBInformationManager.ShowMultiSelectionInquiry(
             new MultiSelectionInquiryData(
-                $"NAP with {target.Name}",
-                $"Current acceptance score: {diplomacy.GetNapAcceptanceScore(playerKingdom, target)}. A score below 0 is normally refused.",
+                $"Пакт с {target.Name}",
+                $"Текущая готовность к договору: {diplomacy.GetNapAcceptanceScore(playerKingdom, target)}. При значении ниже 0 предложение обычно будет отклонено.",
                 durations,
                 true,
                 1,
                 1,
-                "Propose",
-                "Cancel",
+                "Предложить",
+                "Отмена",
                 selected =>
                 {
                     if (selected.Count == 0 || selected[0].Identifier is not int days) return;
@@ -180,21 +180,21 @@ public sealed class KaiDiplomacyOfficeBehavior : CampaignBehaviorBase
     {
         if (!diplomacy.CanCreateNonAggressionPact(playerKingdom, target, days, out var ruleReason))
         {
-            ShowText("Proposal blocked", ruleReason);
+            ShowText("Предложение заблокировано", ruleReason);
             return;
         }
 
         var score = diplomacy.GetNapAcceptanceScore(playerKingdom, target);
         if (score < 0)
         {
-            ShowText("Proposal refused", $"{target.Name} refused the pact. Acceptance score: {score}. Improve relations or rebuild diplomatic trust.");
+            ShowText("Предложение отклонено", $"{target.Name} отклоняет пакт. Готовность к договору: {score}. Улучшите отношения или восстановите дипломатическое доверие.");
             return;
         }
 
         if (diplomacy.TryCreateNonAggressionPact(playerKingdom, target, days, out var result))
-            ShowText("Treaty signed", $"{playerKingdom.Name} and {target.Name} signed a {days}-day non-aggression pact.\n\n{result}");
+            ShowText("Договор подписан", $"{playerKingdom.Name} и {target.Name} заключили пакт о ненападении на {days} дней.\n\n{result}");
         else
-            ShowText("Proposal failed", result);
+            ShowText("Не удалось заключить договор", result);
     }
 
     private static void ShowBreakTargets(KaiDiplomacyBehavior diplomacy, Kingdom playerKingdom)
@@ -202,39 +202,39 @@ public sealed class KaiDiplomacyOfficeBehavior : CampaignBehaviorBase
         var targets = Kingdom.All
             .Where(k => k != null && k != playerKingdom && !k.IsEliminated && diplomacy.IsNonAggressionPactActive(playerKingdom, k))
             .OrderBy(k => k.Name.ToString())
-            .Select(k => new InquiryElement(k, $"{k.Name} — {diplomacy.GetRemainingDays(playerKingdom, k)} day(s) remaining", null))
+            .Select(k => new InquiryElement(k, $"{k.Name} — осталось {diplomacy.GetRemainingDays(playerKingdom, k)} дн.", null))
             .ToList();
 
         if (targets.Count == 0)
         {
-            ShowText("Break treaty", "Your kingdom has no active KaiTOR non-aggression pact.");
+            ShowText("Разрыв договора", "У вашего королевства нет активных пактов о ненападении KaiTOR.");
             return;
         }
 
         MBInformationManager.ShowMultiSelectionInquiry(
             new MultiSelectionInquiryData(
-                "Break non-aggression pact",
-                "Breaking a pact voluntarily costs 10 trust and blocks a new pact with that kingdom for 10 days.",
+                "Разорвать пакт о ненападении",
+                "Добровольный разрыв пакта снижает доверие на 10 и запрещает заключать новый пакт с этим королевством в течение 10 дней.",
                 targets,
                 true,
                 1,
                 1,
-                "Break",
-                "Cancel",
+                "Разорвать",
+                "Отмена",
                 selected =>
                 {
                     if (selected.Count == 0 || selected[0].Identifier is not Kingdom target) return;
                     InformationManager.ShowInquiry(new InquiryData(
-                        "Confirm treaty break",
-                        $"Break the pact with {target.Name}? Trust -10 and 10-day NAP cooldown.",
+                        "Подтверждение разрыва договора",
+                        $"Разорвать пакт с {target.Name}? Доверие: -10. Новый пакт будет недоступен 10 дней.",
                         true,
                         true,
-                        "Break pact",
-                        "Cancel",
+                        "Разорвать пакт",
+                        "Отмена",
                         () =>
                         {
                             var broken = diplomacy.BreakNonAggressionPact(playerKingdom, target);
-                            ShowText("Treaty", broken ? $"The pact with {target.Name} has been broken." : "The pact was no longer active.");
+                            ShowText("Договор", broken ? $"Пакт с {target.Name} разорван." : "Этот пакт уже не действует.");
                         },
                         null), false, false);
                 },
@@ -246,9 +246,10 @@ public sealed class KaiDiplomacyOfficeBehavior : CampaignBehaviorBase
     private static void ShowMarriageRules()
     {
         ShowText(
-            "KaiTOR marriages",
-            "TOR normally disables vanilla marriage. KaiTOR enables player-clan marriages only and keeps NPC-to-NPC automatic dynastic marriage disabled. " +
-            "The pair must pass Bannerlord marriage safety checks and KaiTOR race/culture compatibility; incompatible races are never paired because Bannerlord offspring creation requires the parents' race to match.");
+            "Браки KaiTOR",
+            "The Old Realms обычно отключает стандартную систему браков Bannerlord. KaiTOR разрешает браки только для клана игрока, а автоматические династические браки ИИ остаются отключены. " +
+            "Пара должна пройти проверки безопасности Bannerlord и проверки совместимости расы/культуры KaiTOR. Несовместимые расы не объединяются, потому что создание потомства в Bannerlord требует совпадения расы родителей.\n\n" +
+            "Дворфы (Dawi): женские персонажи и беременность сейчас принудительно отключены безопасной заглушкой SAFE-OFF и не участвуют в этой версии.");
     }
 
     private static void ShowCultureSupport()
@@ -256,9 +257,9 @@ public sealed class KaiDiplomacyOfficeBehavior : CampaignBehaviorBase
         var behavior = Campaign.Current?.GetCampaignBehavior<KaiCultureAssimilationBehavior>();
         var lines = behavior?.DescribeCultureSupport().ToArray() ?? Array.Empty<string>();
         ShowText(
-            "TOR full culture conversion",
-            "100,000 denars, clan tier 3+, own town/castle. FULL means the culture exposes the required recruit, militia, tavern mercenary, caravan and wanderer templates.\n\n" +
-            (lines.Length == 0 ? "No culture diagnostics available." : string.Join("\n", lines)));
+            "Полная смена культуры TOR",
+            "Стоимость: 100 000 динаров. Требуется уровень клана 3+ и собственный город/замок. FULL означает, что культура содержит необходимые шаблоны рекрутов, ополчения, наёмников таверны, караванов и странников.\n\n" +
+            (lines.Length == 0 ? "Диагностика культур недоступна." : string.Join("\n", lines)));
     }
 
     private static bool HasActivePlayerPact(KaiDiplomacyBehavior diplomacy, Kingdom playerKingdom)
@@ -274,7 +275,7 @@ public sealed class KaiDiplomacyOfficeBehavior : CampaignBehaviorBase
             body,
             true,
             false,
-            "OK",
+            "ОК",
             string.Empty,
             null,
             null), false, false);
