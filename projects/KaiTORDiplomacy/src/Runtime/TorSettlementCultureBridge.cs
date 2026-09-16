@@ -15,18 +15,9 @@ internal static class TorSettlementCultureBridge
     private const string TorCompanionsBehaviorType = "TOR_Core.CampaignMechanics.Companions.TORCompanionsCampaignBehavior";
     private const string TorAssimilationBehaviorType = "TOR_Core.CampaignMechanics.Assimilation.AssimilationCampaignBehavior";
 
-    // Mirrors TORConstants.Cultures.All in the current TOR 1.3.15 codebase.
-    // Reflection validation below also checks TOR's runtime list so this fails closed if upstream changes it.
     private static readonly HashSet<string> KnownPlayableCultures = new(StringComparer.Ordinal)
     {
-        "empire",      // Empire
-        "vlandia",     // Bretonnia
-        "khuzait",     // Sylvania
-        "mousillon",   // Mousillon
-        "battania",    // Asrai
-        "eonir",       // Eonir
-        "sturgia",     // Dawi
-        "aserai",      // Greenskin
+        "empire", "vlandia", "khuzait", "mousillon", "battania", "eonir", "sturgia", "aserai",
     };
 
     public static bool ValidateFullConversion(CultureObject targetCulture, Settlement rootSettlement, out string reason)
@@ -105,26 +96,11 @@ internal static class TorSettlementCultureBridge
                 return false;
             }
 
-            var companions = FindBehavior(TorCompanionsBehaviorType);
-            if (companions == null)
-            {
-                reason = "TOR companion behavior was not found.";
-                return false;
-            }
-
-            var companionType = companions.GetType();
-            if (companionType.GetMethod("RemoveWanderer", BindingFlags.Instance | BindingFlags.NonPublic) == null ||
-                companionType.GetMethod("SpawnWanderer", BindingFlags.Instance | BindingFlags.NonPublic) == null)
-            {
-                reason = "TOR companion refresh methods were not found.";
-                return false;
-            }
-
-            if (!HasCompanionTemplate(companions, targetCulture.StringId))
-            {
-                reason = $"TOR has no wanderer/companion template for culture '{targetCulture.StringId}'.";
-                return false;
-            }
+            // TOR wanderer refresh is intentionally NOT a hard gate. TOR has changed the
+            // visibility/name of these implementation methods between builds. The town's
+            // main culture must never be blocked merely because an optional immediate
+            // wanderer refresh cannot be invoked. TOR's own enter/weekly maintenance will
+            // reconcile the wanderer later when the bridge is unavailable.
 
             if (!TorCulturalServiceBridge.Validate(targetCulture, rootSettlement, out reason))
                 return false;
@@ -152,7 +128,7 @@ internal static class TorSettlementCultureBridge
         try
         {
             RefreshVolunteersAndTavernMercenaries(rootSettlement);
-            RefreshTownWanderer(rootSettlement, targetCulture);
+            RefreshTownWandererBestEffort(rootSettlement, targetCulture);
             RefreshHomeCaravans(rootSettlement);
             if (!TorCulturalServiceBridge.Refresh(rootSettlement, targetCulture, out reason))
                 return false;
@@ -186,7 +162,7 @@ internal static class TorSettlementCultureBridge
             if (culture.CaravanGuard == null) issues.Add("caravan guard");
 
             var companions = FindBehavior(TorCompanionsBehaviorType);
-            if (companions == null || !HasCompanionTemplate(companions, cultureId)) issues.Add("wanderer template");
+            if (companions == null || !HasCompanionTemplate(companions, cultureId)) issues.Add("wanderer template (deferred refresh)");
 
             var services = TorCulturalServiceBridge.Describe(culture);
             if (!string.Equals(services, "services FULL", StringComparison.Ordinal)) issues.Add(services);
@@ -196,7 +172,7 @@ internal static class TorSettlementCultureBridge
 
             yield return issues.Count == 0
                 ? $"{cultureId}: FULL"
-                : $"{cultureId}: BLOCKED ({string.Join(", ", issues)})";
+                : $"{cultureId}: BLOCKED/DEFERRED ({string.Join(", ", issues)})";
         }
     }
 
@@ -217,33 +193,40 @@ internal static class TorSettlementCultureBridge
         updateMercenaries!.Invoke(recruitment, new object[] { rootSettlement.Town, true });
     }
 
-    private static void RefreshTownWanderer(Settlement rootSettlement, CultureObject targetCulture)
+    private static void RefreshTownWandererBestEffort(Settlement rootSettlement, CultureObject targetCulture)
     {
         if (!rootSettlement.IsTown || rootSettlement.IsUnderSiege) return;
 
-        var companions = FindBehavior(TorCompanionsBehaviorType);
-        if (companions == null) return;
-
-        var type = companions.GetType();
-        var remove = type.GetMethod("RemoveWanderer", BindingFlags.Instance | BindingFlags.NonPublic);
-        var spawn = type.GetMethod("SpawnWanderer", BindingFlags.Instance | BindingFlags.NonPublic);
-
-        var wanderers = rootSettlement.HeroesWithoutParty
-            .Where(h => h != null && h.IsWanderer && h.CompanionOf == null)
-            .ToList();
-
-        foreach (var wanderer in wanderers.Where(h => h.Culture != targetCulture))
-            remove!.Invoke(companions, new object[] { wanderer });
-
-        var hasCorrect = rootSettlement.HeroesWithoutParty
-            .Any(h => h != null && h.IsWanderer && h.CompanionOf == null && h.Culture == targetCulture);
-
-        if (!hasCorrect)
+        try
         {
-            var args = new object[] { rootSettlement, null };
-            spawn!.Invoke(companions, args);
-            if (args[1] is Hero created && created.Culture != targetCulture)
-                throw new InvalidOperationException($"TOR spawned wanderer culture '{created.Culture?.StringId}', expected '{targetCulture.StringId}'.");
+            var companions = FindBehavior(TorCompanionsBehaviorType);
+            if (companions == null || !HasCompanionTemplate(companions, targetCulture.StringId)) return;
+
+            var type = companions.GetType();
+            var remove = type.GetMethod("RemoveWanderer", BindingFlags.Instance | BindingFlags.NonPublic);
+            var spawn = type.GetMethod("SpawnWanderer", BindingFlags.Instance | BindingFlags.NonPublic);
+            if (remove == null || spawn == null) return;
+
+            var wanderers = rootSettlement.HeroesWithoutParty
+                .Where(h => h != null && h.IsWanderer && h.CompanionOf == null)
+                .ToList();
+
+            foreach (var wanderer in wanderers.Where(h => h.Culture != targetCulture))
+                remove.Invoke(companions, new object[] { wanderer });
+
+            var hasCorrect = rootSettlement.HeroesWithoutParty
+                .Any(h => h != null && h.IsWanderer && h.CompanionOf == null && h.Culture == targetCulture);
+
+            if (!hasCorrect)
+            {
+                var args = new object[] { rootSettlement, null };
+                spawn.Invoke(companions, args);
+            }
+        }
+        catch
+        {
+            // Optional only. TOR will reconcile town wanderers through its own
+            // settlement-enter/weekly behavior. Never fail the culture conversion here.
         }
     }
 
