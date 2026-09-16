@@ -46,7 +46,10 @@ namespace KaiCleave
                 return allow;
             }
 
-            if (collisionData.CollisionResult == CombatCollisionResult.Blocked)
+            bool weaponBlocked = collisionData.CollisionResult == CombatCollisionResult.Blocked ||
+                                 collisionData.CollisionResult == CombatCollisionResult.Parried ||
+                                 collisionData.CollisionResult == CombatCollisionResult.ChamberBlocked;
+            if (weaponBlocked)
             {
                 bool allow = heavy && KaiSettings.HeavyWeaponBlockContinue;
                 if (allow)
