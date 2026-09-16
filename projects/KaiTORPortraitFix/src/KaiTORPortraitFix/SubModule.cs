@@ -12,16 +12,24 @@ namespace KaiTORPortraitFix
         protected override void OnSubModuleLoad()
         {
             base.OnSubModuleLoad();
-            PortraitFixLog.Event("SESSION_START", "KaiTOR Portrait Fix 0.4.0-pose-test; Bannerlord=1.3.15.110062; scope=SaveLoad preview restore + idle-start pose compatibility + diagnostics + gender patch");
+            PortraitFixLog.Event(
+                "SESSION_START",
+                "KaiTOR Portrait Fix 0.4.1-safe-isolation; Bannerlord=1.3.15.110062; scope=SavedGameVM preview restore + read-only Save/Load diagnostics; BasicCharacterTableau mutators disabled");
 
             if (_patched) return;
+
+            BasicPreviewPosePatch.LogDisabled();
+            SavePreviewGenderPatch.LogDisabled();
 
             try
             {
                 var harmony = new Harmony(HarmonyId);
                 harmony.PatchAll(typeof(SubModule).Assembly);
                 _patched = true;
-                PortraitFixLog.Event("PATCH_APPLY", "success=true; harmonyId=" + HarmonyId + "; vmPreviewRestore=true; poseIdleStart=true; diagnostics=provider+basic-tableau");
+                PortraitFixLog.Event(
+                    "PATCH_APPLY",
+                    "success=true; harmonyId=" + HarmonyId +
+                    "; vmPreviewRestore=true; basicTableauMutators=false; diagnostics=provider+basic-tableau-readonly");
             }
             catch (Exception ex)
             {
