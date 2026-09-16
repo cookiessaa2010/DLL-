@@ -175,7 +175,7 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
             .Select(h => new InquiryElement(
                 h,
                 $"{h.Name}, {Math.Max(0, (int)h.Age)} лет",
-                h.CharacterObject,
+                null,
                 true,
                 $"Отношение: {Hero.MainHero.GetRelation(h):+0;-0;0}."))
             .ToList();
