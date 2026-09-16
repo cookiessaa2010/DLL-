@@ -1,9 +1,9 @@
-name: KaiTOR Portrait Fix 0.4.1 Safe Isolation Build
+name: KaiTOR Portrait Fix 0.5.0 Vanilla Rule Test Build
 
 on:
   push:
     branches:
-      - kaitor-portrait-fix-0.4.1-safe
+      - kaitor-portrait-fix-0.5.0-vanilla-rule-test
     paths:
       - 'projects/KaiTORPortraitFix/**'
       - '.github/workflows/kaitor-portrait-fix-build.yml'
@@ -34,7 +34,7 @@ jobs:
         run: |
           [xml]$xml = Get-Content ./projects/KaiTORPortraitFix/module/SubModule.xml -Raw
           if ($xml.Module.Id.value -ne 'KaiTOR_PortraitFix') { throw 'Unexpected module id.' }
-          if ($xml.Module.Version.value -ne 'v0.4.1') { throw 'Expected v0.4.1.' }
+          if ($xml.Module.Version.value -ne 'v0.5.0') { throw 'Expected v0.5.0.' }
 
           $vm = Get-Content ./projects/KaiTORPortraitFix/src/KaiTORPortraitFix/SavedGamePreviewCodePatch.cs -Raw
           foreach ($required in @('SavedGameVM','MainHeroVisualCode','GetCharacterVisualCode','SAVE_VM_FIX','restore-preview-code')) {
@@ -42,13 +42,23 @@ jobs:
           }
 
           $pose = Get-Content ./projects/KaiTORPortraitFix/src/KaiTORPortraitFix/BasicPreviewPosePatch.cs -Raw
-          if ($pose -match '\[HarmonyPatch') { throw 'Pose mutator must be disabled in safe-isolation build.' }
-          foreach ($required in @('Enabled = false','MUTATOR_DISABLED','basic-preview-pose','safe-isolation')) {
-            if ($pose -notmatch [regex]::Escape($required)) { throw "Missing disabled pose contract: $required" }
+          foreach ($required in @(
+            '[HarmonyPatch',
+            'BasicCharacterTableau',
+            'RefreshCharacterTableau',
+            'act_inventory_idle',
+            'act_inventory_idle_start',
+            'ResolveInventoryIdleLikeCharacterTableau',
+            'VANILLA_IDLE_PATCH',
+            'VANILLA_IDLE_RESOLVE',
+            'OpCodes.Ldsfld',
+            'OpCodes.Call'
+          )) {
+            if ($pose -notmatch [regex]::Escape($required)) { throw "Missing vanilla-rule pose contract: $required" }
           }
 
           $gender = Get-Content ./projects/KaiTORPortraitFix/src/KaiTORPortraitFix/SavePreviewGenderPatch.cs -Raw
-          if ($gender -match '\[HarmonyPatch') { throw 'Gender mutator must be disabled in safe-isolation build.' }
+          if ($gender -match '\[HarmonyPatch') { throw 'Gender mutator must stay disabled in vanilla-rule test.' }
           foreach ($required in @('Enabled = false','MUTATOR_DISABLED','save-preview-gender','safe-isolation')) {
             if ($gender -notmatch [regex]::Escape($required)) { throw "Missing disabled gender contract: $required" }
           }
@@ -57,16 +67,16 @@ jobs:
           if ($diag -notmatch 'PIPE_HEROCODE') { throw 'Pipeline diagnostics missing.' }
 
           $sub = Get-Content ./projects/KaiTORPortraitFix/src/KaiTORPortraitFix/SubModule.cs -Raw
-          if ($sub -notmatch '0.4.1-safe-isolation') { throw 'Runtime version marker missing.' }
-          if ($sub -notmatch 'basicTableauMutators=false') { throw 'Mutator-state marker missing.' }
+          if ($sub -notmatch '0.5.0-vanilla-rule-test') { throw 'Runtime version marker missing.' }
+          if ($sub -notmatch 'basicTableauVanillaIdleRule=true') { throw 'Vanilla-rule state marker missing.' }
 
           $proj = Get-Content ./projects/KaiTORPortraitFix/src/KaiTORPortraitFix/KaiTORPortraitFix.csproj -Raw
-          if ($proj -notmatch '<AssemblyVersion>0.4.1.0</AssemblyVersion>') { throw 'Assembly version missing.' }
+          if ($proj -notmatch '<AssemblyVersion>0.5.0.0</AssemblyVersion>') { throw 'Assembly version missing.' }
 
       - name: Assemble root-installable package
         shell: pwsh
         run: |
-          $stage = Join-Path $env:RUNNER_TEMP 'KaiTOR-PortraitFix-0.4.1-safe-isolation'
+          $stage = Join-Path $env:RUNNER_TEMP 'KaiTOR-PortraitFix-0.5.0-vanilla-rule-test'
           $module = Join-Path $stage 'Modules/KaiTOR_PortraitFix'
           $bin = Join-Path $module 'bin/Win64_Shipping_Client'
           New-Item -ItemType Directory -Force -Path $bin | Out-Null
@@ -76,42 +86,51 @@ jobs:
           Copy-Item ./projects/KaiTORPortraitFix/README_RU.md (Join-Path $stage 'README_RU.md')
 
           @'
-          KaiTOR Portrait Fix 0.4.1 SAFE ISOLATION
+          KaiTOR Portrait Fix 0.5.0 VANILLA RULE TEST
           Bannerlord 1.3.15.110062
 
-          Purpose:
-          - keep only the confirmed SavedGameVM visual-code restore for black Save/Load placeholders;
-          - keep read-only diagnostics;
-          - disable BOTH BasicCharacterTableau renderer mutators from earlier experiments.
+          Goal:
+          - keep the confirmed SavedGameVM visual-code restore;
+          - make Save/Load BasicCharacterTableau resolve its inventory idle like the normal in-game CharacterTableau path;
+          - avoid the cached ActionIndexCache.act_inventory_idle field and dynamically resolve act_inventory_idle_start at render time;
+          - fall back to a dynamically resolved act_inventory_idle only when idle_start is unavailable.
 
-          Disabled in this build:
-          - SavePreviewGenderPatch transpiler;
-          - BasicPreviewPosePatch idle-action experiment.
-
-          This build does not modify save files.
+          Not changed:
+          - race;
+          - skeleton name;
+          - equipment/body properties;
+          - agent/mount spawn frames;
+          - save files;
+          - in-game CharacterTableau;
+          - gender transpiler remains disabled.
 
           Test:
           1. Replace Modules/KaiTOR_PortraitFix with this build.
           2. Unblock-File the DLL.
           3. Restart the game completely.
-          4. Check Inventory, Clan and Encyclopedia first.
-          5. Then open Saved Campaigns and capture the hero preview.
-          6. Send %LOCALAPPDATA%\KaiTORPortraitFix\KaiTORPortraitFix.log and screenshots.
+          4. First verify Inventory/Clan/Encyclopedia character previews are unchanged.
+          5. Open Saved Campaigns and inspect the same saves that previously showed prone/horizontal heroes.
+          6. Capture screenshots for race 0 human and any TOR custom race available.
+          7. Send %LOCALAPPDATA%\KaiTORPortraitFix\KaiTORPortraitFix.log.
 
           Expected startup markers:
-          SESSION_START|KaiTOR Portrait Fix 0.4.1-safe-isolation
-          MUTATOR_DISABLED|name=basic-preview-pose
-          MUTATOR_DISABLED|name=save-preview-gender
-          PATCH_APPLY|success=true; ... basicTableauMutators=false
+          SESSION_START|KaiTOR Portrait Fix 0.5.0-vanilla-rule-test
+          VANILLA_IDLE_PATCH|applied=True; replacements=1 ...
+          PATCH_APPLY|success=true; ... basicTableauVanillaIdleRule=true
 
-          Expected Save/Load behavior:
-          SAVE_VM_FIX|applied=true may appear for module-discrepancy saves.
-          '@ | Set-Content (Join-Path $stage 'TEST_0.4.1_SAFE_RU.txt') -Encoding UTF8
+          Key diagnostic markers:
+          VANILLA_IDLE_RESOLVE|cachedIdleIndex=...; cachedIdleStartIndex=...; dynamicIdleIndex=...; dynamicIdleStartIndex=...; selected=...
+          SAVE_VM_FIX|applied=true ...
+
+          Interpretation:
+          - If the hero becomes upright, the Save/Load bind pose was caused by the BasicCharacterTableau idle-action path.
+          - If the hero stays prone but VANILLA_IDLE_PATCH applied and dynamicIdleStartIndex is valid, the next test must move to race/action-set/skeleton creation rather than changing save data.
+          '@ | Set-Content (Join-Path $stage 'TEST_0.5.0_RU.txt') -Encoding UTF8
 
           $forbidden = Get-ChildItem $stage -Recurse -File | Where-Object { $_.Name -like 'TaleWorlds*.dll' -or $_.Name -eq '0Harmony.dll' }
           if ($forbidden) { throw 'Reference/runtime dependencies must not be redistributed.' }
 
-          $zip = Join-Path $env:RUNNER_TEMP 'KaiTOR-PortraitFix-0.4.1-safe-isolation-Bannerlord-1.3.15.110062.zip'
+          $zip = Join-Path $env:RUNNER_TEMP 'KaiTOR-PortraitFix-0.5.0-vanilla-rule-test-Bannerlord-1.3.15.110062.zip'
           Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $zip -Force
           $hashFile = Join-Path $env:RUNNER_TEMP 'SHA256.txt'
           $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -122,7 +141,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: KaiTOR-PortraitFix-0.4.1-safe-isolation
+          name: KaiTOR-PortraitFix-0.5.0-vanilla-rule-test
           path: |
             ${{ env.PORTRAIT_FIX_ZIP }}
             ${{ env.PORTRAIT_FIX_HASH }}
