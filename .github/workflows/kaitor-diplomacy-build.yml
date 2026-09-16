@@ -40,12 +40,12 @@ jobs:
           if (-not (Test-Path -LiteralPath $dll -PathType Leaf)) { throw "Missing DLL: $dll" }
 
           $module = Get-Content (Join-Path $root 'module/SubModule.xml') -Raw
-          if ($module -notmatch 'v0\.4\.7') { throw 'SubModule version is not v0.4.7.' }
+          if ($module -notmatch 'v0\.5\.0') { throw 'SubModule version is not v0.5.0.' }
 
-          & (Join-Path $root 'tests/Test-KaiTORDiplomacyContracts-v047.ps1')
+          & (Join-Path $root 'tests/Test-KaiTORDiplomacyContracts-v050.ps1')
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-          Write-Host 'KaiTOR Diplomacy v0.4.7 post-battle mercy contracts: PASS'
+          Write-Host 'KaiTOR Diplomacy v0.5.0 family/realm-growth contracts: PASS'
 
       - name: Assemble module
         shell: pwsh
@@ -66,7 +66,7 @@ jobs:
       - name: Upload ready module
         uses: actions/upload-artifact@v4
         with:
-          name: KaiTOR-Diplomacy-v0.4.7-RU-PostBattleMercy50
+          name: KaiTOR-Diplomacy-v0.5.0-RU-Family-And-Realm-Growth
           path: artifact/KaiTOR_Diplomacy
           if-no-files-found: error
           retention-days: 30
