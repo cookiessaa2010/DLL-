@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Threading;
 using HarmonyLib;
 using SandBox.ViewModelCollection.SaveLoad;
 using TaleWorlds.CampaignSystem.Extensions;
@@ -8,14 +9,21 @@ using TaleWorlds.CampaignSystem.Extensions;
 namespace KaiTORPortraitFix
 {
     /// <summary>
-    /// Restores the Save/Load hero visual code when Bannerlord clears it because of a module
-    /// discrepancy. The exact SavedGameVM constructor signature varies across Bannerlord builds,
-    /// so this patch deliberately targets every declared instance constructor instead of relying
-    /// on Harmony to resolve one implicit constructor overload.
+    /// Restores only the Save/Load preview visual code when Bannerlord clears MainHeroVisualCode
+    /// because the selected save has a module discrepancy.
+    ///
+    /// This patch does not write to the save file, does not suppress discrepancy warnings and does
+    /// not bypass the game's normal load checks. It only supplies the already-stored metadata visual
+    /// code back to the SavedGameVM preview.
     /// </summary>
     [HarmonyPatch]
     internal static class SavedGamePreviewCodePatch
     {
+        private static int _appliedLogs;
+        private static int _skipLogs;
+        private const int MaxAppliedLogs = 8;
+        private const int MaxSkipLogs = 3;
+
         [HarmonyTargetMethods]
         internal static IEnumerable<MethodBase> TargetMethods()
         {
@@ -35,47 +43,60 @@ namespace KaiTORPortraitFix
 
             try
             {
-                var before = __instance.MainHeroVisualCode;
+                if (__instance.IsCorrupted)
+                {
+                    LogSkip("reason=corrupted-save");
+                    return;
+                }
+
+                if (!string.IsNullOrEmpty(__instance.MainHeroVisualCode))
+                    return;
+
                 var metadataCode = __instance.Save != null && __instance.Save.MetaData != null
                     ? __instance.Save.MetaData.GetCharacterVisualCode()
                     : string.Empty;
 
-                PortraitFixLog.Event(
-                    "SAVE_VM",
-                    "corrupted=" + __instance.IsCorrupted +
-                    "; discrepancy=" + __instance.IsModuleDiscrepancyDetected +
-                    "; vmCodeEmpty=" + string.IsNullOrEmpty(before) +
-                    "; metadataCodeEmpty=" + string.IsNullOrEmpty(metadataCode) +
-                    "; metadataCodeLen=" + (metadataCode == null ? 0 : metadataCode.Length));
-
-                if (__instance.IsCorrupted)
-                {
-                    PortraitFixLog.Event("SAVE_VM_FIX", "applied=false; reason=corrupted-save");
-                    return;
-                }
-
-                if (!string.IsNullOrEmpty(before))
-                {
-                    PortraitFixLog.Event("SAVE_VM_FIX", "applied=false; reason=vm-code-already-present");
-                    return;
-                }
-
                 if (string.IsNullOrEmpty(metadataCode))
                 {
-                    PortraitFixLog.Event("SAVE_VM_FIX", "applied=false; reason=metadata-code-empty");
+                    LogSkip("reason=metadata-code-empty");
                     return;
                 }
 
                 __instance.MainHeroVisualCode = metadataCode;
-                PortraitFixLog.Event(
-                    "SAVE_VM_FIX",
-                    "applied=true; reason=restore-preview-code; discrepancy=" + __instance.IsModuleDiscrepancyDetected +
+                LogApplied(
+                    "reason=restore-preview-code; discrepancy=" + __instance.IsModuleDiscrepancyDetected +
                     "; codeLen=" + metadataCode.Length);
             }
             catch (Exception ex)
             {
-                PortraitFixLog.Event("SAVE_VM_FIX", "applied=false; error=" + ex.GetType().FullName + ": " + ex.Message);
+                PortraitFixLog.Event(
+                    "SAVE_VM_FIX",
+                    "applied=false; error=" + ex.GetType().FullName + ": " + ex.Message);
             }
+        }
+
+        private static void LogApplied(string message)
+        {
+            var n = Interlocked.Increment(ref _appliedLogs);
+            if (n <= MaxAppliedLogs)
+            {
+                PortraitFixLog.Event("SAVE_VM_FIX", "applied=true; " + message);
+            }
+            else if (n == MaxAppliedLogs + 1)
+            {
+                PortraitFixLog.Event(
+                    "SAVE_VM_FIX",
+                    "applied=true; further-success-events-suppressed=true");
+            }
+        }
+
+        private static void LogSkip(string message)
+        {
+            var n = Interlocked.Increment(ref _skipLogs);
+            if (n <= MaxSkipLogs)
+                PortraitFixLog.Event("SAVE_VM_FIX", "applied=false; " + message);
+            else if (n == MaxSkipLogs + 1)
+                PortraitFixLog.Event("SAVE_VM_FIX", "further-skip-events-suppressed=true");
         }
     }
 }
