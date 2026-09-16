@@ -1,9 +1,9 @@
-name: Build KaiCleave 0.2.2 perf test
+name: Build KaiCleave 0.3.0 heavy block UI
 
 on:
   push:
     branches:
-      - ci/kai-cleave-v0.2.2-perf
+      - ci/kai-cleave-v0.3.0-heavy-block-ui
     paths:
       - 'ci/KaiCleave/**'
       - '.github/workflows/kai-cleave-ci.yml'
@@ -27,12 +27,12 @@ jobs:
       - name: Build
         run: dotnet build ci/KaiCleave/KaiCleave.csproj -c Release --no-restore
 
-      - name: Validate performance and Coop contract
+      - name: Validate v0.3 heavy-block/UI contract
         shell: pwsh
         run: |
           [xml]$module = Get-Content 'ci/KaiCleave/SubModule.xml' -Raw
           if ($module.Module.Id.value -ne 'KaiCleave') { throw 'Unexpected module id.' }
-          if ($module.Module.Version.value -ne 'v0.2.2') { throw 'Unexpected KaiCleave version.' }
+          if ($module.Module.Version.value -ne 'v0.3.0') { throw 'Unexpected KaiCleave version.' }
 
           $runtime = Get-Content 'ci/KaiCleave/CoopRuntime.cs' -Raw
           foreach ($required in @('CoopPeer','CoopCampaignServer','/server','/coopsave','TryGetControlledObjectInfo','IsControlled','PlayerOnly=false is not enabled')) {
@@ -40,12 +40,27 @@ jobs:
           }
 
           $submodule = Get-Content 'ci/KaiCleave/SubModule.cs' -Raw
-          foreach ($required in @('CombatPatchesAllowed','battle peers own cleave simulation','Coop peer local-authority','0.2.2-perf-test','FlushAndStop')) {
+          foreach ($required in @('CombatPatchesAllowed','battle peers own cleave simulation','Coop peer local-authority','0.3.0-heavy-block-ui','FlushAndStop','InputKey.F10','InGameSettings.OpenRoot')) {
             if ($submodule -notmatch [regex]::Escape($required)) { throw "SubModule missing marker: $required" }
           }
 
+          $settings = Get-Content 'ci/KaiCleave/KaiSettings.cs' -Raw
+          foreach ($required in @('HeavyShieldContinue','HeavyWeaponBlockContinue','IsHeavyTraversalWeapon','TwoHandedSword','TwoHandedAxe','TwoHandedMace','OneHandedPolearm','TwoHandedPolearm','LowGripPolearm','File.WriteAllText')) {
+            if ($settings -notmatch [regex]::Escape($required)) { throw "Settings missing marker: $required" }
+          }
+
+          $patch = Get-Content 'ci/KaiCleave/CleavePatch.cs' -Raw
+          foreach ($required in @('IsDamageHitEligible','CanTraverseCollision','AttackBlockedWithShield','CombatCollisionResult.Blocked','HeavyShieldContinue','HeavyWeaponBlockContinue')) {
+            if ($patch -notmatch [regex]::Escape($required)) { throw "Heavy-block patch missing marker: $required" }
+          }
+
+          $ui = Get-Content 'ci/KaiCleave/InGameSettings.cs' -Raw
+          foreach ($required in @('MBInformationManager.ShowMultiSelectionInquiry','2H / polearm through shield','2H / polearm through weapon block','KaiSettings.Save')) {
+            if ($ui -notmatch [regex]::Escape($required)) { throw "In-game UI missing marker: $required" }
+          }
+
           $logger = Get-Content 'ci/KaiCleave/DebugLogger.cs' -Raw
-          foreach ($required in @('ConcurrentQueue','AutoResetEvent','AsyncLogging=True','CLEAVE_TIMING')) {
+          foreach ($required in @('ConcurrentQueue','AutoResetEvent','AsyncLogging=True','CLEAVE_TIMING','heavy-shield-continue','heavy-weapon-block-continue')) {
             if ($logger -notmatch [regex]::Escape($required)) { throw "Async logger missing marker: $required" }
           }
           if ($logger -match 'lock \(Sync\).*File.AppendAllText') { throw 'Synchronous combat logging pattern still present.' }
@@ -54,7 +69,7 @@ jobs:
           if ($tor -notmatch 'target.DeclaringType != torType') { throw 'Inherited TOR method guard missing.' }
 
           $project = Get-Content 'ci/KaiCleave/KaiCleave.csproj' -Raw
-          if ($project -match 'Coop.Core|GameInterface.dll|Missions.dll') { throw 'KaiCleave must not gain a hard Coop assembly dependency.' }
+          if ($project -match 'Coop.Core|GameInterface.dll|Missions.dll|Bannerlord.MCM|ButterLib|UIExtender') { throw 'KaiCleave gained an unwanted hard runtime dependency.' }
 
       - name: Package
         shell: pwsh
@@ -68,7 +83,7 @@ jobs:
           New-Item -ItemType Directory -Force "$root\Source" | Out-Null
           Copy-Item 'ci\KaiCleave\*.cs' "$root\Source\"
 
-          $zip = 'KaiCleave-v0.2.2-perf-test-Bannerlord-1.3.15.110062-TOR-KaiTOR.zip'
+          $zip = 'KaiCleave-v0.3.0-heavy-block-ui-Bannerlord-1.3.15.110062-TOR-KaiTOR.zip'
           Compress-Archive -Path 'package\KaiCleave' -DestinationPath $zip -Force
           $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
           "$hash  $zip" | Set-Content 'SHA256.txt' -Encoding ascii
@@ -76,9 +91,9 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: KaiCleave-v0.2.2-perf-test
+          name: KaiCleave-v0.3.0-heavy-block-ui
           if-no-files-found: error
           retention-days: 14
           path: |
-            KaiCleave-v0.2.2-perf-test-Bannerlord-1.3.15.110062-TOR-KaiTOR.zip
+            KaiCleave-v0.3.0-heavy-block-ui-Bannerlord-1.3.15.110062-TOR-KaiTOR.zip
             SHA256.txt
