@@ -14,11 +14,10 @@ namespace KaiTORPortraitFix
             base.OnSubModuleLoad();
             PortraitFixLog.Event(
                 "SESSION_START",
-                "KaiTOR Portrait Fix 0.4.1-safe-isolation; Bannerlord=1.3.15.110062; scope=SavedGameVM preview restore + read-only Save/Load diagnostics; BasicCharacterTableau mutators disabled");
+                "KaiTOR Portrait Fix 0.5.0-vanilla-rule-test; Bannerlord=1.3.15.110062; scope=SavedGameVM preview restore + BasicCharacterTableau dynamic CharacterTableau-style idle resolution + read-only diagnostics; gender mutator disabled");
 
             if (_patched) return;
 
-            BasicPreviewPosePatch.LogDisabled();
             SavePreviewGenderPatch.LogDisabled();
 
             try
@@ -29,7 +28,7 @@ namespace KaiTORPortraitFix
                 PortraitFixLog.Event(
                     "PATCH_APPLY",
                     "success=true; harmonyId=" + HarmonyId +
-                    "; vmPreviewRestore=true; basicTableauMutators=false; diagnostics=provider+basic-tableau-readonly");
+                    "; vmPreviewRestore=true; basicTableauVanillaIdleRule=true; genderMutator=false; diagnostics=provider+basic-tableau-readonly");
             }
             catch (Exception ex)
             {
