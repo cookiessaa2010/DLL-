@@ -11,17 +11,18 @@ using TaleWorlds.Core;
 namespace KaiTOR.Diplomacy.Runtime;
 
 /// <summary>
-/// AI ruler clan-growth logic for TOR kingdoms.
-/// Under-populated kingdoms first try to recruit an existing noble clan through
-/// Bannerlord's native AI barter. If that fails, an AI ruler with spare land may
-/// elevate a suitable member of the ruling house into a new cadet vassal clan.
-/// Player-led kingdoms are never changed automatically, but a kingdom the player
+/// Conservative AI ruler clan-growth logic for TOR kingdoms.
+/// LoadSafe is recruitment-only: under-populated kingdoms may recruit an existing
+/// noble clan through Bannerlord's native AI barter, but runtime clan creation is
+/// hard-disabled until TOR cadet-house creation is separately certified in game.
+/// Player-led kingdoms are never changed automatically, while a kingdom the player
 /// merely serves is managed normally by its AI ruler.
 /// </summary>
 public sealed class KaiDynastyAiBehavior : CampaignBehaviorBase
 {
     private const int MaximumTargetNobleClans = 12;
-    private const int MaximumKingdomGrowthActionsPerWeek = 3;
+    private const int MaximumKingdomGrowthActionsPerWeek = 1;
+    private const bool EnableCadetHouseCreation = false;
     private const int NewHouseCooldownDays = 42;
     private const int NewHouseMinimumRulerGold = 30000;
     private const int NewHouseSeedGold = 15000;
@@ -61,16 +62,16 @@ public sealed class KaiDynastyAiBehavior : CampaignBehaviorBase
             if (actions >= MaximumKingdomGrowthActionsPerWeek)
                 break;
 
-            // First preference: political recruitment through Bannerlord's native barter.
+            // Safe live path: use Bannerlord's own barter/recruitment mechanism only.
             if (TryRecruitExistingClan(need.Kingdom))
             {
                 actions++;
                 continue;
             }
 
-            // If no existing house can be recruited, create at most one cadet house
-            // for this kingdom when its own cooldown and safety conditions allow it.
-            if (TryFoundCadetHouse(need.Kingdom))
+            // Runtime Clan.CreateClan / hero reassignment is deliberately disabled in
+            // LoadSafe after native campaign-map access violations during weekly ticks.
+            if (EnableCadetHouseCreation && TryFoundCadetHouse(need.Kingdom))
                 actions++;
         }
     }
@@ -102,7 +103,8 @@ public sealed class KaiDynastyAiBehavior : CampaignBehaviorBase
             var deficit = Math.Max(0, target - current);
             var mode = kingdom.Leader == Hero.MainHero ? "PLAYER-RULED" : "AI-RULER";
             var cooldown = GetHouseCooldownRemainingDays(kingdom);
-            yield return $"{kingdom.StringId} = {kingdom.Name}: settlements={fortifications}, clans={current}, target={target}, deficit={deficit}, ruler={kingdom.Leader?.Name}, mode={mode}, cadetCooldown={cooldown}d";
+            var growthMode = EnableCadetHouseCreation ? "RECRUIT+CADET" : "RECRUIT-ONLY";
+            yield return $"{kingdom.StringId} = {kingdom.Name}: settlements={fortifications}, clans={current}, target={target}, deficit={deficit}, ruler={kingdom.Leader?.Name}, mode={mode}, growth={growthMode}, cadetCooldown={cooldown}d";
         }
     }
 
@@ -166,9 +168,6 @@ public sealed class KaiDynastyAiBehavior : CampaignBehaviorBase
         if (clan.Kingdom == targetKingdom)
             return false;
 
-        // Other rulers are not allowed to poach the player's current fellow vassals.
-        // When targetKingdom itself is the player's kingdom, this is already covered
-        // by the targetKingdom equality check above and does not block recruitment.
         if (playerKingdom != null && targetKingdom != playerKingdom && clan.Kingdom == playerKingdom)
             return false;
 
@@ -230,7 +229,6 @@ public sealed class KaiDynastyAiBehavior : CampaignBehaviorBase
             .ThenBy(settlement => settlement.StringId, StringComparer.Ordinal)
             .ToArray();
 
-        // Never strip the ruling house of its final fortification.
         if (spareFiefs.Length < 2)
             return false;
 
