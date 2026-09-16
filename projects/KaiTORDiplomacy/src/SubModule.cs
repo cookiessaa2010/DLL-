@@ -11,7 +11,8 @@ namespace KaiTOR.Diplomacy;
 public sealed class SubModule : MBSubModuleBase
 {
     // Diagnostic live-test latch for existing TOR saves.
-    // LoadSafe must not install lifecycle/family model wrappers or conversation hooks.
+    // LoadSafe must not install lifecycle/family model wrappers, conversation hooks,
+    // or autonomous hero/racial-population mutation systems.
     private const bool LoadSafeDiagnostics = true;
 
     protected override void OnGameStart(Game game, IGameStarter gameStarterObject)
@@ -32,19 +33,20 @@ public sealed class SubModule : MBSubModuleBase
             InstallPregnancyWrapper(campaignStarter);
             InstallHeroDeathWrapper(campaignStarter);
 
-            // This behavior injects lines into Bannerlord's courtship conversation graph.
-            // It is meaningful only when the marriage/pregnancy wrappers above are active.
-            // Keeping it out of LoadSafe guarantees ordinary lord conversations remain
-            // completely TOR/Bannerlord-owned during compatibility testing.
+            // These behaviors mutate the family/racial hero graph and therefore stay
+            // completely outside the live LoadSafe branch until separately certified.
             campaignStarter.AddBehavior(new KaiMarriageWarningBehavior());
+            campaignStarter.AddBehavior(new KaiRacialPopulationBehavior());
+            campaignStarter.AddBehavior(new KaiDawiWomenBehavior());
         }
 
+        // LoadSafe runtime: treaties/UI/culture conversion plus conservative ruler AI.
+        // KaiDynastyAiBehavior remains loaded, but in this branch it is recruitment-only
+        // and cannot create cadet clans or new heroes on weekly ticks.
         campaignStarter.AddBehavior(new KaiDiplomacyBehavior());
         campaignStarter.AddBehavior(new KaiDiplomacyOfficeBehavior());
         campaignStarter.AddBehavior(new KaiDiplomacyAiBehavior());
         campaignStarter.AddBehavior(new KaiCultureAssimilationBehavior());
-        campaignStarter.AddBehavior(new KaiRacialPopulationBehavior());
-        campaignStarter.AddBehavior(new KaiDawiWomenBehavior());
         campaignStarter.AddBehavior(new KaiDynastyAiBehavior());
     }
 
