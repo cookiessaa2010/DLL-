@@ -46,6 +46,11 @@ internal static class TorFamilySafety
         if (firstHero?.CharacterObject == null || secondHero?.CharacterObject == null)
             return false;
 
+        // Social same-sex marriages are deliberately childless in the biological
+        // pipeline. Family growth for them is handled through adoption instead.
+        if (firstHero.IsFemale == secondHero.IsFemale)
+            return false;
+
         // Bannerlord 1.3.x DeliverOffSpring asserts that both parents use the same
         // CharacterObject.Race. Never allow the vanilla pregnancy pipeline to reach
         // that method for a cross-race marriage.
