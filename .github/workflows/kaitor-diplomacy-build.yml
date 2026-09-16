@@ -40,14 +40,14 @@ jobs:
           if (-not (Test-Path -LiteralPath $dll -PathType Leaf)) { throw "Missing DLL: $dll" }
 
           $module = Get-Content (Join-Path $root 'module/SubModule.xml') -Raw
-          if ($module -notmatch 'v0\.4\.1') { throw 'SubModule version is not v0.4.1.' }
+          if ($module -notmatch 'v0\.4\.2') { throw 'SubModule version is not v0.4.2.' }
 
           & (Join-Path $root 'tests/Test-KaiTORDiplomacyContracts.ps1')
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
           $dawi = Get-Content (Join-Path $root 'src/Models/DawiWomenAssetBridge.cs') -Raw
           if ($dawi -notmatch 'ForceSafeOffForLiveTest\s*=\s*true') {
-            throw 'Dawi SAFE-OFF latch is not enabled for v0.4.1.'
+            throw 'Dawi SAFE-OFF latch is not enabled for v0.4.2.'
           }
 
           $gate = Get-Content (Join-Path $root 'src/Runtime/TorCompatibilityGate.cs') -Raw
@@ -62,16 +62,29 @@ jobs:
 
           $office = Get-Content (Join-Path $root 'src/Runtime/KaiDiplomacyOfficeBehavior.cs') -Raw
           foreach ($required in @(
-            'KaiTOR: Дипломатия',
+            '"Дипломатия"',
             'Предложить пакт о ненападении',
             'Разорвать пакт о ненападении',
-            'Дипломатический журнал KaiTOR',
-            'SAFE-OFF'
+            'Дипломатический журнал',
+            'Смена культуры поселений'
           )) {
-            if ($office -notmatch [regex]::Escape($required)) { throw "Missing Russian UI contract: $required" }
+            if ($office -notmatch [regex]::Escape($required)) { throw "Missing native Russian UI contract: $required" }
           }
 
-          Write-Host 'KaiTOR Diplomacy v0.4.1 RU LoadSafe gate-fix contracts: PASS'
+          $dynasty = Get-Content (Join-Path $root 'src/Runtime/KaiDynastyAiBehavior.cs') -Raw
+          foreach ($required in @(
+            'MaximumKingdomGrowthActionsPerWeek = 3',
+            'NewHouseCooldownDays = 42',
+            'k.Leader != Hero.MainHero',
+            'TryRecruitExistingClan(need.Kingdom)',
+            'TryFoundCadetHouse(need.Kingdom)',
+            'DescribeStatus()'
+          )) {
+            if ($dynasty -notmatch [regex]::Escape($required)) { throw "Missing dynasty growth contract: $required" }
+          }
+          if ($dynasty -match 'k != playerKingdom') { throw 'Player-served kingdom is still excluded from dynasty AI.' }
+
+          Write-Host 'KaiTOR Diplomacy v0.4.2 RU LoadSafe/native-UI/dynasty contracts: PASS'
 
       - name: Assemble module
         shell: pwsh
@@ -92,7 +105,7 @@ jobs:
       - name: Upload ready module
         uses: actions/upload-artifact@v4
         with:
-          name: KaiTOR-Diplomacy-v0.4.1-RU-LoadSafe-GateFix
+          name: KaiTOR-Diplomacy-v0.4.2-RU-LoadSafe-NativeUI-DynastyFix
           path: artifact/KaiTOR_Diplomacy
           if-no-files-found: error
           retention-days: 30
