@@ -26,7 +26,6 @@ public sealed class KaiCultureAssimilationBehavior : CampaignBehaviorBase
 
     public override void SyncData(IDataStore dataStore)
     {
-        // Settlement culture persistence remains owned by TOR's AssimilationCampaignBehavior.
     }
 
     private void OnSessionLaunched(CampaignGameStarter starter)
@@ -37,9 +36,6 @@ public sealed class KaiCultureAssimilationBehavior : CampaignBehaviorBase
 
     private void RegisterMenuOptions(CampaignGameStarter starter)
     {
-        // Vanilla can expose either town or town_outside depending on the entry route.
-        // TOR uses town_outside for the city panel shown in the live test, so register
-        // the same player-facing action in both states.
         AddCultureMenuOption(starter, "town", "kaitor_change_town_nationality", 7);
         AddCultureMenuOption(starter, "town_outside", "kaitor_change_town_outside_nationality", 7);
         AddCultureMenuOption(starter, "castle", "kaitor_change_castle_nationality", 7);
@@ -68,21 +64,21 @@ public sealed class KaiCultureAssimilationBehavior : CampaignBehaviorBase
         if (IsTorSpecialSettlement(settlement))
         {
             args.IsEnabled = false;
-            args.Tooltip = new TextObject("Это особое поселение и его народность не может быть изменена обычным способом.");
+            args.Tooltip = new TextObject("Это особое поселение. Его традиции нельзя изменить обычным переселением.");
             return true;
         }
 
         if (settlement.IsUnderSiege)
         {
             args.IsEnabled = false;
-            args.Tooltip = new TextObject("Нельзя менять народность поселения во время осады.");
+            args.Tooltip = new TextObject("Во время осады проводить переселение невозможно.");
             return true;
         }
 
         if (Clan.PlayerClan == null || Clan.PlayerClan.Tier < RequiredClanTier)
         {
             args.IsEnabled = false;
-            args.Tooltip = new TextObject($"Для смены народности требуется уровень клана {RequiredClanTier} или выше.");
+            args.Tooltip = new TextObject($"Для такой реформы требуется клан не ниже {RequiredClanTier}-го уровня.");
             return true;
         }
 
@@ -90,35 +86,34 @@ public sealed class KaiCultureAssimilationBehavior : CampaignBehaviorBase
         if (targetCulture == null)
         {
             args.IsEnabled = false;
-            args.Tooltip = new TextObject("Не удалось определить народность вашего клана.");
+            args.Tooltip = new TextObject("Сейчас невозможно определить, какую народность должен принять город.");
             return true;
         }
 
         if (settlement.Culture == targetCulture)
         {
             args.IsEnabled = false;
-            args.Tooltip = new TextObject("Поселение уже принадлежит народности вашего клана.");
+            args.Tooltip = new TextObject("Большинство жителей уже принадлежит к народности вашего рода.");
             return true;
         }
 
-        if (!TorSettlementCultureBridge.ValidateFullConversion(targetCulture, settlement, out var supportReason))
+        if (!TorSettlementCultureBridge.ValidateFullConversion(targetCulture, settlement, out _))
         {
             args.IsEnabled = false;
-            args.Tooltip = new TextObject("Полная смена народности здесь недоступна: " + supportReason);
+            args.Tooltip = new TextObject("Для этой народности пока невозможно провести полную реформу населения этого поселения.");
             return true;
         }
 
         if (Hero.MainHero == null || Hero.MainHero.Gold < CultureChangeCost)
         {
             args.IsEnabled = false;
-            args.Tooltip = new TextObject($"Требуется {CultureChangeCost:N0} динаров.");
+            args.Tooltip = new TextObject($"Для переселения и перестройки управления требуется {CultureChangeCost:N0} динаров.");
             return true;
         }
 
         args.Tooltip = new TextObject(
-            $"Полностью сменить народность {settlement.Name} на {targetCulture.Name}. " +
-            "Изменятся культура города или замка, связанных деревень, местных знатных жителей, рекрутов, таверненных наёмников, караванов, ополчения и дальнейшего населения. " +
-            "Именные лорды других кланов и уникальные персонажи особых локаций не изменяются.");
+            $"Начать переселение и утвердить в {settlement.Name} народность {targetCulture.Name}. " +
+            "Изменения затронут связанные деревни, местную знать, рекрутов, ополчение, караваны, таверны и дальнейшее развитие поселения.");
         return true;
     }
 
@@ -128,27 +123,25 @@ public sealed class KaiCultureAssimilationBehavior : CampaignBehaviorBase
         var targetCulture = GetPlayerClanCulture();
         if (settlement == null || targetCulture == null) return;
 
-        var title = "Смена народности поселения";
-        var body = $"Полностью сменить народность {settlement.Name} на {targetCulture.Name}?\n\n" +
-                   $"Стоимость: {CultureChangeCost:N0} динаров\n" +
-                   $"Требование: уровень клана {RequiredClanTier}+\n\n" +
-                   "Будут обновлены связанные деревни, местные знатные жители, набор рекрутов, таверненные наёмники, будущие странники, караваны, культурные службы и дальнейшее производство.\n\n" +
-                   "Уникальные персонажи и объекты, привязанные к конкретным локациям, сохраняются. Именные лорды и герои других кланов не меняют народность. Уже лежащие на рынке товары старой культуры останутся до продажи или использования.";
+        var body = $"Начать переселение и утвердить в {settlement.Name} народность {targetCulture.Name}?\n\n" +
+                   $"Расходы: {CultureChangeCost:N0} динаров\n\n" +
+                   "Реформа изменит жизнь города или замка и связанных деревень. Постепенно сменятся местная знать, набор рекрутов, ополчение, наёмники, караваны и другие жители, связанные с поселением.\n\n" +
+                   "Именные лорды чужих кланов и уникальные персонажи останутся прежними.";
 
         InformationManager.ShowInquiry(
             new InquiryData(
-                title,
+                "Смена народности поселения",
                 body,
                 true,
                 true,
-                "Сменить народность",
+                "Начать переселение",
                 "Отмена",
                 () =>
                 {
                     if (TryChangeCultureImmediately(settlement, out var reason))
                         InformationManager.DisplayMessage(new InformationMessage(reason));
                     else
-                        InformationManager.DisplayMessage(new InformationMessage("Смена народности не выполнена: " + reason));
+                        InformationManager.DisplayMessage(new InformationMessage(reason));
                 },
                 null,
                 string.Empty,
@@ -164,33 +157,36 @@ public sealed class KaiCultureAssimilationBehavior : CampaignBehaviorBase
     {
         reason = string.Empty;
 
-        if (!_runtimeEnabled) { reason = "Дипломатическая система совместимости не активна."; return false; }
-        if (settlement == null || !settlement.IsFortification) { reason = "Необходимо находиться в городе или замке."; return false; }
-        if (settlement.OwnerClan != Clan.PlayerClan) { reason = "Можно менять народность только поселений вашего клана."; return false; }
-        if (IsTorSpecialSettlement(settlement)) { reason = "Это особое поселение и его народность не может быть изменена обычным способом."; return false; }
-        if (settlement.IsUnderSiege) { reason = "Нельзя менять народность поселения во время осады."; return false; }
-        if (Clan.PlayerClan == null || Clan.PlayerClan.Tier < RequiredClanTier) { reason = $"Требуется уровень клана {RequiredClanTier} или выше."; return false; }
+        if (!_runtimeEnabled) { reason = "Сейчас провести эту реформу невозможно."; return false; }
+        if (settlement == null || !settlement.IsFortification) { reason = "Такое решение можно принять только в городе или замке."; return false; }
+        if (settlement.OwnerClan != Clan.PlayerClan) { reason = "Вы можете менять народность только в собственных владениях."; return false; }
+        if (IsTorSpecialSettlement(settlement)) { reason = "Традиции этого особого владения нельзя изменить обычным переселением."; return false; }
+        if (settlement.IsUnderSiege) { reason = "Во время осады переселение невозможно."; return false; }
+        if (Clan.PlayerClan == null || Clan.PlayerClan.Tier < RequiredClanTier) { reason = $"Для такой реформы требуется клан не ниже {RequiredClanTier}-го уровня."; return false; }
 
         var targetCulture = GetPlayerClanCulture();
-        if (targetCulture == null) { reason = "Не удалось определить народность вашего клана."; return false; }
-        if (settlement.Culture == targetCulture) { reason = "Поселение уже принадлежит народности вашего клана."; return false; }
-        if (Hero.MainHero == null || Hero.MainHero.Gold < CultureChangeCost) { reason = $"Требуется {CultureChangeCost:N0} динаров."; return false; }
+        if (targetCulture == null) { reason = "Сейчас невозможно определить народность вашего рода."; return false; }
+        if (settlement.Culture == targetCulture) { reason = "Поселение уже принадлежит к народности вашего рода."; return false; }
+        if (Hero.MainHero == null || Hero.MainHero.Gold < CultureChangeCost) { reason = $"Для реформы требуется {CultureChangeCost:N0} динаров."; return false; }
 
-        if (!TorSettlementCultureBridge.ValidateFullConversion(targetCulture, settlement, out reason)) return false;
+        if (!TorSettlementCultureBridge.ValidateFullConversion(targetCulture, settlement, out _))
+        {
+            reason = "Для этой народности пока невозможно безопасно провести полную реформу населения здесь.";
+            return false;
+        }
 
         var affected = GetAffectedSettlements(settlement).ToArray();
         foreach (var affectedSettlement in affected) ApplyCultureToSettlementAndNotables(affectedSettlement, targetCulture);
 
-        if (!TorSettlementCultureBridge.RefreshAfterCultureChange(settlement, targetCulture, out reason))
+        if (!TorSettlementCultureBridge.RefreshAfterCultureChange(settlement, targetCulture, out _))
         {
-            reason = "Основная народность изменена, но не удалось обновить одну из связанных систем. Сохраните диагностические данные перед продолжением: " + reason;
+            reason = "Переселение началось, но часть городских служб не успела перестроиться. Не продолжайте игру с этого сохранения и сообщите об ошибке.";
             return false;
         }
 
         GiveGoldAction.ApplyBetweenCharacters(Hero.MainHero, null, CultureChangeCost, false);
 
-        reason = $"Народность {settlement.Name} полностью изменена на {targetCulture.Name}. Потрачено {CultureChangeCost:N0} динаров. " +
-                 "Связанные деревни, набор рекрутов, таверненное население, караваны, культурные службы и дальнейшее производство обновлены.";
+        reason = $"В {settlement.Name} утверждена народность {targetCulture.Name}. На переселение и перестройку управления потрачено {CultureChangeCost:N0} динаров.";
         return true;
     }
 
