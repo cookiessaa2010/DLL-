@@ -6,19 +6,26 @@ namespace KaiTOR.Diplomacy.Models;
 
 /// <summary>
 /// Runtime gate for the optional KaiTOR Dawi women asset pack.
-/// KaiTOR never enables dwarf pregnancy merely because a female flag exists: the
-/// expected template is registered only by the full asset pack after the female dwarf
-/// skin, skeleton/action sets and meshes are present. This keeps a missing/partial asset
-/// install fail-closed instead of allowing Bannerlord to create invalid offspring.
+/// The current live-test build intentionally keeps this gate hard-disabled so the
+/// campaign can be tested without female-Dawi assets affecting stability, saves or
+/// pregnancy. Remove ForceSafeOffForLiveTest only after the asset chain passes its
+/// separate in-game rig/FaceGen/child-growth tests.
 /// </summary>
 internal static class DawiWomenAssetBridge
 {
     public const string FemaleDawiLordTemplateId = "kaitor_dawi_woman_lord";
 
+    // TEST PHASE: hard safety latch. This deliberately overrides asset discovery.
+    // Dawi women stay absent and Dawi pregnancy stays blocked for the first live test.
+    public const bool ForceSafeOffForLiveTest = true;
+
     public static bool IsAvailable
     {
         get
         {
+            if (ForceSafeOffForLiveTest)
+                return false;
+
             var manager = MBObjectManager.Instance;
             if (manager == null)
                 return false;
