@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Threading;
+using TaleWorlds.Core;
 using TaleWorlds.MountAndBlade;
 
 namespace KaiCleave
@@ -105,6 +106,20 @@ namespace KaiCleave
                   "; ms=" + ms.ToString("0.###", CultureInfo.InvariantCulture) +
                   "; attacker=" + (attacker != null ? attacker.Index.ToString() : "null") +
                   "; victim=" + (victim != null ? victim.Index.ToString() : "null"));
+        }
+
+        internal static void WriteBlock(string stage, Agent attacker, Agent victim,
+            in AttackCollisionData collisionData, WeaponClass weaponClass)
+        {
+            if (!KaiSettings.DebugLogging) return;
+            Write(stage +
+                  " attacker=" + (attacker != null ? attacker.Index.ToString() : "null") +
+                  " victim=" + (victim != null ? victim.Index.ToString() : "null") +
+                  " weapon=" + weaponClass +
+                  " shield=" + collisionData.AttackBlockedWithShield +
+                  " correctShield=" + collisionData.CorrectSideShieldBlock +
+                  " collision=" + collisionData.CollisionResult +
+                  " progress=" + collisionData.AttackProgress.ToString("0.000", CultureInfo.InvariantCulture));
         }
 
         internal static void WriteHit(string stage, Agent attacker, Agent victim,
