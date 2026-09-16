@@ -27,7 +27,7 @@ public sealed class KaiPlayerMarriageModel : DefaultMarriageModel
 
     public override bool IsCoupleSuitableForMarriage(Hero firstHero, Hero secondHero)
     {
-        if (firstHero == null || secondHero == null)
+        if (firstHero == null || secondHero == null || firstHero == secondHero)
             return false;
 
         if (!AreCulturesCompatible(firstHero.Culture?.StringId, secondHero.Culture?.StringId))
@@ -37,6 +37,12 @@ public sealed class KaiPlayerMarriageModel : DefaultMarriageModel
         // participate in the ordinary family system.
         if (TorFamilySafety.IsUndeadNonVampire(firstHero) || TorFamilySafety.IsUndeadNonVampire(secondHero))
             return false;
+
+        // Bannerlord's DefaultMarriageModel hard-requires opposite sexes. For the
+        // player's house we additionally allow a woman to marry another woman while
+        // preserving all ordinary age, clan, engagement and close-kin restrictions.
+        if (IsPlayerClanFemaleCouple(firstHero, secondHero))
+            return IsFemaleCoupleSuitable(firstHero, secondHero);
 
         return base.IsCoupleSuitableForMarriage(firstHero, secondHero);
     }
@@ -54,6 +60,22 @@ public sealed class KaiPlayerMarriageModel : DefaultMarriageModel
 
     public override bool IsClanSuitableForMarriage(Clan clan)
         => clan != null && IsSupportedMarriageCulture(clan.Culture?.StringId) && base.IsClanSuitableForMarriage(clan);
+
+    public override Clan GetClanAfterMarriage(Hero firstHero, Hero secondHero)
+    {
+        // A female/female marriage involving the player's house keeps the player-clan
+        // member in Clan.PlayerClan and brings the spouse into the player's house. This
+        // avoids relying on DefaultMarriageModel's male/female clan-selection rule.
+        if (IsPlayerClanFemaleCouple(firstHero, secondHero))
+        {
+            if (firstHero?.Clan == Clan.PlayerClan)
+                return Clan.PlayerClan;
+            if (secondHero?.Clan == Clan.PlayerClan)
+                return Clan.PlayerClan;
+        }
+
+        return base.GetClanAfterMarriage(firstHero, secondHero);
+    }
 
     public override float NpcCoupleMarriageChance(Hero firstHero, Hero secondHero)
     {
@@ -78,10 +100,69 @@ public sealed class KaiPlayerMarriageModel : DefaultMarriageModel
         return base.ShouldNpcMarriageBetweenClansBeAllowed(consideringClan, targetClan);
     }
 
+    private bool IsFemaleCoupleSuitable(Hero firstHero, Hero secondHero)
+    {
+        if (!IsClanSuitableForMarriage(firstHero.Clan) || !IsClanSuitableForMarriage(secondHero.Clan))
+            return false;
+
+        // Match Bannerlord's rule that two ruling clan leaders cannot marry each other.
+        if (firstHero.Clan?.Leader == firstHero && secondHero.Clan?.Leader == secondHero)
+            return false;
+
+        if (AreHeroesRelated(firstHero, secondHero, 3))
+            return false;
+
+        var courtedByFirst = Romance.GetCourtedHeroInOtherClan(firstHero, secondHero);
+        if (courtedByFirst != null && courtedByFirst != secondHero)
+            return false;
+
+        var courtedBySecond = Romance.GetCourtedHeroInOtherClan(secondHero, firstHero);
+        if (courtedBySecond != null && courtedBySecond != firstHero)
+            return false;
+
+        return firstHero.CanMarry() && secondHero.CanMarry();
+    }
+
+    private static bool IsPlayerClanFemaleCouple(Hero firstHero, Hero secondHero)
+        => firstHero?.IsFemale == true &&
+           secondHero?.IsFemale == true &&
+           (firstHero.Clan == Clan.PlayerClan || secondHero.Clan == Clan.PlayerClan);
+
+    // Equivalent in intent to DefaultMarriageModel's private three-generation kinship
+    // check. Keeping it local lets the female/female path obey the same safety rule
+    // without reflection into Bannerlord internals.
+    private static bool AreHeroesRelated(Hero firstHero, Hero secondHero, int ancestorDepth)
+        => AreHeroesRelatedAux(firstHero, secondHero, ancestorDepth, ancestorDepth);
+
+    private static bool AreHeroesRelatedAux(Hero firstHero, Hero secondHero, int firstDepth, int secondDepth)
+    {
+        if (IsAncestorOrSelf(firstHero, secondHero, secondDepth))
+            return true;
+
+        if (firstDepth <= 0 || firstHero == null)
+            return false;
+
+        return (firstHero.Mother != null && AreHeroesRelatedAux(firstHero.Mother, secondHero, firstDepth - 1, secondDepth)) ||
+               (firstHero.Father != null && AreHeroesRelatedAux(firstHero.Father, secondHero, firstDepth - 1, secondDepth));
+    }
+
+    private static bool IsAncestorOrSelf(Hero ancestor, Hero hero, int depth)
+    {
+        if (ancestor == null || hero == null)
+            return false;
+        if (ancestor == hero)
+            return true;
+        if (depth <= 0)
+            return false;
+
+        return (hero.Mother != null && IsAncestorOrSelf(ancestor, hero.Mother, depth - 1)) ||
+               (hero.Father != null && IsAncestorOrSelf(ancestor, hero.Father, depth - 1));
+    }
+
     /// <summary>
     /// Social marriage policy for TOR's playable family cultures.
     /// Empire, Bretonnia, Sylvania/Mousillon, Asrai, Eonir and Dawi can intermarry
-    /// when Bannerlord's age/sex/kinship/current-marriage checks also pass.
+    /// when Bannerlord's age/kinship/current-marriage checks also pass.
     /// Greenskins remain outside ordinary marriage/family mechanics.
     /// </summary>
     public static bool AreCulturesCompatible(string firstCulture, string secondCulture)
