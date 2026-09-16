@@ -7,14 +7,13 @@ namespace KaiTOR.Diplomacy.Models;
 
 /// <summary>
 /// World marriage compatibility layer for TOR.
-/// TOR disables vanilla marriage globally. KaiTOR restores Bannerlord's normal
-/// player and NPC dynastic marriage flow for supported TOR cultures while keeping
-/// biological reproduction behind a separate race/undead safety gate.
+/// Player-house marriage uses Bannerlord's normal flow. Automatic NPC/NPC marriages
+/// are intentionally narrower in LoadSafe: only certified same-culture, same-race,
+/// biologically safe pairs are allowed to reach MarriageAction during daily ticks.
 /// </summary>
 public sealed class KaiPlayerMarriageModel : DefaultMarriageModel
 {
     public const string ExpectedTorBaseType = "TOR_Core.Models.TORMarriageModel";
-    private const float ChildlessNpcMarriageChanceMultiplier = 0.25f;
 
     private readonly MarriageModel _torBase;
 
@@ -33,14 +32,21 @@ public sealed class KaiPlayerMarriageModel : DefaultMarriageModel
         if (!AreCulturesCompatible(firstHero.Culture?.StringId, secondHero.Culture?.StringId))
             return false;
 
-        // TOR vampires may form social/dynastic marriages. Non-vampire undead do not
-        // participate in the ordinary family system.
         if (TorFamilySafety.IsUndeadNonVampire(firstHero) || TorFamilySafety.IsUndeadNonVampire(secondHero))
+            return false;
+
+        var involvesPlayerHouse = InvolvesPlayerClan(firstHero, secondHero);
+
+        // The random NPC marriage loop runs on daily clan ticks. Keep that path to
+        // pairings already proven compatible with Bannerlord's ordinary family graph.
+        // Dawi, greenskins, vampires and cross-culture NPC couples remain outside the
+        // automatic path until their lifecycle is certified separately.
+        if (!involvesPlayerHouse && !IsCertifiedNpcMarriagePair(firstHero, secondHero))
             return false;
 
         // Bannerlord's DefaultMarriageModel hard-requires opposite sexes. For the
         // player's house we additionally allow a woman to marry another woman while
-        // preserving all ordinary age, clan, engagement and close-kin restrictions.
+        // preserving ordinary age, clan, engagement and close-kin restrictions.
         if (IsPlayerClanFemaleCouple(firstHero, secondHero))
             return IsFemaleCoupleSuitable(firstHero, secondHero);
 
@@ -63,9 +69,6 @@ public sealed class KaiPlayerMarriageModel : DefaultMarriageModel
 
     public override Clan GetClanAfterMarriage(Hero firstHero, Hero secondHero)
     {
-        // A female/female marriage involving the player's house keeps the player-clan
-        // member in Clan.PlayerClan and brings the spouse into the player's house. This
-        // avoids relying on DefaultMarriageModel's male/female clan-selection rule.
         if (IsPlayerClanFemaleCouple(firstHero, secondHero))
         {
             if (firstHero?.Clan == Clan.PlayerClan)
@@ -79,24 +82,24 @@ public sealed class KaiPlayerMarriageModel : DefaultMarriageModel
 
     public override float NpcCoupleMarriageChance(Hero firstHero, Hero secondHero)
     {
-        var chance = base.NpcCoupleMarriageChance(firstHero, secondHero);
-        if (chance <= 0f)
+        if (!IsCertifiedNpcMarriagePair(firstHero, secondHero))
             return 0f;
 
-        // Same biologically safe pairings keep Bannerlord's native dynastic rate.
-        // Social marriages that KaiTOR deliberately makes childless are rarer for AI,
-        // so mixed-species unions exist in the world without overwhelming dynasties.
-        return TorFamilySafety.CanUseVanillaPregnancy(firstHero, secondHero)
-            ? chance
-            : chance * ChildlessNpcMarriageChanceMultiplier;
+        return base.NpcCoupleMarriageChance(firstHero, secondHero);
     }
 
     public override bool ShouldNpcMarriageBetweenClansBeAllowed(Clan consideringClan, Clan targetClan)
     {
         if (consideringClan == null || targetClan == null)
             return false;
-        if (!AreCulturesCompatible(consideringClan.Culture?.StringId, targetClan.Culture?.StringId))
+
+        if (!IsCertifiedNpcDynastyCulture(consideringClan.Culture?.StringId) ||
+            !IsCertifiedNpcDynastyCulture(targetClan.Culture?.StringId))
             return false;
+
+        if (!string.Equals(consideringClan.Culture?.StringId, targetClan.Culture?.StringId, StringComparison.Ordinal))
+            return false;
+
         return base.ShouldNpcMarriageBetweenClansBeAllowed(consideringClan, targetClan);
     }
 
@@ -105,7 +108,6 @@ public sealed class KaiPlayerMarriageModel : DefaultMarriageModel
         if (!IsClanSuitableForMarriage(firstHero.Clan) || !IsClanSuitableForMarriage(secondHero.Clan))
             return false;
 
-        // Match Bannerlord's rule that two ruling clan leaders cannot marry each other.
         if (firstHero.Clan?.Leader == firstHero && secondHero.Clan?.Leader == secondHero)
             return false;
 
@@ -128,9 +130,35 @@ public sealed class KaiPlayerMarriageModel : DefaultMarriageModel
            secondHero?.IsFemale == true &&
            (firstHero.Clan == Clan.PlayerClan || secondHero.Clan == Clan.PlayerClan);
 
-    // Equivalent in intent to DefaultMarriageModel's private three-generation kinship
-    // check. Keeping it local lets the female/female path obey the same safety rule
-    // without reflection into Bannerlord internals.
+    private static bool IsCertifiedNpcMarriagePair(Hero firstHero, Hero secondHero)
+    {
+        if (firstHero?.CharacterObject == null || secondHero?.CharacterObject == null)
+            return false;
+        if (InvolvesPlayerClan(firstHero, secondHero))
+            return false;
+        if (!IsCertifiedNpcDynastyCulture(firstHero.Culture?.StringId) ||
+            !IsCertifiedNpcDynastyCulture(secondHero.Culture?.StringId))
+            return false;
+        if (!string.Equals(firstHero.Culture?.StringId, secondHero.Culture?.StringId, StringComparison.Ordinal))
+            return false;
+        if (firstHero.CharacterObject.Race != secondHero.CharacterObject.Race)
+            return false;
+        if (!TorFamilySafety.CanUseVanillaPregnancy(firstHero, secondHero))
+            return false;
+
+        return true;
+    }
+
+    // These are the ordinary living family cultures we currently allow the random
+    // NPC daily-marriage loop to process. Dawi and vampire cultures can still marry
+    // through explicit player-house negotiations, but are excluded from random NPC
+    // marriages until their complete family lifecycle is certified in TOR.
+    private static bool IsCertifiedNpcDynastyCulture(string cultureId)
+        => string.Equals(cultureId, "empire", StringComparison.Ordinal) ||
+           string.Equals(cultureId, "vlandia", StringComparison.Ordinal) ||
+           string.Equals(cultureId, "battania", StringComparison.Ordinal) ||
+           string.Equals(cultureId, "eonir", StringComparison.Ordinal);
+
     private static bool AreHeroesRelated(Hero firstHero, Hero secondHero, int ancestorDepth)
         => AreHeroesRelatedAux(firstHero, secondHero, ancestorDepth, ancestorDepth);
 
@@ -159,12 +187,6 @@ public sealed class KaiPlayerMarriageModel : DefaultMarriageModel
                (hero.Father != null && IsAncestorOrSelf(ancestor, hero.Father, depth - 1));
     }
 
-    /// <summary>
-    /// Social marriage policy for TOR's playable family cultures.
-    /// Empire, Bretonnia, Sylvania/Mousillon, Asrai, Eonir and Dawi can intermarry
-    /// when Bannerlord's age/kinship/current-marriage checks also pass.
-    /// Greenskins remain outside ordinary marriage/family mechanics.
-    /// </summary>
     public static bool AreCulturesCompatible(string firstCulture, string secondCulture)
         => IsSupportedMarriageCulture(firstCulture) && IsSupportedMarriageCulture(secondCulture);
 
