@@ -9,9 +9,8 @@ using TaleWorlds.Library;
 namespace KaiTOR.Diplomacy.Runtime;
 
 /// <summary>
-/// Lightweight in-game front end for KaiTOR diplomacy. It deliberately uses native
-/// inquiry UI instead of patching TOR/Bannerlord kingdom screens, keeping the module
-/// isolated from Gauntlet layouts and TOR UI updates.
+/// Lightweight in-game diplomacy front end using Bannerlord native menus/inquiries.
+/// Internal module identifiers stay private; player-facing UI is presented as a normal game system.
 /// </summary>
 public sealed class KaiDiplomacyOfficeBehavior : CampaignBehaviorBase
 {
@@ -32,7 +31,7 @@ public sealed class KaiDiplomacyOfficeBehavior : CampaignBehaviorBase
         starter.AddGameMenuOption(
             "town",
             "kaitor_diplomacy_office_town",
-            "KaiTOR: Дипломатия",
+            "Дипломатия",
             OfficeCondition,
             _ => ShowOffice(),
             false,
@@ -41,7 +40,7 @@ public sealed class KaiDiplomacyOfficeBehavior : CampaignBehaviorBase
         starter.AddGameMenuOption(
             "castle",
             "kaitor_diplomacy_office_castle",
-            "KaiTOR: Дипломатия",
+            "Дипломатия",
             OfficeCondition,
             _ => ShowOffice(),
             false,
@@ -69,13 +68,13 @@ public sealed class KaiDiplomacyOfficeBehavior : CampaignBehaviorBase
             new("ledger", "Договоры и дипломатическое доверие", null),
             new("offer", "Предложить пакт о ненападении", null, canRule, canRule ? string.Empty : "Подписывать межгосударственные договоры может только правящий клан."),
             new("break", "Разорвать пакт о ненападении", null, canRule && HasActivePlayerPact(diplomacy, playerKingdom), canRule ? "Нет активного пакта, который можно разорвать." : "Разрывать межгосударственные договоры может только правящий клан."),
-            new("marriage", "Правила совместимости браков", null),
-            new("culture", "Поддержка смены культуры TOR", null),
+            new("marriage", "Семья и браки", null),
+            new("culture", "Смена культуры поселений", null),
         };
 
         MBInformationManager.ShowMultiSelectionInquiry(
             new MultiSelectionInquiryData(
-                "KaiTOR — Дипломатия",
+                "Дипломатия",
                 $"Королевство: {playerKingdom.Name}. Ваша роль: {(canRule ? "правитель" : "вассал — дипломатия только для просмотра")}.",
                 options,
                 true,
@@ -115,8 +114,8 @@ public sealed class KaiDiplomacyOfficeBehavior : CampaignBehaviorBase
             lines.Add($"{other.Name}: пакт={(nap ? remaining + " дн." : "нет")}, доверие={trust}, нарушений={breaches}, блокировка={cooldown} дн.");
         }
 
-        if (lines.Count == 0) lines.Add("У вашего королевства пока нет истории договоров KaiTOR.");
-        ShowText("Дипломатический журнал KaiTOR", string.Join("\n", lines));
+        if (lines.Count == 0) lines.Add("У вашего королевства пока нет истории дипломатических договоров.");
+        ShowText("Дипломатический журнал", string.Join("\n", lines));
     }
 
     private static void ShowNapTargets(KaiDiplomacyBehavior diplomacy, Kingdom playerKingdom)
@@ -133,7 +132,7 @@ public sealed class KaiDiplomacyOfficeBehavior : CampaignBehaviorBase
         MBInformationManager.ShowMultiSelectionInquiry(
             new MultiSelectionInquiryData(
                 "Предложить пакт о ненападении",
-                "Выберите королевство. Готовность к договору зависит от дипломатического доверия KaiTOR и отношений между правящими кланами. Ограничения мира The Old Realms проверяются в первую очередь.",
+                "Выберите королевство. Готовность к договору зависит от дипломатического доверия и отношений между правящими кланами. Особые ограничения мира проверяются в первую очередь.",
                 targets,
                 true,
                 1,
@@ -180,7 +179,7 @@ public sealed class KaiDiplomacyOfficeBehavior : CampaignBehaviorBase
     {
         if (!diplomacy.CanCreateNonAggressionPact(playerKingdom, target, days, out var ruleReason))
         {
-            ShowText("Предложение заблокировано", ruleReason);
+            ShowText("Предложение недоступно", ruleReason);
             return;
         }
 
@@ -191,10 +190,10 @@ public sealed class KaiDiplomacyOfficeBehavior : CampaignBehaviorBase
             return;
         }
 
-        if (diplomacy.TryCreateNonAggressionPact(playerKingdom, target, days, out var result))
-            ShowText("Договор подписан", $"{playerKingdom.Name} и {target.Name} заключили пакт о ненападении на {days} дней.\n\n{result}");
+        if (diplomacy.TryCreateNonAggressionPact(playerKingdom, target, days, out _))
+            ShowText("Договор подписан", $"{playerKingdom.Name} и {target.Name} заключили пакт о ненападении на {days} дней.");
         else
-            ShowText("Не удалось заключить договор", result);
+            ShowText("Не удалось заключить договор", "Условия договора изменились. Попробуйте снова.");
     }
 
     private static void ShowBreakTargets(KaiDiplomacyBehavior diplomacy, Kingdom playerKingdom)
@@ -207,7 +206,7 @@ public sealed class KaiDiplomacyOfficeBehavior : CampaignBehaviorBase
 
         if (targets.Count == 0)
         {
-            ShowText("Разрыв договора", "У вашего королевства нет активных пактов о ненападении KaiTOR.");
+            ShowText("Разрыв договора", "У вашего королевства нет активных пактов о ненападении.");
             return;
         }
 
@@ -246,10 +245,9 @@ public sealed class KaiDiplomacyOfficeBehavior : CampaignBehaviorBase
     private static void ShowMarriageRules()
     {
         ShowText(
-            "Семья и браки — LoadSafe",
-            "В этой тестовой версии KaiTOR Diplomacy семейные model-wrapper'ы намеренно не устанавливаются: правила браков, беременности, естественной смерти и жизненного цикла остаются под контролем The Old Realms. " +
-            "Это сделано для безопасной проверки существующих TOR-сохранений. Код расширенной семейной системы сохранён в модуле, но не активируется, пока LoadSafeDiagnostics включён.\n\n" +
-            "Дворфы (Dawi): женские персонажи и беременность дополнительно принудительно отключены заглушкой SAFE-OFF и не участвуют в v0.4.0.");
+            "Семья и браки",
+            "В этой версии используются стандартные правила семьи и жизненного цикла The Old Realms. Расширенные правила браков, беременности и естественной смерти временно не активируются.\n\n" +
+            "Для дворфов женские персонажи и беременность пока отключены до завершения отдельной проверки совместимости.");
     }
 
     private static void ShowCultureSupport()
@@ -257,9 +255,9 @@ public sealed class KaiDiplomacyOfficeBehavior : CampaignBehaviorBase
         var behavior = Campaign.Current?.GetCampaignBehavior<KaiCultureAssimilationBehavior>();
         var lines = behavior?.DescribeCultureSupport().ToArray() ?? Array.Empty<string>();
         ShowText(
-            "Полная смена культуры TOR",
-            "Стоимость: 100 000 динаров. Требуется уровень клана 3+ и собственный город/замок. FULL означает, что культура содержит необходимые шаблоны рекрутов, ополчения, наёмников таверны, караванов и странников.\n\n" +
-            (lines.Length == 0 ? "Диагностика культур недоступна." : string.Join("\n", lines)));
+            "Смена культуры поселений",
+            "Стоимость: 100 000 динаров. Требуется уровень клана 3+ и собственный город или замок. Поддерживаемая культура должна содержать необходимые шаблоны рекрутов, ополчения, наёмников таверны, караванов и странников.\n\n" +
+            (lines.Length == 0 ? "Сведения о поддерживаемых культурах недоступны." : string.Join("\n", lines)));
     }
 
     private static bool HasActivePlayerPact(KaiDiplomacyBehavior diplomacy, Kingdom playerKingdom)
