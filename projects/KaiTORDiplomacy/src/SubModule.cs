@@ -11,8 +11,8 @@ namespace KaiTOR.Diplomacy;
 public sealed class SubModule : MBSubModuleBase
 {
     // Diagnostic live-test latch for existing TOR saves.
-    // LoadSafe must not install lifecycle/family model wrappers, conversation hooks,
-    // or autonomous hero/racial-population mutation systems.
+    // LoadSafe still blocks pregnancy/death/racial hero spawning and custom courtship
+    // graph hooks, but v0.4.5 selectively restores Bannerlord's native marriage model.
     private const bool LoadSafeDiagnostics = true;
 
     protected override void OnGameStart(Game game, IGameStarter gameStarterObject)
@@ -22,32 +22,38 @@ public sealed class SubModule : MBSubModuleBase
         if (gameStarterObject is not CampaignGameStarter campaignStarter)
             return;
 
+        // Marriage is restored in LoadSafe by wrapping TOR's exact TORMarriageModel.
+        // We do not inject a second courtship graph: Bannerlord's own RomanceCampaignBehavior,
+        // LordConversationsCampaignBehavior and MarriageOfferCampaignBehavior consume this model
+        // and therefore provide the standard player proposals, clan-leader arranged marriages
+        // and AI marriage offers without a custom dialogue replacement.
+        InstallMarriageWrapper(campaignStarter);
+
         if (!LoadSafeDiagnostics)
         {
-            // TOR intentionally freezes Bannerlord's life/death cycle. The normal
-            // full-family path restores it for age, children, dynasties and succession.
+            // Full-family mode remains separately gated. It restores life/death, pregnancy
+            // and race-specific population only after those paths are certified in TOR.
             CampaignOptions.IsLifeDeathCycleDisabled = false;
 
             InstallPermissionWrapper(campaignStarter);
-            InstallMarriageWrapper(campaignStarter);
             InstallPregnancyWrapper(campaignStarter);
             InstallHeroDeathWrapper(campaignStarter);
 
-            // These behaviors mutate the family/racial hero graph and therefore stay
-            // completely outside the live LoadSafe branch until separately certified.
             campaignStarter.AddBehavior(new KaiMarriageWarningBehavior());
             campaignStarter.AddBehavior(new KaiRacialPopulationBehavior());
             campaignStarter.AddBehavior(new KaiDawiWomenBehavior());
         }
 
-        // LoadSafe runtime: treaties/UI/culture conversion plus conservative ruler AI.
-        // KaiDynastyAiBehavior remains loaded, but in this branch it is recruitment-only
-        // and cannot create cadet clans or new heroes on weekly ticks.
+        // LoadSafe runtime: treaties/UI/culture conversion, conservative ruler recruitment
+        // and staged cadet-house creation. Cadet houses are never created on WeeklyTick;
+        // the weekly event only queues one request and the actual mutation is deferred to a
+        // safe player settlement-entry boundary.
         campaignStarter.AddBehavior(new KaiDiplomacyBehavior());
         campaignStarter.AddBehavior(new KaiDiplomacyOfficeBehavior());
         campaignStarter.AddBehavior(new KaiDiplomacyAiBehavior());
         campaignStarter.AddBehavior(new KaiCultureAssimilationBehavior());
         campaignStarter.AddBehavior(new KaiDynastyAiBehavior());
+        campaignStarter.AddBehavior(new KaiCadetHouseSafeBehavior());
     }
 
     private static void InstallPermissionWrapper(CampaignGameStarter starter)
@@ -62,6 +68,8 @@ public sealed class SubModule : MBSubModuleBase
     private static void InstallMarriageWrapper(CampaignGameStarter starter)
     {
         var torModel = starter.GetModel<MarriageModel>();
+        if (torModel is KaiPlayerMarriageModel)
+            return;
         if (!string.Equals(torModel?.GetType().FullName, KaiPlayerMarriageModel.ExpectedTorBaseType, StringComparison.Ordinal))
             return;
 
