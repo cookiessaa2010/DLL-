@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using KaiTOR.Diplomacy.Models;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
 using TaleWorlds.CampaignSystem.GameMenus;
@@ -13,8 +12,9 @@ namespace KaiTOR.Diplomacy.Runtime;
 /// <summary>
 /// Native-menu family front end for the player clan. It deliberately reuses
 /// Bannerlord's public AdoptHeroAction instead of writing family graph fields directly.
-/// Adoption converts an existing player companion into a noble family member, which
-/// makes the hero visible to the vanilla marriage-offer and arranged-marriage systems.
+/// Adoption converts an existing player-house companion/member into a noble family
+/// member, which makes the hero visible to vanilla marriage-offer and arranged-marriage
+/// systems without creating a new hero at runtime.
 /// </summary>
 public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
 {
@@ -68,14 +68,14 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
             new("marriages", "Брачные союзы", null),
             new(
                 "adopt",
-                "Принять в род",
+                candidates.Length > 0 ? $"Принять в род ({candidates.Length})" : "Принять в род",
                 null,
-                canAdoptMore && candidates.Length > 0,
+                true,
                 !canAdoptMore
                     ? "Ваш дом уже достаточно велик."
                     : candidates.Length == 0
-                        ? "Среди ваших спутников сейчас нет подходящего человека, которого можно принять в род."
-                        : string.Empty),
+                        ? "Супруг для этого не требуется. Сначала нужен взрослый свободный спутник или член вашего дома без родителей, супруга и детей."
+                        : "Выбрать человека, которого можно признать ребёнком вашего дома."),
         };
 
         MBInformationManager.ShowMultiSelectionInquiry(
@@ -91,6 +91,11 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
                 selected =>
                 {
                     if (selected.Count == 0) return;
+
+                    // Bannerlord will not reliably open a second inquiry while the
+                    // first selection inquiry is still active. Close it first.
+                    InformationManager.HideInquiry();
+
                     switch (selected[0].Identifier as string)
                     {
                         case "house": ShowHousehold(); break;
@@ -184,14 +189,14 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
         {
             ShowText(
                 "Принять в род",
-                "Среди ваших спутников сейчас нет подходящего человека. Взрослый спутник должен быть свободен от других семейных уз и принадлежать к той же народности, что и вы.");
+                "Супруг или супруга для усыновления не требуются. Сейчас в вашем доме нет подходящего кандидата. Сначала наймите взрослого спутника или приведите в свой клан свободного взрослого героя без родителей, супруга и детей. Он должен принадлежать к той же расе, что и вы.");
             return;
         }
 
         MBInformationManager.ShowMultiSelectionInquiry(
             new MultiSelectionInquiryData(
                 "Принять в род",
-                "Выберите спутника, которого вы хотите признать своим ребёнком и полноправным членом знатного дома.",
+                "Выберите человека, которого вы хотите признать своим ребёнком и полноправным членом знатного дома.",
                 candidates,
                 true,
                 1,
@@ -202,6 +207,8 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
                 {
                     if (selected.Count == 0 || selected[0].Identifier is not Hero candidate)
                         return;
+
+                    InformationManager.HideInquiry();
                     ConfirmAdoption(candidate);
                 },
                 null),
@@ -245,7 +252,8 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
             if (!candidate.IsLord)
                 candidate.SetNewOccupation(Occupation.Lord);
 
-            candidate.Clan = Clan.PlayerClan;
+            // AdoptHeroAction itself sets Mother/Father and moves the hero into the
+            // player's clan. Do not write family graph fields manually.
             AdoptHeroAction.Apply(candidate);
             candidate.IsKnownToPlayer = true;
 
@@ -297,11 +305,12 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
             return false;
         }
 
-        // Adoption is intentionally limited to an existing player companion. This
-        // avoids stealing heroes from AI clans and avoids creating a new hero at runtime.
-        if (hero.CompanionOf != playerClan)
+        // Never take a hero out of an AI clan. Eligible candidates must already be a
+        // player companion or an unattached adult member of the player's own clan.
+        var belongsToPlayerHouse = hero.CompanionOf == playerClan || hero.Clan == playerClan;
+        if (!belongsToPlayerHouse)
         {
-            reason = "Сначала этот человек должен стать вашим спутником.";
+            reason = "Сначала этот человек должен присоединиться к вашему дому.";
             return false;
         }
 
@@ -323,9 +332,9 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
             return false;
         }
 
-        if (hero.CharacterObject.Race != mainHero.CharacterObject.Race)
+        if (hero.CharacterObject?.Race != mainHero.CharacterObject.Race)
         {
-            reason = "Для признания наследником требуется общая народность вашего рода.";
+            reason = "Для признания наследником требуется общая раса вашего рода.";
             return false;
         }
 
