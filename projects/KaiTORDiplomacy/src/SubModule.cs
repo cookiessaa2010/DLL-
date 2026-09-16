@@ -11,10 +11,7 @@ namespace KaiTOR.Diplomacy;
 public sealed class SubModule : MBSubModuleBase
 {
     // Diagnostic live-test latch for existing TOR saves.
-    // The first v0.3.0 live test reached the end of Bannerlord save deserialization,
-    // then crashed while the campaign map was being initialized. To isolate the
-    // highest-risk startup group, this build temporarily leaves TOR's lifecycle and
-    // family/death models untouched while keeping KaiTOR campaign behaviors loaded.
+    // LoadSafe must not install lifecycle/family model wrappers or conversation hooks.
     private const bool LoadSafeDiagnostics = true;
 
     protected override void OnGameStart(Game game, IGameStarter gameStarterObject)
@@ -27,20 +24,25 @@ public sealed class SubModule : MBSubModuleBase
         if (!LoadSafeDiagnostics)
         {
             // TOR intentionally freezes Bannerlord's life/death cycle. The normal
-            // KaiTOR path restores it for age, children, dynasties and succession.
+            // full-family path restores it for age, children, dynasties and succession.
             CampaignOptions.IsLifeDeathCycleDisabled = false;
 
             InstallPermissionWrapper(campaignStarter);
             InstallMarriageWrapper(campaignStarter);
             InstallPregnancyWrapper(campaignStarter);
             InstallHeroDeathWrapper(campaignStarter);
+
+            // This behavior injects lines into Bannerlord's courtship conversation graph.
+            // It is meaningful only when the marriage/pregnancy wrappers above are active.
+            // Keeping it out of LoadSafe guarantees ordinary lord conversations remain
+            // completely TOR/Bannerlord-owned during compatibility testing.
+            campaignStarter.AddBehavior(new KaiMarriageWarningBehavior());
         }
 
         campaignStarter.AddBehavior(new KaiDiplomacyBehavior());
         campaignStarter.AddBehavior(new KaiDiplomacyOfficeBehavior());
         campaignStarter.AddBehavior(new KaiDiplomacyAiBehavior());
         campaignStarter.AddBehavior(new KaiCultureAssimilationBehavior());
-        campaignStarter.AddBehavior(new KaiMarriageWarningBehavior());
         campaignStarter.AddBehavior(new KaiRacialPopulationBehavior());
         campaignStarter.AddBehavior(new KaiDawiWomenBehavior());
         campaignStarter.AddBehavior(new KaiDynastyAiBehavior());
