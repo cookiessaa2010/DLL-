@@ -28,23 +28,21 @@ public sealed class KaiDiplomacyOfficeBehavior : CampaignBehaviorBase
 
     private void OnSessionLaunched(CampaignGameStarter starter)
     {
-        starter.AddGameMenuOption(
-            "town",
-            "kaitor_diplomacy_office_town",
-            "Дипломатия",
-            OfficeCondition,
-            _ => ShowOffice(),
-            false,
-            8);
+        AddOfficeMenuOption(starter, "town", "kaitor_diplomacy_office_town", 8);
+        AddOfficeMenuOption(starter, "town_outside", "kaitor_diplomacy_office_town_outside", 8);
+        AddOfficeMenuOption(starter, "castle", "kaitor_diplomacy_office_castle", 8);
+    }
 
+    private void AddOfficeMenuOption(CampaignGameStarter starter, string menuId, string optionId, int index)
+    {
         starter.AddGameMenuOption(
-            "castle",
-            "kaitor_diplomacy_office_castle",
+            menuId,
+            optionId,
             "Дипломатия",
             OfficeCondition,
             _ => ShowOffice(),
             false,
-            8);
+            index);
     }
 
     private bool OfficeCondition(MenuCallbackArgs args)
@@ -68,14 +66,14 @@ public sealed class KaiDiplomacyOfficeBehavior : CampaignBehaviorBase
             new("ledger", "Договоры и дипломатическое доверие", null),
             new("offer", "Предложить пакт о ненападении", null, canRule, canRule ? string.Empty : "Подписывать межгосударственные договоры может только правящий клан."),
             new("break", "Разорвать пакт о ненападении", null, canRule && HasActivePlayerPact(diplomacy, playerKingdom), canRule ? "Нет активного пакта, который можно разорвать." : "Разрывать межгосударственные договоры может только правящий клан."),
-            new("marriage", "Семья и браки", null),
-            new("culture", "Смена культуры поселений", null),
+            new("marriage", "Брачные союзы", null),
+            new("culture", "Смена народности поселений", null),
         };
 
         MBInformationManager.ShowMultiSelectionInquiry(
             new MultiSelectionInquiryData(
                 "Дипломатия",
-                $"Королевство: {playerKingdom.Name}. Ваша роль: {(canRule ? "правитель" : "вассал — дипломатия только для просмотра")}.",
+                $"Королевство: {playerKingdom.Name}. Ваша роль: {(canRule ? "правитель" : "вассал — межгосударственные договоры доступны только для просмотра")}.",
                 options,
                 true,
                 1,
@@ -245,9 +243,9 @@ public sealed class KaiDiplomacyOfficeBehavior : CampaignBehaviorBase
     private static void ShowMarriageRules()
     {
         ShowText(
-            "Семья и браки",
-            "В этой версии используются стандартные правила семьи и жизненного цикла The Old Realms. Расширенные правила браков, беременности и естественной смерти временно не активируются.\n\n" +
-            "Для дворфов женские персонажи и беременность пока отключены до завершения отдельной проверки совместимости.");
+            "Брачные союзы",
+            "Брачные предложения снова используют штатную систему Bannerlord: разговор с главой клана, выбор подходящей пары и стандартный экран торга за условия брака. ИИ также может сам присылать предложения о браке членам вашего клана.\n\n" +
+            "Беременность, естественное старение и отдельная женская ветка дворфов пока не включаются. Для дворфов женские персонажи и беременность остаются отключены до отдельной проверки совместимости.");
     }
 
     private static void ShowCultureSupport()
@@ -255,9 +253,9 @@ public sealed class KaiDiplomacyOfficeBehavior : CampaignBehaviorBase
         var behavior = Campaign.Current?.GetCampaignBehavior<KaiCultureAssimilationBehavior>();
         var lines = behavior?.DescribeCultureSupport().ToArray() ?? Array.Empty<string>();
         ShowText(
-            "Смена культуры поселений",
-            "Стоимость: 100 000 динаров. Требуется уровень клана 3+ и собственный город или замок. Поддерживаемая культура должна содержать необходимые шаблоны рекрутов, ополчения, наёмников таверны, караванов и странников.\n\n" +
-            (lines.Length == 0 ? "Сведения о поддерживаемых культурах недоступны." : string.Join("\n", lines)));
+            "Смена народности поселений",
+            "Стоимость: 100 000 динаров. Требуется уровень клана 3+ и собственный город или замок. В меню собственного города появляется пункт «Сменить народность поселения». Поддерживаемая народность должна содержать необходимые шаблоны рекрутов, ополчения, наёмников таверны, караванов и странников.\n\n" +
+            (lines.Length == 0 ? "Сведения о поддерживаемых народностях недоступны." : string.Join("\n", lines)));
     }
 
     private static bool HasActivePlayerPact(KaiDiplomacyBehavior diplomacy, Kingdom playerKingdom)
