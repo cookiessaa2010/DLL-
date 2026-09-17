@@ -6,7 +6,9 @@ using System.Reflection;
 using System.Xml.Linq;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.CharacterDevelopment;
+using TaleWorlds.CampaignSystem.Extensions;
 using TaleWorlds.Core;
+using TaleWorlds.Library;
 using TaleWorlds.Localization;
 using TaleWorlds.ModuleManager;
 
@@ -68,7 +70,6 @@ public sealed class KaiLoreEducationBehavior : CampaignBehaviorBase
     {
         if (_inquiryOpen || !_loaded || Clan.PlayerClan == null) return;
 
-        // Old-save catch-up: offer only one missing lore step per day and never replace native education.
         foreach (var child in Clan.PlayerClan.Heroes.Where(IsRelevantChild).OrderBy(h => h.Age))
         {
             if (child.Age >= OriginAge && !IsStageDone(child, 1)) { TryOfferStage(child, 1); return; }
@@ -98,7 +99,6 @@ public sealed class KaiLoreEducationBehavior : CampaignBehaviorBase
             .OrderBy(x => Localize(x.OptionText), StringComparer.CurrentCulture)
             .ToList();
 
-        // TOR does not define narrative choices for every non-playable culture. Do not block aging in that case.
         if (choices.Count == 0)
         {
             MarkStageDone(child, stage);
@@ -212,14 +212,12 @@ public sealed class KaiLoreEducationBehavior : CampaignBehaviorBase
         }
         catch
         {
-            // TOR career APIs are optional integration points. Never block adulthood or save loading.
+            // Career integration must never block adulthood or save loading.
         }
     }
 
     private static void ApplyEssentialCareerFlags(Type extensions, Hero hero, string professionId)
     {
-        // TOR character creation gives these professions core extended-info flags in addition to the CareerObject.
-        // We mirror only the essential role flag here; lore/deity/bloodline specialization remains TOR-owned.
         string attribute = null;
         if (professionId.Contains("magister") || professionId.Contains("spellsinger") || professionId.Contains("greylord") || professionId.Contains("shaman"))
             attribute = "SpellCaster";
