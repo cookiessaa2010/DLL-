@@ -6,19 +6,21 @@ using TaleWorlds.CampaignSystem.Actions;
 using TaleWorlds.CampaignSystem.GameMenus;
 using TaleWorlds.Core;
 using TaleWorlds.Library;
+using TaleWorlds.Localization;
 
 namespace KaiTOR.Diplomacy.Runtime;
 
 /// <summary>
-/// Native-menu family front end for the player clan. It deliberately reuses
-/// Bannerlord's public AdoptHeroAction instead of writing family graph fields directly.
-/// Adoption converts an existing player-house companion/member into a noble family
-/// member, which makes the hero visible to vanilla marriage-offer and arranged-marriage
-/// systems without creating a new hero at runtime.
+/// Native-menu family front end for the player clan. Navigation deliberately uses a
+/// Campaign GameMenu rather than chaining inquiry popups: Bannerlord closes a
+/// MultiSelection inquiry after invoking its callback, which otherwise also closes any
+/// child popup opened from that callback.
 /// </summary>
 public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
 {
     private const int MaximumLivingChildren = 6;
+    private const string FamilyMenuId = "kaitor_family_affairs";
+    private static string _returnMenuId = "town";
 
     public override void RegisterEvents()
     {
@@ -31,6 +33,50 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
 
     private void OnSessionLaunched(CampaignGameStarter starter)
     {
+        starter.AddGameMenu(
+            FamilyMenuId,
+            "Здесь решаются дела вашего дома: родственные узы, брачные союзы и принятие новых членов семьи.",
+            FamilyMenuInit,
+            GameMenu.MenuOverlayType.None,
+            GameMenu.MenuFlags.None,
+            null);
+
+        starter.AddGameMenuOption(
+            FamilyMenuId,
+            "kaitor_family_house",
+            "Мой род",
+            ManageOptionCondition,
+            _ => ShowHousehold(),
+            false,
+            0);
+
+        starter.AddGameMenuOption(
+            FamilyMenuId,
+            "kaitor_family_marriages",
+            "Брачные союзы",
+            ManageOptionCondition,
+            _ => ShowMarriageAffairs(),
+            false,
+            1);
+
+        starter.AddGameMenuOption(
+            FamilyMenuId,
+            "kaitor_family_adopt",
+            "Принять в род",
+            AdoptionOptionCondition,
+            _ => ShowAdoptionCandidates(),
+            false,
+            2);
+
+        starter.AddGameMenuOption(
+            FamilyMenuId,
+            "kaitor_family_back",
+            "Назад",
+            BackOptionCondition,
+            _ => ReturnFromFamilyMenu(),
+            true,
+            99);
+
         AddFamilyMenuOption(starter, "town", "kaitor_family_affairs_town", 9);
         AddFamilyMenuOption(starter, "town_outside", "kaitor_family_affairs_town_outside", 9);
         AddFamilyMenuOption(starter, "castle", "kaitor_family_affairs_castle", 9);
@@ -42,13 +88,17 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
             menuId,
             optionId,
             "Семейные дела",
-            FamilyMenuCondition,
-            _ => ShowFamilyAffairs(),
+            FamilyEntryCondition,
+            _ => OpenFamilyMenu(),
             false,
             index);
     }
 
-    private static bool FamilyMenuCondition(MenuCallbackArgs args)
+    private static void FamilyMenuInit(MenuCallbackArgs args)
+    {
+    }
+
+    private static bool FamilyEntryCondition(MenuCallbackArgs args)
     {
         if (Hero.MainHero == null || Clan.PlayerClan == null)
             return false;
@@ -57,55 +107,37 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
         return true;
     }
 
-    private static void ShowFamilyAffairs()
+    private static bool ManageOptionCondition(MenuCallbackArgs args)
     {
-        var candidates = GetAdoptionCandidates().ToArray();
-        var canAdoptMore = CanAdoptMoreChildren();
+        args.optionLeaveType = GameMenuOption.LeaveType.Manage;
+        return Hero.MainHero != null && Clan.PlayerClan != null;
+    }
 
-        var options = new List<InquiryElement>
-        {
-            new("house", "Мой род", null),
-            new("marriages", "Брачные союзы", null),
-            new(
-                "adopt",
-                candidates.Length > 0 ? $"Принять в род ({candidates.Length})" : "Принять в род",
-                null,
-                true,
-                !canAdoptMore
-                    ? "Ваш дом уже достаточно велик."
-                    : candidates.Length == 0
-                        ? "Супруг для этого не требуется. Сначала нужен взрослый свободный спутник или член вашего дома без родителей, супруга и детей."
-                        : "Выбрать человека, которого можно признать ребёнком вашего дома."),
-        };
+    private static bool AdoptionOptionCondition(MenuCallbackArgs args)
+    {
+        args.optionLeaveType = GameMenuOption.LeaveType.Manage;
+        return Hero.MainHero != null && Clan.PlayerClan != null;
+    }
 
-        MBInformationManager.ShowMultiSelectionInquiry(
-            new MultiSelectionInquiryData(
-                "Семейные дела",
-                "Здесь решаются дела вашего дома: родственные узы, брачные союзы и принятие новых членов семьи.",
-                options,
-                true,
-                1,
-                1,
-                "Открыть",
-                "Закрыть",
-                selected =>
-                {
-                    if (selected.Count == 0) return;
+    private static bool BackOptionCondition(MenuCallbackArgs args)
+    {
+        args.optionLeaveType = GameMenuOption.LeaveType.Leave;
+        return true;
+    }
 
-                    // Bannerlord will not reliably open a second inquiry while the
-                    // first selection inquiry is still active. Close it first.
-                    InformationManager.HideInquiry();
+    private static void OpenFamilyMenu()
+    {
+        var currentMenuId = Campaign.Current?.CurrentMenuContext?.GameMenu?.StringId;
+        if (!string.IsNullOrWhiteSpace(currentMenuId) && !string.Equals(currentMenuId, FamilyMenuId, StringComparison.Ordinal))
+            _returnMenuId = currentMenuId;
 
-                    switch (selected[0].Identifier as string)
-                    {
-                        case "house": ShowHousehold(); break;
-                        case "marriages": ShowMarriageAffairs(); break;
-                        case "adopt": ShowAdoptionCandidates(); break;
-                    }
-                },
-                null),
-            true,
-            true);
+        GameMenu.SwitchToMenu(FamilyMenuId);
+    }
+
+    private static void ReturnFromFamilyMenu()
+    {
+        var target = string.IsNullOrWhiteSpace(_returnMenuId) ? "town" : _returnMenuId;
+        GameMenu.SwitchToMenu(target);
     }
 
     private static void ShowHousehold()
@@ -157,12 +189,12 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
 
         var candidateText = candidates.Length == 0
             ? "Сейчас в вашем доме нет свободных взрослых членов семьи, для которых можно искать брачный союз."
-            : "Сейчас брачный союз можно искать для: " + string.Join(", ", candidates) + ".";
+            : "Брачный союз можно искать для: " + string.Join(", ", candidates) + ".";
 
         ShowText(
             "Брачные союзы",
-            "Поговорите с главой другого знатного дома, чтобы предложить брак для себя или члена семьи. Другие дома также могут первыми прислать предложение, и оно появится отдельным известием на карте.\n\n" +
-            "Женщина из вашего дома может заключить брачный союз с другой женщиной. Такой союз не даёт кровных наследников, но семья может продолжаться через принятие детей в род.\n\n" +
+            "Брак заключается через переговоры с главой другого знатного дома. Другие дома также могут первыми прислать предложение.\n\n" +
+            "Союз без возможности биологических детей остаётся допустимым, но система предупредит об этом до окончательных договорённостей.\n\n" +
             candidateText);
     }
 
@@ -189,57 +221,37 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
         {
             ShowText(
                 "Принять в род",
-                "Супруг или супруга для усыновления не требуются. Сейчас в вашем доме нет подходящего кандидата. Сначала наймите взрослого спутника или приведите в свой клан свободного взрослого героя без родителей, супруга и детей. Он должен принадлежать к той же расе, что и вы.");
+                "Сейчас нет подходящего кандидата. Нужен взрослый спутник или член вашего клана той же расы, без родителей, супруга и детей.");
             return;
         }
 
         MBInformationManager.ShowMultiSelectionInquiry(
             new MultiSelectionInquiryData(
                 "Принять в род",
-                "Выберите человека, которого вы хотите признать своим ребёнком и полноправным членом знатного дома.",
+                "Выберите человека. Нажатие «Принять в род» завершит церемонию и сделает выбранного героя вашим ребёнком и наследником.",
                 candidates,
                 true,
                 1,
                 1,
-                "Выбрать",
+                "Принять в род",
                 "Отмена",
                 selected =>
                 {
                     if (selected.Count == 0 || selected[0].Identifier is not Hero candidate)
                         return;
 
-                    InformationManager.HideInquiry();
-                    ConfirmAdoption(candidate);
+                    Adopt(candidate);
                 },
                 null),
             true,
             true);
     }
 
-    private static void ConfirmAdoption(Hero candidate)
-    {
-        if (!IsEligibleForAdoption(candidate, out var reason))
-        {
-            ShowText("Принять в род", reason);
-            return;
-        }
-
-        InformationManager.ShowInquiry(new InquiryData(
-            "Принять в род",
-            $"Признать {candidate.Name} своим ребёнком и наследником вашего дома? После этого {candidate.Name} станет знатным членом семьи и сможет участвовать в династических браках.",
-            true,
-            true,
-            candidate.IsFemale ? "Удочерить" : "Усыновить",
-            "Отмена",
-            () => Adopt(candidate),
-            null), false, false);
-    }
-
     private static void Adopt(Hero candidate)
     {
         if (!IsEligibleForAdoption(candidate, out var reason))
         {
-            ShowText("Принять в род", reason);
+            ShowQuick(reason, candidate);
             return;
         }
 
@@ -252,20 +264,16 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
             if (!candidate.IsLord)
                 candidate.SetNewOccupation(Occupation.Lord);
 
-            // AdoptHeroAction itself sets Mother/Father and moves the hero into the
-            // player's clan. Do not write family graph fields manually.
             AdoptHeroAction.Apply(candidate);
             candidate.IsKnownToPlayer = true;
 
-            ShowText(
-                "Новый член семьи",
-                $"{candidate.Name} отныне признан{(candidate.IsFemale ? "а" : string.Empty)} вашим ребёнком и полноправным членом рода. Знатные дома смогут предлагать для {(candidate.IsFemale ? "неё" : "него")} брачные союзы.");
+            ShowQuick(
+                $"{candidate.Name} принят{(candidate.IsFemale ? "а" : string.Empty)} в ваш род и признан{(candidate.IsFemale ? "а" : string.Empty)} наследником.",
+                candidate);
         }
         catch
         {
-            ShowText(
-                "Семейные дела",
-                "Церемонию пришлось отложить. Обстоятельства изменились, и сейчас принять этого человека в род невозможно.");
+            ShowQuick("Сейчас принять этого человека в род невозможно.", candidate);
         }
     }
 
@@ -305,8 +313,6 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
             return false;
         }
 
-        // Never take a hero out of an AI clan. Eligible candidates must already be a
-        // player companion or an unattached adult member of the player's own clan.
         var belongsToPlayerHouse = hero.CompanionOf == playerClan || hero.Clan == playerClan;
         if (!belongsToPlayerHouse)
         {
@@ -355,5 +361,15 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
             string.Empty,
             null,
             null), false, false);
+    }
+
+    private static void ShowQuick(string text, Hero hero = null)
+    {
+        MBInformationManager.AddQuickInformation(
+            new TextObject(text),
+            2500,
+            hero?.CharacterObject,
+            null,
+            string.Empty);
     }
 }
