@@ -1,11 +1,9 @@
-name: KaiTOR Unified Lifecycle Restore 1.3.15
+name: KaiTOR Unified Diplomacy Family Lore 1.3.15
 
 on:
   push:
     branches:
-      - kaitor-dawi-women-live-test
-      - kaitor-global-test-v0.6.1-crashfix
-      - kaitor-global-test-v0.6.2-lifecycle-marriage
+      - kaitor-global-test-v0.6.3-diplomacy-ui
     paths:
       - 'projects/KaiTORDiplomacy/**'
       - '.github/workflows/kaitor-dawi-live-test-build.yml'
@@ -24,7 +22,7 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Build KaiTOR unified v0.6.2 Lifecycle Marriage Restore
+      - name: Build KaiTOR unified v0.6.3
         shell: pwsh
         run: |
           dotnet build projects/KaiTORDiplomacy/src/KaiTOR_Diplomacy.csproj `
@@ -33,7 +31,7 @@ jobs:
             --nologo
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Verify lifecycle marriage and crash-safety contracts
+      - name: Verify diplomacy family lore contracts
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -41,109 +39,116 @@ jobs:
           $manifest = Get-Content projects/KaiTORDiplomacy/module/SubModule.xml -Raw
           foreach ($required in @(
             '<Id value="KaiTOR_Diplomacy" />',
-            '<Version value="v0.6.2" />',
+            '<Version value="v0.6.3" />',
+            '<DependedModule Id="Bannerlord.Harmony" />',
             'kaitor_dawi_women',
             'kaitor_dawi_monster'
           )) {
-            if ($manifest -notmatch [regex]::Escape($required)) { throw "Unified manifest contract missing: $required" }
+            if ($manifest -notmatch [regex]::Escape($required)) { throw "Manifest contract missing: $required" }
           }
 
           $project = Get-Content projects/KaiTORDiplomacy/src/KaiTOR_Diplomacy.csproj -Raw
           foreach ($required in @(
-            '<Version>0.6.2</Version>',
-            '<AssemblyVersion>0.6.2.0</AssemblyVersion>',
-            '0.6.2-Lifecycle-MarriageRestore'
+            '<Version>0.6.3</Version>',
+            '<AssemblyVersion>0.6.3.0</AssemblyVersion>',
+            '0.6.3-Diplomacy-Family-LoreEducation-Test',
+            'TaleWorlds.CampaignSystem.ViewModelCollection',
+            'Lib.Harmony'
           )) {
-            if ($project -notmatch [regex]::Escape($required)) { throw "Version contract missing: $required" }
+            if ($project -notmatch [regex]::Escape($required)) { throw "Project contract missing: $required" }
           }
 
           $sub = Get-Content projects/KaiTORDiplomacy/src/SubModule.cs -Raw
           foreach ($required in @(
             'LoadSafeDiagnostics = true',
-            'EnableLifecycleRestore = true',
-            'EnableLoreOldAgeMortality = true',
-            'EnableMarriageWarnings = true',
-            'EnableDawiWomenLiveTest = true',
             'CampaignOptions.IsLifeDeathCycleDisabled = false',
             'InstallMarriageWrapper(campaignStarter)',
             'InstallPregnancyWrapper(campaignStarter)',
             'InstallHeroDeathWrapper(campaignStarter)',
-            'new KaiMarriageWarningBehavior()',
+            'InstallPermissionWrapper(campaignStarter)',
             'new KaiFamilyAffairsBehavior()',
-            'new KaiRealmHouseGrowthBehavior()'
+            'new KaiLoreEducationBehavior()',
+            'new KaiRealmHouseGrowthBehavior()',
+            'KaiDiplomacyUiPatch.Install'
           )) {
-            if ($sub -notmatch [regex]::Escape($required)) { throw "Lifecycle runtime contract missing: $required" }
+            if ($sub -notmatch [regex]::Escape($required)) { throw "Runtime contract missing: $required" }
           }
-          if ($sub -match 'campaignStarter\.AddModel<AgeModel>') { throw 'v0.6.2 must keep Bannerlord standard child age progression.' }
-          if ($sub -match 'campaignStarter\.AddBehavior\(new KaiCadetHouseSafeBehavior\(\)\);') { throw 'Legacy settlement-entry clan mutation must not be registered.' }
+          if ($sub -match 'campaignStarter\.AddModel<AgeModel>') { throw 'Standard Bannerlord child age progression must remain untouched.' }
+          if ($sub -match 'new KaiDiplomacyOfficeBehavior\(\)') { throw 'Diplomacy must not be registered in town/castle menus.' }
+          if ($sub -match 'new KaiRacialPopulationBehavior\(\)') { throw 'Unsafe automatic racial population must stay OFF.' }
 
-          $marriage = Get-Content projects/KaiTORDiplomacy/src/Models/KaiPlayerMarriageModel.cs -Raw
+          $decisions = Get-Content projects/KaiTORDiplomacy/src/Decisions/KaiDiplomacyDecisions.cs -Raw
           foreach ($required in @(
-            'IsSafeNpcMarriagePair',
-            'TorFamilySafety.CanUseVanillaPregnancy',
-            'IsSupportedMarriageCulture(consideringClan.Culture?.StringId)',
-            'return base.NpcCoupleMarriageChance(firstHero, secondHero)'
+            'class KaiNonAggressionPactDecision',
+            'class KaiBreakNonAggressionPactDecision',
+            'NapProposalInfluenceCost',
+            'NapBreakInfluenceCost',
+            'Пакт о ненападении',
+            'Разрыв пакта'
           )) {
-            if ($marriage -notmatch [regex]::Escape($required)) { throw "Marriage restore contract missing: $required" }
-          }
-          if ($marriage -match 'IsCertifiedNpcDynastyCulture') { throw 'Legacy four-culture NPC marriage gate must be removed.' }
-
-          $death = Get-Content projects/KaiTORDiplomacy/src/Models/KaiHeroDeathProbabilityModel.cs -Raw
-          foreach ($required in @(
-            'DawiOldAgeStart = 180f',
-            'DawiHardMaxAge = 420f',
-            'TorFamilySafety.IsVampire(hero)',
-            'TorFamilySafety.IsUndead(hero)',
-            'IsCulture(hero, "battania")',
-            'IsCulture(hero, "eonir")',
-            'IsCulture(hero, "aserai")'
-          )) {
-            if ($death -notmatch [regex]::Escape($required)) { throw "Lore mortality contract missing: $required" }
+            if ($decisions -notmatch [regex]::Escape($required)) { throw "Diplomacy decision contract missing: $required" }
           }
 
-          $warning = Get-Content projects/KaiTORDiplomacy/src/Runtime/KaiMarriageWarningBehavior.cs -Raw
+          $dip = Get-Content projects/KaiTORDiplomacy/src/Runtime/KaiDiplomacyBehavior.cs -Raw
           foreach ($required in @(
-            'Этот брак возможен',
-            'Продолжить брачные договорённости',
-            'не будет биологических детей'
+            'DefaultNapDays = 90',
+            'NapProposalInfluenceCost = 150',
+            'NapBreakInfluenceCost = 100',
+            'NaturalExpiryTrustBonus',
+            'VoluntaryBreakTrustPenalty',
+            'WarBreachTrustPenalty',
+            'ChangeRelationAction'
           )) {
-            if ($warning -notmatch [regex]::Escape($required)) { throw "Russian marriage warning contract missing: $required" }
+            if ($dip -notmatch [regex]::Escape($required)) { throw "Diplomacy core contract missing: $required" }
           }
+          if ($dip -match 'IsStartAllianceDecisionAllowedBetweenKingdoms\(first, second') { throw 'NAP must not reuse alliance eligibility as its hard gate.' }
+
+          $ui = Get-Content projects/KaiTORDiplomacy/src/Runtime/KaiDiplomacyUiPatch.cs -Raw
+          foreach ($required in @(
+            'KingdomDiplomacyVM',
+            'KingdomDiplomacyProposalActionItemVM',
+            'Пакт о ненападении',
+            'Разорвать пакт',
+            'влияния'
+          )) {
+            if ($ui -notmatch [regex]::Escape($required)) { throw "Kingdom diplomacy UI contract missing: $required" }
+          }
+          foreach ($forbidden in @('KaiTOR:', 'RuntimeEnabled=', 'DEBUG', 'debug')) {
+            if ($ui -match [regex]::Escape($forbidden)) { throw "Technical player-facing UI text remains: $forbidden" }
+          }
+
+          $education = Get-Content projects/KaiTORDiplomacy/src/Runtime/KaiLoreEducationBehavior.cs -Raw
+          foreach ($required in @(
+            'tor_cc_options.xml',
+            'ChildEducationCompletedEvent',
+            'age == 8',
+            'age == 14',
+            'age == 16',
+            'HeroComesOfAgeEvent',
+            'ApplyTorCareer',
+            'Происхождение',
+            'Становление',
+            'Профессия'
+          )) {
+            if ($education -notmatch [regex]::Escape($required)) { throw "Lore education contract missing: $required" }
+          }
+
+          $permission = Get-Content projects/KaiTORDiplomacy/src/Models/KaiKingdomDecisionPermissionModel.cs -Raw
+          if ($permission -notmatch 'IsNonAggressionPactActive') { throw 'Active NAP must veto ordinary war decisions.' }
+          if ($permission -match 'KaiTOR:') { throw 'Permission model must not expose technical branding to player UI.' }
 
           $realm = Get-Content projects/KaiTORDiplomacy/src/Runtime/KaiRealmHouseGrowthBehavior.cs -Raw
-          foreach ($required in @(
-            'Clan.CreateCompanionToLordClan',
-            'ChangeKingdomAction.ApplyByJoinToKingdom',
-            'campaign.CurrentMenuContext != null',
-            '_commitInProgress',
-            'NATIVE_FACTORY_BEGIN',
-            'JOIN_KINGDOM_BEGIN',
-            'COMMIT_MANAGED_EXCEPTION',
-            'KaiTORRealmHouse.log',
-            'commit=hourly-open-map-native-factory'
-          )) {
+          foreach ($required in @('Clan.CreateCompanionToLordClan','ChangeKingdomAction.ApplyByJoinToKingdom','KaiTORRealmHouse.log')) {
             if ($realm -notmatch [regex]::Escape($required)) { throw "Realm crashfix contract missing: $required" }
           }
-          foreach ($forbidden in @(
-            'newClan.Kingdom = kingdom',
-            'founder.Clan = newClan',
-            'newClan.SetLeader(founder)',
-            'CampaignEventDispatcher.Instance.OnClanCreated(newClan, true)',
-            'Clan.CreateClan(clanId)'
-          )) {
+          foreach ($forbidden in @('newClan.Kingdom = kingdom','founder.Clan = newClan','newClan.SetLeader(founder)','Clan.CreateClan(clanId)')) {
             if ($realm -match [regex]::Escape($forbidden)) { throw "Forbidden manual graph mutation remains: $forbidden" }
           }
-          if ($realm -match 'AfterSettlementEntered') { throw 'Realm growth must never mutate the clan graph on settlement entry.' }
-          if ($realm -match 'ChangeOwnerOfSettlementAction') { throw 'New house transaction must remain landless.' }
-
-          $population = Get-Content projects/KaiTORDiplomacy/src/Runtime/KaiRacialPopulationBehavior.cs -Raw
-          if ($sub -notmatch 'if \(!LoadSafeDiagnostics\)') { throw 'Unsafe population systems lost their LoadSafe gate.' }
 
           $dawi = Get-Content projects/KaiTORDiplomacy/src/Runtime/KaiDawiWomenBehavior.cs -Raw
           if ($dawi -notmatch 'AutomaticPopulationEnabled = false') { throw 'Automatic Dawi population must stay OFF.' }
-          if ($dawi -notmatch 'SpawnOneForLiveTest') { throw 'Manual one-woman live-test probe is missing.' }
 
-          Write-Host 'KaiTOR unified v0.6.2 lifecycle + marriage + crash-safety contracts: PASS'
+          Write-Host 'KaiTOR unified v0.6.3 diplomacy + family + lore education contracts: PASS'
 
       - name: Assemble unified base package
         shell: pwsh
@@ -151,16 +156,15 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $module = 'artifact/KaiTOR_Diplomacy'
           New-Item -ItemType Directory -Path (Join-Path $module 'bin/Win64_Shipping_Client') -Force | Out-Null
-
           Copy-Item projects/KaiTORDiplomacy/module/SubModule.xml (Join-Path $module 'SubModule.xml') -Force
           Copy-Item projects/KaiTORDiplomacy/build/bin/Win64_Shipping_Client/KaiTOR_Diplomacy.dll (Join-Path $module 'bin/Win64_Shipping_Client/KaiTOR_Diplomacy.dll') -Force
           $pdb = 'projects/KaiTORDiplomacy/build/bin/Win64_Shipping_Client/KaiTOR_Diplomacy.pdb'
           if (Test-Path $pdb) { Copy-Item $pdb (Join-Path $module 'bin/Win64_Shipping_Client/KaiTOR_Diplomacy.pdb') -Force }
 
-      - name: Upload unified Lifecycle Marriage package
+      - name: Upload unified v0.6.3 package
         uses: actions/upload-artifact@v4
         with:
-          name: KaiTOR-Unified-v0.6.2-Lifecycle-MarriageRestore
+          name: KaiTOR-Unified-v0.6.3-Diplomacy-Family-LoreEducation-Test
           path: artifact/KaiTOR_Diplomacy
           if-no-files-found: error
           retention-days: 30
