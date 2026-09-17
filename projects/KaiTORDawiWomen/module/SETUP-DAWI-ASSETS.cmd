@@ -1,24 +1,18 @@
 @echo off
 setlocal
 chcp 65001 >nul
-title KaiTOR Dawi Women - Local Asset Setup
+title KaiTOR Dawi Women - Local Asset Setup v0.2.1
 
-if "%~1"=="" (
-  echo.
-  echo Перетащи папку LOTRLOME_Armory на этот файл SETUP-DAWI-ASSETS.cmd
-  echo или запусти так:
-  echo SETUP-DAWI-ASSETS.cmd "D:\...\Modules\LOTRLOME_Armory"
-  echo.
-  pause
-  exit /b 2
-)
+set "SCAN_ROOT=%~1"
+if "%SCAN_ROOT%"=="" set "SCAN_ROOT=%~dp0.."
 
 echo.
-echo KaiTOR Dawi Women v0.2.0 - безопасная локальная подготовка ассетов
-echo Никакого побайтового сканирования TPAC не выполняется.
+echo KaiTOR Dawi Women v0.2.1 - поиск ассетов по ИМЕНАМ ФАЙЛОВ
+echo Побайтового сканирования TPAC НЕТ.
+echo Корень поиска: %SCAN_ROOT%
 echo.
 
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Tools\Stage-Local-DawiAssets.ps1" "%~1"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Tools\Stage-Local-DawiAssets.ps1" "%SCAN_ROOT%"
 set rc=%errorlevel%
 
 echo.
