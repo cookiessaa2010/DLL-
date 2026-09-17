@@ -1,4 +1,4 @@
-name: KaiTOR Unified Live Test 1.3.15
+name: KaiTOR Unified Global Test 1.3.15
 
 on:
   push:
@@ -22,7 +22,7 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Build KaiTOR unified v0.6.0
+      - name: Build KaiTOR unified v0.6.1
         shell: pwsh
         run: |
           dotnet build projects/KaiTORDiplomacy/src/KaiTOR_Diplomacy.csproj `
@@ -31,7 +31,7 @@ jobs:
             --nologo
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Verify unified safety contracts
+      - name: Verify global-test contracts
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -39,7 +39,7 @@ jobs:
           $manifest = Get-Content projects/KaiTORDiplomacy/module/SubModule.xml -Raw
           foreach ($required in @(
             '<Id value="KaiTOR_Diplomacy" />',
-            '<Version value="v0.6.0" />',
+            '<Version value="v0.6.1" />',
             'kaitor_dawi_women',
             'kaitor_dawi_monster'
           )) {
@@ -48,9 +48,9 @@ jobs:
 
           $project = Get-Content projects/KaiTORDiplomacy/src/KaiTOR_Diplomacy.csproj -Raw
           foreach ($required in @(
-            '<Version>0.6.0</Version>',
-            '<AssemblyVersion>0.6.0.0</AssemblyVersion>',
-            '0.6.0-UnifiedDiplomacyDawi-LiveTest'
+            '<Version>0.6.1</Version>',
+            '<AssemblyVersion>0.6.1.0</AssemblyVersion>',
+            '0.6.1-GlobalDiplomacy-Dawi-LiveTest'
           )) {
             if ($project -notmatch [regex]::Escape($required)) { throw "Version contract missing: $required" }
           }
@@ -61,11 +61,45 @@ jobs:
             'EnableDawiWomenLiveTest = true',
             'InstallPregnancyWrapper',
             'new KaiDawiWomenBehavior',
+            'new KaiDiplomacyBehavior',
+            'new KaiPoliticalMarriageBehavior',
+            'new KaiDiplomaticNegotiationBehavior',
+            'new KaiMarriageWarningBehavior',
             'new KaiRealmHouseGrowthBehavior'
           )) {
             if ($sub -notmatch [regex]::Escape($required)) { throw "Runtime contract missing: $required" }
           }
+          if ($sub -match 'campaignStarter\.AddBehavior\(new KaiDiplomacyOfficeBehavior\(\)\);') { throw 'Town diplomacy office must stay removed for global test.' }
+          if ($sub -match 'campaignStarter\.AddBehavior\(new KaiFamilyAffairsBehavior\(\)\);') { throw 'Town family affairs menu must stay removed for global test.' }
           if ($sub -match 'campaignStarter\.AddBehavior\(new KaiCadetHouseSafeBehavior\(\)\);') { throw 'Legacy settlement-entry clan mutation must not be registered.' }
+
+          $warning = Get-Content projects/KaiTORDiplomacy/src/Runtime/KaiMarriageWarningBehavior.cs -Raw
+          if ($warning -match 'KaiTOR warning') { throw 'Technical KaiTOR warning text must not be player-facing.' }
+          foreach ($required in @('Особенности брачного союза', 'биологических детей', 'Продолжить переговоры')) {
+            if ($warning -notmatch [regex]::Escape($required)) { throw "Marriage warning contract missing: $required" }
+          }
+
+          $negotiation = Get-Content projects/KaiTORDiplomacy/src/Runtime/KaiDiplomaticNegotiationBehavior.cs -Raw
+          foreach ($required in @(
+            'lord_talk_speak_diplomacy_2',
+            'Пакт о ненападении',
+            'Политический брачный союз',
+            'BarterablesRequested',
+            'KaiPoliticalMarriageBarterable'
+          )) {
+            if ($negotiation -notmatch [regex]::Escape($required)) { throw "Diplomatic negotiation contract missing: $required" }
+          }
+
+          $political = Get-Content projects/KaiTORDiplomacy/src/Runtime/KaiPoliticalMarriageBehavior.cs -Raw
+          foreach ($required in @(
+            'PoliticalMarriageCost = 500000',
+            'DynasticTrustBonus = 30',
+            'DynasticRulerRelationBonus = 20',
+            'DynasticNapDays = 180',
+            'MarriageAction.Apply'
+          )) {
+            if ($political -notmatch [regex]::Escape($required)) { throw "Political-marriage contract missing: $required" }
+          }
 
           $behavior = Get-Content projects/KaiTORDiplomacy/src/Runtime/KaiDawiWomenBehavior.cs -Raw
           if ($behavior -notmatch 'AutomaticPopulationEnabled = false') { throw 'Automatic Dawi population must stay OFF.' }
@@ -83,7 +117,7 @@ jobs:
             if ($bridge -notmatch [regex]::Escape($required)) { throw "Integrated Dawi bridge contract missing: $required" }
           }
 
-          Write-Host 'KaiTOR unified v0.6.0 safety contracts: PASS'
+          Write-Host 'KaiTOR unified v0.6.1 global-test contracts: PASS'
 
       - name: Assemble unified base package
         shell: pwsh
@@ -100,7 +134,7 @@ jobs:
       - name: Upload unified base package
         uses: actions/upload-artifact@v4
         with:
-          name: KaiTOR-Unified-v0.6.0-base
+          name: KaiTOR-Unified-v0.6.1-global-test-base
           path: artifact/KaiTOR_Diplomacy
           if-no-files-found: error
           retention-days: 30
