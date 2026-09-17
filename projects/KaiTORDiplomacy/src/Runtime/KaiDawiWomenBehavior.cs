@@ -11,10 +11,9 @@ using TaleWorlds.ObjectSystem;
 namespace KaiTOR.Diplomacy.Runtime;
 
 /// <summary>
-/// Optional Dawi female-population bridge. It stays completely dormant until the
-/// external KaiTOR_DawiWomen asset module has registered a real female dwarf lord
-/// template against TOR's existing dwarf race. No surrogate human females are ever
-/// created and the player clan is never populated automatically.
+/// Optional Dawi female-population bridge. v0.5.2 registers it for live diagnostics,
+/// but automatic weekly population stays OFF until the female dwarf rig has passed
+/// a manual in-game visual test. No surrogate human females are ever created.
 /// </summary>
 public sealed class KaiDawiWomenBehavior : CampaignBehaviorBase
 {
@@ -24,6 +23,10 @@ public sealed class KaiDawiWomenBehavior : CampaignBehaviorBase
     private const int MaximumGeneratedWomenPerClan = 3;
     private const int GenerationCooldownDays = 336;
     private const string CooldownSaveKey = "kaitor_dawi_women_generation_cooldown_v1";
+
+    // First live test is intentionally manual. One console-created woman is enough to
+    // validate skeleton, body, equipment, encyclopedia portrait, settlement scene and save/reload.
+    public const bool AutomaticPopulationEnabled = false;
 
     private Dictionary<string, double> _generationCooldownUntilDays = new();
 
@@ -40,7 +43,7 @@ public sealed class KaiDawiWomenBehavior : CampaignBehaviorBase
 
     private void OnWeeklyTick()
     {
-        if (Campaign.Current == null || !DawiWomenAssetBridge.IsAvailable)
+        if (!AutomaticPopulationEnabled || Campaign.Current == null || !DawiWomenAssetBridge.IsAvailable)
             return;
 
         foreach (var clan in Clan.All
@@ -49,6 +52,32 @@ public sealed class KaiDawiWomenBehavior : CampaignBehaviorBase
         {
             TryPopulateClan(clan);
         }
+    }
+
+    /// <summary>
+    /// Creates exactly one female Dawi for the first safe non-player Dawi clan.
+    /// This is a diagnostic entry point only; it never runs on its own.
+    /// </summary>
+    public string SpawnOneForLiveTest()
+    {
+        if (Campaign.Current == null)
+            return "No campaign is active.";
+        if (!DawiWomenAssetBridge.IsAvailable)
+            return "Dawi female template/asset chain is not READY.";
+
+        foreach (var clan in Clan.All
+                     .Where(IsEligibleDawiClan)
+                     .OrderBy(clan => clan.StringId, StringComparer.Ordinal))
+        {
+            var settlement = FindSafeHomeSettlement(clan);
+            if (settlement == null)
+                continue;
+
+            if (TryCreateDawiWoman(clan, settlement))
+                return $"Created one Dawi woman for {clan.Name} at {settlement.Name}. Save, inspect her portrait/body, enter a scene, then reload the save before enabling automation.";
+        }
+
+        return "No eligible non-player Dawi clan with a safe home settlement was found.";
     }
 
     private void TryPopulateClan(Clan clan)
@@ -69,9 +98,6 @@ public sealed class KaiDawiWomenBehavior : CampaignBehaviorBase
         var adultMen = livingDawiLords.Count(hero => !hero.IsFemale && hero.Age >= DawiFemaleMinimumAge);
         var adultWomen = livingDawiLords.Count(hero => hero.IsFemale && hero.Age >= DawiFemaleMinimumAge);
 
-        // Conservative bootstrap only. Once real Dawi marriages and daughters exist,
-        // native Bannerlord/TOR family growth should carry the clan instead of KaiTOR
-        // continuously spawning replacement nobles.
         var targetWomen = Math.Min(MaximumGeneratedWomenPerClan, Math.Max(1, (adultMen + 3) / 4));
         if (adultWomen >= targetWomen)
             return;
@@ -97,7 +123,8 @@ public sealed class KaiDawiWomenBehavior : CampaignBehaviorBase
             return false;
 
         var dwarfRace = FaceGen.GetRaceOrDefault("dwarf");
-        if (template.Race != dwarfRace)
+        var humanRace = FaceGen.GetRaceOrDefault("human");
+        if (dwarfRace == humanRace || template.Race != dwarfRace)
             return false;
 
         var dayStamp = Math.Abs((int)CampaignTime.Now.ToDays);
@@ -141,6 +168,7 @@ public sealed class KaiDawiWomenBehavior : CampaignBehaviorBase
     public IEnumerable<string> DescribeStatus()
     {
         yield return $"Dawi women assets: {(DawiWomenAssetBridge.IsAvailable ? "READY" : "MISSING/SAFE-OFF")}";
+        yield return $"Automatic population: {(AutomaticPopulationEnabled ? "ON" : "OFF (manual rig test)")}";
         if (Campaign.Current == null)
             yield break;
 
