@@ -1,1 +1,1 @@
-global using TaleWorlds.CampaignSystem.ViewModelCollection;
+global using TaleWorlds.Core.ImageIdentifiers;
