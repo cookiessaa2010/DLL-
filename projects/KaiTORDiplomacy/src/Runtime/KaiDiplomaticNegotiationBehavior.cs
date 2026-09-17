@@ -7,7 +7,6 @@ using TaleWorlds.CampaignSystem.BarterSystem;
 using TaleWorlds.CampaignSystem.BarterSystem.Barterables;
 using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.Core;
-using TaleWorlds.Core.ViewModelCollection;
 using TaleWorlds.Library;
 using TaleWorlds.Localization;
 
@@ -186,7 +185,8 @@ public sealed class KaiDiplomaticNegotiationBehavior : CampaignBehaviorBase
         var playerKingdom = Clan.PlayerClan?.Kingdom;
         var targetKingdom = Hero.OneToOneConversationHero?.MapFaction as Kingdom;
         var behavior = Campaign.Current?.GetCampaignBehavior<KaiPoliticalMarriageBehavior>();
-        if (behavior == null || !behavior.CanStartPoliticalMarriage(playerKingdom, targetKingdom, out var reason))
+        var reason = string.Empty;
+        if (behavior == null || !behavior.CanStartPoliticalMarriage(playerKingdom, targetKingdom, out reason))
         {
             ShowText("Политический брачный союз", string.IsNullOrWhiteSpace(reason) ? "Сейчас такое соглашение невозможно." : reason);
             return;
@@ -304,8 +304,9 @@ public sealed class KaiDiplomaticNegotiationBehavior : CampaignBehaviorBase
     {
         var behavior = Campaign.Current?.GetCampaignBehavior<KaiPoliticalMarriageBehavior>();
         var targetRuler = targetKingdom?.Leader;
+        var reason = string.Empty;
         if (behavior == null || targetRuler == null ||
-            !behavior.CanStartPoliticalMarriage(playerKingdom, targetKingdom, out var reason))
+            !behavior.CanStartPoliticalMarriage(playerKingdom, targetKingdom, out reason))
         {
             ShowText("Политический брачный союз", string.IsNullOrWhiteSpace(reason) ? "Условия соглашения изменились." : reason);
             return;
@@ -379,7 +380,7 @@ public sealed class KaiDiplomaticNegotiationBehavior : CampaignBehaviorBase
         public override bool IsCompatible(Barterable barterable)
             => barterable is not KaiNonAggressionPactBarterable;
 
-        public override ImageIdentifier GetVisualIdentifier() => null;
+        public override ImageIdentifier GetVisualIdentifier() => new EmptyImageIdentifier();
 
         public override void Apply()
         {
@@ -434,8 +435,8 @@ public sealed class KaiDiplomaticNegotiationBehavior : CampaignBehaviorBase
 
         public override ImageIdentifier GetVisualIdentifier()
             => _targetCandidate?.CharacterObject == null
-                ? null
-                : new ImageIdentifier(CharacterCode.CreateFrom(_targetCandidate.CharacterObject));
+                ? new EmptyImageIdentifier()
+                : new CharacterImageIdentifier(CharacterCode.CreateFrom(_targetCandidate.CharacterObject));
 
         public override string GetEncyclopediaLink()
             => _targetCandidate?.EncyclopediaLink ?? string.Empty;
