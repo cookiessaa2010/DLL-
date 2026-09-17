@@ -9,8 +9,8 @@ using TaleWorlds.Library;
 namespace KaiTOR.Diplomacy.Runtime;
 
 /// <summary>
-/// Player-facing warning layer for marriages that KaiTOR allows socially but blocks
-/// from the vanilla offspring pipeline. No persistent state is stored here.
+/// Player-facing warning layer for marriages that are socially allowed but blocked
+/// from the biological offspring pipeline. No persistent state is stored here.
 /// </summary>
 public sealed class KaiMarriageWarningBehavior : CampaignBehaviorBase
 {
@@ -30,12 +30,12 @@ public sealed class KaiMarriageWarningBehavior : CampaignBehaviorBase
     private void OnSessionLaunched(CampaignGameStarter starter)
     {
         // Bannerlord 1.3.15 enters this state immediately before the final marriage barter.
-        // Priority 200 lets KaiTOR show the warning before the vanilla priority-100 line.
+        // Priority 200 lets this warning appear before the vanilla priority-100 line.
         starter.AddDialogLine(
             "kaitor_childless_marriage_warning",
             "hero_courtship_final_barter",
             "kaitor_childless_marriage_warning_options",
-            "{=kaitor_childless_marriage_warning}KaiTOR warning: this marriage is allowed, but this couple will not be able to have biological children. KaiTOR will not generate offspring for this pairing. Do you still want to continue with the marriage arrangements?",
+            "{=kaitor_childless_marriage_warning}Особенности брачного союза: этот брак может быть заключён, однако у этой пары не может быть биологических детей. Брак сохранит семейные и династические права супругов, но кровных наследников от этого союза не будет. Продолжить переговоры?",
             ShouldWarnBeforeFinalMarriage,
             null,
             200,
@@ -45,7 +45,7 @@ public sealed class KaiMarriageWarningBehavior : CampaignBehaviorBase
             "kaitor_childless_marriage_continue",
             "kaitor_childless_marriage_warning_options",
             "hero_courtship_final_barter",
-            "{=kaitor_childless_marriage_continue}I understand. Continue with the marriage arrangements.",
+            "{=kaitor_childless_marriage_continue}Я понимаю. Продолжить переговоры.",
             null,
             AcknowledgeCurrentMarriage,
             200,
@@ -56,7 +56,7 @@ public sealed class KaiMarriageWarningBehavior : CampaignBehaviorBase
             "kaitor_childless_marriage_cancel",
             "kaitor_childless_marriage_warning_options",
             "close_window",
-            "{=kaitor_childless_marriage_cancel}Not now. I want to reconsider this marriage.",
+            "{=kaitor_childless_marriage_cancel}Отказаться. Я хочу пересмотреть этот союз.",
             null,
             ClearAcknowledgement,
             200,
@@ -105,12 +105,10 @@ public sealed class KaiMarriageWarningBehavior : CampaignBehaviorBase
             return;
         }
 
-        // Backup for marriage paths that bypass the normal courtship final-barter node
-        // (for example arranged/barter-driven paths). At this point MarriageAction has
-        // already accepted the couple, so this is informational only; fertility remains
-        // hard-blocked by KaiPregnancyModel.
+        // Fallback for arranged/barter paths that bypass the normal courtship warning.
+        // The pregnancy model still blocks incompatible offspring safely.
         InformationManager.DisplayMessage(new InformationMessage(
-            $"KaiTOR family warning: {firstHero?.Name} and {secondHero?.Name} can marry, but this marriage will not produce biological children."));
+            $"Брачный союз заключён: {firstHero?.Name} и {secondHero?.Name}. У этой пары не будет биологических детей."));
     }
 
     private static Hero ResolveCurrentCourtshipPartner()
@@ -127,8 +125,6 @@ public sealed class KaiMarriageWarningBehavior : CampaignBehaviorBase
         if (clan == null)
             return null;
 
-        // Mirrors Bannerlord 1.3.15 RomanceCampaignBehavior's final-courtship lookup
-        // when the player speaks to the partner's clan leader instead of the partner.
         return clan.AliveLords.FirstOrDefault(hero =>
             hero != null &&
             hero != conversationHero &&
