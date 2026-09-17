@@ -7,10 +7,10 @@
     <AssemblyName>KaiTOR_Diplomacy</AssemblyName>
     <RootNamespace>KaiTOR.Diplomacy</RootNamespace>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
-    <Version>0.5.1</Version>
-    <AssemblyVersion>0.5.1.0</AssemblyVersion>
-    <FileVersion>0.5.1.0</FileVersion>
-    <InformationalVersion>0.5.1-FamilyUI-WorldSafetyHotfix</InformationalVersion>
+    <Version>0.5.2</Version>
+    <AssemblyVersion>0.5.2.0</AssemblyVersion>
+    <FileVersion>0.5.2.0</FileVersion>
+    <InformationalVersion>0.5.2-DawiLiveTest</InformationalVersion>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <OutputPath>..\build\bin\Win64_Shipping_Client\</OutputPath>
     <DebugType>portable</DebugType>
@@ -43,6 +43,10 @@
     </Reference>
     <Reference Include="TaleWorlds.Localization">
       <HintPath>$(BannerlordBin)\TaleWorlds.Localization.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="TaleWorlds.ModuleManager">
+      <HintPath>$(BannerlordBin)\TaleWorlds.ModuleManager.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="TaleWorlds.MountAndBlade">
