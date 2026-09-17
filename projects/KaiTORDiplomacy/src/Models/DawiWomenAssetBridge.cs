@@ -1,3 +1,4 @@
+using System.IO;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.Core;
 using TaleWorlds.ObjectSystem;
@@ -7,21 +8,21 @@ namespace KaiTOR.Diplomacy.Models;
 /// <summary>
 /// Runtime gate for the optional KaiTOR Dawi women asset pack.
 /// The bridge only opens when a real female CharacterObject registered against the
-/// existing TOR dwarf race is present. Missing/invalid assets therefore fail closed.
+/// existing TOR dwarf race is present AND the local asset staging tool completed.
+/// Missing/invalid assets therefore fail closed before any hero is created.
 /// </summary>
 internal static class DawiWomenAssetBridge
 {
     public const string FemaleDawiLordTemplateId = "kaitor_dawi_woman_lord";
+    private const string AssetReadyMarker = "kaitor_dawi_assets_ready.flag";
 
-    // v0.5.2 Dawi live test: discovery is enabled, but IsAvailable still performs
-    // strict runtime validation before any Dawi family logic can run.
     public const bool ForceSafeOffForLiveTest = false;
 
     public static bool IsAvailable
     {
         get
         {
-            if (ForceSafeOffForLiveTest)
+            if (ForceSafeOffForLiveTest || !HasAssetReadyMarker())
                 return false;
 
             var manager = MBObjectManager.Instance;
@@ -35,8 +36,6 @@ internal static class DawiWomenAssetBridge
             var dwarfRace = FaceGen.GetRaceOrDefault("dwarf");
             var humanRace = FaceGen.GetRaceOrDefault("human");
 
-            // GetRaceOrDefault falls back when a custom race is absent. Never treat the
-            // fallback human race as proof that the dwarf asset chain is installed.
             return dwarfRace != humanRace && template.Race == dwarfRace;
         }
     }
@@ -49,5 +48,19 @@ internal static class DawiWomenAssetBridge
         var dwarfRace = FaceGen.GetRaceOrDefault("dwarf");
         return firstHero.CharacterObject.Race == dwarfRace &&
                secondHero.CharacterObject.Race == dwarfRace;
+    }
+
+    private static bool HasAssetReadyMarker()
+    {
+        try
+        {
+            var moduleRoot = TaleWorlds.ModuleManager.ModuleHelper.GetModuleFullPath("KaiTOR_DawiWomen");
+            return !string.IsNullOrWhiteSpace(moduleRoot) &&
+                   File.Exists(Path.Combine(moduleRoot, "ModuleData", AssetReadyMarker));
+        }
+        catch
+        {
+            return false;
+        }
     }
 }
