@@ -11,10 +11,18 @@ namespace KaiTOR.Diplomacy.Runtime;
 
 public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
 {
+    public const int DefaultNapDays = 90;
+    public const int NapProposalInfluenceCost = 150;
+    public const int NapBreakInfluenceCost = 100;
+    public const int AiInfluenceReserve = 300;
+
     private const int CurrentSaveSchemaVersion = 1;
     private const int NaturalExpiryTrustBonus = 5;
     private const int VoluntaryBreakTrustPenalty = 10;
     private const int WarBreachTrustPenalty = 30;
+    private const int NaturalExpiryRelationBonus = 3;
+    private const int VoluntaryBreakRelationPenalty = 10;
+    private const int WarBreachRelationPenalty = 30;
     private const int VoluntaryBreakCooldownDays = 10;
     private const int WarBreachCooldownDays = 30;
 
@@ -40,7 +48,6 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
 
     public override void SyncData(IDataStore dataStore)
     {
-        // Stable internal save keys; player-facing UI does not expose module branding.
         dataStore.SyncData("kaitor_diplomacy_nap_expiry_days_v2", ref _nonAggressionExpiryDays);
         dataStore.SyncData("kaitor_diplomacy_breach_counts", ref _breachCounts);
         dataStore.SyncData("kaitor_diplomacy_trust", ref _diplomaticTrust);
@@ -65,7 +72,6 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
         }
 
         NormalizeLoadedState();
-
         _runtimeEnabled = TorCompatibilityGate.TryValidate(out _);
         if (_runtimeEnabled)
         {
@@ -88,9 +94,7 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
 
     private void OnWarDeclared(IFaction firstFaction, IFaction secondFaction, DeclareWarAction.DeclareWarDetail detail)
     {
-        if (!_runtimeEnabled) return;
-        if (firstFaction is not Kingdom first || secondFaction is not Kingdom second) return;
-
+        if (!_runtimeEnabled || firstFaction is not Kingdom first || secondFaction is not Kingdom second) return;
         var key = TreatyKey.For(first, second);
         if (!IsNonAggressionPactActive(first, second)) return;
 
@@ -98,118 +102,150 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
         _breachCounts.TryGetValue(key, out var current);
         _breachCounts[key] = current + 1;
         ChangeTrust(key, -WarBreachTrustPenalty);
+        ChangeRulerRelation(first, second, -WarBreachRelationPenalty);
         _napCooldownExpiryDays[key] = CampaignTime.Now.ToDays + WarBreachCooldownDays;
 
         InformationManager.DisplayMessage(new InformationMessage(
             $"Пакт о ненападении между {first.Name} и {second.Name} нарушен объявлением войны. " +
-            $"Доверие: -{WarBreachTrustPenalty}. Новый пакт будет недоступен {WarBreachCooldownDays} дней."));
+            $"Отношения правящих домов серьёзно ухудшились. Новый пакт будет недоступен {WarBreachCooldownDays} дней."));
     }
 
     private void OnPeaceMade(IFaction firstFaction, IFaction secondFaction, MakePeaceAction.MakePeaceDetail detail)
     {
-        // Base world rules own peace. No automatic pact is created here.
+        // Peace stays fully owned by Bannerlord/TOR. A NAP is never created automatically after peace.
     }
 
     public bool CanCreateNonAggressionPact(Kingdom first, Kingdom second, int durationDays, out string reason)
     {
         reason = string.Empty;
-
         if (!_runtimeEnabled)
         {
             reason = "Дополнительные дипломатические действия сейчас недоступны.";
             return false;
         }
-
         if (first == null || second == null)
         {
-            reason = "Необходимо выбрать два королевства.";
+            reason = "Необходимо выбрать две державы.";
             return false;
         }
-
         if (ReferenceEquals(first, second))
         {
-            reason = "Королевство не может заключить пакт само с собой.";
+            reason = "Держава не может заключить пакт сама с собой.";
             return false;
         }
-
         if (first.IsEliminated || second.IsEliminated)
         {
-            reason = "Уничтоженные королевства не могут заключать договоры.";
+            reason = "Уничтоженные державы не могут заключать договоры.";
             return false;
         }
-
         if (durationDays < 1 || durationDays > 365)
         {
             reason = "Срок договора должен составлять от 1 до 365 дней.";
             return false;
         }
-
         if (FactionManager.IsAtWarAgainstFaction(first, second))
         {
-            reason = "Королевства находятся в состоянии войны. Сначала необходимо заключить мир.";
+            reason = "Державы находятся в состоянии войны. Сначала необходимо заключить мир.";
+            return false;
+        }
+        if (first.IsAllyWith(second))
+        {
+            reason = "Державы уже связаны более тесным союзным договором.";
             return false;
         }
 
         var key = TreatyKey.For(first, second);
         ReconcilePair(key);
-
         if (IsNonAggressionPactActive(first, second))
         {
             reason = $"Пакт о ненападении уже действует ещё {GetRemainingDays(first, second)} дн.";
             return false;
         }
-
         var cooldown = GetCooldownRemainingDays(key);
         if (cooldown > 0)
         {
-            reason = $"После предыдущего нарушения новый пакт будет доступен через {cooldown} дн.";
+            reason = $"После прежнего разрыва или нарушения новый пакт будет доступен через {cooldown} дн.";
             return false;
         }
-
         if (!TorAllowsDiplomaticCompatibility(first, second, out var worldReason))
         {
             reason = string.IsNullOrWhiteSpace(worldReason)
-                ? "Особые дипломатические правила мира не позволяют заключить этот договор."
+                ? "Правила мира не допускают мирных договорённостей между этими державами."
                 : worldReason;
             return false;
         }
-
         return true;
     }
 
     public bool TryCreateNonAggressionPact(Kingdom first, Kingdom second, int durationDays, out string reason)
     {
-        if (!CanCreateNonAggressionPact(first, second, durationDays, out reason))
-            return false;
-
-        var key = TreatyKey.For(first, second);
-        _nonAggressionExpiryDays[key] = CampaignTime.Now.ToDays + durationDays;
-        reason = $"Пакт о ненападении заключён на {durationDays} дней. Текущее доверие: {GetTrust(first, second)}.";
+        if (!CanCreateNonAggressionPact(first, second, durationDays, out reason)) return false;
+        _nonAggressionExpiryDays[TreatyKey.For(first, second)] = CampaignTime.Now.ToDays + durationDays;
+        reason = $"Пакт о ненападении заключён на {durationDays} дней.";
         return true;
     }
 
     public int GetNapAcceptanceScore(Kingdom proposer, Kingdom target)
     {
-        if (proposer == null || target == null || proposer.IsEliminated || target.IsEliminated)
-            return int.MinValue;
+        if (proposer == null || target == null || proposer.IsEliminated || target.IsEliminated) return -100;
 
-        var trust = GetTrust(proposer, target);
-        var relation = 0;
+        var score = GetTrust(proposer, target);
         if (proposer.RulingClan != null && target.RulingClan != null)
-            relation = target.RulingClan.GetRelationWithClan(proposer.RulingClan);
+            score += target.RulingClan.GetRelationWithClan(proposer.RulingClan);
 
-        return Math.Max(-200, Math.Min(200, trust + relation));
+        if (proposer.Culture == target.Culture) score += 10;
+
+        var commonEnemies = proposer.FactionsAtWarWith
+            .OfType<Kingdom>()
+            .Count(enemy => target.FactionsAtWarWith.Contains(enemy));
+        score += Math.Min(30, commonEnemies * 10);
+
+        if (target.FactionsAtWarWith.Count() >= 2) score += 10;
+
+        try
+        {
+            if (Campaign.Current?.Models?.AllianceModel != null && target.RulingClan != null)
+            {
+                var affinity = Campaign.Current.Models.AllianceModel
+                    .GetScoreOfStartingAlliance(target, proposer, target.RulingClan, out _, false).ResultNumber;
+                score += (int)Math.Round((affinity - 50f) * 0.3f);
+            }
+        }
+        catch
+        {
+            // Optional TOR affinity input only; the NAP remains functional without it.
+        }
+
+        return Math.Max(-100, Math.Min(100, score));
+    }
+
+    public float GetNapCouncilSupportScore(Kingdom proposer, Kingdom target, Clan evaluatingClan)
+    {
+        if (proposer == null || target == null || evaluatingClan == null) return 0f;
+        var score = 50f + GetNapAcceptanceScore(proposer, target) * 0.35f;
+        if (target.RulingClan != null)
+            score += target.RulingClan.GetRelationWithClan(evaluatingClan) * 0.25f;
+        return Math.Max(0f, Math.Min(100f, score));
+    }
+
+    public float GetNapBreakCouncilSupportScore(Kingdom first, Kingdom second, Clan evaluatingClan)
+    {
+        if (first == null || second == null || evaluatingClan == null) return 0f;
+        var score = 50f - GetTrust(first, second) * 0.30f;
+        if (second.RulingClan != null)
+            score -= second.RulingClan.GetRelationWithClan(evaluatingClan) * 0.20f;
+        return Math.Max(0f, Math.Min(100f, score));
     }
 
     public bool BreakNonAggressionPact(Kingdom first, Kingdom second)
     {
         if (!_runtimeEnabled || first == null || second == null) return false;
-
         var key = TreatyKey.For(first, second);
         ReconcilePair(key);
         if (!_nonAggressionExpiryDays.Remove(key)) return false;
 
         ChangeTrust(key, -VoluntaryBreakTrustPenalty);
+        ChangeRulerRelation(first, second, -VoluntaryBreakRelationPenalty);
         _napCooldownExpiryDays[key] = CampaignTime.Now.ToDays + VoluntaryBreakCooldownDays;
         return true;
     }
@@ -217,8 +253,7 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
     public bool IsNonAggressionPactActive(Kingdom first, Kingdom second)
     {
         if (first == null || second == null) return false;
-        var key = TreatyKey.For(first, second);
-        return _nonAggressionExpiryDays.TryGetValue(key, out var expiryDay) && expiryDay > CampaignTime.Now.ToDays;
+        return _nonAggressionExpiryDays.TryGetValue(TreatyKey.For(first, second), out var expiryDay) && expiryDay > CampaignTime.Now.ToDays;
     }
 
     public int GetRemainingDays(Kingdom first, Kingdom second)
@@ -229,29 +264,18 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
     }
 
     public int GetBreachCount(Kingdom first, Kingdom second)
-    {
-        if (first == null || second == null) return 0;
-        return _breachCounts.TryGetValue(TreatyKey.For(first, second), out var count) ? count : 0;
-    }
+        => first == null || second == null ? 0 : (_breachCounts.TryGetValue(TreatyKey.For(first, second), out var count) ? count : 0);
 
     public int GetTrust(Kingdom first, Kingdom second)
-    {
-        if (first == null || second == null) return 0;
-        return GetTrust(TreatyKey.For(first, second));
-    }
+        => first == null || second == null ? 0 : GetTrust(TreatyKey.For(first, second));
 
     public int GetNapCooldownRemainingDays(Kingdom first, Kingdom second)
-    {
-        if (first == null || second == null) return 0;
-        return GetCooldownRemainingDays(TreatyKey.For(first, second));
-    }
+        => first == null || second == null ? 0 : GetCooldownRemainingDays(TreatyKey.For(first, second));
 
-    // Diagnostic-only output used by console commands.
     public string DescribeSaveCompatibility()
     {
         var status = _saveSchemaCompatible ? "PASS" : "BLOCKED";
-        return $"KaiTOR save compatibility: {status}; schema={_saveSchemaVersion}; supported={CurrentSaveSchemaVersion}; " +
-               "state=primitive dictionaries only; TOR settlement culture persistence remains TOR-owned.";
+        return $"KaiTOR save compatibility: {status}; schema={_saveSchemaVersion}; supported={CurrentSaveSchemaVersion}; state=primitive dictionaries only.";
     }
 
     public IEnumerable<string> DescribeActivePacts()
@@ -261,9 +285,8 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
         {
             if (!TreatyKey.TrySplit(pair.Key, out var firstId, out var secondId)) continue;
             var remaining = Math.Max(1, (int)Math.Ceiling(pair.Value - currentDay));
-            var trust = GetTrust(pair.Key);
             _breachCounts.TryGetValue(pair.Key, out var breaches);
-            yield return $"{firstId} <-> {secondId}: NAP, {remaining} day(s), trust {trust}, breaches {breaches}";
+            yield return $"{firstId} <-> {secondId}: NAP, {remaining} day(s), trust {GetTrust(pair.Key)}, breaches {breaches}";
         }
     }
 
@@ -272,38 +295,29 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
         var keys = new HashSet<string>(_diplomaticTrust.Keys, StringComparer.Ordinal);
         keys.UnionWith(_breachCounts.Keys);
         keys.UnionWith(_napCooldownExpiryDays.Keys);
-
         foreach (var key in keys.OrderBy(x => x, StringComparer.Ordinal))
         {
             if (!TreatyKey.TrySplit(key, out var firstId, out var secondId)) continue;
             _breachCounts.TryGetValue(key, out var breaches);
-            var cooldown = GetCooldownRemainingDays(key);
-            yield return $"{firstId} <-> {secondId}: trust {GetTrust(key)}, breaches {breaches}, NAP cooldown {cooldown} day(s)";
+            yield return $"{firstId} <-> {secondId}: trust {GetTrust(key)}, breaches {breaches}, NAP cooldown {GetCooldownRemainingDays(key)} day(s)";
         }
     }
 
     private void ValidateAndMigrateSaveSchema()
     {
         if (_saveSchemaVersion < 0) _saveSchemaVersion = 0;
-
         if (_saveSchemaVersion > CurrentSaveSchemaVersion)
         {
             _saveSchemaCompatible = false;
             return;
         }
-
-        if (_saveSchemaVersion == 0)
-            _saveSchemaVersion = CurrentSaveSchemaVersion;
-
+        if (_saveSchemaVersion == 0) _saveSchemaVersion = CurrentSaveSchemaVersion;
         _saveSchemaCompatible = true;
     }
 
     private void NormalizeLoadedState()
     {
-        var knownKingdomIds = new HashSet<string>(
-            Kingdom.All.Where(x => x != null).Select(x => x.StringId),
-            StringComparer.Ordinal);
-
+        var knownKingdomIds = new HashSet<string>(Kingdom.All.Where(x => x != null).Select(x => x.StringId), StringComparer.Ordinal);
         var allKeys = new HashSet<string>(_nonAggressionExpiryDays.Keys, StringComparer.Ordinal);
         allKeys.UnionWith(_breachCounts.Keys);
         allKeys.UnionWith(_diplomaticTrust.Keys);
@@ -313,35 +327,20 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
         {
             if (!TreatyKey.TrySplit(key, out var firstId, out var secondId) ||
                 string.Equals(firstId, secondId, StringComparison.Ordinal) ||
-                !knownKingdomIds.Contains(firstId) ||
-                !knownKingdomIds.Contains(secondId))
-            {
+                !knownKingdomIds.Contains(firstId) || !knownKingdomIds.Contains(secondId))
                 RemovePairState(key);
-            }
         }
 
         foreach (var pair in _nonAggressionExpiryDays.ToArray())
-        {
-            if (double.IsNaN(pair.Value) || double.IsInfinity(pair.Value) || pair.Value <= 0d)
-                _nonAggressionExpiryDays.Remove(pair.Key);
-        }
-
+            if (double.IsNaN(pair.Value) || double.IsInfinity(pair.Value) || pair.Value <= 0d) _nonAggressionExpiryDays.Remove(pair.Key);
         foreach (var pair in _napCooldownExpiryDays.ToArray())
-        {
-            if (double.IsNaN(pair.Value) || double.IsInfinity(pair.Value) || pair.Value <= 0d)
-                _napCooldownExpiryDays.Remove(pair.Key);
-        }
-
+            if (double.IsNaN(pair.Value) || double.IsInfinity(pair.Value) || pair.Value <= 0d) _napCooldownExpiryDays.Remove(pair.Key);
         foreach (var pair in _breachCounts.ToArray())
-        {
             if (pair.Value <= 0) _breachCounts.Remove(pair.Key);
-        }
-
         foreach (var pair in _diplomaticTrust.ToArray())
         {
             var clamped = Math.Max(-100, Math.Min(100, pair.Value));
-            if (clamped == 0) _diplomaticTrust.Remove(pair.Key);
-            else _diplomaticTrust[pair.Key] = clamped;
+            if (clamped == 0) _diplomaticTrust.Remove(pair.Key); else _diplomaticTrust[pair.Key] = clamped;
         }
     }
 
@@ -363,12 +362,13 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
             return false;
         }
 
-        if (!permissionModel.IsStartAllianceDecisionAllowedBetweenKingdoms(first, second, out TextObject worldReason))
+        if (!permissionModel.IsPeaceDecisionAllowedBetweenKingdoms(first, second, out TextObject worldReason))
         {
-            reason = worldReason?.ToString() ?? string.Empty;
+            reason = string.IsNullOrWhiteSpace(worldReason?.ToString())
+                ? "Правила мира не допускают мирных договорённостей между этими державами."
+                : worldReason.ToString();
             return false;
         }
-
         return true;
     }
 
@@ -376,7 +376,6 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
     {
         if (_nonAggressionExpiryDays.TryGetValue(key, out var expiryDay) && expiryDay <= CampaignTime.Now.ToDays)
             ExpirePactNaturally(key);
-
         if (_napCooldownExpiryDays.TryGetValue(key, out var cooldownExpiry) && cooldownExpiry <= CampaignTime.Now.ToDays)
             _napCooldownExpiryDays.Remove(key);
     }
@@ -385,22 +384,24 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
     {
         if (_nonAggressionExpiryDays.Count == 0) return;
         var currentDay = CampaignTime.Now.ToDays;
-        var expired = _nonAggressionExpiryDays.Where(pair => pair.Value <= currentDay).Select(pair => pair.Key).ToArray();
-        foreach (var key in expired) ExpirePactNaturally(key);
+        foreach (var key in _nonAggressionExpiryDays.Where(x => x.Value <= currentDay).Select(x => x.Key).ToArray())
+            ExpirePactNaturally(key);
     }
 
     private void ExpirePactNaturally(string key)
     {
         if (!_nonAggressionExpiryDays.Remove(key)) return;
         ChangeTrust(key, NaturalExpiryTrustBonus);
+        if (TryResolveKingdomPair(key, out var first, out var second))
+            ChangeRulerRelation(first, second, NaturalExpiryRelationBonus);
     }
 
     private void CleanupExpiredCooldowns()
     {
         if (_napCooldownExpiryDays.Count == 0) return;
         var currentDay = CampaignTime.Now.ToDays;
-        var expired = _napCooldownExpiryDays.Where(pair => pair.Value <= currentDay).Select(pair => pair.Key).ToArray();
-        foreach (var key in expired) _napCooldownExpiryDays.Remove(key);
+        foreach (var key in _napCooldownExpiryDays.Where(x => x.Value <= currentDay).Select(x => x.Key).ToArray())
+            _napCooldownExpiryDays.Remove(key);
     }
 
     private int GetCooldownRemainingDays(string key)
@@ -415,7 +416,22 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
     private void ChangeTrust(string key, int delta)
     {
         var next = Math.Max(-100, Math.Min(100, GetTrust(key) + delta));
-        if (next == 0) _diplomaticTrust.Remove(key);
-        else _diplomaticTrust[key] = next;
+        if (next == 0) _diplomaticTrust.Remove(key); else _diplomaticTrust[key] = next;
+    }
+
+    private static void ChangeRulerRelation(Kingdom first, Kingdom second, int delta)
+    {
+        if (delta == 0 || first?.Leader == null || second?.Leader == null) return;
+        ChangeRelationAction.ApplyRelationChangeBetweenHeroes(first.Leader, second.Leader, delta, true);
+    }
+
+    private static bool TryResolveKingdomPair(string key, out Kingdom first, out Kingdom second)
+    {
+        first = null;
+        second = null;
+        if (!TreatyKey.TrySplit(key, out var firstId, out var secondId)) return false;
+        first = Kingdom.All.FirstOrDefault(x => x != null && x.StringId == firstId);
+        second = Kingdom.All.FirstOrDefault(x => x != null && x.StringId == secondId);
+        return first != null && second != null;
     }
 }
