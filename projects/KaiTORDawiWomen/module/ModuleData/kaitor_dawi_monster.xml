@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Monsters>
+  <!-- Bannerlord 1.3.x merges this attribute into the existing TOR dwarf Monster.
+       Male action_set and every TOR physical/ragdoll setting are intentionally untouched. -->
+  <Monster id="dwarf" female_action_set="as_dwarf_female_warrior" />
+</Monsters>
