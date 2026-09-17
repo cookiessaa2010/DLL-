@@ -1,7 +1,7 @@
 <Module>
-  <Name value="KaiTOR Diplomacy" />
+  <Name value="KaiTOR Diplomacy &amp; Dawi" />
   <Id value="KaiTOR_Diplomacy" />
-  <Version value="v0.5.3" />
+  <Version value="v0.6.0" />
   <ModuleCategory value="Singleplayer" />
   <DependedModules>
     <DependedModule Id="Native" DependentVersion="v1.3.15" />
@@ -13,7 +13,7 @@
   </DependedModules>
   <SubModules>
     <SubModule>
-      <Name value="KaiTOR Diplomacy" />
+      <Name value="KaiTOR Diplomacy &amp; Dawi" />
       <DLLName value="KaiTOR_Diplomacy.dll" />
       <SubModuleClassType value="KaiTOR.Diplomacy.SubModule" />
       <Tags>
@@ -22,4 +22,20 @@
       </Tags>
     </SubModule>
   </SubModules>
+  <Xmls>
+    <XmlNode>
+      <XmlName id="NPCCharacters" path="kaitor_dawi_women" />
+      <IncludedGameTypes>
+        <GameType value="Campaign" />
+        <GameType value="CampaignStoryMode" />
+      </IncludedGameTypes>
+    </XmlNode>
+    <XmlNode>
+      <XmlName id="Monsters" path="kaitor_dawi_monster" />
+      <IncludedGameTypes>
+        <GameType value="Campaign" />
+        <GameType value="CampaignStoryMode" />
+      </IncludedGameTypes>
+    </XmlNode>
+  </Xmls>
 </Module>
