@@ -11,16 +11,19 @@ using TaleWorlds.Core;
 namespace KaiTOR.Diplomacy.Runtime;
 
 /// <summary>
-/// Conservative AI dynasty growth for TOR kingdoms.
-/// Under-populated AI kingdoms first try to recruit an existing noble clan through
-/// Bannerlord's native AI barter. If no acceptable clan exists, a ruler with spare
-/// land may elevate one unmarried adult relative/clan member/TOR AI companion into a
-/// new cadet vassal house. At most one world-changing action is performed per week.
+/// Conservative AI ruler clan-growth logic for TOR kingdoms.
+/// LoadSafe is recruitment-only: under-populated kingdoms may recruit an existing
+/// noble clan through Bannerlord's native AI barter, but runtime clan creation is
+/// hard-disabled until TOR cadet-house creation is separately certified in game.
+/// Player-led kingdoms are never changed automatically, while a kingdom the player
+/// merely serves is managed normally by its AI ruler.
 /// </summary>
 public sealed class KaiDynastyAiBehavior : CampaignBehaviorBase
 {
-    private const int MaximumTargetNobleClans = 10;
-    private const int NewHouseCooldownDays = 180;
+    private const int MaximumTargetNobleClans = 12;
+    private const int MaximumKingdomGrowthActionsPerWeek = 1;
+    private const bool EnableCadetHouseCreation = false;
+    private const int NewHouseCooldownDays = 42;
     private const int NewHouseMinimumRulerGold = 30000;
     private const int NewHouseSeedGold = 15000;
     private const string NewHouseCooldownSaveKey = "kaitor_dynasty_house_cooldown_v1";
@@ -41,29 +44,35 @@ public sealed class KaiDynastyAiBehavior : CampaignBehaviorBase
 
     private void OnWeeklyTick()
     {
-        var campaign = Campaign.Current;
-        if (campaign == null)
+        if (Campaign.Current == null)
             return;
 
-        var playerKingdom = Clan.PlayerClan?.Kingdom;
         var candidates = Kingdom.All
-            .Where(k => k != null && !k.IsEliminated && k.Leader != null && k != playerKingdom)
+            .Where(k => k != null && !k.IsEliminated && k.Leader != null && k.Leader != Hero.MainHero)
             .Select(k => new KingdomNeed(k, GetTargetNobleClanCount(k) - GetCurrentNobleClanCount(k)))
             .Where(x => x.Deficit > 0)
             .OrderByDescending(x => x.Deficit)
+            .ThenByDescending(x => x.Kingdom.Settlements.Count(s => s != null && s.IsFortification))
             .ThenBy(x => x.Kingdom.StringId, StringComparer.Ordinal)
             .ToArray();
 
+        var actions = 0;
         foreach (var need in candidates)
         {
-            // Prefer political recruitment. It preserves existing houses and lets the
-            // native barter/value system decide whether both sides actually benefit.
-            if (TryRecruitExistingClan(need.Kingdom))
-                return;
+            if (actions >= MaximumKingdomGrowthActionsPerWeek)
+                break;
 
-            // Found a new house only when recruitment produced no acceptable result.
-            if (TryFoundCadetHouse(need.Kingdom))
-                return;
+            // Safe live path: use Bannerlord's own barter/recruitment mechanism only.
+            if (TryRecruitExistingClan(need.Kingdom))
+            {
+                actions++;
+                continue;
+            }
+
+            // Runtime Clan.CreateClan / hero reassignment is deliberately disabled in
+            // LoadSafe after native campaign-map access violations during weekly ticks.
+            if (EnableCadetHouseCreation && TryFoundCadetHouse(need.Kingdom))
+                actions++;
         }
     }
 
@@ -81,9 +90,35 @@ public sealed class KaiDynastyAiBehavior : CampaignBehaviorBase
         return Math.Max(3, Math.Min(MaximumTargetNobleClans, target));
     }
 
+    public IEnumerable<string> DescribeStatus()
+    {
+        foreach (var kingdom in Kingdom.All
+                     .Where(k => k != null && !k.IsEliminated)
+                     .OrderByDescending(k => k.Settlements.Count(s => s != null && s.IsFortification))
+                     .ThenBy(k => k.StringId, StringComparer.Ordinal))
+        {
+            var fortifications = kingdom.Settlements.Count(s => s != null && s.IsFortification);
+            var current = GetCurrentNobleClanCount(kingdom);
+            var target = GetTargetNobleClanCount(kingdom);
+            var deficit = Math.Max(0, target - current);
+            var mode = kingdom.Leader == Hero.MainHero ? "PLAYER-RULED" : "AI-RULER";
+            var cooldown = GetHouseCooldownRemainingDays(kingdom);
+            var growthMode = EnableCadetHouseCreation ? "RECRUIT+CADET" : "RECRUIT-ONLY";
+            yield return $"{kingdom.StringId} = {kingdom.Name}: settlements={fortifications}, clans={current}, target={target}, deficit={deficit}, ruler={kingdom.Leader?.Name}, mode={mode}, growth={growthMode}, cadetCooldown={cooldown}d";
+        }
+    }
+
+    private int GetHouseCooldownRemainingDays(Kingdom kingdom)
+    {
+        if (kingdom == null || !_newHouseCooldownUntilDays.TryGetValue(kingdom.StringId, out var until))
+            return 0;
+        var remaining = until - CampaignTime.Now.ToDays;
+        return remaining <= 0d ? 0 : Math.Max(1, (int)Math.Ceiling(remaining));
+    }
+
     private static bool TryRecruitExistingClan(Kingdom targetKingdom)
     {
-        if (targetKingdom?.Leader == null)
+        if (targetKingdom?.Leader == null || targetKingdom.Leader == Hero.MainHero)
             return false;
 
         var playerKingdom = Clan.PlayerClan?.Kingdom;
@@ -92,7 +127,7 @@ public sealed class KaiDynastyAiBehavior : CampaignBehaviorBase
             .Select(clan => new ClanCandidate(clan, ScoreRecruitmentCandidate(clan, targetKingdom)))
             .OrderByDescending(x => x.Score)
             .ThenBy(x => x.Clan.StringId, StringComparer.Ordinal)
-            .Take(6)
+            .Take(8)
             .ToArray();
 
         foreach (var candidate in possibleClans)
@@ -106,10 +141,8 @@ public sealed class KaiDynastyAiBehavior : CampaignBehaviorBase
             if (combinedValue <= 0)
                 continue;
 
-            // Match Bannerlord's own defection safety concept: a king should not spend
-            // most of the treasury on a single recruit.
             var neededPayment = clanValue < 0 ? -clanValue : 0;
-            if (neededPayment > targetKingdom.Leader.Gold * 0.35f)
+            if (neededPayment > targetKingdom.Leader.Gold * 0.45f)
                 continue;
 
             Campaign.Current.BarterManager.ExecuteAiBarter(
@@ -132,8 +165,12 @@ public sealed class KaiDynastyAiBehavior : CampaignBehaviorBase
             return false;
         if (clan.IsEliminated || clan.IsBanditFaction || clan.IsRebelClan || clan.IsMinorFaction || clan.IsClanTypeMercenary)
             return false;
-        if (clan.Kingdom == targetKingdom || clan.Kingdom == playerKingdom)
+        if (clan.Kingdom == targetKingdom)
             return false;
+
+        if (playerKingdom != null && targetKingdom != playerKingdom && clan.Kingdom == playerKingdom)
+            return false;
+
         if (clan.Kingdom != null && clan.Kingdom.RulingClan == clan)
             return false;
         if (!clan.ShouldStayInKingdomUntil.IsPast)
@@ -164,8 +201,6 @@ public sealed class KaiDynastyAiBehavior : CampaignBehaviorBase
         if (currentRuler != null)
             score -= clan.Leader.GetRelation(currentRuler) / 2;
 
-        // A struggling house is more willing to seek a stronger patron, but the native
-        // barter remains the final authority on whether the move actually happens.
         if (clan.CurrentTotalStrength < targetKingdom.CurrentTotalStrength * 0.10f)
             score += 15;
 
@@ -176,7 +211,7 @@ public sealed class KaiDynastyAiBehavior : CampaignBehaviorBase
     {
         var rulingClan = kingdom?.RulingClan;
         var ruler = kingdom?.Leader;
-        if (rulingClan == null || ruler == null || rulingClan.Leader != ruler)
+        if (rulingClan == null || ruler == null || rulingClan.Leader != ruler || ruler == Hero.MainHero)
             return false;
         if (ruler.Gold < NewHouseMinimumRulerGold)
             return false;
@@ -194,7 +229,6 @@ public sealed class KaiDynastyAiBehavior : CampaignBehaviorBase
             .ThenBy(settlement => settlement.StringId, StringComparer.Ordinal)
             .ToArray();
 
-        // Never strip the ruling house of its final fortification.
         if (spareFiefs.Length < 2)
             return false;
 
@@ -290,8 +324,6 @@ public sealed class KaiDynastyAiBehavior : CampaignBehaviorBase
         founder.Clan = newClan;
         newClan.SetLeader(founder);
 
-        // Clan.Tier has no public setter for mods. AddRenown is the native public path
-        // that recalculates and updates Tier internally through the active ClanTierModel.
         var startingTier = Campaign.Current.Models.ClanTierModel.CompanionToLordClanStartingTier;
         var startingRenown = Campaign.Current.Models.ClanTierModel.GetRequiredRenownForTier(startingTier);
         newClan.AddRenown(startingRenown, false);

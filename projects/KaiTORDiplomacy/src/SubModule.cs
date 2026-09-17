@@ -11,10 +11,9 @@ namespace KaiTOR.Diplomacy;
 public sealed class SubModule : MBSubModuleBase
 {
     // Diagnostic live-test latch for existing TOR saves.
-    // The first v0.3.0 live test reached the end of Bannerlord save deserialization,
-    // then crashed while the campaign map was being initialized. To isolate the
-    // highest-risk startup group, this build temporarily leaves TOR's lifecycle and
-    // family/death models untouched while keeping KaiTOR campaign behaviors loaded.
+    // LoadSafe still blocks pregnancy/death/racial hero spawning and custom courtship hooks.
+    // New-house growth is now staged across safe hourly steps and does not mutate clans on
+    // settlement entry or inside TOR's daily/weekly hero-generation burst.
     private const bool LoadSafeDiagnostics = true;
 
     protected override void OnGameStart(Game game, IGameStarter gameStarterObject)
@@ -24,26 +23,30 @@ public sealed class SubModule : MBSubModuleBase
         if (gameStarterObject is not CampaignGameStarter campaignStarter)
             return;
 
+        InstallMarriageWrapper(campaignStarter);
+
         if (!LoadSafeDiagnostics)
         {
-            // TOR intentionally freezes Bannerlord's life/death cycle. The normal
-            // KaiTOR path restores it for age, children, dynasties and succession.
             CampaignOptions.IsLifeDeathCycleDisabled = false;
 
             InstallPermissionWrapper(campaignStarter);
-            InstallMarriageWrapper(campaignStarter);
             InstallPregnancyWrapper(campaignStarter);
             InstallHeroDeathWrapper(campaignStarter);
+
+            campaignStarter.AddBehavior(new KaiMarriageWarningBehavior());
+            campaignStarter.AddBehavior(new KaiRacialPopulationBehavior());
+            campaignStarter.AddBehavior(new KaiDawiWomenBehavior());
         }
 
+        // LoadSafe runtime systems.
         campaignStarter.AddBehavior(new KaiDiplomacyBehavior());
         campaignStarter.AddBehavior(new KaiDiplomacyOfficeBehavior());
         campaignStarter.AddBehavior(new KaiDiplomacyAiBehavior());
         campaignStarter.AddBehavior(new KaiCultureAssimilationBehavior());
-        campaignStarter.AddBehavior(new KaiMarriageWarningBehavior());
-        campaignStarter.AddBehavior(new KaiRacialPopulationBehavior());
-        campaignStarter.AddBehavior(new KaiDawiWomenBehavior());
+        campaignStarter.AddBehavior(new KaiFamilyAffairsBehavior());
         campaignStarter.AddBehavior(new KaiDynastyAiBehavior());
+        campaignStarter.AddBehavior(new KaiCadetHouseSafeBehavior());
+        campaignStarter.AddBehavior(new KaiMercyRelationBehavior());
     }
 
     private static void InstallPermissionWrapper(CampaignGameStarter starter)
@@ -58,6 +61,8 @@ public sealed class SubModule : MBSubModuleBase
     private static void InstallMarriageWrapper(CampaignGameStarter starter)
     {
         var torModel = starter.GetModel<MarriageModel>();
+        if (torModel is KaiPlayerMarriageModel)
+            return;
         if (!string.Equals(torModel?.GetType().FullName, KaiPlayerMarriageModel.ExpectedTorBaseType, StringComparison.Ordinal))
             return;
 
