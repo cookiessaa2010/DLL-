@@ -2,4 +2,5 @@
 <base xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" type="solution">
   <file id="soln_skins" name="ModuleData/skins.xml" type="skin" />
   <file id="soln_action_sets" name="ModuleData/action_sets.xml" type="action_set" />
+  <file id="soln_monsters" name="ModuleData/monsters.xml" type="monster" />
 </base>
