@@ -69,7 +69,7 @@ jobs:
             'RemoveCompanionAction.ApplyByByTurningToLord',
             'newClan.Kingdom = kingdom',
             'CampaignEventDispatcher.Instance.OnClanCreated',
-            'newHouses'
+            'commit=hourly-open-map'
           )) {
             if ($realm -notmatch [regex]::Escape($required)) { throw "Realm-growth contract missing: $required" }
           }
