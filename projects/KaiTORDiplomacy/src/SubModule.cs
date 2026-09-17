@@ -10,10 +10,14 @@ namespace KaiTOR.Diplomacy;
 
 public sealed class SubModule : MBSubModuleBase
 {
-    // Diagnostic live-test latch for existing TOR saves.
-    // LoadSafe blocks pregnancy/death/racial hero spawning, custom courtship hooks and
-    // automatic runtime Clan.CreateClan mutations until each path is certified in TOR.
+    // Existing TOR-save safety latch. Cadet-house creation, racial population,
+    // permission/death overrides and other uncertified world mutations remain OFF.
     private const bool LoadSafeDiagnostics = true;
+
+    // Dawi v0.5.2 is deliberately isolated from LoadSafe. The behavior is registered
+    // so the console probe can create one test woman, while automatic clan population
+    // stays disabled inside KaiDawiWomenBehavior until the rig test passes.
+    private const bool EnableDawiWomenLiveTest = true;
 
     protected override void OnGameStart(Game game, IGameStarter gameStarterObject)
     {
@@ -24,17 +28,28 @@ public sealed class SubModule : MBSubModuleBase
 
         InstallMarriageWrapper(campaignStarter);
 
+        if (EnableDawiWomenLiveTest)
+        {
+            // The wrapper delegates normal valid pairs to TOR/Bannerlord and only
+            // fail-closes races that are unsafe for native DeliverOffSpring.
+            InstallPregnancyWrapper(campaignStarter);
+            campaignStarter.AddBehavior(new KaiDawiWomenBehavior());
+        }
+
         if (!LoadSafeDiagnostics)
         {
             CampaignOptions.IsLifeDeathCycleDisabled = false;
 
             InstallPermissionWrapper(campaignStarter);
-            InstallPregnancyWrapper(campaignStarter);
+            if (!EnableDawiWomenLiveTest)
+            {
+                InstallPregnancyWrapper(campaignStarter);
+                campaignStarter.AddBehavior(new KaiDawiWomenBehavior());
+            }
             InstallHeroDeathWrapper(campaignStarter);
 
             campaignStarter.AddBehavior(new KaiMarriageWarningBehavior());
             campaignStarter.AddBehavior(new KaiRacialPopulationBehavior());
-            campaignStarter.AddBehavior(new KaiDawiWomenBehavior());
 
             // Retained for future controlled certification, but deliberately not
             // registered in LoadSafe after a native access violation appeared during
