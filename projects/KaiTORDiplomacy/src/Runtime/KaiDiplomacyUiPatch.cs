@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using HarmonyLib;
@@ -8,6 +7,7 @@ using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Election;
 using TaleWorlds.CampaignSystem.ViewModelCollection.KingdomManagement.Diplomacy;
 using TaleWorlds.Core;
+using TaleWorlds.Library;
 using TaleWorlds.Localization;
 
 namespace KaiTOR.Diplomacy.Runtime;
@@ -41,7 +41,7 @@ internal static class KaiDiplomacyUiPatch
         }
         catch
         {
-            // The native diplomacy screen must remain usable even if the optional action cannot be added.
+            // Native diplomacy remains usable even when the optional action cannot be inserted.
         }
     }
 
@@ -53,12 +53,13 @@ internal static class KaiDiplomacyUiPatch
 
         if (unresolved != null)
         {
+            var canReview = GetNativeProposalAvailability(vm, 0, out var reviewHint);
             vm.Actions.Add(new KingdomDiplomacyProposalActionItemVM(
                 new TextObject("Рассмотреть пакт о ненападении"),
                 new TextObject($"Совет уже обсуждает предложение о пакте с {target.Name}. Откройте решение, чтобы принять участие в голосовании."),
                 0,
-                GetNativeProposalAvailability(vm, 0, out var hint),
-                hint,
+                canReview,
+                reviewHint,
                 () => ForceDecision(vm, unresolved)));
             return;
         }
@@ -78,7 +79,7 @@ internal static class KaiDiplomacyUiPatch
             $"Отношение другой стороны к переговорам: {readiness}. Стоимость инициативы — {KaiDiplomacyBehavior.NapProposalInfluenceCost} влияния.");
 
         var enabled = nativeAllowed && allowed;
-        var hint = enabled
+        var actionHint = enabled
             ? TextObject.GetEmpty()
             : (!nativeAllowed ? nativeReason : new TextObject(string.IsNullOrWhiteSpace(ruleReason) ? "Сейчас это предложение недоступно." : ruleReason));
 
@@ -87,7 +88,7 @@ internal static class KaiDiplomacyUiPatch
             explanation,
             KaiDiplomacyBehavior.NapProposalInfluenceCost,
             enabled,
-            hint,
+            actionHint,
             () => ShowDurationSelection(vm, diplomacy, source, target)));
     }
 
@@ -99,12 +100,13 @@ internal static class KaiDiplomacyUiPatch
 
         if (unresolved != null)
         {
+            var canReview = GetNativeProposalAvailability(vm, 0, out var reviewHint);
             vm.Actions.Add(new KingdomDiplomacyProposalActionItemVM(
                 new TextObject("Рассмотреть разрыв пакта"),
                 new TextObject($"Совет уже обсуждает досрочный разрыв пакта с {target.Name}."),
                 0,
-                GetNativeProposalAvailability(vm, 0, out var hint),
-                hint,
+                canReview,
+                reviewHint,
                 () => ForceDecision(vm, unresolved)));
             return;
         }
@@ -114,7 +116,7 @@ internal static class KaiDiplomacyUiPatch
         var decision = new KaiBreakNonAggressionPactDecision(Clan.PlayerClan, target);
         var canBreak = decision.CanMakeDecision(out var breakReason, true);
         var enabled = nativeAllowed && canBreak;
-        var hint = enabled ? TextObject.GetEmpty() : (!nativeAllowed ? nativeReason : breakReason);
+        var actionHint = enabled ? TextObject.GetEmpty() : (!nativeAllowed ? nativeReason : breakReason);
 
         vm.Actions.Add(new KingdomDiplomacyProposalActionItemVM(
             new TextObject("Разорвать пакт о ненападении"),
@@ -123,7 +125,7 @@ internal static class KaiDiplomacyUiPatch
                 $"Стоимость инициативы — {KaiDiplomacyBehavior.NapBreakInfluenceCost} влияния."),
             KaiDiplomacyBehavior.NapBreakInfluenceCost,
             enabled,
-            hint,
+            actionHint,
             () => ConfirmBreakDecision(vm, target)));
     }
 
@@ -180,6 +182,11 @@ internal static class KaiDiplomacyUiPatch
                 {
                     var source = Clan.PlayerClan?.Kingdom;
                     if (source == null) return;
+                    if (Clan.PlayerClan.Influence < KaiDiplomacyBehavior.NapBreakInfluenceCost)
+                    {
+                        ShowMessage("Недостаточно влияния", $"Для внесения предложения требуется {KaiDiplomacyBehavior.NapBreakInfluenceCost} влияния.");
+                        return;
+                    }
                     var decision = new KaiBreakNonAggressionPactDecision(Clan.PlayerClan, target);
                     source.AddDecision(decision, false);
                     ForceDecision(vm, decision);
