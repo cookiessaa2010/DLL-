@@ -56,7 +56,7 @@ internal static class KaiDiplomacyUiPatch
             var canReview = GetNativeProposalAvailability(vm, 0, out var reviewHint);
             vm.Actions.Add(new KingdomDiplomacyProposalActionItemVM(
                 new TextObject("Рассмотреть пакт о ненападении"),
-                new TextObject($"Совет уже обсуждает предложение о пакте с {target.Name}. Откройте решение, чтобы принять участие в голосовании."),
+                new TextObject($"Совет уже рассматривает пакт с {target.Name}."),
                 0,
                 canReview,
                 reviewHint,
@@ -70,13 +70,10 @@ internal static class KaiDiplomacyUiPatch
         if (allowed && acceptance < 0)
         {
             allowed = false;
-            ruleReason = $"{target.Name} сейчас не готово принять такое предложение. Улучшите отношения или дождитесь более благоприятной обстановки.";
+            ruleReason = $"{target.Name} сейчас не готово принять такое предложение.";
         }
 
-        var readiness = DescribeReadiness(acceptance);
-        var explanation = new TextObject(
-            $"Предложить {target.Name} взаимный отказ от обычного объявления войны. Срок договора выбирается перед внесением решения. " +
-            $"Отношение другой стороны к переговорам: {readiness}. Стоимость инициативы — {KaiDiplomacyBehavior.NapProposalInfluenceCost} влияния.");
+        var explanation = new TextObject($"Предложить {target.Name} пакт о ненападении. Срок выбирается перед голосованием.");
 
         var enabled = nativeAllowed && allowed;
         var actionHint = enabled
@@ -103,7 +100,7 @@ internal static class KaiDiplomacyUiPatch
             var canReview = GetNativeProposalAvailability(vm, 0, out var reviewHint);
             vm.Actions.Add(new KingdomDiplomacyProposalActionItemVM(
                 new TextObject("Рассмотреть разрыв пакта"),
-                new TextObject($"Совет уже обсуждает досрочный разрыв пакта с {target.Name}."),
+                new TextObject($"Совет обсуждает разрыв пакта с {target.Name}."),
                 0,
                 canReview,
                 reviewHint,
@@ -120,9 +117,7 @@ internal static class KaiDiplomacyUiPatch
 
         vm.Actions.Add(new KingdomDiplomacyProposalActionItemVM(
             new TextObject("Разорвать пакт о ненападении"),
-            new TextObject(
-                $"Пакт с {target.Name} действует ещё {remaining} дн. Досрочный разрыв ухудшит отношения правящих домов и на 10 дней закроет путь к новому пакту. " +
-                $"Стоимость инициативы — {KaiDiplomacyBehavior.NapBreakInfluenceCost} влияния."),
+            new TextObject($"Пакт с {target.Name}: ещё {remaining} дн. Досрочный разрыв ухудшит отношения."),
             KaiDiplomacyBehavior.NapBreakInfluenceCost,
             enabled,
             actionHint,
@@ -138,7 +133,7 @@ internal static class KaiDiplomacyUiPatch
         MBInformationManager.ShowMultiSelectionInquiry(
             new MultiSelectionInquiryData(
                 "Срок пакта о ненападении",
-                $"Выберите срок, на который {source.Name} предложит {target.Name} взаимный отказ от войны. После внесения инициативы её рассмотрит совет державы.",
+                $"Выберите срок договора с {target.Name}.",
                 durations,
                 true,
                 1,
@@ -155,7 +150,7 @@ internal static class KaiDiplomacyUiPatch
                     }
                     if (Clan.PlayerClan.Influence < KaiDiplomacyBehavior.NapProposalInfluenceCost)
                     {
-                        ShowMessage("Недостаточно влияния", $"Для внесения предложения требуется {KaiDiplomacyBehavior.NapProposalInfluenceCost} влияния.");
+                        ShowMessage("Недостаточно влияния", $"Требуется {KaiDiplomacyBehavior.NapProposalInfluenceCost} влияния.");
                         return;
                     }
 
@@ -172,8 +167,8 @@ internal static class KaiDiplomacyUiPatch
     {
         InformationManager.ShowInquiry(
             new InquiryData(
-                "Досрочный разрыв договора",
-                $"Вынести на совет предложение о разрыве пакта с {target.Name}? Если разрыв будет утверждён, отношения правящих домов ухудшатся.",
+                "Разорвать пакт",
+                $"Вынести на совет разрыв пакта с {target.Name}?",
                 true,
                 true,
                 "Вынести на совет",
@@ -184,7 +179,7 @@ internal static class KaiDiplomacyUiPatch
                     if (source == null) return;
                     if (Clan.PlayerClan.Influence < KaiDiplomacyBehavior.NapBreakInfluenceCost)
                     {
-                        ShowMessage("Недостаточно влияния", $"Для внесения предложения требуется {KaiDiplomacyBehavior.NapBreakInfluenceCost} влияния.");
+                        ShowMessage("Недостаточно влияния", $"Требуется {KaiDiplomacyBehavior.NapBreakInfluenceCost} влияния.");
                         return;
                     }
                     var decision = new KaiBreakNonAggressionPactDecision(Clan.PlayerClan, target);
@@ -237,15 +232,6 @@ internal static class KaiDiplomacyUiPatch
             force?.Invoke(decision);
         }
         catch { }
-    }
-
-    private static string DescribeReadiness(int score)
-    {
-        if (score >= 50) return "очень благоприятное";
-        if (score >= 20) return "благоприятное";
-        if (score >= 0) return "осторожно положительное";
-        if (score >= -20) return "прохладное";
-        return "отрицательное";
     }
 
     private static void ShowMessage(string title, string text)
