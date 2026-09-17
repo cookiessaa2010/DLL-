@@ -23,7 +23,7 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Build KaiTOR Diplomacy v0.5.2
+      - name: Build KaiTOR Diplomacy v0.5.3
         shell: pwsh
         run: |
           dotnet build projects/KaiTORDiplomacy/src/KaiTOR_Diplomacy.csproj `
@@ -41,18 +41,41 @@ jobs:
             --nologo
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Verify isolated Dawi safety contracts
+      - name: Verify Dawi and realm-growth safety contracts
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
 
           $dipManifest = Get-Content projects/KaiTORDiplomacy/module/SubModule.xml -Raw
-          if ($dipManifest -notmatch 'v0\.5\.2') { throw 'Diplomacy module is not v0.5.2.' }
+          if ($dipManifest -notmatch 'v0\.5\.3') { throw 'Diplomacy module is not v0.5.3.' }
+
+          $project = Get-Content projects/KaiTORDiplomacy/src/KaiTOR_Diplomacy.csproj -Raw
+          foreach ($required in @('<Version>0.5.3</Version>','<AssemblyVersion>0.5.3.0</AssemblyVersion>','0.5.3-DawiLiveTest-RealmGrowthFix')) {
+            if ($project -notmatch [regex]::Escape($required)) { throw "Diplomacy version contract missing: $required" }
+          }
 
           $sub = Get-Content projects/KaiTORDiplomacy/src/SubModule.cs -Raw
-          foreach ($required in @('LoadSafeDiagnostics = true','EnableDawiWomenLiveTest = true','InstallPregnancyWrapper','new KaiDawiWomenBehavior')) {
-            if ($sub -notmatch [regex]::Escape($required)) { throw "Missing isolated Dawi runtime contract: $required" }
+          foreach ($required in @('LoadSafeDiagnostics = true','EnableDawiWomenLiveTest = true','InstallPregnancyWrapper','new KaiDawiWomenBehavior','new KaiRealmHouseGrowthBehavior')) {
+            if ($sub -notmatch [regex]::Escape($required)) { throw "Missing runtime contract: $required" }
           }
+          if ($sub -match 'campaignStarter\.AddBehavior\(new KaiCadetHouseSafeBehavior\(\)\);') { throw 'Legacy settlement-entry clan mutation must not be registered.' }
+
+          $realm = Get-Content projects/KaiTORDiplomacy/src/Runtime/KaiRealmHouseGrowthBehavior.cs -Raw
+          foreach ($required in @(
+            'CampaignEvents.WeeklyTickEvent.AddNonSerializedListener',
+            'CampaignEvents.HourlyTickEvent.AddNonSerializedListener',
+            'IsSafeWorldMutationWindow',
+            'PlayerEncounter.Current != null',
+            'RemoveCompanionAction.ApplyByByTurningToLord',
+            'newClan.Kingdom = kingdom',
+            'CampaignEventDispatcher.Instance.OnClanCreated',
+            'newHouses'
+          )) {
+            if ($realm -notmatch [regex]::Escape($required)) { throw "Realm-growth contract missing: $required" }
+          }
+          if ($realm -match 'AfterSettlementEntered') { throw 'Realm growth must never mutate the clan graph on settlement entry.' }
+          if ($realm -match 'ChangeKingdomAction\.ApplyByJoinToKingdom') { throw 'Realm growth must use Bannerlord native-style Kingdom setter ordering.' }
+          if ($realm -match 'ChangeOwnerOfSettlementAction') { throw 'New house transaction must remain landless.' }
 
           $behavior = Get-Content projects/KaiTORDiplomacy/src/Runtime/KaiDawiWomenBehavior.cs -Raw
           if ($behavior -notmatch 'AutomaticPopulationEnabled = false') { throw 'Automatic Dawi population must stay OFF.' }
@@ -88,7 +111,7 @@ jobs:
           [xml](Get-Content projects/KaiTORDawiWomen/module/ModuleData/action_sets.xml -Raw) | Out-Null
           [xml](Get-Content projects/KaiTORDawiWomen/module/ModuleData/kaitor_dawi_monster.xml -Raw) | Out-Null
 
-          Write-Host 'KaiTOR Dawi live-test safety contracts: PASS'
+          Write-Host 'KaiTOR v0.5.3 Dawi + realm-growth safety contracts: PASS'
 
       - name: Assemble combined test package
         shell: pwsh
@@ -116,7 +139,7 @@ jobs:
       - name: Upload combined test package
         uses: actions/upload-artifact@v4
         with:
-          name: KaiTOR-Dawi-LiveTest-v0.5.2-v0.2.0
+          name: KaiTOR-Dawi-LiveTest-v0.5.3-v0.2.0-RealmGrowthFix
           path: artifact/Modules
           if-no-files-found: error
           retention-days: 30
