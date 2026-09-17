@@ -11,8 +11,9 @@ namespace KaiTOR.Diplomacy;
 public sealed class SubModule : MBSubModuleBase
 {
     // Diagnostic live-test latch for existing TOR saves.
-    // LoadSafe blocks pregnancy/death/racial hero spawning, custom courtship hooks and
-    // automatic runtime Clan.CreateClan mutations until each path is certified in TOR.
+    // LoadSafe still blocks pregnancy/death/racial hero spawning and custom courtship hooks.
+    // New-house growth is now staged across safe hourly steps and does not mutate clans on
+    // settlement entry or inside TOR's daily/weekly hero-generation burst.
     private const bool LoadSafeDiagnostics = true;
 
     protected override void OnGameStart(Game game, IGameStarter gameStarterObject)
@@ -35,22 +36,16 @@ public sealed class SubModule : MBSubModuleBase
             campaignStarter.AddBehavior(new KaiMarriageWarningBehavior());
             campaignStarter.AddBehavior(new KaiRacialPopulationBehavior());
             campaignStarter.AddBehavior(new KaiDawiWomenBehavior());
-
-            // Retained for future controlled certification, but deliberately not
-            // registered in LoadSafe after a native access violation appeared during
-            // live world progression with runtime-created houses enabled.
-            campaignStarter.AddBehavior(new KaiCadetHouseSafeBehavior());
         }
 
-        // LoadSafe runtime systems. AI kingdoms still grow by recruiting existing
-        // noble clans through Bannerlord's native barter path. Family adoption acts
-        // only on heroes already attached to the player's own house.
+        // LoadSafe runtime systems.
         campaignStarter.AddBehavior(new KaiDiplomacyBehavior());
         campaignStarter.AddBehavior(new KaiDiplomacyOfficeBehavior());
         campaignStarter.AddBehavior(new KaiDiplomacyAiBehavior());
         campaignStarter.AddBehavior(new KaiCultureAssimilationBehavior());
         campaignStarter.AddBehavior(new KaiFamilyAffairsBehavior());
         campaignStarter.AddBehavior(new KaiDynastyAiBehavior());
+        campaignStarter.AddBehavior(new KaiCadetHouseSafeBehavior());
         campaignStarter.AddBehavior(new KaiMercyRelationBehavior());
     }
 
