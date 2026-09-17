@@ -5,6 +5,7 @@ using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Conversation;
 using TaleWorlds.Core;
 using TaleWorlds.Library;
+using TaleWorlds.Localization;
 
 namespace KaiTOR.Diplomacy.Runtime;
 
@@ -24,13 +25,14 @@ public sealed class KaiMarriageWarningBehavior : CampaignBehaviorBase
 
     public override void SyncData(IDataStore dataStore)
     {
-        // Intentionally empty: warning/acknowledgement state must never become part of a save.
+        // Warning acknowledgement is deliberately session-only.
     }
 
     private void OnSessionLaunched(CampaignGameStarter starter)
     {
-        // Bannerlord 1.3.15 enters this state immediately before the final marriage barter.
-        // Priority 200 lets KaiTOR show the warning before the vanilla priority-100 line.
+        // Bannerlord enters hero_courtship_final_barter immediately before opening the
+        // final marriage barter. Priority 200 places this guard in front of vanilla's
+        // priority-100 continuation.
         starter.AddDialogLine(
             "kaitor_childless_marriage_warning",
             "hero_courtship_final_barter",
@@ -67,17 +69,18 @@ public sealed class KaiMarriageWarningBehavior : CampaignBehaviorBase
     private bool ShouldWarnBeforeFinalMarriage()
     {
         var partner = ResolveCurrentCourtshipPartner();
-        if (partner == null || Hero.MainHero == null)
+        var mainHero = Hero.MainHero;
+        if (partner == null || mainHero == null)
             return false;
 
-        if (!KaiPlayerMarriageModel.InvolvesPlayerClan(Hero.MainHero, partner))
+        if (!KaiPlayerMarriageModel.InvolvesPlayerClan(mainHero, partner))
             return false;
 
-        var pairKey = MakePairKey(Hero.MainHero, partner);
+        var pairKey = MakePairKey(mainHero, partner);
         if (!string.IsNullOrEmpty(pairKey) && string.Equals(pairKey, _acknowledgedPairKey, StringComparison.Ordinal))
             return false;
 
-        return !TorFamilySafety.CanUseVanillaPregnancy(Hero.MainHero, partner);
+        return !TorFamilySafety.CanUseVanillaPregnancy(mainHero, partner);
     }
 
     private void AcknowledgeCurrentMarriage()
@@ -105,32 +108,65 @@ public sealed class KaiMarriageWarningBehavior : CampaignBehaviorBase
             return;
         }
 
-        // Backup for arranged/barter-driven paths that bypass the normal final-courtship
-        // dialogue. Marriage is already accepted here; fertility is still blocked safely.
-        InformationManager.DisplayMessage(new InformationMessage(
-            $"Семейные дела: {firstHero?.Name} и {secondHero?.Name} могут вступить в брак, но у этой пары не будет биологических детей."));
+        // Some TOR/arranged-barter paths can bypass the final courtship state. By this
+        // event MarriageAction has already assigned Spouse, so this is an informational
+        // fallback rather than a fake cancel prompt.
+        MBInformationManager.AddQuickInformation(
+            new TextObject($"Брак заключён: {firstHero?.Name} и {secondHero?.Name}. У этой пары не будет биологических детей."),
+            5000,
+            secondHero?.CharacterObject,
+            null,
+            string.Empty);
     }
 
     private static Hero ResolveCurrentCourtshipPartner()
     {
         var mainHero = Hero.MainHero;
-        var conversationHero = Hero.OneToOneConversationHero;
-        if (mainHero == null || conversationHero == null)
+        if (mainHero == null)
             return null;
 
-        if (Romance.GetRomanticLevel(mainHero, conversationHero) == Romance.RomanceLevelEnum.CoupleAgreedOnMarriage)
+        var conversationHero = Hero.OneToOneConversationHero;
+        if (conversationHero != null && IsPendingMarriage(mainHero, conversationHero))
             return conversationHero;
 
-        var clan = conversationHero.Clan;
-        if (clan == null)
+        var states = Romance.RomanticStateList;
+        if (states == null)
             return null;
 
-        // Mirrors Bannerlord 1.3.15 RomanceCampaignBehavior's final-courtship lookup
-        // when the player speaks to the partner's clan leader instead of the partner.
-        return clan.AliveLords.FirstOrDefault(hero =>
-            hero != null &&
-            hero != conversationHero &&
-            Romance.GetRomanticLevel(mainHero, hero) == Romance.RomanceLevelEnum.CoupleAgreedOnMarriage);
+        var candidates = states
+            .Where(state => state != null &&
+                            state.Level >= Romance.RomanceLevelEnum.MatchMadeByFamily &&
+                            state.Level < Romance.RomanceLevelEnum.Marriage &&
+                            (state.Person1 == mainHero || state.Person2 == mainHero))
+            .Select(state => new
+            {
+                Hero = state.Partner(mainHero),
+                Level = state.Level
+            })
+            .Where(x => x.Hero != null && x.Hero.IsAlive && x.Hero.Spouse == null)
+            .OrderByDescending(x => (int)x.Level)
+            .ToArray();
+
+        // When negotiating with the clan head, prefer the pending partner from that
+        // clan. This matches Bannerlord's final-barter flow used in the live TOR test.
+        if (conversationHero?.Clan != null)
+        {
+            var sameClan = candidates.FirstOrDefault(x => x.Hero.Clan == conversationHero.Clan);
+            if (sameClan != null)
+                return sameClan.Hero;
+        }
+
+        return candidates.FirstOrDefault()?.Hero;
+    }
+
+    private static bool IsPendingMarriage(Hero mainHero, Hero other)
+    {
+        if (mainHero == null || other == null || other.Spouse != null)
+            return false;
+
+        var level = Romance.GetRomanticLevel(mainHero, other);
+        return level >= Romance.RomanceLevelEnum.MatchMadeByFamily &&
+               level < Romance.RomanceLevelEnum.Marriage;
     }
 
     private static string MakePairKey(Hero firstHero, Hero secondHero)
