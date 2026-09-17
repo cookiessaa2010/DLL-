@@ -8,8 +8,8 @@ namespace KaiTOR.Diplomacy.Models;
 /// <summary>
 /// World marriage compatibility layer for TOR.
 /// Player-house marriage uses Bannerlord's normal flow. Automatic NPC/NPC marriages
-/// are intentionally narrower in LoadSafe: only certified same-culture, same-race,
-/// biologically safe pairs are allowed to reach MarriageAction during daily ticks.
+/// are restored for supported same-culture, same-race pairs that pass the biological
+/// safety gate. Childless/unsupported AI pairings remain excluded from the random loop.
 /// </summary>
 public sealed class KaiPlayerMarriageModel : DefaultMarriageModel
 {
@@ -37,11 +37,11 @@ public sealed class KaiPlayerMarriageModel : DefaultMarriageModel
 
         var involvesPlayerHouse = InvolvesPlayerClan(firstHero, secondHero);
 
-        // The random NPC marriage loop runs on daily clan ticks. Keep that path to
-        // pairings already proven compatible with Bannerlord's ordinary family graph.
-        // Dawi, greenskins, vampires and cross-culture NPC couples remain outside the
-        // automatic path until their lifecycle is certified separately.
-        if (!involvesPlayerHouse && !IsCertifiedNpcMarriagePair(firstHero, secondHero))
+        // Random NPC marriage executes from Bannerlord's ordinary campaign ticks.
+        // Allow it only when the pair is same-culture, same-race and safe for the
+        // standard pregnancy/offspring pipeline. This restores normal mortal weddings
+        // without letting unsupported race combinations reach HeroCreator offspring.
+        if (!involvesPlayerHouse && !IsSafeNpcMarriagePair(firstHero, secondHero))
             return false;
 
         // Bannerlord's DefaultMarriageModel hard-requires opposite sexes. For the
@@ -82,7 +82,7 @@ public sealed class KaiPlayerMarriageModel : DefaultMarriageModel
 
     public override float NpcCoupleMarriageChance(Hero firstHero, Hero secondHero)
     {
-        if (!IsCertifiedNpcMarriagePair(firstHero, secondHero))
+        if (!IsSafeNpcMarriagePair(firstHero, secondHero))
             return 0f;
 
         return base.NpcCoupleMarriageChance(firstHero, secondHero);
@@ -93,10 +93,12 @@ public sealed class KaiPlayerMarriageModel : DefaultMarriageModel
         if (consideringClan == null || targetClan == null)
             return false;
 
-        if (!IsCertifiedNpcDynastyCulture(consideringClan.Culture?.StringId) ||
-            !IsCertifiedNpcDynastyCulture(targetClan.Culture?.StringId))
+        if (!IsSupportedMarriageCulture(consideringClan.Culture?.StringId) ||
+            !IsSupportedMarriageCulture(targetClan.Culture?.StringId))
             return false;
 
+        // Keep the automatic AI path same-culture for v0.6.2. Cross-culture social
+        // marriages remain available to the player's house but are not random AI spam.
         if (!string.Equals(consideringClan.Culture?.StringId, targetClan.Culture?.StringId, StringComparison.Ordinal))
             return false;
 
@@ -130,14 +132,14 @@ public sealed class KaiPlayerMarriageModel : DefaultMarriageModel
            secondHero?.IsFemale == true &&
            (firstHero.Clan == Clan.PlayerClan || secondHero.Clan == Clan.PlayerClan);
 
-    private static bool IsCertifiedNpcMarriagePair(Hero firstHero, Hero secondHero)
+    private static bool IsSafeNpcMarriagePair(Hero firstHero, Hero secondHero)
     {
         if (firstHero?.CharacterObject == null || secondHero?.CharacterObject == null)
             return false;
         if (InvolvesPlayerClan(firstHero, secondHero))
             return false;
-        if (!IsCertifiedNpcDynastyCulture(firstHero.Culture?.StringId) ||
-            !IsCertifiedNpcDynastyCulture(secondHero.Culture?.StringId))
+        if (!IsSupportedMarriageCulture(firstHero.Culture?.StringId) ||
+            !IsSupportedMarriageCulture(secondHero.Culture?.StringId))
             return false;
         if (!string.Equals(firstHero.Culture?.StringId, secondHero.Culture?.StringId, StringComparison.Ordinal))
             return false;
@@ -148,16 +150,6 @@ public sealed class KaiPlayerMarriageModel : DefaultMarriageModel
 
         return true;
     }
-
-    // These are the ordinary living family cultures we currently allow the random
-    // NPC daily-marriage loop to process. Dawi and vampire cultures can still marry
-    // through explicit player-house negotiations, but are excluded from random NPC
-    // marriages until their complete family lifecycle is certified in TOR.
-    private static bool IsCertifiedNpcDynastyCulture(string cultureId)
-        => string.Equals(cultureId, "empire", StringComparison.Ordinal) ||
-           string.Equals(cultureId, "vlandia", StringComparison.Ordinal) ||
-           string.Equals(cultureId, "battania", StringComparison.Ordinal) ||
-           string.Equals(cultureId, "eonir", StringComparison.Ordinal);
 
     private static bool AreHeroesRelated(Hero firstHero, Hero secondHero, int ancestorDepth)
         => AreHeroesRelatedAux(firstHero, secondHero, ancestorDepth, ancestorDepth);
