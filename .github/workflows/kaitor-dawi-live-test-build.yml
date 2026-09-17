@@ -1,4 +1,4 @@
-name: KaiTOR Dawi Live Test 1.3.15
+name: KaiTOR Unified Live Test 1.3.15
 
 on:
   push:
@@ -6,7 +6,6 @@ on:
       - kaitor-dawi-women-live-test
     paths:
       - 'projects/KaiTORDiplomacy/**'
-      - 'projects/KaiTORDawiWomen/**'
       - '.github/workflows/kaitor-dawi-live-test-build.yml'
   workflow_dispatch:
 
@@ -23,7 +22,7 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Build KaiTOR Diplomacy v0.5.3
+      - name: Build KaiTOR unified v0.6.0
         shell: pwsh
         run: |
           dotnet build projects/KaiTORDiplomacy/src/KaiTOR_Diplomacy.csproj `
@@ -32,114 +31,76 @@ jobs:
             --nologo
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Build KaiTOR Dawi Women v0.2.0
-        shell: pwsh
-        run: |
-          dotnet build projects/KaiTORDawiWomen/src/KaiTOR_DawiWomen.csproj `
-            -c Release `
-            -p:UseBannerlordReferenceAssemblies=true `
-            --nologo
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-      - name: Verify Dawi and realm-growth safety contracts
+      - name: Verify unified safety contracts
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
 
-          $dipManifest = Get-Content projects/KaiTORDiplomacy/module/SubModule.xml -Raw
-          if ($dipManifest -notmatch 'v0\.5\.3') { throw 'Diplomacy module is not v0.5.3.' }
+          $manifest = Get-Content projects/KaiTORDiplomacy/module/SubModule.xml -Raw
+          foreach ($required in @(
+            '<Id value="KaiTOR_Diplomacy" />',
+            '<Version value="v0.6.0" />',
+            'kaitor_dawi_women',
+            'kaitor_dawi_monster'
+          )) {
+            if ($manifest -notmatch [regex]::Escape($required)) { throw "Unified manifest contract missing: $required" }
+          }
 
           $project = Get-Content projects/KaiTORDiplomacy/src/KaiTOR_Diplomacy.csproj -Raw
-          foreach ($required in @('<Version>0.5.3</Version>','<AssemblyVersion>0.5.3.0</AssemblyVersion>','0.5.3-DawiLiveTest-RealmGrowthFix')) {
-            if ($project -notmatch [regex]::Escape($required)) { throw "Diplomacy version contract missing: $required" }
+          foreach ($required in @(
+            '<Version>0.6.0</Version>',
+            '<AssemblyVersion>0.6.0.0</AssemblyVersion>',
+            '0.6.0-UnifiedDiplomacyDawi-LiveTest'
+          )) {
+            if ($project -notmatch [regex]::Escape($required)) { throw "Version contract missing: $required" }
           }
 
           $sub = Get-Content projects/KaiTORDiplomacy/src/SubModule.cs -Raw
-          foreach ($required in @('LoadSafeDiagnostics = true','EnableDawiWomenLiveTest = true','InstallPregnancyWrapper','new KaiDawiWomenBehavior','new KaiRealmHouseGrowthBehavior')) {
-            if ($sub -notmatch [regex]::Escape($required)) { throw "Missing runtime contract: $required" }
+          foreach ($required in @(
+            'LoadSafeDiagnostics = true',
+            'EnableDawiWomenLiveTest = true',
+            'InstallPregnancyWrapper',
+            'new KaiDawiWomenBehavior',
+            'new KaiRealmHouseGrowthBehavior'
+          )) {
+            if ($sub -notmatch [regex]::Escape($required)) { throw "Runtime contract missing: $required" }
           }
           if ($sub -match 'campaignStarter\.AddBehavior\(new KaiCadetHouseSafeBehavior\(\)\);') { throw 'Legacy settlement-entry clan mutation must not be registered.' }
-
-          $realm = Get-Content projects/KaiTORDiplomacy/src/Runtime/KaiRealmHouseGrowthBehavior.cs -Raw
-          foreach ($required in @(
-            'CampaignEvents.WeeklyTickEvent.AddNonSerializedListener',
-            'CampaignEvents.HourlyTickEvent.AddNonSerializedListener',
-            'IsSafeWorldMutationWindow',
-            'PlayerEncounter.Current != null',
-            'RemoveCompanionAction.ApplyByByTurningToLord',
-            'newClan.Kingdom = kingdom',
-            'CampaignEventDispatcher.Instance.OnClanCreated',
-            'commit=hourly-open-map'
-          )) {
-            if ($realm -notmatch [regex]::Escape($required)) { throw "Realm-growth contract missing: $required" }
-          }
-          if ($realm -match 'AfterSettlementEntered') { throw 'Realm growth must never mutate the clan graph on settlement entry.' }
-          if ($realm -match 'ChangeKingdomAction\.ApplyByJoinToKingdom') { throw 'Realm growth must use Bannerlord native-style Kingdom setter ordering.' }
-          if ($realm -match 'ChangeOwnerOfSettlementAction') { throw 'New house transaction must remain landless.' }
 
           $behavior = Get-Content projects/KaiTORDiplomacy/src/Runtime/KaiDawiWomenBehavior.cs -Raw
           if ($behavior -notmatch 'AutomaticPopulationEnabled = false') { throw 'Automatic Dawi population must stay OFF.' }
           if ($behavior -notmatch 'SpawnOneForLiveTest') { throw 'Manual one-woman live-test probe is missing.' }
 
           $bridge = Get-Content projects/KaiTORDiplomacy/src/Models/DawiWomenAssetBridge.cs -Raw
-          foreach ($required in @('kaitor_dawi_woman_lord','kaitor_dawi_assets_ready.flag','template.Race == dwarfRace')) {
-            if ($bridge -notmatch [regex]::Escape($required)) { throw "Missing guarded asset bridge contract: $required" }
+          foreach ($required in @(
+            'ModuleId = "KaiTOR_Diplomacy"',
+            'kaitor_dawi_woman_lord',
+            'kaitor_dawi_assets_ready.flag',
+            'kaitor_dawi_female.tpac',
+            'ExpectedAssetPackBytes = 29213977L',
+            'template.Race == dwarfRace'
+          )) {
+            if ($bridge -notmatch [regex]::Escape($required)) { throw "Integrated Dawi bridge contract missing: $required" }
           }
 
-          $dawiManifest = Get-Content projects/KaiTORDawiWomen/module/SubModule.xml -Raw
-          if ($dawiManifest -notmatch 'v0\.2\.0') { throw 'Dawi module is not v0.2.0.' }
-          if ($dawiManifest -notmatch 'DependentVersion="v0\.5\.3"') { throw 'Dawi module must depend on Diplomacy v0.5.3.' }
-          if ($dawiManifest -notmatch 'kaitor_dawi_women') { throw 'Female NPC XML is not registered.' }
+          Write-Host 'KaiTOR unified v0.6.0 safety contracts: PASS'
 
-          $skinPlaceholder = Get-Content projects/KaiTORDawiWomen/module/ModuleData/skins.xslt -Raw
-          if ($skinPlaceholder -match 'sk_dwarf_bm_f1_body') { throw 'Distributed skin transform must remain inert before local staging.' }
-
-          $monsterPlaceholder = Get-Content projects/KaiTORDawiWomen/module/ModuleData/kaitor_dawi_monster.xml -Raw
-          if ($monsterPlaceholder -match 'female_action_set=') { throw 'Distributed Monster patch must remain inert before local staging.' }
-
-          $actionPlaceholder = Get-Content projects/KaiTORDawiWomen/module/ModuleData/action_sets.xml -Raw
-          if ($actionPlaceholder -match 'as_dwarf_female_warrior') { throw 'Distributed action set must remain inert before local staging.' }
-
-          $stage = Get-Content projects/KaiTORDawiWomen/module/Tools/Stage-Local-DawiAssets.ps1 -Raw
-          foreach ($required in @('sk_dwarf_bm_f1_geo.tpac','sk_dwarf_underwear_female_geo.tpac','as_dwarf_female_warrior','kaitor_dawi_assets_ready.flag','Find-TorDwarfMaleActionSet','femaleSkin.OuterXml')) {
-            if ($stage -notmatch [regex]::Escape($required)) { throw "Missing local staging contract: $required" }
-          }
-
-          [xml](Get-Content projects/KaiTORDawiWomen/module/ModuleData/project.mbproj -Raw) | Out-Null
-          [xml](Get-Content projects/KaiTORDawiWomen/module/ModuleData/kaitor_dawi_women.xml -Raw) | Out-Null
-          [xml](Get-Content projects/KaiTORDawiWomen/module/ModuleData/skins.xslt -Raw) | Out-Null
-          [xml](Get-Content projects/KaiTORDawiWomen/module/ModuleData/action_sets.xml -Raw) | Out-Null
-          [xml](Get-Content projects/KaiTORDawiWomen/module/ModuleData/kaitor_dawi_monster.xml -Raw) | Out-Null
-
-          Write-Host 'KaiTOR v0.5.3 Dawi + realm-growth safety contracts: PASS'
-
-      - name: Assemble combined test package
+      - name: Assemble unified base package
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $root = 'artifact/Modules'
-          $dip = Join-Path $root 'KaiTOR_Diplomacy'
-          $dawi = Join-Path $root 'KaiTOR_DawiWomen'
-          New-Item -ItemType Directory -Path (Join-Path $dip 'bin/Win64_Shipping_Client') -Force | Out-Null
-          New-Item -ItemType Directory -Path (Join-Path $dawi 'bin/Win64_Shipping_Client') -Force | Out-Null
+          $module = 'artifact/KaiTOR_Diplomacy'
+          New-Item -ItemType Directory -Path (Join-Path $module 'bin/Win64_Shipping_Client') -Force | Out-Null
 
-          Copy-Item projects/KaiTORDiplomacy/module/SubModule.xml (Join-Path $dip 'SubModule.xml') -Force
-          Copy-Item projects/KaiTORDiplomacy/build/bin/Win64_Shipping_Client/KaiTOR_Diplomacy.dll (Join-Path $dip 'bin/Win64_Shipping_Client/KaiTOR_Diplomacy.dll') -Force
-          $dipPdb = 'projects/KaiTORDiplomacy/build/bin/Win64_Shipping_Client/KaiTOR_Diplomacy.pdb'
-          if (Test-Path $dipPdb) { Copy-Item $dipPdb (Join-Path $dip 'bin/Win64_Shipping_Client/KaiTOR_Diplomacy.pdb') -Force }
+          Copy-Item projects/KaiTORDiplomacy/module/SubModule.xml (Join-Path $module 'SubModule.xml') -Force
+          Copy-Item projects/KaiTORDiplomacy/build/bin/Win64_Shipping_Client/KaiTOR_Diplomacy.dll (Join-Path $module 'bin/Win64_Shipping_Client/KaiTOR_Diplomacy.dll') -Force
+          $pdb = 'projects/KaiTORDiplomacy/build/bin/Win64_Shipping_Client/KaiTOR_Diplomacy.pdb'
+          if (Test-Path $pdb) { Copy-Item $pdb (Join-Path $module 'bin/Win64_Shipping_Client/KaiTOR_Diplomacy.pdb') -Force }
 
-          Copy-Item projects/KaiTORDawiWomen/module/* $dawi -Recurse -Force
-          Copy-Item projects/KaiTORDawiWomen/build/bin/Win64_Shipping_Client/KaiTOR_DawiWomen.dll (Join-Path $dawi 'bin/Win64_Shipping_Client/KaiTOR_DawiWomen.dll') -Force
-          $dawiPdb = 'projects/KaiTORDawiWomen/build/bin/Win64_Shipping_Client/KaiTOR_DawiWomen.pdb'
-          if (Test-Path $dawiPdb) { Copy-Item $dawiPdb (Join-Path $dawi 'bin/Win64_Shipping_Client/KaiTOR_DawiWomen.pdb') -Force }
-
-          if (Test-Path (Join-Path $dawi 'ModuleData/kaitor_dawi_assets_ready.flag')) { throw 'Ready marker must never be shipped.' }
-          if (Test-Path (Join-Path $dawi 'Assets')) { throw 'Third-party binary assets must never be shipped.' }
-
-      - name: Upload combined test package
+      - name: Upload unified base package
         uses: actions/upload-artifact@v4
         with:
-          name: KaiTOR-Dawi-LiveTest-v0.5.3-v0.2.0-RealmGrowthFix
-          path: artifact/Modules
+          name: KaiTOR-Unified-v0.6.0-base
+          path: artifact/KaiTOR_Diplomacy
           if-no-files-found: error
           retention-days: 30
