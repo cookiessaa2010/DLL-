@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory=$true, Position=0)]
-    [string]$ArmoryPath
+    [Parameter(Mandatory=$false, Position=0)]
+    [string]$SearchRoot
 )
 
 $ErrorActionPreference = 'Stop'
@@ -11,34 +11,63 @@ function Write-Step([string]$text) {
     Write-Host "[KaiTOR Dawi] $text" -ForegroundColor Cyan
 }
 
-function Find-XmlWithText([string]$root, [string]$fileName, [string]$needle) {
-    $preferred = Join-Path $root ("ModuleData\" + $fileName)
-    if ((Test-Path -LiteralPath $preferred -PathType Leaf) -and
-        (Select-String -LiteralPath $preferred -Pattern $needle -SimpleMatch -Quiet)) {
-        return $preferred
-    }
+function Add-UniqueRoot([System.Collections.Generic.List[string]]$list, [string]$path) {
+    if ([string]::IsNullOrWhiteSpace($path)) { return }
+    try { $full = [System.IO.Path]::GetFullPath($path) } catch { return }
+    if (-not (Test-Path -LiteralPath $full -PathType Container)) { return }
+    if (-not ($list -contains $full)) { [void]$list.Add($full) }
+}
 
-    foreach ($file in @(Get-ChildItem -LiteralPath $root -Recurse -File -Filter $fileName -ErrorAction SilentlyContinue)) {
-        if (Select-String -LiteralPath $file.FullName -Pattern $needle -SimpleMatch -Quiet) {
-            return $file.FullName
+function Find-ExactFileFast([string[]]$roots, [string]$fileName) {
+    $where = Join-Path $env:SystemRoot 'System32\where.exe'
+    foreach ($root in $roots) {
+        if (-not (Test-Path -LiteralPath $root -PathType Container)) { continue }
+
+        foreach ($candidate in @(
+            (Join-Path $root $fileName),
+            (Join-Path $root ("Assets\Race Test\dwarf\" + $fileName)),
+            (Join-Path $root ("Race Test\dwarf\" + $fileName)),
+            (Join-Path $root ("LOTRLOME_Armory\Assets\Race Test\dwarf\" + $fileName))
+        )) {
+            if (Test-Path -LiteralPath $candidate -PathType Leaf) { return $candidate }
+        }
+
+        if (Test-Path -LiteralPath $where -PathType Leaf) {
+            $hit = @(& $where /r $root $fileName 2>$null | Select-Object -First 1)
+            if ($hit.Count -gt 0 -and (Test-Path -LiteralPath $hit[0] -PathType Leaf)) {
+                return [string]$hit[0]
+            }
+        } else {
+            $hit = @(Get-ChildItem -LiteralPath $root -Recurse -File -Filter $fileName -ErrorAction SilentlyContinue | Select-Object -First 1)
+            if ($hit.Count -gt 0) { return $hit[0].FullName }
         }
     }
     return $null
 }
 
-function Find-RaceTest([string]$root) {
-    $preferred = Join-Path $root 'Assets\Race Test'
-    if (Test-Path -LiteralPath $preferred -PathType Container) { return $preferred }
-
-    $known = @(Get-ChildItem -LiteralPath $root -Recurse -File -Filter 'sk_dwarf_bm_f1_geo.tpac' -ErrorAction SilentlyContinue | Select-Object -First 1)
-    if ($known.Count -gt 0) {
-        $dwarf = Split-Path -Parent $known[0].FullName
-        $raceTest = Split-Path -Parent $dwarf
-        if ((Split-Path -Leaf $raceTest) -eq 'Race Test') { return $raceTest }
+function Find-AncestorNamed([string]$path, [string]$name) {
+    $item = Get-Item -LiteralPath $path
+    $dir = if ($item.PSIsContainer) { $item } else { $item.Directory }
+    while ($null -ne $dir) {
+        if ($dir.Name -eq $name) { return $dir.FullName }
+        $dir = $dir.Parent
     }
+    return $null
+}
 
-    $dirs = @(Get-ChildItem -LiteralPath $root -Recurse -Directory -Filter 'Race Test' -ErrorAction SilentlyContinue | Select-Object -First 1)
-    if ($dirs.Count -gt 0) { return $dirs[0].FullName }
+function Find-XmlWithText([string[]]$roots, [string]$fileName, [string]$needle) {
+    foreach ($root in $roots) {
+        $preferred = Join-Path $root ("ModuleData\" + $fileName)
+        if ((Test-Path -LiteralPath $preferred -PathType Leaf) -and
+            (Select-String -LiteralPath $preferred -Pattern $needle -SimpleMatch -Quiet)) {
+            return $preferred
+        }
+        foreach ($file in @(Get-ChildItem -LiteralPath $root -Recurse -File -Filter $fileName -ErrorAction SilentlyContinue)) {
+            if (Select-String -LiteralPath $file.FullName -Pattern $needle -SimpleMatch -Quiet) {
+                return $file.FullName
+            }
+        }
+    }
     return $null
 }
 
@@ -46,7 +75,6 @@ function Find-TorDwarfMaleActionSet([string]$modulesRoot) {
     $roots = @('TOR_Armory','TOR_Core') | ForEach-Object { Join-Path $modulesRoot $_ } | Where-Object { Test-Path -LiteralPath $_ -PathType Container }
     foreach ($root in $roots) {
         foreach ($file in @(Get-ChildItem -LiteralPath $root -Recurse -File -Filter '*.xml' -ErrorAction SilentlyContinue)) {
-            if (-not (Select-String -LiteralPath $file.FullName -Pattern 'Monster id="dwarf"' -SimpleMatch -Quiet)) { continue }
             try {
                 [xml]$doc = Get-Content -LiteralPath $file.FullName -Raw
                 $node = $doc.SelectSingleNode("//Monster[@id='dwarf']")
@@ -67,10 +95,6 @@ function Write-XmlNoBom([System.Xml.XmlDocument]$doc, [string]$path) {
     try { $doc.Save($writer) } finally { $writer.Dispose() }
 }
 
-if (-not (Test-Path -LiteralPath $ArmoryPath -PathType Container)) {
-    throw "LOTRLOME_Armory folder not found: $ArmoryPath"
-}
-
 $toolDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $moduleRoot = Split-Path -Parent $toolDir
 $modulesRoot = Split-Path -Parent $moduleRoot
@@ -84,24 +108,50 @@ $reportPath = Join-Path $moduleData 'kaitor_dawi_stage_report.json'
 
 if (Test-Path -LiteralPath $readyMarker) { Remove-Item -LiteralPath $readyMarker -Force }
 
-Write-Step 'Locating female-Dawi files by path/name only; TPAC contents are NOT scanned...'
-$raceTest = Find-RaceTest $ArmoryPath
-if (-not $raceTest) { throw 'Could not locate the Armory Race Test asset directory.' }
+$roots = New-Object 'System.Collections.Generic.List[string]'
+Add-UniqueRoot $roots $SearchRoot
+foreach ($name in @('LOTRLOME_Armory','TAOM','TOR_Armory','TOR_Core')) {
+    Add-UniqueRoot $roots (Join-Path $modulesRoot $name)
+}
+Add-UniqueRoot $roots $modulesRoot
 
-$bodyTpac = Join-Path $raceTest 'dwarf\sk_dwarf_bm_f1_geo.tpac'
-$underwearTpac = Join-Path $raceTest 'dwarf\sk_dwarf_underwear_female_geo.tpac'
-foreach ($required in @($bodyTpac, $underwearTpac)) {
-    if (-not (Test-Path -LiteralPath $required -PathType Leaf)) {
-        throw "Required female-Dawi TPAC is missing: $required"
-    }
+Write-Step 'Searching exact female-Dawi filenames; TPAC contents are NOT scanned...'
+Write-Step ('Roots: ' + ($roots -join ' | '))
+
+$bodyTpac = Find-ExactFileFast $roots.ToArray() 'sk_dwarf_bm_f1_geo.tpac'
+if (-not $bodyTpac) {
+    throw @"
+Required file sk_dwarf_bm_f1_geo.tpac was not found anywhere in the supplied folder or Bannerlord\Modules.
+This means the LOTRLOME/TAOM female-Dwarf art package is not installed locally (TOR_Armory alone is not enough for this test).
+Nothing was activated. If you have LOTRLOME_Armory elsewhere, drag THAT folder onto SETUP-DAWI-ASSETS.cmd.
+"@
 }
 
-$actionSetsSource = Find-XmlWithText $ArmoryPath 'action_sets.xml' 'as_dwarf_female_warrior'
-if (-not $actionSetsSource) { throw 'Could not locate action_sets.xml containing as_dwarf_female_warrior.' }
-$skinsSource = Find-XmlWithText $ArmoryPath 'skins.xml' 'sk_dwarf_bm_f1_body'
-if (-not $skinsSource) { throw 'Could not locate skins.xml containing the real female dwarf skin.' }
+$raceTest = Find-AncestorNamed $bodyTpac 'Race Test'
+if (-not $raceTest) { throw "Found female body TPAC, but it is not inside a 'Race Test' directory: $bodyTpac" }
 
-Write-Step 'Reading the exact female skin from YOUR Armory version...'
+$underwearTpac = Join-Path $raceTest 'dwarf\sk_dwarf_underwear_female_geo.tpac'
+if (-not (Test-Path -LiteralPath $underwearTpac -PathType Leaf)) {
+    throw "Female body TPAC was found, but underwear TPAC is missing beside it: $underwearTpac"
+}
+
+$assetsDir = Split-Path -Parent $raceTest
+$sourceModule = Split-Path -Parent $assetsDir
+if ((Split-Path -Leaf $assetsDir) -ne 'Assets') {
+    $sourceModule = Split-Path -Parent $raceTest
+}
+
+Write-Step "Female Dawi assets found in: $sourceModule"
+$xmlRoots = New-Object 'System.Collections.Generic.List[string]'
+Add-UniqueRoot $xmlRoots $sourceModule
+Add-UniqueRoot $xmlRoots $SearchRoot
+
+$actionSetsSource = Find-XmlWithText $xmlRoots.ToArray() 'action_sets.xml' 'as_dwarf_female_warrior'
+if (-not $actionSetsSource) { throw 'Female assets were found, but action_sets.xml with as_dwarf_female_warrior is missing.' }
+$skinsSource = Find-XmlWithText $xmlRoots.ToArray() 'skins.xml' 'sk_dwarf_bm_f1_body'
+if (-not $skinsSource) { throw 'Female assets were found, but skins.xml with sk_dwarf_bm_f1_body is missing.' }
+
+Write-Step 'Reading exact female skin from the local Armory version...'
 [xml]$skinDoc = Get-Content -LiteralPath $skinsSource -Raw
 $femaleSkin = $skinDoc.SelectSingleNode("//race[@id='dwarf']/skin[@gender='1' and @name='woman' and @mesh_maturity_type='adult']")
 if (-not $femaleSkin) { throw 'Adult dwarf woman skin was not found in source skins.xml.' }
@@ -122,10 +172,8 @@ Write-Step "TOR male Dawi action set: $torMaleActionSet"
 [xml]$actionDoc = Get-Content -LiteralPath $actionSetsSource -Raw
 $femaleWarrior = $actionDoc.SelectSingleNode("//action_set[@id='as_dwarf_female_warrior']")
 if (-not $femaleWarrior) { throw 'as_dwarf_female_warrior is missing from source action_sets.xml.' }
-
-# Rebase ONLY our copied female set onto TOR's current male dwarf action set.
-# The original TOR action set itself is never copied or modified.
 $femaleWarrior.SetAttribute('base_set', $torMaleActionSet)
+
 $outDoc = New-Object System.Xml.XmlDocument
 $decl = $outDoc.CreateXmlDeclaration('1.0','utf-8',$null)
 [void]$outDoc.AppendChild($decl)
@@ -134,7 +182,7 @@ $outRoot = $outDoc.CreateElement('action_sets')
 [void]$outRoot.AppendChild($outDoc.ImportNode($femaleWarrior, $true))
 Write-XmlNoBom $outDoc $targetActionSets
 
-Write-Step 'Building an XSLT that replaces ONLY TOR adult dwarf woman with the exact local Armory woman skin...'
+Write-Step 'Building skin override for ONLY the adult dwarf woman...'
 $femaleSkinXml = $femaleSkin.OuterXml
 $xslt = @"
 <?xml version="1.0" encoding="utf-8"?>
@@ -150,7 +198,6 @@ $xslt = @"
 "@
 [System.IO.File]::WriteAllText($targetSkinXslt, $xslt, (New-Object System.Text.UTF8Encoding($false)))
 
-Write-Step 'Activating female_action_set on Monster.dwarf without changing TOR male action_set...'
 $monsterXml = @"
 <?xml version="1.0" encoding="utf-8"?>
 <Monsters>
@@ -159,14 +206,16 @@ $monsterXml = @"
 "@
 [System.IO.File]::WriteAllText($targetMonster, $monsterXml, (New-Object System.Text.UTF8Encoding($false)))
 
-Write-Step 'Copying Assets\Race Test locally (direct copy, no content scan)...'
+Write-Step 'Copying Race Test assets locally (direct filesystem copy, no binary scan)...'
 if (Test-Path -LiteralPath $targetAssets) { Remove-Item -LiteralPath $targetAssets -Recurse -Force }
 New-Item -ItemType Directory -Path $targetAssets -Force | Out-Null
 Copy-Item -Path (Join-Path $raceTest '*') -Destination $targetAssets -Recurse -Force
 
-$targetBody = Join-Path $targetAssets 'dwarf\sk_dwarf_bm_f1_geo.tpac'
-$targetUnderwear = Join-Path $targetAssets 'dwarf\sk_dwarf_underwear_female_geo.tpac'
-foreach ($required in @($targetBody, $targetUnderwear, $targetActionSets, $targetSkinXslt, $targetMonster)) {
+foreach ($required in @(
+    (Join-Path $targetAssets 'dwarf\sk_dwarf_bm_f1_geo.tpac'),
+    (Join-Path $targetAssets 'dwarf\sk_dwarf_underwear_female_geo.tpac'),
+    $targetActionSets, $targetSkinXslt, $targetMonster
+)) {
     if (-not (Test-Path -LiteralPath $required -PathType Leaf)) {
         throw "Staging verification failed, missing: $required"
     }
@@ -174,7 +223,8 @@ foreach ($required in @($targetBody, $targetUnderwear, $targetActionSets, $targe
 
 $report = [ordered]@{
     status = 'READY_FOR_MANUAL_RIG_TEST'
-    source_armory = (Resolve-Path -LiteralPath $ArmoryPath).Path
+    search_root = $SearchRoot
+    source_module = (Resolve-Path -LiteralPath $sourceModule).Path
     source_race_test = (Resolve-Path -LiteralPath $raceTest).Path
     skins_source = (Resolve-Path -LiteralPath $skinsSource).Path
     action_sets_source = (Resolve-Path -LiteralPath $actionSetsSource).Path
@@ -182,10 +232,6 @@ $report = [ordered]@{
     female_action_set = 'as_dwarf_female_warrior'
     female_body_mesh = $femaleSkin.GetAttribute('body_meta_mesh')
     female_underwear_mesh = $femaleSkin.GetAttribute('underwear_bottom_mesh')
-    verified_tpacs = @(
-        'Assets\\Race Test\\dwarf\\sk_dwarf_bm_f1_geo.tpac',
-        'Assets\\Race Test\\dwarf\\sk_dwarf_underwear_female_geo.tpac'
-    )
     automatic_population = $false
     created_utc = [DateTime]::UtcNow.ToString('o')
 }
@@ -194,12 +240,14 @@ $report | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $reportPath -Encodi
 @(
     'KaiTOR Dawi Women assets staged successfully.',
     'Mode: MANUAL RIG TEST ONLY',
+    ('Source module: ' + $sourceModule),
     ('TOR male action set preserved: ' + $torMaleActionSet),
     ('UTC: ' + [DateTime]::UtcNow.ToString('o'))
 ) | Set-Content -LiteralPath $readyMarker -Encoding ASCII
 
 Write-Host ''
 Write-Host 'READY_FOR_MANUAL_RIG_TEST' -ForegroundColor Green
+Write-Host "Source: $sourceModule"
 Write-Host "TOR male Dawi action set preserved: $torMaleActionSet"
 Write-Host "Report: $reportPath"
 Write-Host 'Restart Bannerlord completely, then run: kaitor_dawi_women.status' -ForegroundColor Yellow
