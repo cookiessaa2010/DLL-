@@ -22,7 +22,18 @@ internal static class TorFamilySafety
     public static bool CanAddAttribute => AddAttributeMethod != null;
 
     public static bool IsVampire(Hero hero)
-        => TryInvokeFlag(IsVampireMethod, hero, out var value) && value;
+    {
+        if (hero?.CharacterObject == null)
+            return false;
+
+        // TOR defines vampire heroes by FaceGen race. Check the actual race first so
+        // family safety does not depend on ExtendedInfo/reflection initialization order.
+        var race = hero.CharacterObject.Race;
+        if (race == FaceGen.GetRaceOrDefault("vampire") || race == FaceGen.GetRaceOrDefault("necrarch"))
+            return true;
+
+        return TryInvokeFlag(IsVampireMethod, hero, out var value) && value;
+    }
 
     public static bool IsUndead(Hero hero)
         => TryInvokeFlag(IsUndeadMethod, hero, out var value) && value;
@@ -33,12 +44,10 @@ internal static class TorFamilySafety
     public static bool IsUndeadNonVampire(Hero hero)
     {
         if (hero == null) return false;
+        if (IsVampire(hero)) return false;
 
         var undeadKnown = TryInvokeFlag(IsUndeadMethod, hero, out var undead);
-        if (!undeadKnown || !undead) return false;
-
-        var vampireKnown = TryInvokeFlag(IsVampireMethod, hero, out var vampire);
-        return !vampireKnown || !vampire;
+        return undeadKnown && undead;
     }
 
     public static bool CanUseVanillaPregnancy(Hero firstHero, Hero secondHero)
@@ -63,28 +72,26 @@ internal static class TorFamilySafety
             return false;
 
         // Dawi use normal same-race family mechanics only when the complete optional
-        // female-Dawi asset chain is actually registered. Until then they remain
-        // fail-closed rather than producing a child the installed race cannot render.
+        // female-Dawi asset chain is actually registered.
         if (IsCulture(firstHero, "sturgia") || IsCulture(secondHero, "sturgia"))
         {
             if (!DawiWomenAssetBridge.IsSupportedDawiPair(firstHero, secondHero))
                 return false;
         }
 
-        // Vampires/other undead do not use Bannerlord biological reproduction.
-        // If TOR's vampire hook cannot be resolved, fail closed for the two cultures
-        // that can contain vampires rather than risk creating a broken child.
-        var firstVampireKnown = TryInvokeFlag(IsVampireMethod, firstHero, out var firstVampire);
-        var secondVampireKnown = TryInvokeFlag(IsVampireMethod, secondHero, out var secondVampire);
-        if ((firstVampireKnown && firstVampire) || (secondVampireKnown && secondVampire))
-            return false;
-        if ((!firstVampireKnown && IsVampireCulture(firstHero)) ||
-            (!secondVampireKnown && IsVampireCulture(secondHero)))
+        // TOR's canonical vampire test is race-based. Keep these heroes completely out
+        // of Bannerlord's biological pregnancy pipeline.
+        if (IsVampire(firstHero) || IsVampire(secondHero))
             return false;
 
         if (TryInvokeFlag(IsUndeadMethod, firstHero, out var firstUndead) && firstUndead)
             return false;
         if (TryInvokeFlag(IsUndeadMethod, secondHero, out var secondUndead) && secondUndead)
+            return false;
+
+        // If TOR's vampire helper is unavailable, fail closed for its vampire cultures.
+        // This fallback is used only when the method itself cannot be resolved.
+        if (IsVampireMethod == null && (IsVampireCulture(firstHero) || IsVampireCulture(secondHero)))
             return false;
 
         return true;
