@@ -35,7 +35,7 @@ public sealed class KaiMarriageWarningBehavior : CampaignBehaviorBase
             "kaitor_childless_marriage_warning",
             "hero_courtship_final_barter",
             "kaitor_childless_marriage_warning_options",
-            "{=kaitor_childless_marriage_warning}KaiTOR warning: this marriage is allowed, but this couple will not be able to have biological children. KaiTOR will not generate offspring for this pairing. Do you still want to continue with the marriage arrangements?",
+            "Этот брак возможен, но у этой пары не будет биологических детей. Продолжить брачные договорённости?",
             ShouldWarnBeforeFinalMarriage,
             null,
             200,
@@ -45,7 +45,7 @@ public sealed class KaiMarriageWarningBehavior : CampaignBehaviorBase
             "kaitor_childless_marriage_continue",
             "kaitor_childless_marriage_warning_options",
             "hero_courtship_final_barter",
-            "{=kaitor_childless_marriage_continue}I understand. Continue with the marriage arrangements.",
+            "Я понимаю. Продолжить брачные договорённости.",
             null,
             AcknowledgeCurrentMarriage,
             200,
@@ -56,7 +56,7 @@ public sealed class KaiMarriageWarningBehavior : CampaignBehaviorBase
             "kaitor_childless_marriage_cancel",
             "kaitor_childless_marriage_warning_options",
             "close_window",
-            "{=kaitor_childless_marriage_cancel}Not now. I want to reconsider this marriage.",
+            "Не сейчас. Я хочу ещё подумать об этом браке.",
             null,
             ClearAcknowledgement,
             200,
@@ -105,12 +105,10 @@ public sealed class KaiMarriageWarningBehavior : CampaignBehaviorBase
             return;
         }
 
-        // Backup for marriage paths that bypass the normal courtship final-barter node
-        // (for example arranged/barter-driven paths). At this point MarriageAction has
-        // already accepted the couple, so this is informational only; fertility remains
-        // hard-blocked by KaiPregnancyModel.
+        // Backup for arranged/barter-driven paths that bypass the normal final-courtship
+        // dialogue. Marriage is already accepted here; fertility is still blocked safely.
         InformationManager.DisplayMessage(new InformationMessage(
-            $"KaiTOR family warning: {firstHero?.Name} and {secondHero?.Name} can marry, but this marriage will not produce biological children."));
+            $"Семейные дела: {firstHero?.Name} и {secondHero?.Name} могут вступить в брак, но у этой пары не будет биологических детей."));
     }
 
     private static Hero ResolveCurrentCourtshipPartner()
