@@ -7,6 +7,7 @@ using TaleWorlds.CampaignSystem.BarterSystem;
 using TaleWorlds.CampaignSystem.BarterSystem.Barterables;
 using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.Core;
+using TaleWorlds.Core.ViewModelCollection;
 using TaleWorlds.Library;
 using TaleWorlds.Localization;
 
@@ -73,8 +74,6 @@ public sealed class KaiDiplomaticNegotiationBehavior : CampaignBehaviorBase
         if (args == null || args.OffererHero != Hero.MainHero || args.OtherHero == null)
             return;
 
-        // The dedicated political-marriage barter already contains its mandatory item.
-        // Keep that screen focused instead of adding four unrelated NAP choices to it.
         if (args.GetBarterables().Any(item => item is KaiPoliticalMarriageBarterable))
             return;
 
