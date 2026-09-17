@@ -10,13 +10,18 @@ namespace KaiTOR.Diplomacy;
 
 public sealed class SubModule : MBSubModuleBase
 {
-    // Existing TOR-save safety latch. Racial population, permission/death overrides
-    // and other uncertified world mutations remain OFF.
+    // Existing TOR-save safety latch. Unsafe racial-population and permission overrides
+    // remain OFF even while the ordinary Bannerlord lifecycle is restored.
     private const bool LoadSafeDiagnostics = true;
 
-    // Dawi v0.5.2+ remains isolated from automatic population. The behavior is
-    // registered so the console probe can create one test woman after local assets are
-    // staged, while KaiDawiWomenBehavior itself keeps automatic population disabled.
+    // Restore Bannerlord/TOR's normal age progression, pregnancy/child growth and
+    // natural-death lifecycle without enabling KaiTOR's uncertified population spawners.
+    private const bool EnableLifecycleRestore = true;
+    private const bool EnableLoreOldAgeMortality = true;
+    private const bool EnableMarriageWarnings = true;
+
+    // Dawi remain isolated from automatic population. The behavior is registered so
+    // the console probe can create one test woman when the optional local assets are staged.
     private const bool EnableDawiWomenLiveTest = true;
 
     protected override void OnGameStart(Game game, IGameStarter gameStarterObject)
@@ -26,29 +31,28 @@ public sealed class SubModule : MBSubModuleBase
         if (gameStarterObject is not CampaignGameStarter campaignStarter)
             return;
 
+        // TOR disables ordinary marriage. Replace that model with our safe compatibility
+        // layer, then guard every biological pregnancy path against unsupported races.
         InstallMarriageWrapper(campaignStarter);
+        InstallPregnancyWrapper(campaignStarter);
+
+        if (EnableLifecycleRestore)
+            CampaignOptions.IsLifeDeathCycleDisabled = false;
+
+        if (EnableLoreOldAgeMortality)
+            InstallHeroDeathWrapper(campaignStarter);
+
+        if (EnableMarriageWarnings)
+            campaignStarter.AddBehavior(new KaiMarriageWarningBehavior());
 
         if (EnableDawiWomenLiveTest)
-        {
-            // The wrapper delegates normal valid pairs to TOR/Bannerlord and only
-            // fail-closes races that are unsafe for native DeliverOffSpring.
-            InstallPregnancyWrapper(campaignStarter);
             campaignStarter.AddBehavior(new KaiDawiWomenBehavior());
-        }
 
         if (!LoadSafeDiagnostics)
         {
-            CampaignOptions.IsLifeDeathCycleDisabled = false;
-
+            // These paths are intentionally NOT enabled by v0.6.2. They remain behind
+            // the safety latch until their world-mutation behavior is certified in game.
             InstallPermissionWrapper(campaignStarter);
-            if (!EnableDawiWomenLiveTest)
-            {
-                InstallPregnancyWrapper(campaignStarter);
-                campaignStarter.AddBehavior(new KaiDawiWomenBehavior());
-            }
-            InstallHeroDeathWrapper(campaignStarter);
-
-            campaignStarter.AddBehavior(new KaiMarriageWarningBehavior());
             campaignStarter.AddBehavior(new KaiRacialPopulationBehavior());
         }
 
@@ -61,9 +65,7 @@ public sealed class SubModule : MBSubModuleBase
         campaignStarter.AddBehavior(new KaiDynastyAiBehavior());
         campaignStarter.AddBehavior(new KaiMercyRelationBehavior());
 
-        // v0.5.3: new houses are restored through a staged open-map path. WeeklyTick
-        // only selects a candidate; the clan graph changes later on HourlyTick while
-        // the player is on the open campaign map. No settlement-entry mutation.
+        // New houses use the staged open-map native factory path from v0.6.1 CrashFix.
         campaignStarter.AddBehavior(new KaiRealmHouseGrowthBehavior());
     }
 
