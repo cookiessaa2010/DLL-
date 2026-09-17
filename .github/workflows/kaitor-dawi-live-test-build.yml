@@ -5,6 +5,7 @@ on:
     branches:
       - kaitor-global-test-v0.6.3-diplomacy-ui
       - kaitor-global-test-v0.6.3.2-testfixes
+      - kaitor-global-test-v0.6.3.3-realmhouse-fix
     paths:
       - 'projects/KaiTORDiplomacy/**'
       - '.github/workflows/kaitor-dawi-live-test-build.yml'
@@ -23,7 +24,7 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Build KaiTOR unified v0.6.3.2
+      - name: Build KaiTOR unified v0.6.3.3
         shell: pwsh
         run: |
           dotnet build projects/KaiTORDiplomacy/src/KaiTOR_Diplomacy.csproj `
@@ -32,7 +33,7 @@ jobs:
             --nologo
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Verify v0.6.3.2 regression contracts
+      - name: Verify v0.6.3.3 regression contracts
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -40,7 +41,7 @@ jobs:
           $manifest = Get-Content projects/KaiTORDiplomacy/module/SubModule.xml -Raw
           foreach ($required in @(
             '<Id value="KaiTOR_Diplomacy" />',
-            '<Version value="v0.6.3.2" />',
+            '<Version value="v0.6.3.3" />',
             '<DependedModule Id="Bannerlord.Harmony" DependentVersion="v2.4.2.248" />',
             'kaitor_dawi_women',
             'kaitor_dawi_monster'
@@ -50,9 +51,9 @@ jobs:
 
           $project = Get-Content projects/KaiTORDiplomacy/src/KaiTOR_Diplomacy.csproj -Raw
           foreach ($required in @(
-            '<Version>0.6.3.2</Version>',
-            '<AssemblyVersion>0.6.3.2</AssemblyVersion>',
-            '0.6.3.2-TestFixes',
+            '<Version>0.6.3.3</Version>',
+            '<AssemblyVersion>0.6.3.3</AssemblyVersion>',
+            '0.6.3.3-RealmHouseFix',
             'TaleWorlds.CampaignSystem.ViewModelCollection',
             'Lib.Harmony'
           )) {
@@ -179,17 +180,35 @@ jobs:
           if ($permission -notmatch 'IsNonAggressionPactActive') { throw 'Active NAP must veto ordinary war decisions.' }
 
           $realm = Get-Content projects/KaiTORDiplomacy/src/Runtime/KaiRealmHouseGrowthBehavior.cs -Raw
-          foreach ($required in @('Clan.CreateCompanionToLordClan','ChangeKingdomAction.ApplyByJoinToKingdom','KaiTORRealmHouse.log')) {
-            if ($realm -notmatch [regex]::Escape($required)) { throw "Realm crashfix contract missing: $required" }
+          foreach ($required in @(
+            'Clan.CreateCompanionToLordClan',
+            'ChangeKingdomAction.ApplyByJoinToKingdom',
+            'founder.SetNewOccupation(Occupation.Lord)',
+            '_pendingFounderByKingdom',
+            '_pendingHomeByKingdom',
+            '_pendingReadyByKingdom',
+            'SelectReadyPendingKingdom',
+            'LEGACY_REPAIR_OK',
+            'QUEUE_SKIP',
+            'KaiTORRealmHouse.log'
+          )) {
+            if ($realm -notmatch [regex]::Escape($required)) { throw "Realm v0.6.3.3 contract missing: $required" }
           }
-          foreach ($forbidden in @('newClan.Kingdom = kingdom','founder.Clan = newClan','newClan.SetLeader(founder)','Clan.CreateClan(clanId)')) {
-            if ($realm -match [regex]::Escape($forbidden)) { throw "Forbidden manual graph mutation remains: $forbidden" }
+          foreach ($forbidden in @(
+            'newClan.Kingdom = kingdom',
+            'founder.Clan = newClan',
+            'newClan.SetLeader(founder)',
+            'Clan.CreateClan(clanId)',
+            'GlobalCooldownDays',
+            '_globalCooldownUntilDay'
+          )) {
+            if ($realm -match [regex]::Escape($forbidden)) { throw "Forbidden realm-house path remains: $forbidden" }
           }
 
           $dawi = Get-Content projects/KaiTORDiplomacy/src/Runtime/KaiDawiWomenBehavior.cs -Raw
           if ($dawi -notmatch 'AutomaticPopulationEnabled = false') { throw 'Automatic Dawi population must stay OFF.' }
 
-          Write-Host 'KaiTOR unified v0.6.3.2 regression contracts: PASS'
+          Write-Host 'KaiTOR unified v0.6.3.3 realm-house regression contracts: PASS'
 
       - name: Assemble unified base package
         shell: pwsh
@@ -202,10 +221,10 @@ jobs:
           $pdb = 'projects/KaiTORDiplomacy/build/bin/Win64_Shipping_Client/KaiTOR_Diplomacy.pdb'
           if (Test-Path $pdb) { Copy-Item $pdb (Join-Path $module 'bin/Win64_Shipping_Client/KaiTOR_Diplomacy.pdb') -Force }
 
-      - name: Upload unified v0.6.3.2 package
+      - name: Upload unified v0.6.3.3 package
         uses: actions/upload-artifact@v4
         with:
-          name: KaiTOR-Unified-v0.6.3.2-TestFixes
+          name: KaiTOR-Unified-v0.6.3.3-RealmHouseFix
           path: artifact/KaiTOR_Diplomacy
           if-no-files-found: error
           retention-days: 30
