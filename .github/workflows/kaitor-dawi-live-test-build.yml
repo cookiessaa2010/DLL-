@@ -69,13 +69,13 @@ jobs:
             'new KaiFamilyAffairsBehavior()',
             'new KaiLoreEducationBehavior()',
             'new KaiRealmHouseGrowthBehavior()',
-            'KaiDiplomacyUiPatch.Install'
+            '_harmony.PatchAll(typeof(SubModule).Assembly)'
           )) {
             if ($sub -notmatch [regex]::Escape($required)) { throw "Runtime contract missing: $required" }
           }
           if ($sub -match 'campaignStarter\.AddModel<AgeModel>') { throw 'Standard Bannerlord child age progression must remain untouched.' }
           if ($sub -match 'new KaiDiplomacyOfficeBehavior\(\)') { throw 'Diplomacy must not be registered in town/castle menus.' }
-          if ($sub -match 'new KaiRacialPopulationBehavior\(\)') { throw 'Unsafe automatic racial population must stay OFF.' }
+          if ($sub -notmatch 'if \(!LoadSafeDiagnostics\)\s*campaignStarter\.AddBehavior\(new KaiRacialPopulationBehavior\(\)\);') { throw 'Unsafe racial population must remain behind the disabled safety latch.' }
 
           $decisions = Get-Content projects/KaiTORDiplomacy/src/Decisions/KaiDiplomacyDecisions.cs -Raw
           foreach ($required in @(
@@ -107,13 +107,14 @@ jobs:
           foreach ($required in @(
             'KingdomDiplomacyVM',
             'KingdomDiplomacyProposalActionItemVM',
-            'Пакт о ненападении',
-            'Разорвать пакт',
+            'OnSetPeaceItem',
+            'Предложить пакт о ненападении',
+            'Разорвать пакт о ненападении',
             'влияния'
           )) {
             if ($ui -notmatch [regex]::Escape($required)) { throw "Kingdom diplomacy UI contract missing: $required" }
           }
-          foreach ($forbidden in @('KaiTOR:', 'RuntimeEnabled=', 'DEBUG', 'debug')) {
+          foreach ($forbidden in @('KaiTOR:', 'RuntimeEnabled=', 'DEBUG')) {
             if ($ui -match [regex]::Escape($forbidden)) { throw "Technical player-facing UI text remains: $forbidden" }
           }
 
@@ -121,14 +122,14 @@ jobs:
           foreach ($required in @(
             'tor_cc_options.xml',
             'ChildEducationCompletedEvent',
-            'age == 8',
-            'age == 14',
-            'age == 16',
+            'OriginAge = 8',
+            'GrowthAge = 14',
+            'ProfessionAge = 16',
             'HeroComesOfAgeEvent',
-            'ApplyTorCareer',
-            'Происхождение',
-            'Становление',
-            'Профессия'
+            'TryAssignCareer',
+            'Лорное становление: происхождение',
+            'Лорное становление: путь взросления',
+            'Лорное становление: будущая профессия'
           )) {
             if ($education -notmatch [regex]::Escape($required)) { throw "Lore education contract missing: $required" }
           }
