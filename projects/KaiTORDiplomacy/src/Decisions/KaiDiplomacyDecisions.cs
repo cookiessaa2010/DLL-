@@ -259,7 +259,7 @@ public sealed class KaiDiplomacySaveableTypeDefiner : SaveableTypeDefiner
 {
     public KaiDiplomacySaveableTypeDefiner() : base(986430) { }
 
-    protected internal override void DefineClassTypes()
+    protected override void DefineClassTypes()
     {
         AddClassDefinition(typeof(KaiNonAggressionPactDecision), 1);
         AddClassDefinition(typeof(KaiNonAggressionPactDecisionOutcome), 2);
