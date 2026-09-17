@@ -16,13 +16,13 @@ public static class KaiDynastyCommands
             return "No campaign is active.";
 
         var recruitment = Campaign.Current.GetCampaignBehavior<KaiDynastyAiBehavior>();
-        var cadets = Campaign.Current.GetCampaignBehavior<KaiCadetHouseSafeBehavior>();
+        var realmGrowth = Campaign.Current.GetCampaignBehavior<KaiRealmHouseGrowthBehavior>();
         if (recruitment == null)
             return "Dynasty AI behavior is not loaded.";
 
         var lines = recruitment.DescribeStatus().ToList();
-        if (cadets != null)
-            lines.AddRange(cadets.DescribeStatus());
+        if (realmGrowth != null)
+            lines.AddRange(realmGrowth.DescribeStatus());
 
         return lines.Count == 0
             ? "No active kingdoms found."
