@@ -6,15 +6,18 @@ using TaleWorlds.ObjectSystem;
 namespace KaiTOR.Diplomacy.Models;
 
 /// <summary>
-/// Runtime gate for the optional KaiTOR Dawi women asset pack.
-/// The bridge only opens when a real female CharacterObject registered against the
-/// existing TOR dwarf race is present AND the local asset staging tool completed.
-/// Missing/invalid assets therefore fail closed before any hero is created.
+/// Runtime gate for the integrated Dawi-women assets shipped inside KaiTOR_Diplomacy.
+/// The bridge opens only when the female Dawi CharacterObject is registered against
+/// TOR's real dwarf race and the verified standalone TPAC is present in this module.
+/// Missing or incomplete assets therefore fail closed before any hero is created.
 /// </summary>
 internal static class DawiWomenAssetBridge
 {
     public const string FemaleDawiLordTemplateId = "kaitor_dawi_woman_lord";
+    private const string ModuleId = "KaiTOR_Diplomacy";
     private const string AssetReadyMarker = "kaitor_dawi_assets_ready.flag";
+    private const string AssetPackName = "kaitor_dawi_female.tpac";
+    private const long ExpectedAssetPackBytes = 29213977L;
 
     public const bool ForceSafeOffForLiveTest = false;
 
@@ -22,7 +25,7 @@ internal static class DawiWomenAssetBridge
     {
         get
         {
-            if (ForceSafeOffForLiveTest || !HasAssetReadyMarker())
+            if (ForceSafeOffForLiveTest || !HasIntegratedAssetPack())
                 return false;
 
             var manager = MBObjectManager.Instance;
@@ -50,13 +53,20 @@ internal static class DawiWomenAssetBridge
                secondHero.CharacterObject.Race == dwarfRace;
     }
 
-    private static bool HasAssetReadyMarker()
+    private static bool HasIntegratedAssetPack()
     {
         try
         {
-            var moduleRoot = TaleWorlds.ModuleManager.ModuleHelper.GetModuleFullPath("KaiTOR_DawiWomen");
-            return !string.IsNullOrWhiteSpace(moduleRoot) &&
-                   File.Exists(Path.Combine(moduleRoot, "ModuleData", AssetReadyMarker));
+            var moduleRoot = TaleWorlds.ModuleManager.ModuleHelper.GetModuleFullPath(ModuleId);
+            if (string.IsNullOrWhiteSpace(moduleRoot))
+                return false;
+
+            var marker = Path.Combine(moduleRoot, "ModuleData", AssetReadyMarker);
+            var pack = Path.Combine(moduleRoot, "AssetPackages", AssetPackName);
+            if (!File.Exists(marker) || !File.Exists(pack))
+                return false;
+
+            return new FileInfo(pack).Length == ExpectedAssetPackBytes;
         }
         catch
         {
