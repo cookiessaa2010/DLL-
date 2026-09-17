@@ -1,0 +1,122 @@
+name: KaiTOR Dawi Live Test 1.3.15
+
+on:
+  push:
+    branches:
+      - kaitor-dawi-women-live-test
+    paths:
+      - 'projects/KaiTORDiplomacy/**'
+      - 'projects/KaiTORDawiWomen/**'
+      - '.github/workflows/kaitor-dawi-live-test-build.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build KaiTOR Diplomacy v0.5.2
+        shell: pwsh
+        run: |
+          dotnet build projects/KaiTORDiplomacy/src/KaiTOR_Diplomacy.csproj `
+            -c Release `
+            -p:UseBannerlordReferenceAssemblies=true `
+            --nologo
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Build KaiTOR Dawi Women v0.2.0
+        shell: pwsh
+        run: |
+          dotnet build projects/KaiTORDawiWomen/src/KaiTOR_DawiWomen.csproj `
+            -c Release `
+            -p:UseBannerlordReferenceAssemblies=true `
+            --nologo
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Verify isolated Dawi safety contracts
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $dipManifest = Get-Content projects/KaiTORDiplomacy/module/SubModule.xml -Raw
+          if ($dipManifest -notmatch 'v0\.5\.2') { throw 'Diplomacy module is not v0.5.2.' }
+
+          $sub = Get-Content projects/KaiTORDiplomacy/src/SubModule.cs -Raw
+          foreach ($required in @('LoadSafeDiagnostics = true','EnableDawiWomenLiveTest = true','InstallPregnancyWrapper','new KaiDawiWomenBehavior')) {
+            if ($sub -notmatch [regex]::Escape($required)) { throw "Missing isolated Dawi runtime contract: $required" }
+          }
+
+          $behavior = Get-Content projects/KaiTORDiplomacy/src/Runtime/KaiDawiWomenBehavior.cs -Raw
+          if ($behavior -notmatch 'AutomaticPopulationEnabled = false') { throw 'Automatic Dawi population must stay OFF.' }
+          if ($behavior -notmatch 'SpawnOneForLiveTest') { throw 'Manual one-woman live-test probe is missing.' }
+
+          $bridge = Get-Content projects/KaiTORDiplomacy/src/Models/DawiWomenAssetBridge.cs -Raw
+          foreach ($required in @('kaitor_dawi_woman_lord','kaitor_dawi_assets_ready.flag','template.Race == dwarfRace')) {
+            if ($bridge -notmatch [regex]::Escape($required)) { throw "Missing guarded asset bridge contract: $required" }
+          }
+
+          $dawiManifest = Get-Content projects/KaiTORDawiWomen/module/SubModule.xml -Raw
+          if ($dawiManifest -notmatch 'v0\.2\.0') { throw 'Dawi module is not v0.2.0.' }
+          if ($dawiManifest -notmatch 'kaitor_dawi_women') { throw 'Female NPC XML is not registered.' }
+          if ($dawiManifest -notmatch 'kaitor_dawi_monster') { throw 'Monster patch XML is not registered.' }
+
+          $skinPlaceholder = Get-Content projects/KaiTORDawiWomen/module/ModuleData/skins.xslt -Raw
+          if ($skinPlaceholder -match 'sk_dwarf_bm_f1_body') { throw 'Distributed skin transform must remain inert before local staging.' }
+
+          $monsterPlaceholder = Get-Content projects/KaiTORDawiWomen/module/ModuleData/kaitor_dawi_monster.xml -Raw
+          if ($monsterPlaceholder -match 'female_action_set=') { throw 'Distributed Monster patch must remain inert before local staging.' }
+
+          $actionPlaceholder = Get-Content projects/KaiTORDawiWomen/module/ModuleData/action_sets.xml -Raw
+          if ($actionPlaceholder -match 'as_dwarf_female_warrior') { throw 'Distributed action set must remain inert before local staging.' }
+
+          $stage = Get-Content projects/KaiTORDawiWomen/module/Tools/Stage-Local-DawiAssets.ps1 -Raw
+          foreach ($required in @('sk_dwarf_bm_f1_geo.tpac','sk_dwarf_underwear_female_geo.tpac','as_dwarf_female_warrior','kaitor_dawi_assets_ready.flag','Find-TorDwarfMaleActionSet','femaleSkin.OuterXml')) {
+            if ($stage -notmatch [regex]::Escape($required)) { throw "Missing local staging contract: $required" }
+          }
+
+          [xml](Get-Content projects/KaiTORDawiWomen/module/ModuleData/project.mbproj -Raw) | Out-Null
+          [xml](Get-Content projects/KaiTORDawiWomen/module/ModuleData/kaitor_dawi_women.xml -Raw) | Out-Null
+          [xml](Get-Content projects/KaiTORDawiWomen/module/ModuleData/skins.xslt -Raw) | Out-Null
+          [xml](Get-Content projects/KaiTORDawiWomen/module/ModuleData/action_sets.xml -Raw) | Out-Null
+          [xml](Get-Content projects/KaiTORDawiWomen/module/ModuleData/kaitor_dawi_monster.xml -Raw) | Out-Null
+
+          Write-Host 'KaiTOR Dawi live-test safety contracts: PASS'
+
+      - name: Assemble combined test package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = 'artifact/Modules'
+          $dip = Join-Path $root 'KaiTOR_Diplomacy'
+          $dawi = Join-Path $root 'KaiTOR_DawiWomen'
+          New-Item -ItemType Directory -Path (Join-Path $dip 'bin/Win64_Shipping_Client') -Force | Out-Null
+          New-Item -ItemType Directory -Path (Join-Path $dawi 'bin/Win64_Shipping_Client') -Force | Out-Null
+
+          Copy-Item projects/KaiTORDiplomacy/module/SubModule.xml (Join-Path $dip 'SubModule.xml') -Force
+          Copy-Item projects/KaiTORDiplomacy/build/bin/Win64_Shipping_Client/KaiTOR_Diplomacy.dll (Join-Path $dip 'bin/Win64_Shipping_Client/KaiTOR_Diplomacy.dll') -Force
+          $dipPdb = 'projects/KaiTORDiplomacy/build/bin/Win64_Shipping_Client/KaiTOR_Diplomacy.pdb'
+          if (Test-Path $dipPdb) { Copy-Item $dipPdb (Join-Path $dip 'bin/Win64_Shipping_Client/KaiTOR_Diplomacy.pdb') -Force }
+
+          Copy-Item projects/KaiTORDawiWomen/module/* $dawi -Recurse -Force
+          Copy-Item projects/KaiTORDawiWomen/build/bin/Win64_Shipping_Client/KaiTOR_DawiWomen.dll (Join-Path $dawi 'bin/Win64_Shipping_Client/KaiTOR_DawiWomen.dll') -Force
+          $dawiPdb = 'projects/KaiTORDawiWomen/build/bin/Win64_Shipping_Client/KaiTOR_DawiWomen.pdb'
+          if (Test-Path $dawiPdb) { Copy-Item $dawiPdb (Join-Path $dawi 'bin/Win64_Shipping_Client/KaiTOR_DawiWomen.pdb') -Force }
+
+          if (Test-Path (Join-Path $dawi 'ModuleData/kaitor_dawi_assets_ready.flag')) { throw 'Ready marker must never be shipped.' }
+          if (Test-Path (Join-Path $dawi 'Assets')) { throw 'Third-party binary assets must never be shipped.' }
+
+      - name: Upload combined test package
+        uses: actions/upload-artifact@v4
+        with:
+          name: KaiTOR-Dawi-LiveTest-v0.5.2-v0.2.0
+          path: artifact/Modules
+          if-no-files-found: error
+          retention-days: 30
