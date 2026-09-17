@@ -1,27 +1,23 @@
 @echo off
 setlocal
-chcp 65001 >nul
-title KaiTOR Dawi Women - Local Asset Setup v0.2.1
-
-set "SCAN_ROOT=%~1"
-if "%SCAN_ROOT%"=="" set "SCAN_ROOT=%~dp0.."
+title KaiTOR Dawi Women - Local Asset Setup v0.2.2
 
 echo.
-echo KaiTOR Dawi Women v0.2.1 - поиск ассетов по ИМЕНАМ ФАЙЛОВ
-echo Побайтового сканирования TPAC НЕТ.
-echo Корень поиска: %SCAN_ROOT%
+echo KaiTOR Dawi Women v0.2.2
+echo Exact filename search only. TPAC contents are NOT scanned.
+echo Search root is Bannerlord\Modules.
 echo.
 
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Tools\Stage-Local-DawiAssets.ps1" "%SCAN_ROOT%"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Tools\Stage-Local-DawiAssets.ps1"
 set rc=%errorlevel%
 
 echo.
 if not "%rc%"=="0" (
-  echo ОШИБКА. Ассеты НЕ активированы. Код: %rc%
+  echo ERROR. Assets were NOT activated. Exit code: %rc%
 ) else (
-  echo ГОТОВО. Полностью перезапусти Bannerlord.
-  echo Затем в консоли: kaitor_dawi_women.status
-  echo И только если READY: kaitor_dawi_women.spawn_test
+  echo READY. Restart Bannerlord completely.
+  echo Then run: kaitor_dawi_women.status
+  echo Only if status is READY run: kaitor_dawi_women.spawn_test
 )
 echo.
 pause
