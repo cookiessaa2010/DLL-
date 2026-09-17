@@ -22,7 +22,7 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Build KaiTOR unified v0.6.3
+      - name: Build KaiTOR unified v0.6.3.1
         shell: pwsh
         run: |
           dotnet build projects/KaiTORDiplomacy/src/KaiTOR_Diplomacy.csproj `
@@ -39,8 +39,8 @@ jobs:
           $manifest = Get-Content projects/KaiTORDiplomacy/module/SubModule.xml -Raw
           foreach ($required in @(
             '<Id value="KaiTOR_Diplomacy" />',
-            '<Version value="v0.6.3" />',
-            '<DependedModule Id="Bannerlord.Harmony" />',
+            '<Version value="v0.6.3.1" />',
+            '<DependedModule Id="Bannerlord.Harmony" DependentVersion="v2.4.2.248" />',
             'kaitor_dawi_women',
             'kaitor_dawi_monster'
           )) {
@@ -49,9 +49,9 @@ jobs:
 
           $project = Get-Content projects/KaiTORDiplomacy/src/KaiTOR_Diplomacy.csproj -Raw
           foreach ($required in @(
-            '<Version>0.6.3</Version>',
-            '<AssemblyVersion>0.6.3.0</AssemblyVersion>',
-            '0.6.3-Diplomacy-Family-LoreEducation-Test',
+            '<Version>0.6.3.1</Version>',
+            '<AssemblyVersion>0.6.3.1</AssemblyVersion>',
+            '0.6.3.1-Diplomacy-Family-LoreEducation-Test',
             'TaleWorlds.CampaignSystem.ViewModelCollection',
             'Lib.Harmony'
           )) {
@@ -149,7 +149,7 @@ jobs:
           $dawi = Get-Content projects/KaiTORDiplomacy/src/Runtime/KaiDawiWomenBehavior.cs -Raw
           if ($dawi -notmatch 'AutomaticPopulationEnabled = false') { throw 'Automatic Dawi population must stay OFF.' }
 
-          Write-Host 'KaiTOR unified v0.6.3 diplomacy + family + lore education contracts: PASS'
+          Write-Host 'KaiTOR unified v0.6.3.1 diplomacy + family + lore education contracts: PASS'
 
       - name: Assemble unified base package
         shell: pwsh
@@ -162,10 +162,10 @@ jobs:
           $pdb = 'projects/KaiTORDiplomacy/build/bin/Win64_Shipping_Client/KaiTOR_Diplomacy.pdb'
           if (Test-Path $pdb) { Copy-Item $pdb (Join-Path $module 'bin/Win64_Shipping_Client/KaiTOR_Diplomacy.pdb') -Force }
 
-      - name: Upload unified v0.6.3 package
+      - name: Upload unified v0.6.3.1 package
         uses: actions/upload-artifact@v4
         with:
-          name: KaiTOR-Unified-v0.6.3-Diplomacy-Family-LoreEducation-Test
+          name: KaiTOR-Unified-v0.6.3.1-Diplomacy-Family-LoreEducation-Test
           path: artifact/KaiTOR_Diplomacy
           if-no-files-found: error
           retention-days: 30
