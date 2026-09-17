@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<NPCCharacters>
+  <NPCCharacter
+      id="kaitor_dawi_woman_lord"
+      default_group="infantry"
+      name="{=KAI_DAWI_WOMAN}Dawi Woman"
+      occupation="Lord"
+      culture="Culture.sturgia"
+      voice="curt"
+      age="30"
+      skill_template="SkillSet.tor_custombattle_generic"
+      race="dwarf"
+      is_female="true"
+      is_template="true"
+      is_hero="false">
+    <face>
+      <face_key_template value="BodyProperty.dwarf_low_tier" />
+    </face>
+    <Traits>
+      <Trait id="BalancedFightingSkills" value="5" />
+      <Trait id="Commander" value="5" />
+      <Trait id="Politician" value="5" />
+      <Trait id="Manager" value="6" />
+      <Trait id="Honor" value="1" />
+    </Traits>
+  </NPCCharacter>
+</NPCCharacters>
