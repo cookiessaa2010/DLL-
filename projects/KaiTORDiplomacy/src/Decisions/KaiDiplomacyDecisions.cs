@@ -74,7 +74,8 @@ public sealed class KaiNonAggressionPactDecision : KingdomDecision
     public override bool CanMakeDecision(out TextObject reason, bool includeReason = false)
     {
         var behavior = GetBehavior();
-        if (behavior == null || !behavior.CanCreateNonAggressionPact(Kingdom, TargetKingdom, DurationDays, out var ruleReason))
+        var ruleReason = string.Empty;
+        if (behavior == null || !behavior.CanCreateNonAggressionPact(Kingdom, TargetKingdom, DurationDays, out ruleReason))
         {
             reason = includeReason ? T(string.IsNullOrWhiteSpace(ruleReason) ? "Сейчас этот договор заключить нельзя." : ruleReason) : TextObject.GetEmpty();
             return false;
