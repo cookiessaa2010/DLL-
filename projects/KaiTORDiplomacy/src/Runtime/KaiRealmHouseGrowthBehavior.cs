@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using KaiTOR.Diplomacy.Models;
 using TaleWorlds.CampaignSystem;
@@ -17,10 +18,11 @@ namespace KaiTOR.Diplomacy.Runtime;
 /// HourlyTick on the open campaign map, never from settlement-entry callbacks and never
 /// inside TOR's Daily/Weekly hero-generation burst.
 ///
-/// No hero is generated. An existing unattached adult lord or eligible clan companion is
-/// elevated and becomes the founder of a new landless noble house. This lets Dawi,
-/// greenskins and other realms expand politically even when biological family growth is
-/// unavailable or intentionally disabled.
+/// v0.6.1 crash fix: the commit path uses Bannerlord's native
+/// Clan.CreateCompanionToLordClan factory and ChangeKingdomAction instead of manually
+/// wiring Clan/Kingdom/Hero/Leader references. A small stage log is written immediately
+/// before every graph-changing native call so a native access violation has a precise
+/// last-known boundary.
 /// </summary>
 public sealed class KaiRealmHouseGrowthBehavior : CampaignBehaviorBase
 {
@@ -28,6 +30,7 @@ public sealed class KaiRealmHouseGrowthBehavior : CampaignBehaviorBase
     private const int MinimumClanDeficitForNewHouse = 1;
     private const int PerKingdomCooldownDays = 42;
     private const int GlobalCooldownDays = 14;
+    private const int FailureCooldownDays = 7;
     private const int PendingDelayDays = 1;
     private const int NewHouseMinimumRulerGold = 30000;
     private const int NewHouseSeedGold = 10000;
@@ -49,6 +52,7 @@ public sealed class KaiRealmHouseGrowthBehavior : CampaignBehaviorBase
     private string _pendingHomeSettlementId;
     private double _pendingReadyAfterDay;
     private string _lastCreatedClanId;
+    private bool _commitInProgress;
 
     public override void RegisterEvents()
     {
@@ -70,7 +74,7 @@ public sealed class KaiRealmHouseGrowthBehavior : CampaignBehaviorBase
 
     private void OnWeeklyTick()
     {
-        if (Campaign.Current == null || HasPendingHouse())
+        if (Campaign.Current == null || HasPendingHouse() || _commitInProgress)
             return;
 
         var now = CampaignTime.Now.ToDays;
@@ -95,7 +99,7 @@ public sealed class KaiRealmHouseGrowthBehavior : CampaignBehaviorBase
 
     private void OnHourlyTick()
     {
-        if (Campaign.Current == null || !HasPendingHouse())
+        if (Campaign.Current == null || !HasPendingHouse() || _commitInProgress)
             return;
         if (CampaignTime.Now.ToDays < _pendingReadyAfterDay)
             return;
@@ -104,30 +108,62 @@ public sealed class KaiRealmHouseGrowthBehavior : CampaignBehaviorBase
         if (!IsSafeWorldMutationWindow())
             return;
 
-        var kingdom = Kingdom.All.FirstOrDefault(k => k != null && string.Equals(k.StringId, _pendingKingdomId, StringComparison.Ordinal));
-        var founder = Hero.AllAliveHeroes.FirstOrDefault(h => h != null && string.Equals(h.StringId, _pendingFounderId, StringComparison.Ordinal));
-        var homeSettlement = Settlement.All.FirstOrDefault(s => s != null && string.Equals(s.StringId, _pendingHomeSettlementId, StringComparison.Ordinal));
+        _commitInProgress = true;
+        try
+        {
+            var kingdom = Kingdom.All.FirstOrDefault(k => k != null && string.Equals(k.StringId, _pendingKingdomId, StringComparison.Ordinal));
+            var founder = Hero.AllAliveHeroes.FirstOrDefault(h => h != null && string.Equals(h.StringId, _pendingFounderId, StringComparison.Ordinal));
+            var homeSettlement = Settlement.All.FirstOrDefault(s => s != null && string.Equals(s.StringId, _pendingHomeSettlementId, StringComparison.Ordinal));
 
-        ClearPending();
+            LogStage("COMMIT_VALIDATE", $"kingdom={_pendingKingdomId}; founder={_pendingFounderId}; home={_pendingHomeSettlementId}");
 
-        if (!CanCommitPendingHouse(kingdom, founder, homeSettlement))
-            return;
-        if (!TryCreateNewHouseNativeOrder(kingdom, founder, homeSettlement, out var newClan))
-            return;
+            if (!CanCommitPendingHouse(kingdom, founder, homeSettlement))
+            {
+                LogStage("COMMIT_CANCEL", "pending candidate no longer satisfies safety conditions");
+                ClearPending();
+                return;
+            }
 
-        _lastCreatedClanId = newClan.StringId;
-        var now = CampaignTime.Now.ToDays;
-        _kingdomCooldownUntilDays[kingdom.StringId] = now + PerKingdomCooldownDays;
-        _globalCooldownUntilDay = now + GlobalCooldownDays;
+            if (!TryCreateNewHouseNativeFactory(kingdom, founder, homeSettlement, out var newClan))
+            {
+                LogStage("COMMIT_FAILED", $"kingdom={kingdom.StringId}; founder={founder.StringId}");
+                ClearPending();
+                _globalCooldownUntilDay = Math.Max(_globalCooldownUntilDay, CampaignTime.Now.ToDays + FailureCooldownDays);
+                return;
+            }
+
+            _lastCreatedClanId = newClan.StringId;
+            var now = CampaignTime.Now.ToDays;
+            _kingdomCooldownUntilDays[kingdom.StringId] = now + PerKingdomCooldownDays;
+            _globalCooldownUntilDay = now + GlobalCooldownDays;
+
+            LogStage("COMMIT_SUCCESS", $"clan={newClan.StringId}; kingdom={kingdom.StringId}; founder={founder.StringId}");
+            ClearPending();
+        }
+        catch (Exception ex)
+        {
+            LogStage("COMMIT_MANAGED_EXCEPTION", $"type={ex.GetType().FullName}; message={ex.Message}");
+            ClearPending();
+            _globalCooldownUntilDay = Math.Max(_globalCooldownUntilDay, CampaignTime.Now.ToDays + FailureCooldownDays);
+        }
+        finally
+        {
+            _commitInProgress = false;
+        }
     }
 
     private static bool IsSafeWorldMutationWindow()
     {
+        var campaign = Campaign.Current;
         var mainParty = MobileParty.MainParty;
-        if (mainParty == null)
+        if (campaign == null || mainParty == null)
             return false;
 
-        // Do not change the faction graph while a settlement/menu/encounter/battle is active.
+        // Do not change the faction graph while any campaign menu, settlement,
+        // encounter, siege or map event is active. The previous v0.6.0 gate did not
+        // reject GameMenu contexts, which allowed a commit near siege-strategy menus.
+        if (campaign.CurrentMenuContext != null)
+            return false;
         if (mainParty.CurrentSettlement != null)
             return false;
         if (mainParty.MapEvent != null)
@@ -173,6 +209,8 @@ public sealed class KaiRealmHouseGrowthBehavior : CampaignBehaviorBase
         _pendingFounderId = founder.StringId;
         _pendingHomeSettlementId = homeSettlement.StringId;
         _pendingReadyAfterDay = now + PendingDelayDays;
+
+        LogStage("QUEUE", $"kingdom={kingdom.StringId}; founder={founder.StringId}; home={homeSettlement.StringId}; readyAfter={_pendingReadyAfterDay:0.000}");
         return true;
     }
 
@@ -273,7 +311,7 @@ public sealed class KaiRealmHouseGrowthBehavior : CampaignBehaviorBase
         return score;
     }
 
-    private static bool TryCreateNewHouseNativeOrder(Kingdom kingdom, Hero founder, Settlement homeSettlement, out Clan newClan)
+    private static bool TryCreateNewHouseNativeFactory(Kingdom kingdom, Hero founder, Settlement homeSettlement, out Clan newClan)
     {
         newClan = null;
 
@@ -285,54 +323,48 @@ public sealed class KaiRealmHouseGrowthBehavior : CampaignBehaviorBase
             return false;
 
         var culture = founder.Culture ?? sourceClan.Culture ?? kingdom.Culture;
-        var dayStamp = Math.Abs((int)CampaignTime.Now.ToDays);
-        var clanId = $"kaitor_house_{kingdom.StringId}_{founder.StringId}_{dayStamp}";
-        if (Clan.FindFirst(clan => string.Equals(clan.StringId, clanId, StringComparison.Ordinal)) != null)
-            return false;
-
-        // Mirror Bannerlord's companion-to-lord order: first clear companion state,
-        // then promote occupation, then construct and fully initialize the clan.
-        if (founder.CompanionOf != null)
-            RemoveCompanionAction.ApplyByByTurningToLord(founder.CompanionOf, founder);
-
-        if (!founder.IsLord)
-            founder.SetNewOccupation(Occupation.Lord);
-        if (!founder.IsLord)
-            return false;
-
-        newClan = Clan.CreateClan(clanId);
         var clanName = NameGenerator.Current.GenerateClanName(culture, homeSettlement) ?? founder.Name;
-        newClan.ChangeClanName(clanName, clanName);
-        newClan.Culture = culture;
-        newClan.Banner = Banner.CreateRandomClanBanner(-1);
+        var sourceClanId = sourceClan.StringId;
+        var wasLord = founder.IsLord;
+        var wasCompanion = founder.CompanionOf == sourceClan;
 
-        // Bannerlord's own CreateCompanionToLordClan assigns Kingdom before moving the
-        // founder and before firing OnClanCreated. Use the public Kingdom setter so its
-        // internal kingdom/clan caches are updated in the engine's normal path.
-        newClan.Kingdom = kingdom;
-        newClan.SetInitialHomeSettlement(homeSettlement);
-        newClan.IsNoble = true;
+        // CRASH BOUNDARY A. No manual founder.Clan/newClan.Kingdom/newClan.SetLeader
+        // writes are allowed here. Bannerlord owns the complete hero->clan transaction.
+        LogStage("NATIVE_FACTORY_BEGIN", $"kingdom={kingdom.StringId}; sourceClan={sourceClanId}; founder={founder.StringId}; wasLord={wasLord}; wasCompanion={wasCompanion}; home={homeSettlement.StringId}");
+        newClan = Clan.CreateCompanionToLordClan(founder, homeSettlement, clanName, -1);
+        if (newClan == null)
+        {
+            LogStage("NATIVE_FACTORY_NULL", $"founder={founder.StringId}; sourceClan={sourceClanId}");
+            return false;
+        }
 
-        founder.Clan = newClan;
-        newClan.SetLeader(founder);
+        LogStage("NATIVE_FACTORY_OK", $"clan={newClan.StringId}; founderClan={founder.Clan?.StringId ?? "null"}; currentKingdom={newClan.Kingdom?.StringId ?? "null"}");
 
-        var startingTier = Campaign.Current.Models.ClanTierModel.CompanionToLordClanStartingTier;
-        var startingRenown = Campaign.Current.Models.ClanTierModel.GetRequiredRenownForTier(startingTier);
-        newClan.AddRenown(startingRenown, false);
+        // CRASH BOUNDARY B. Join through Bannerlord's faction action so kingdom caches,
+        // diplomacy state and event dispatch stay engine-owned.
+        if (newClan.Kingdom != kingdom)
+        {
+            LogStage("JOIN_KINGDOM_BEGIN", $"clan={newClan.StringId}; target={kingdom.StringId}");
+            ChangeKingdomAction.ApplyByJoinToKingdom(newClan, kingdom, CampaignTime.DaysFromNow(365f), true);
+            LogStage("JOIN_KINGDOM_OK", $"clan={newClan.StringId}; currentKingdom={newClan.Kingdom?.StringId ?? "null"}");
+        }
 
-        // Keep the new house landless in this transaction. Fief assignment is left to
-        // ordinary Bannerlord/TOR kingdom decisions, avoiding clan+hero+settlement graph
-        // mutation in the same frame.
+        if (newClan.Kingdom != kingdom || newClan.Leader != founder || founder.Clan != newClan || !founder.IsLord || !newClan.IsNoble)
+        {
+            LogStage("POSTCONDITION_FAILED", $"clan={newClan.StringId}; kingdom={newClan.Kingdom?.StringId ?? "null"}; leader={newClan.Leader?.StringId ?? "null"}; founderClan={founder.Clan?.StringId ?? "null"}; isLord={founder.IsLord}; isNoble={newClan.IsNoble}");
+            return false;
+        }
+
+        // Keep the house landless in this transaction. Fiefs remain the responsibility
+        // of ordinary Bannerlord/TOR kingdom decisions.
         if (ruler.Gold >= NewHouseSeedGold)
+        {
+            LogStage("SEED_GOLD_BEGIN", $"ruler={ruler.StringId}; founder={founder.StringId}; amount={NewHouseSeedGold}");
             GiveGoldAction.ApplyBetweenCharacters(ruler, founder, NewHouseSeedGold, false);
+            LogStage("SEED_GOLD_OK", $"clan={newClan.StringId}");
+        }
 
-        CampaignEventDispatcher.Instance.OnClanCreated(newClan, true);
-
-        return newClan.Kingdom == kingdom &&
-               newClan.Leader == founder &&
-               founder.Clan == newClan &&
-               founder.IsLord &&
-               newClan.IsNoble;
+        return true;
     }
 
     public IEnumerable<string> DescribeStatus()
@@ -341,7 +373,7 @@ public sealed class KaiRealmHouseGrowthBehavior : CampaignBehaviorBase
             ? $"pending={_pendingKingdomId}/{_pendingFounderId}/{_pendingHomeSettlementId}, readyIn={Math.Max(0d, _pendingReadyAfterDay - CampaignTime.Now.ToDays):0.0}d"
             : "pending=none";
 
-        yield return $"Realm-house growth: {pending}; globalCooldown={Math.Max(0d, _globalCooldownUntilDay - CampaignTime.Now.ToDays):0.0}d; perKingdomCooldown={PerKingdomCooldownDays}d; minimumDeficit={MinimumClanDeficitForNewHouse}; founders=lords+eligible companions; commit=hourly-open-map; lastCreated={_lastCreatedClanId ?? "none"}.";
+        yield return $"Realm-house growth: {pending}; commitBusy={_commitInProgress}; globalCooldown={Math.Max(0d, _globalCooldownUntilDay - CampaignTime.Now.ToDays):0.0}d; perKingdomCooldown={PerKingdomCooldownDays}d; minimumDeficit={MinimumClanDeficitForNewHouse}; founders=lords+eligible companions; commit=hourly-open-map-native-factory; lastCreated={_lastCreatedClanId ?? "none"}.";
     }
 
     private bool HasPendingHouse()
@@ -369,6 +401,25 @@ public sealed class KaiRealmHouseGrowthBehavior : CampaignBehaviorBase
         var fortifications = kingdom.Settlements.Count(settlement => settlement != null && settlement.IsFortification);
         var target = 2 + (int)Math.Ceiling(fortifications / 2d);
         return Math.Max(3, Math.Min(MaximumTargetNobleClans, target));
+    }
+
+    private static void LogStage(string stage, string details)
+    {
+        try
+        {
+            var directory = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "KaiTORDiplomacy");
+            Directory.CreateDirectory(directory);
+
+            var path = Path.Combine(directory, "KaiTORRealmHouse.log");
+            var line = $"{DateTime.UtcNow:O}|{stage}|{details}{Environment.NewLine}";
+            File.AppendAllText(path, line);
+        }
+        catch
+        {
+            // Diagnostics must never be allowed to affect campaign simulation.
+        }
     }
 
     private sealed class KingdomNeed
