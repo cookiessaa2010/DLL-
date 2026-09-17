@@ -6,18 +6,16 @@ namespace KaiTOR.Diplomacy.Models;
 
 /// <summary>
 /// Runtime gate for the optional KaiTOR Dawi women asset pack.
-/// The current live-test build intentionally keeps this gate hard-disabled so the
-/// campaign can be tested without female-Dawi assets affecting stability, saves or
-/// pregnancy. Remove ForceSafeOffForLiveTest only after the asset chain passes its
-/// separate in-game rig/FaceGen/child-growth tests.
+/// The bridge only opens when a real female CharacterObject registered against the
+/// existing TOR dwarf race is present. Missing/invalid assets therefore fail closed.
 /// </summary>
 internal static class DawiWomenAssetBridge
 {
     public const string FemaleDawiLordTemplateId = "kaitor_dawi_woman_lord";
 
-    // TEST PHASE: hard safety latch. This deliberately overrides asset discovery.
-    // Dawi women stay absent and Dawi pregnancy stays blocked for the first live test.
-    public const bool ForceSafeOffForLiveTest = true;
+    // v0.5.2 Dawi live test: discovery is enabled, but IsAvailable still performs
+    // strict runtime validation before any Dawi family logic can run.
+    public const bool ForceSafeOffForLiveTest = false;
 
     public static bool IsAvailable
     {
