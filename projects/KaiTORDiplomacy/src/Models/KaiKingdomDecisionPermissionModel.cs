@@ -8,9 +8,8 @@ namespace KaiTOR.Diplomacy.Models;
 
 /// <summary>
 /// Additive wrapper over TOR's kingdom decision permission model.
-/// TOR remains authoritative for every vanilla/TOR permission. KaiTOR only adds
-/// a non-aggression-pact veto to ordinary kingdom war decisions.
-/// Scripted wars that bypass kingdom decisions (Chaos/lore/event logic) remain untouched.
+/// TOR remains authoritative for every native/TOR permission; this wrapper only prevents
+/// ordinary kingdom war decisions while a non-aggression pact is active.
 /// </summary>
 public sealed class KaiKingdomDecisionPermissionModel : KingdomDecisionPermissionModel
 {
@@ -18,10 +17,7 @@ public sealed class KaiKingdomDecisionPermissionModel : KingdomDecisionPermissio
 
     private readonly KingdomDecisionPermissionModel _torBase;
 
-    public KaiKingdomDecisionPermissionModel(KingdomDecisionPermissionModel torBase)
-    {
-        _torBase = torBase;
-    }
+    public KaiKingdomDecisionPermissionModel(KingdomDecisionPermissionModel torBase) => _torBase = torBase;
 
     public string UnderlyingModelTypeName => _torBase?.GetType().FullName ?? "<null>";
 
@@ -32,18 +28,17 @@ public sealed class KaiKingdomDecisionPermissionModel : KingdomDecisionPermissio
     {
         if (_torBase == null)
         {
-            reason = new TextObject("KaiTOR: TOR kingdom permission model is unavailable.");
+            reason = new TextObject("Дипломатические правила мира сейчас недоступны.");
             return false;
         }
 
-        if (!_torBase.IsWarDecisionAllowedBetweenKingdoms(kingdom1, kingdom2, out reason))
-            return false;
+        if (!_torBase.IsWarDecisionAllowedBetweenKingdoms(kingdom1, kingdom2, out reason)) return false;
 
-        var behavior = Campaign.Current?.GetCampaignBehavior<KaiDiplomacyBehavior>();
-        if (behavior != null && behavior.RuntimeEnabled && behavior.IsNonAggressionPactActive(kingdom1, kingdom2))
+        var diplomacy = Campaign.Current?.GetCampaignBehavior<KaiDiplomacyBehavior>();
+        if (diplomacy != null && diplomacy.RuntimeEnabled && diplomacy.IsNonAggressionPactActive(kingdom1, kingdom2))
         {
-            var days = behavior.GetRemainingDays(kingdom1, kingdom2);
-            reason = new TextObject($"KaiTOR: a non-aggression pact is active for another {days} day(s).");
+            var days = diplomacy.GetRemainingDays(kingdom1, kingdom2);
+            reason = new TextObject($"Действует пакт о ненападении: ещё {days} дн. Сначала необходимо разорвать договор.");
             return false;
         }
 
@@ -54,7 +49,7 @@ public sealed class KaiKingdomDecisionPermissionModel : KingdomDecisionPermissio
     {
         if (_torBase == null)
         {
-            reason = new TextObject("KaiTOR: TOR kingdom permission model is unavailable.");
+            reason = new TextObject("Дипломатические правила мира сейчас недоступны.");
             return false;
         }
         return _torBase.IsPeaceDecisionAllowedBetweenKingdoms(kingdom1, kingdom2, out reason);
@@ -64,7 +59,7 @@ public sealed class KaiKingdomDecisionPermissionModel : KingdomDecisionPermissio
     {
         if (_torBase == null)
         {
-            reason = new TextObject("KaiTOR: TOR kingdom permission model is unavailable.");
+            reason = new TextObject("Дипломатические правила мира сейчас недоступны.");
             return false;
         }
         return _torBase.IsStartAllianceDecisionAllowedBetweenKingdoms(kingdom1, kingdom2, out reason);
