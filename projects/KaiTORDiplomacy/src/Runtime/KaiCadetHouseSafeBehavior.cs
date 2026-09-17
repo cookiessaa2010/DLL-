@@ -11,32 +11,32 @@ using TaleWorlds.Core;
 namespace KaiTOR.Diplomacy.Runtime;
 
 /// <summary>
-/// Conservative new-house path for existing TOR saves.
-/// WeeklyTick only selects an existing adult hero and stores primitive IDs. The actual
-/// clan-graph mutation is deferred until the player safely enters a fortification, so it
-/// does not run inside TOR's daily/weekly hero-generation burst on the campaign map.
-/// No new hero is generated. Existing lords and eligible clan companions can found a
-/// new noble house; this lets Dawi and greenskins grow politically even while ordinary
-/// family reproduction is unavailable.
+/// Staged new-house path for TOR saves. WeeklyTick only selects a candidate and stores IDs.
+/// Runtime mutation is split across separate safe hourly steps while the player is stationary
+/// on the campaign map, away from settlements, battles and the daily midnight update window.
+/// No new hero is generated: an existing unattached lord/eligible clan companion becomes the
+/// founder. New houses start landless and later receive fiefs through normal kingdom systems.
 /// </summary>
 public sealed class KaiCadetHouseSafeBehavior : CampaignBehaviorBase
 {
     private const int MaximumTargetNobleClans = 12;
-    private const int MinimumClanDeficitForNewHouse = 1;
-    private const int PerKingdomCooldownDays = 63;
-    private const int GlobalCooldownDays = 21;
-    private const int PendingDelayDays = 1;
-    private const int NewHouseMinimumRulerGold = 30000;
+    private const int MinimumClanDeficitForNewHouse = 2;
+    private const int PerKingdomCooldownDays = 84;
+    private const int GlobalCooldownDays = 42;
+    private const int PendingDelayDays = 2;
+    private const int PhaseDelayHours = 6;
+    private const int NewHouseMinimumRulerGold = 50000;
     private const int NewHouseSeedGold = 10000;
     private const string TorSpecialSettlementId = "castle_BK1";
 
-    // Keep the existing keys so old v0.4.x saves remain readable.
     private const string KingdomCooldownSaveKey = "kaitor_cadet_safe_kingdom_cooldown_v1";
     private const string GlobalCooldownSaveKey = "kaitor_cadet_safe_global_cooldown_v1";
     private const string PendingKingdomSaveKey = "kaitor_cadet_safe_pending_kingdom_v1";
     private const string PendingFounderSaveKey = "kaitor_cadet_safe_pending_founder_v1";
     private const string PendingHomeSaveKey = "kaitor_cadet_safe_pending_fief_v1";
     private const string PendingReadySaveKey = "kaitor_cadet_safe_pending_ready_v1";
+    private const string PendingPhaseSaveKey = "kaitor_cadet_safe_pending_phase_v2";
+    private const string PendingNextHourSaveKey = "kaitor_cadet_safe_pending_next_hour_v2";
 
     private Dictionary<string, double> _kingdomCooldownUntilDays = new();
     private double _globalCooldownUntilDay;
@@ -44,11 +44,13 @@ public sealed class KaiCadetHouseSafeBehavior : CampaignBehaviorBase
     private string _pendingFounderId;
     private string _pendingHomeSettlementId;
     private double _pendingReadyAfterDay;
+    private int _pendingPhase;
+    private double _pendingNextHour;
 
     public override void RegisterEvents()
     {
         CampaignEvents.WeeklyTickEvent.AddNonSerializedListener(this, OnWeeklyTick);
-        CampaignEvents.AfterSettlementEntered.AddNonSerializedListener(this, OnAfterSettlementEntered);
+        CampaignEvents.HourlyTickEvent.AddNonSerializedListener(this, OnHourlyTick);
     }
 
     public override void SyncData(IDataStore dataStore)
@@ -59,6 +61,8 @@ public sealed class KaiCadetHouseSafeBehavior : CampaignBehaviorBase
         dataStore.SyncData(PendingFounderSaveKey, ref _pendingFounderId);
         dataStore.SyncData(PendingHomeSaveKey, ref _pendingHomeSettlementId);
         dataStore.SyncData(PendingReadySaveKey, ref _pendingReadyAfterDay);
+        dataStore.SyncData(PendingPhaseSaveKey, ref _pendingPhase);
+        dataStore.SyncData(PendingNextHourSaveKey, ref _pendingNextHour);
         _kingdomCooldownUntilDays ??= new Dictionary<string, double>();
     }
 
@@ -118,39 +122,81 @@ public sealed class KaiCadetHouseSafeBehavior : CampaignBehaviorBase
         _pendingFounderId = founder.StringId;
         _pendingHomeSettlementId = homeSettlement.StringId;
         _pendingReadyAfterDay = now + PendingDelayDays;
+        _pendingPhase = 0;
+        _pendingNextHour = CampaignTime.Now.ToHours + PhaseDelayHours;
         return true;
     }
 
-    private void OnAfterSettlementEntered(MobileParty party, Settlement settlement, Hero hero)
+    private void OnHourlyTick()
     {
-        if (Campaign.Current == null || party != MobileParty.MainParty || settlement == null || !settlement.IsFortification)
+        if (Campaign.Current == null || !HasPendingHouse())
             return;
-        if (!HasPendingHouse() || CampaignTime.Now.ToDays < _pendingReadyAfterDay)
+        if (CampaignTime.Now.ToDays < _pendingReadyAfterDay || CampaignTime.Now.ToHours < _pendingNextHour)
+            return;
+        if (!IsSafeMutationWindow())
             return;
 
         var kingdom = Kingdom.All.FirstOrDefault(k => k != null && string.Equals(k.StringId, _pendingKingdomId, StringComparison.Ordinal));
         var founder = Hero.AllAliveHeroes.FirstOrDefault(h => h != null && string.Equals(h.StringId, _pendingFounderId, StringComparison.Ordinal));
         var homeSettlement = Settlement.All.FirstOrDefault(s => s != null && string.Equals(s.StringId, _pendingHomeSettlementId, StringComparison.Ordinal));
 
-        ClearPending();
-
         if (!CanCommitPendingHouse(kingdom, founder, homeSettlement))
+        {
+            ClearPending();
             return;
+        }
 
-        if (!TryCreateNewHouse(kingdom, founder, homeSettlement))
+        // Phase 0 only elevates a companion. No clan graph is changed in the same tick.
+        if (_pendingPhase == 0)
+        {
+            if (!PrepareFounder(founder))
+            {
+                ClearPending();
+                return;
+            }
+
+            _pendingPhase = 1;
+            _pendingNextHour = CampaignTime.Now.ToHours + PhaseDelayHours;
             return;
+        }
 
-        var now = CampaignTime.Now.ToDays;
-        _kingdomCooldownUntilDays[kingdom.StringId] = now + PerKingdomCooldownDays;
-        _globalCooldownUntilDay = now + GlobalCooldownDays;
+        // Phase 1 creates and initializes the clan in Bannerlord's native ordering.
+        if (_pendingPhase == 1)
+        {
+            if (!TryCreateNewHouse(kingdom, founder, homeSettlement))
+            {
+                ClearPending();
+                return;
+            }
+
+            var now = CampaignTime.Now.ToDays;
+            _kingdomCooldownUntilDays[kingdom.StringId] = now + PerKingdomCooldownDays;
+            _globalCooldownUntilDay = now + GlobalCooldownDays;
+            ClearPending();
+        }
+    }
+
+    private static bool IsSafeMutationWindow()
+    {
+        var mainParty = MobileParty.MainParty;
+        if (mainParty == null)
+            return false;
+        if (mainParty.CurrentSettlement != null || mainParty.MapEvent != null || mainParty.BesiegedSettlement != null)
+            return false;
+        if (mainParty.IsMoving)
+            return false;
+
+        // Avoid TOR/Bannerlord's daily world-update burst around midnight.
+        var hour = CampaignTime.Now.GetHourOfDay;
+        return hour >= 6 && hour <= 20;
     }
 
     private static Hero FindBestFounder(Kingdom kingdom, Hero ruler)
     {
         return kingdom.Clans
             .Where(clan => IsEligibleSourceClan(clan, kingdom))
-            .SelectMany(clan => Hero.AllAliveHeroes
-                .Where(hero => hero != null && hero.Clan == clan)
+            .SelectMany(clan => clan.Heroes
+                .Where(hero => hero != null)
                 .Where(hero => IsEligibleFounder(hero, clan, ruler))
                 .Select(hero => new HeroCandidate(hero, ScoreFounder(hero, clan, ruler))))
             .OrderByDescending(x => x.Score)
@@ -165,7 +211,11 @@ public sealed class KaiCadetHouseSafeBehavior : CampaignBehaviorBase
             return false;
         if (clan.IsEliminated || clan.IsBanditFaction || clan.IsRebelClan || clan.IsMinorFaction || clan.IsClanTypeMercenary)
             return false;
-        return clan.Leader != null && clan.Leader.IsAlive;
+        if (clan.Leader == null || !clan.Leader.IsAlive)
+            return false;
+
+        // Never hollow out a source house to make another one.
+        return clan.Heroes.Count(hero => hero != null && hero.IsAlive && hero.IsActive) >= 3;
     }
 
     private static bool CanCommitPendingHouse(Kingdom kingdom, Hero founder, Settlement homeSettlement)
@@ -204,20 +254,14 @@ public sealed class KaiCadetHouseSafeBehavior : CampaignBehaviorBase
         if (hero.Age < Campaign.Current.Models.AgeModel.HeroComesOfAge)
             return false;
 
-        // The founder may already be a lord or may be an existing clan companion that
-        // Bannerlord can elevate through its native companion-to-lord action.
         var canBeElevated = hero.IsLord || hero.CompanionOf == sourceClan || TorFamilySafety.IsAiCompanion(hero);
         if (!canBeElevated)
             return false;
 
-        // Moving a spouse/parent requires moving an entire family graph at once. Keep
-        // this LoadSafe path to unattached adults only.
         if (hero.Spouse != null || hero.Children.Count > 0)
             return false;
         if (hero.PartyBelongedToAsPrisoner != null || hero.IsPrisoner)
             return false;
-
-        // Do not split an active party, army, battle participant or governorship.
         if (hero.PartyBelongedTo != null || hero.GovernorOf != null)
             return false;
 
@@ -227,7 +271,6 @@ public sealed class KaiCadetHouseSafeBehavior : CampaignBehaviorBase
     private static int ScoreFounder(Hero hero, Clan sourceClan, Hero ruler)
     {
         var score = 0;
-
         if (sourceClan == ruler.Clan)
             score += 45;
         if (hero.Father == ruler || hero.Mother == ruler)
@@ -246,13 +289,27 @@ public sealed class KaiCadetHouseSafeBehavior : CampaignBehaviorBase
         return score;
     }
 
+    private static bool PrepareFounder(Hero founder)
+    {
+        if (founder == null)
+            return false;
+
+        if (founder.CompanionOf != null)
+            RemoveCompanionAction.ApplyByByTurningToLord(founder.CompanionOf, founder);
+
+        if (!founder.IsLord)
+            founder.SetNewOccupation(Occupation.Lord);
+
+        return founder.IsLord && founder.CompanionOf == null;
+    }
+
     private static bool TryCreateNewHouse(Kingdom kingdom, Hero founder, Settlement homeSettlement)
     {
         var ruler = kingdom?.Leader;
         var sourceClan = founder?.Clan;
         if (kingdom == null || ruler == null || sourceClan == null || sourceClan == Clan.PlayerClan)
             return false;
-        if (sourceClan.Kingdom != kingdom || homeSettlement?.MapFaction != kingdom)
+        if (sourceClan.Kingdom != kingdom || homeSettlement?.MapFaction != kingdom || !founder.IsLord)
             return false;
 
         var culture = founder.Culture ?? sourceClan.Culture ?? kingdom.Culture;
@@ -261,51 +318,37 @@ public sealed class KaiCadetHouseSafeBehavior : CampaignBehaviorBase
         if (Clan.FindFirst(clan => string.Equals(clan.StringId, clanId, StringComparison.Ordinal)) != null)
             return false;
 
-        // Elevate a companion before changing clan ownership. Bannerlord exposes a
-        // dedicated ByTurningToLord path which clears companion state without firing
-        // the normal dismissal/fugitive logic.
-        if (founder.CompanionOf != null)
-            RemoveCompanionAction.ApplyByByTurningToLord(founder.CompanionOf, founder);
-
-        if (!founder.IsLord)
-            founder.SetNewOccupation(Occupation.Lord);
-        if (!founder.IsLord)
-            return false;
-
-        var newClan = Clan.CreateClan(clanId);
         var clanName = NameGenerator.Current.GenerateClanName(culture, homeSettlement) ?? founder.Name;
+        var newClan = Clan.CreateClan(clanId);
+
+        // Match Bannerlord's companion-to-lord initialization order as closely as possible.
         newClan.ChangeClanName(clanName, clanName);
         newClan.Culture = culture;
         newClan.Banner = Banner.CreateRandomClanBanner(-1);
+        newClan.Kingdom = kingdom;
         newClan.SetInitialHomeSettlement(homeSettlement);
-        newClan.IsNoble = true;
-
         founder.Clan = newClan;
         newClan.SetLeader(founder);
+        newClan.IsNoble = true;
 
         var startingTier = Campaign.Current.Models.ClanTierModel.CompanionToLordClanStartingTier;
         var startingRenown = Campaign.Current.Models.ClanTierModel.GetRequiredRenownForTier(startingTier);
         newClan.AddRenown(startingRenown, false);
 
-        ChangeKingdomAction.ApplyByJoinToKingdom(newClan, kingdom, CampaignTime.DaysFromNow(365f), true);
-
-        // New houses start landless. This deliberately avoids transferring a settlement
-        // during the same graph mutation. Bannerlord/TOR can grant fiefs later through
-        // their ordinary kingdom decision system.
         if (ruler.Gold >= NewHouseSeedGold)
             GiveGoldAction.ApplyBetweenCharacters(ruler, founder, NewHouseSeedGold, false);
 
         CampaignEventDispatcher.Instance.OnClanCreated(newClan, true);
 
-        return newClan.Kingdom == kingdom && founder.Clan == newClan && founder.IsLord;
+        return newClan.Kingdom == kingdom && founder.Clan == newClan && newClan.Leader == founder && founder.IsLord;
     }
 
     public IEnumerable<string> DescribeStatus()
     {
         var pending = HasPendingHouse()
-            ? $"pending={_pendingKingdomId}/{_pendingFounderId}/{_pendingHomeSettlementId}, readyIn={Math.Max(0d, _pendingReadyAfterDay - CampaignTime.Now.ToDays):0.0}d"
+            ? $"pending={_pendingKingdomId}/{_pendingFounderId}/{_pendingHomeSettlementId}, phase={_pendingPhase}, readyIn={Math.Max(0d, _pendingReadyAfterDay - CampaignTime.Now.ToDays):0.0}d"
             : "pending=none";
-        yield return $"New-house safe queue: {pending}; globalCooldown={Math.Max(0d, _globalCooldownUntilDay - CampaignTime.Now.ToDays):0.0}d; perKingdomCooldown={PerKingdomCooldownDays}d; minimumDeficit={MinimumClanDeficitForNewHouse}; founders=lords+eligible companions; newHouses=landless.";
+        yield return $"New-house staged queue: {pending}; globalCooldown={Math.Max(0d, _globalCooldownUntilDay - CampaignTime.Now.ToDays):0.0}d; perKingdomCooldown={PerKingdomCooldownDays}d; minimumDeficit={MinimumClanDeficitForNewHouse}; founders=lords+eligible companions; newHouses=landless.";
     }
 
     private bool HasPendingHouse()
@@ -319,6 +362,8 @@ public sealed class KaiCadetHouseSafeBehavior : CampaignBehaviorBase
         _pendingFounderId = null;
         _pendingHomeSettlementId = null;
         _pendingReadyAfterDay = 0d;
+        _pendingPhase = 0;
+        _pendingNextHour = 0d;
     }
 
     private static int GetCurrentNobleClanCount(Kingdom kingdom)
