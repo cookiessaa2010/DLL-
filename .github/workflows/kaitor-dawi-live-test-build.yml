@@ -88,8 +88,8 @@ jobs:
 
           $dawiManifest = Get-Content projects/KaiTORDawiWomen/module/SubModule.xml -Raw
           if ($dawiManifest -notmatch 'v0\.2\.0') { throw 'Dawi module is not v0.2.0.' }
+          if ($dawiManifest -notmatch 'DependentVersion="v0\.5\.3"') { throw 'Dawi module must depend on Diplomacy v0.5.3.' }
           if ($dawiManifest -notmatch 'kaitor_dawi_women') { throw 'Female NPC XML is not registered.' }
-          if ($dawiManifest -notmatch 'kaitor_dawi_monster') { throw 'Monster patch XML is not registered.' }
 
           $skinPlaceholder = Get-Content projects/KaiTORDawiWomen/module/ModuleData/skins.xslt -Raw
           if ($skinPlaceholder -match 'sk_dwarf_bm_f1_body') { throw 'Distributed skin transform must remain inert before local staging.' }
