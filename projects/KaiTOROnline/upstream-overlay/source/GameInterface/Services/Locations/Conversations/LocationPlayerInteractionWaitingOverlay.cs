@@ -50,8 +50,13 @@ internal sealed class LocationPlayerInteractionWaitingOverlayVM : ViewModel
 {
     public LocationPlayerInteractionWaitingOverlayVM(string otherPlayerName)
     {
-        var name = string.IsNullOrEmpty(otherPlayerName) ? "Another player" : otherPlayerName;
-        WaitingText = $"Awaiting proposal from {name}...";
+        var name = string.IsNullOrEmpty(otherPlayerName)
+            ? global::GameInterface.Services.UI.KaiTORUiText.Get("kaitor_another_player", "Another player")
+            : otherPlayerName;
+        WaitingText = global::GameInterface.Services.UI.KaiTORUiText.Format(
+            "kaitor_awaiting_proposal",
+            "Awaiting proposal from {PLAYER}...",
+            ("PLAYER", name));
     }
 
     [DataSourceProperty]
