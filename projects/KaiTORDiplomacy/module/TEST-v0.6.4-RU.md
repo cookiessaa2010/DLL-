@@ -1,0 +1,108 @@
+# KaiTOR v0.6.4 — LIVE TEST checklist
+
+Сборка не считается полностью готовой, пока каждый критический путь не проверен в игре.
+
+## 0. Старт
+- [ ] Старая save v0.6.3.3 загружается.
+- [ ] Новая кампания запускается.
+- [ ] Нет crash при старте.
+- [ ] В %LOCALAPPDATA%/KaiTORDiplomacy/KaiTORDiplomacy.log есть STARTUP и DIPLOMACY_UI_READY.
+
+## A. Family
+- [ ] Город -> Семейные дела открывается.
+- [ ] Замок -> Семейные дела открывается.
+- [ ] Мой род -> состав рода открывается.
+- [ ] Брачные союзы: член рода -> чужой дом -> кандидат -> barter.
+- [ ] Обычная свадьба проходит.
+- [ ] Принять в род показывает кандидатов.
+- [ ] AdoptHeroAction проходит; ребёнок виден в family tree.
+- [ ] Save/load сохраняет усыновление.
+- [ ] Female+female player-house marriage проходит.
+- [ ] Female+female пара не получает обычную беременность.
+- [ ] После save/load spouse/clan/family tree корректны.
+
+## B. Dawi
+- [ ] Female Dawi manual live-test: лицо.
+- [ ] Тело/skeleton.
+- [ ] Portrait/encyclopedia.
+- [ ] Equipment.
+- [ ] Settlement scene animations.
+- [ ] Save/load.
+- [ ] Dawi age 30+ может вступить в брак.
+- [ ] Dawi женщина старше 45, но внутри Dawi fertility window, может получить ненулевой pregnancy chance.
+- [ ] Dawi беременность проходит.
+- [ ] Рождается Dawi ребёнок.
+- [ ] Только после visual test можно включать automatic Dawi women population.
+
+## C. Realm House
+- [ ] В AI kingdom есть clan deficit.
+- [ ] Ускорить 1–2 игровых дня.
+- [ ] Новый noble clan появился через native factory.
+- [ ] Founder стал leader/Lord.
+- [ ] Kingdom/culture правильные.
+- [ ] Нет двойного roster/clan membership.
+- [ ] Исходный клан/партия целы.
+- [ ] Save/load нового клана работает.
+- [ ] Если за 8–10 игровых дней клана нет — тест FAIL; приложить KaiTORRealmHouse.log.
+
+## D. TOR Children
+- [ ] Player child: stage 8.
+- [ ] Stage 14.
+- [ ] Stage 16 profession.
+- [ ] Required specialization появляется отдельно.
+- [ ] Magister full effects.
+- [ ] Dawi Slayer/Runelord full effects.
+- [ ] Priest specialization full effects.
+- [ ] Нет телепорта ребёнка на CC spawn coordinates.
+- [ ] AI child получает TOR stages без popup.
+- [ ] Save/load сохраняет choices/effects.
+
+## E. Blood Kiss
+- [ ] Necromancer без vampire race не видит Blood Kiss.
+- [ ] Vampire видит «Даровать Поцелуй крови».
+- [ ] Mortal human -> vampire + MinorVampire.
+- [ ] Foreign clan leader -> guard failure, clan graph unchanged.
+- [ ] Undead -> no effect.
+- [ ] Greenskin -> no effect.
+- [ ] Troll -> hero не становится spouse/vampire и не меняет clan; в player party появляется troll warrior.
+- [ ] Cooldown переживает save/load.
+
+## F. Population
+- [ ] Vampire AI population работает, MainHero/player kingdom не меняется автоматически.
+- [ ] Vampire quota/cooldown ограничивают рост.
+- [ ] Greenskin spore pressure растёт.
+- [ ] Greenskin AI companion создаётся нативно в host clan.
+- [ ] Нет marriage/pregnancy Greenskin.
+- [ ] Save/load сохраняет pressure/cooldowns.
+- [ ] Проверить KaiTORVampirePopulation.log и KaiTORGreenskinPopulation.log.
+
+## G. Political layer
+- [ ] Political marriage требует минимум 500 000.
+- [ ] 500 000 уходят в escrow перед barter.
+- [ ] Cancel barter -> полный refund.
+- [ ] Successful marriage -> escrow получает другой дом.
+- [ ] Dynastic Bond активен 180 дней.
+- [ ] +20 relation.
+- [ ] +30 trust.
+- [ ] Между разными kingdom используется существующий NAP backend.
+- [ ] Incoming AI marriage proposal можно принять/отклонить; auto-marriage отсутствует.
+- [ ] AI не предлагает female+female автоматически.
+- [ ] AI -> Player NAP появляется только если PlayerClan правит kingdom.
+- [ ] Входящий NAP проходит через player council и не списывает 150 влияния с игрока.
+- [ ] Ruler conversation позволяет предложить NAP 30/60/90/180.
+- [ ] Старый Kingdom UI NAP по-прежнему проходит полный проверенный цикл.
+
+## Mercy
+- [ ] Освобождение побеждённого лорда по выбору игрока даёт +50 relation.
+- [ ] Побег/автоматическое/чужое освобождение не даёт +50.
+
+## Regression
+- [ ] Смена народности поселения по-прежнему работает.
+- [ ] Старый NAP по-прежнему работает.
+- [ ] SAVE -> EXIT -> LOAD: семьи, NAP, cooldown, children, realm houses, dynastic bonds intact.
+
+## Long simulation
+- [ ] 1 год.
+- [ ] 5 лет.
+- [ ] 20 лет.
+Проверить crash, семьи, population, браки, рождения, старение, новые кланы, договоры, cooldown и save integrity.
