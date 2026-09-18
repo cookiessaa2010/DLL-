@@ -160,11 +160,16 @@ public sealed class KaiIncomingMarriageProposalBehavior : CampaignBehaviorBase
         }
 
         _inquiryOpen = true;
+        var childlessWarning = TorFamilySafety.CanUseVanillaPregnancy(member, target)
+            ? string.Empty
+            : " У этой пары не будет биологических детей.";
+
         InformationManager.ShowInquiry(
             new InquiryData(
                 "Брачное предложение",
                 $"Дом {targetClan.Name} направил к вам предложение: заключить брак между {member.Name} и {target.Name}. " +
-                "Принятие не заключит брак автоматически — после него откроются обычные брачные переговоры.",
+                "Принятие не заключит брак автоматически — после него откроются обычные брачные переговоры." +
+                childlessWarning,
                 true,
                 true,
                 "Рассмотреть предложение",
