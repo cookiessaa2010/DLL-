@@ -244,6 +244,7 @@ jobs:
           Copy-Item ./upstream/mb2/Modules/Coop (Join-Path $stage 'Modules/Coop') -Recurse -Force
           Copy-Item ./upstream/source/ServerConsole/bin/Release/net6.0/* (Join-Path $stage 'ServerConsole') -Recurse -Force
           Copy-Item ./kaitor/projects/KaiTOROnline/runtime/* (Join-Path $stage 'Runtime') -Force
+          Copy-Item ./kaitor/projects/KaiTOROnline/runtime/START_KAITOR_COOP.bat (Join-Path $stage 'START_KAITOR_COOP.bat') -Force
           Copy-Item ./kaitor/projects/KaiTOROnline/DEDICATED_CAMPAIGN_SERVER.md (Join-Path $stage 'Docs/DEDICATED_CAMPAIGN_SERVER.md') -Force
           Copy-Item ./kaitor/projects/KaiTOROnline/FOUR_PLAYER_PERSISTENCE_AUDIT.md (Join-Path $stage 'Docs/FOUR_PLAYER_PERSISTENCE_AUDIT.md') -Force
 
