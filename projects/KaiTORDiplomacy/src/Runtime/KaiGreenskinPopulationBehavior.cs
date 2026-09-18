@@ -227,6 +227,24 @@ public sealed class KaiGreenskinPopulationBehavior : CampaignBehaviorBase
         }
     }
 
+    public IEnumerable<string> DescribeStatus()
+    {
+        yield return $"Greenskin population: automatic={(AutomaticPopulationEnabled ? "ON" : "OFF")}; threshold={SporePressureThreshold:0}; spawnCooldown={SporeSpawnCooldownDays}d; maxAICompanions={MaximumGreenskinAiCompanions}.";
+        if (Campaign.Current == null)
+            yield break;
+
+        foreach (var kingdom in Kingdom.All
+                     .Where(k => k != null &&
+                                 !k.IsEliminated &&
+                                 string.Equals(k.Culture?.StringId, GreenskinCultureId, StringComparison.Ordinal))
+                     .OrderBy(k => k.StringId, StringComparer.Ordinal))
+        {
+            var pressure = GetValue(_pressureByKingdom, kingdom.StringId);
+            var remaining = Math.Max(0d, GetValue(_cooldownUntilDays, kingdom.StringId) - CampaignTime.Now.ToDays);
+            yield return $"{kingdom.StringId}: pressure={pressure:0.0}/{SporePressureThreshold:0}; aiCompanions={CountAiCompanions(kingdom)}; cooldown={Math.Ceiling(remaining):0}d.";
+        }
+    }
+
     private static int CountAiCompanions(Kingdom kingdom)
         => kingdom.Clans
             .Where(IsNormalNobleClan)
