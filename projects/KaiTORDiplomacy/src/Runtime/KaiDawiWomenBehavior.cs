@@ -11,10 +11,9 @@ using TaleWorlds.ObjectSystem;
 namespace KaiTOR.Diplomacy.Runtime;
 
 /// <summary>
-/// Dawi female-population bridge. The bounded weekly population path is enabled
-/// until the integrated female dwarf rig has passed the required live visual/save-load
-/// test. The complete automatic algorithm is present behind that gate so enabling it
-/// later is a one-line release decision rather than another rewrite.
+/// Dawi female-population bridge. The bounded weekly shortage-filling path is enabled.
+/// It creates at most a small number of female Dawi per eligible AI clan and uses a long
+/// per-clan cooldown so population growth remains controlled.
 /// </summary>
 public sealed class KaiDawiWomenBehavior : CampaignBehaviorBase
 {
@@ -24,9 +23,8 @@ public sealed class KaiDawiWomenBehavior : CampaignBehaviorBase
     private const int GenerationCooldownDays = 336;
     private const string CooldownSaveKey = "kaitor_dawi_women_generation_cooldown_v1";
 
-    // Master-TZ requirement: automation is enabled only after manual confirmation of
-    // skeleton/body/equipment/portrait/scene/encyclopedia/save-load. Until then the
-    // diagnostic one-at-a-time command is the only creation entry point.
+    // Automatic generation is bounded by MaximumGeneratedWomenPerClan and
+    // GenerationCooldownDays. The manual command remains available for diagnostics.
     public const bool AutomaticPopulationEnabled = true;
 
     private Dictionary<string, double> _generationCooldownUntilDays = new();
@@ -60,7 +58,8 @@ public sealed class KaiDawiWomenBehavior : CampaignBehaviorBase
 
     /// <summary>
     /// Creates exactly one female Dawi for the first safe non-player Dawi clan.
-    /// Diagnostic entry point only; it never runs automatically while the gate is off.
+    /// Diagnostic entry point: creates exactly one woman immediately without waiting
+    /// for the weekly automatic population pass.
     /// </summary>
     public string SpawnOneForLiveTest()
     {
