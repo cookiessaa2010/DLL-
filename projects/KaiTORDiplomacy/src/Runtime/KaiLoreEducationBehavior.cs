@@ -328,7 +328,7 @@ public sealed class KaiLoreEducationBehavior : CampaignBehaviorBase
         }
     }
 
-    private static void ApplySpecializationStats(Hero hero, string professionId, SpecializationOption spec)
+    private void ApplySpecializationStats(Hero hero, string professionId, SpecializationOption spec)
     {
         if (hero == null || spec == null) return;
 
@@ -359,7 +359,9 @@ public sealed class KaiLoreEducationBehavior : CampaignBehaviorBase
                 hero.HeroDeveloper.SetInitialSkillLevel(skill, Math.Max(0, currentSkill + pair.Value * 10));
         }
 
-        var professionAttribute = string.Empty;
+        var professionAttribute = _options
+            .FirstOrDefault(x => string.Equals(x.Id, professionId, StringComparison.OrdinalIgnoreCase))
+            ?.Attribute ?? string.Empty;
         // This mirrors TOR's duplicate-positive-attribute protection: if the profession
         // stage already raised the same attribute, specialization doesn't add it twice.
         foreach (var raw in spec.Attributes.Where(x => !string.IsNullOrWhiteSpace(x)))
