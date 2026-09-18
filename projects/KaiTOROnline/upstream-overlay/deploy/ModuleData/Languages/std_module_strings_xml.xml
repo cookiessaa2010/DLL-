@@ -171,5 +171,10 @@
     <string id="kaitor_advertised_address_failed" text="Could not connect to the advertised address '{ADDRESS}:{PORT}'."/>
     <string id="kaitor_already_in_session" text="Already in a co-op session; leave it before joining another."/>
     <string id="kaitor_return_main_join" text="Return to the main menu to join a co-op session."/>
+    <string id="kaitor_required_module" text="Required module '{MODULE}' version '{VERSION}' is missing."/>
+    <string id="kaitor_wrong_module_version" text="Wrong version of module '{MODULE}'. Server: '{SERVER_VERSION}', client: '{CLIENT_VERSION}'."/>
+    <string id="kaitor_unsupported_client_module" text="Server does not support client module '{MODULE}'."/>
+    <string id="kaitor_dlc_not_supported" text="DLC is not supported. Disable: {MODULES}."/>
+    <string id="kaitor_wrong_game_version" text="Wrong game version. Server: '{SERVER_VERSION}', client: '{CLIENT_VERSION}'."/>
   </strings>
 </base>
