@@ -144,3 +144,16 @@
 - [ ] После save/load Dawi-женщина, NAP, династические связи и UI runtime продолжают работать.
 - [ ] `kaitor_diplomacy.ui_status` показывает `KaiTORDiplomacyHubUIMovie` и `KaiTORDiplomacyLayer`.
 - [ ] В логах нет обращений Diplomacy к `CoopConnectionUIMovie`, `CoopOptionsUIMovie` или `GameInterface.Services.UI`.
+
+
+## Единый лог live-test
+- [ ] В начале теста выполнить `kaitor_diplomacy.live_test_start`.
+- [ ] Команда возвращает путь `%LOCALAPPDATA%\KaiTORDiplomacy\KaiTOR-LiveTest.log`.
+- [ ] После открытия KaiTOR UI присутствуют события `GAUNTLET_UI_OPEN` / UI navigation.
+- [ ] После NAP/разрыва присутствуют council/NAP события и snapshot отражает актуальный trust/breach/cooldown.
+- [ ] После семейных действий присутствуют marriage/dynastic события.
+- [ ] После теста +50 присутствует `MERCY_RELEASE` с relationBefore/relationAfter и actualDelta.
+- [ ] После Dawi spawn присутствует `DAWI_WOMAN_CREATE` с именем/кланом/поселением.
+- [ ] Save пишет `SAVE_STARTED` и `SAVE_OVER success=True`; после него автоматически идёт snapshot.
+- [ ] После reload есть `GAME_LOADED` и новый snapshot с теми же persistent состояниями.
+- [ ] В конце выполнить `kaitor_diplomacy.live_test_snapshot` и передать один файл `KaiTOR-LiveTest.log`.
