@@ -127,7 +127,7 @@ LIVE TEST PASSED ставится только после проверки в р
 - Humans/mortals: marriage 18+; pregnancy использует обычную human-like биологию.
 - Dawi: marriage 30+ без верхнего лимита; pregnancy 30+ без человеческого cutoff 45; biological-age curve насыщается, но не выключает фертильность.
 - Elves: marriage 18+ без верхнего лимита; pregnancy 18+ без человеческого cutoff 45.
-- Vampires: социальный брак разрешён; обычная беременность запрещрещена; размножение остаётся через Blood Kiss.
+- Vampires: социальный брак разрешён; обычная беременность запрещена; размножение остаётся через Blood Kiss.
 - Greenskins: обычные браки/беременность выключены; размножение остаётся через spores.
 - Ordinary undead: conventional marriage/pregnancy выключены.
 - NPC auto-marriage: same culture + same FaceGen race; player-arranged marriage сохраняет более широкие social rules, но pregnancy по-прежнему требует same race + opposite sex.
