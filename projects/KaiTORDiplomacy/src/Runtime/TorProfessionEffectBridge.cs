@@ -238,6 +238,52 @@ internal static class TorProfessionEffectBridge
         }
     }
 
+    public static bool ApplyBloodKissConversion(Hero hero, out string error)
+    {
+        error = string.Empty;
+        if (hero?.CharacterObject == null)
+        {
+            error = "hero missing";
+            return false;
+        }
+        if (!EnsureTypes())
+        {
+            error = "TOR reflection types unavailable";
+            return false;
+        }
+
+        try
+        {
+            var vampireRace = FaceGen.GetRaceOrDefault("vampire");
+            var humanRace = FaceGen.GetRaceOrDefault("human");
+            if (vampireRace == humanRace)
+            {
+                error = "vampire race unavailable";
+                return false;
+            }
+
+            // Match TOR's own Blood Kiss dialog semantics: biological race becomes
+            // vampire and the hero receives the MinorVampire career. We write the
+            // target hero's ExtendedInfo directly instead of calling AddCareer because
+            // several TOR career setup implementations reference Hero.MainHero.
+            hero.CharacterObject.Race = vampireRace;
+            SetCareerSafe(hero, "MinorVampire");
+            return hero.CharacterObject.Race == vampireRace &&
+                   string.Equals(GetCurrentCareerId(hero), GetCareerStringId("MinorVampire"), StringComparison.Ordinal);
+        }
+        catch (Exception ex)
+        {
+            error = ex.GetBaseException().Message;
+            return false;
+        }
+    }
+
+    private static string GetCareerStringId(string careerProperty)
+    {
+        var career = GetStaticMember(_torCareers, careerProperty);
+        return career?.GetType().GetProperty("StringId", BindingFlags.Public | BindingFlags.Instance)?.GetValue(career) as string;
+    }
+
     public static string GetCareerPropertyForProfession(string professionId, string specializationId = null)
     {
         if (professionId == "option_3_empire_magister_apprentice") return "ImperialMagister";
