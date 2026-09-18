@@ -177,12 +177,23 @@ $contractChecks = @(
     'The Old Realms 1.3.15',
     'TOR_Armory -> TOR_Environment -> TOR_Core -> Coop',
     'Admission limit: 4 simultaneous players',
-    'Bannerlord.exe /singleplayer /server'
+    'Bannerlord.exe /singleplayer /server',
+    'KaiCleave v0.3.1',
+    'KaiTOR_Stability v0.5.0'
 )
 foreach ($needle in $contractChecks) {
     if ($contract -notlike "*$needle*") {
         throw "TOR runtime contract missing required statement: $needle"
     }
+}
+
+$cleaveCompatibility = Get-Content -LiteralPath (Join-Path $root 'Runtime/Test-KaiTORCleaveCompatibility.ps1') -Raw
+if ($cleaveCompatibility -notmatch [regex]::Escape("$ExpectedVersion = 'v0.3.1'")) {
+    throw 'KaiCleave compatibility gate is not pinned to the current validated v0.3.1 build.'
+}
+$stabilityCompatibility = Get-Content -LiteralPath (Join-Path $root 'Runtime/Test-KaiTORStabilityCompatibility.ps1') -Raw
+if ($stabilityCompatibility -notmatch [regex]::Escape("$ExpectedVersion = 'v0.5.0'")) {
+    throw 'KaiTOR Stability compatibility gate is not pinned to the current validated v0.5.0 build.'
 }
 
 # Keep this validator source ASCII-only so it parses correctly in Windows PowerShell 5.1.
