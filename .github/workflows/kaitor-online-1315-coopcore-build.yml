@@ -4,8 +4,10 @@ on:
   push:
     branches:
       - kaitor-online-4p
+      - kaitor-online-ui-ru-en-v0.1
     paths:
       - 'projects/KaiTOROnline/tools/StageBannerlord1315References.ps1'
+      - 'projects/KaiTOROnline/tools/ApplyKaiTOROverlay.ps1'
       - 'projects/KaiTOROnline/tools/ApplyBannerlord1315CompileBackport.ps1'
       - 'projects/KaiTOROnline/tools/ApplyBannerlord1315MissionsBackport.ps1'
       - 'projects/KaiTOROnline/tools/ApplyBannerlord1315ModuleMetadata.ps1'
@@ -136,6 +138,10 @@ jobs:
         shell: pwsh
         run: ./kaitor/projects/KaiTOROnline/tools/StageBannerlord1315References.ps1 -UpstreamRoot (Resolve-Path ./upstream)
 
+      - name: Apply KaiTOR branded RU EN UI/source overlay
+        shell: pwsh
+        run: ./kaitor/projects/KaiTOROnline/tools/ApplyKaiTOROverlay.ps1 -UpstreamRoot (Resolve-Path ./upstream)
+
       - name: Apply tested KaiTOR four-player admission gate
         shell: pwsh
         run: ./kaitor/projects/KaiTOROnline/tools/ApplyFourPlayerGate.ps1 -UpstreamRoot (Resolve-Path ./upstream)
@@ -194,6 +200,12 @@ jobs:
           }
           $raw = Get-Content $subModulePath -Raw
           if ($raw -match '\$\{[^}]+\}') { throw 'Unresolved template token remains in generated SubModule.xml.' }
+          if ($xml.Module.Name.value -ne 'KaiTOR Co-op') { throw "Unexpected module display name: $($xml.Module.Name.value)" }
+          if ($xml.Module.Id.value -ne 'Coop') { throw "Network-compatible module Id must remain Coop, got $($xml.Module.Id.value)" }
+          if ($xml.Module.Version.value -ne 'v1.3.15.10') { throw "Unexpected module version: $($xml.Module.Version.value)" }
+          foreach ($torDep in @('TOR_Armory','TOR_Environment','TOR_Core')) {
+            if (-not ($dependencies | Where-Object { $_.Id -eq $torDep })) { throw "Missing TOR dependency: $torDep" }
+          }
           if ($raw -notmatch 'DedicatedServerType" value="none"') {
             throw 'Unexpected dedicated-server metadata; review no-render assumptions before packaging.'
           }
@@ -219,10 +231,10 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "ServerConsole exited with code $LASTEXITCODE" }
           if ($output -notmatch 'Server started on port') { throw 'ServerConsole did not reach listening startup.' }
 
-      - name: Assemble KaiTOR 0.0.1 bootstrap artifact
+      - name: Assemble KaiTOR Co-op v1.3.15.10 full module artifact
         shell: pwsh
         run: |
-          $stage = Join-Path $env:RUNNER_TEMP 'KaiTOROnline-0.0.1-bootstrap'
+          $stage = Join-Path $env:RUNNER_TEMP 'KaiTORCoop-v1.3.15.10'
           New-Item -ItemType Directory -Force -Path $stage | Out-Null
           New-Item -ItemType Directory -Force -Path (Join-Path $stage 'Modules') | Out-Null
           New-Item -ItemType Directory -Force -Path (Join-Path $stage 'ServerConsole') | Out-Null
@@ -234,6 +246,9 @@ jobs:
           Copy-Item ./kaitor/projects/KaiTOROnline/runtime/* (Join-Path $stage 'Runtime') -Force
           Copy-Item ./kaitor/projects/KaiTOROnline/DEDICATED_CAMPAIGN_SERVER.md (Join-Path $stage 'Docs/DEDICATED_CAMPAIGN_SERVER.md') -Force
           Copy-Item ./kaitor/projects/KaiTOROnline/FOUR_PLAYER_PERSISTENCE_AUDIT.md (Join-Path $stage 'Docs/FOUR_PLAYER_PERSISTENCE_AUDIT.md') -Force
+
+          # Release package: keep runtime binaries/resources only, not compiler debug symbols.
+          Get-ChildItem $stage -Recurse -File -Filter '*.pdb' | Remove-Item -Force
 
           # The compile-only mb2 tree is populated from Bannerlord.ReferenceAssemblies. The legacy
           # Coop deploy step copies some of those references into the module output. They are only
@@ -263,12 +278,14 @@ jobs:
           }
 
           @(
-            'KaiTOR Online 0.0.1 bootstrap / TOR live-test package',
+            'KaiTOR Co-op v1.3.15.10 / TOR full-module test candidate',
             'Target: Mount & Blade II Bannerlord 1.3.15.110062',
             'Target mod: The Old Realms 1.3.15',
             'Admission limit: 4 simultaneous players',
             'Campaign authority: Bannerlord.exe /singleplayer /server loading the authoritative save',
             'TOR runtime order: TOR_Armory -> TOR_Environment -> TOR_Core -> Coop',
+            'UI: KaiTOR dark-fantasy Gauntlet skin',
+            'Languages: English + Russian',
             'ServerConsole: auxiliary rendezvous/NAT/listing service; NOT the campaign world server',
             'Native no-render/headless TOR mode: NOT CLAIMED (TOR_Core metadata opts out)',
             'Purpose: first four-client TOR runtime acceptance using the user installed legal game and TOR files.',
@@ -294,18 +311,18 @@ jobs:
         shell: pwsh
         run: ./kaitor/projects/KaiTOROnline/runtime/Test-KaiTORTorTestPackage.ps1 -PackageRoot $env:KAITOR_ARTIFACT
 
-      - name: Upload KaiTOR bootstrap artifact
+      - name: Upload KaiTOR Co-op full-module artifact
         uses: actions/upload-artifact@v4
         with:
-          name: KaiTOROnline-0.0.1-bootstrap-Bannerlord-1.3.15.110062
+          name: KaiTORCoop-v1.3.15.10-Bannerlord-1.3.15.110062-TOR-1.3.15
           path: ${{ env.KAITOR_ARTIFACT }}
           if-no-files-found: error
           retention-days: 7
 
-      - name: Download uploaded KaiTOR artifact
+      - name: Download uploaded KaiTOR full-module artifact
         uses: actions/download-artifact@v4
         with:
-          name: KaiTOROnline-0.0.1-bootstrap-Bannerlord-1.3.15.110062
+          name: KaiTORCoop-v1.3.15.10-Bannerlord-1.3.15.110062-TOR-1.3.15
           path: ${{ runner.temp }}/KaiTOROnline-uploaded
 
       - name: Validate uploaded artifact boundary
