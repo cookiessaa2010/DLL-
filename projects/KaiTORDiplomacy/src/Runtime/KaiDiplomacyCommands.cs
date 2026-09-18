@@ -85,10 +85,15 @@ public static class KaiDiplomacyCommands
         if (arguments.Count != 0) return "Usage: kaitor_diplomacy.racial_status";
         if (Campaign.Current == null) return "No campaign is active.";
 
-        var behavior = Campaign.Current.GetCampaignBehavior<KaiRacialPopulationBehavior>();
-        if (behavior == null) return "KaiTOR racial population behavior is not loaded.";
+        var vampire = Campaign.Current.GetCampaignBehavior<KaiVampirePopulationBehavior>();
+        var greenskin = Campaign.Current.GetCampaignBehavior<KaiGreenskinPopulationBehavior>();
+        if (vampire == null && greenskin == null)
+            return "KaiTOR split racial population behaviors are not loaded.";
 
-        return "KaiTOR racial population status:\n" + string.Join("\n", behavior.DescribeStatus());
+        var lines = new List<string>();
+        if (vampire != null) lines.AddRange(vampire.DescribeStatus());
+        if (greenskin != null) lines.AddRange(greenskin.DescribeStatus());
+        return "KaiTOR racial population status:\n" + string.Join("\n", lines);
     }
 
     [CommandLineFunctionality.CommandLineArgumentFunction("save_status", "kaitor_diplomacy")]
