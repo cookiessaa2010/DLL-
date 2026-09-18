@@ -242,9 +242,17 @@ public sealed class KaiDynasticMarriageBehavior : CampaignBehaviorBase
             if ((k1 == first && k2 == second) || (k1 == second && k2 == first))
             {
                 _bondExpiryDays.Remove(key);
-                // The shared NAP backend already applies the breach trust/relation
-                // penalty. Dynastic Bond only records that the marriage treaty broke.
-                KaiRuntimeLog.Write("DYNASTIC_BOND_BROKEN", $"clans={key}; reason=war; kingdoms={first.StringId}/{second.StringId}");
+
+                // A Dynastic Bond is a political promise of its own. NAP may also
+                // apply its normal war-breach penalty, but the marriage contract must
+                // still have a consequence when no NAP could be created (or if event
+                // ordering has already removed it). Revoke the bond's +30 trust.
+                var diplomacy = Campaign.Current?.GetCampaignBehavior<KaiDiplomacyBehavior>();
+                diplomacy?.AdjustTrust(k1, k2, -DynasticTrustBonus);
+
+                KaiRuntimeLog.Write(
+                    "DYNASTIC_BOND_BROKEN",
+                    $"clans={key}; reason=war; kingdoms={first.StringId}/{second.StringId}; dynasticTrustPenalty=-{DynasticTrustBonus}");
             }
         }
     }
