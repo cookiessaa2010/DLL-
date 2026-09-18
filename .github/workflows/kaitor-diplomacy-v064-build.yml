@@ -31,14 +31,71 @@ jobs:
             --nologo
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Verify output
+      - name: Verify output and v0.6.4 contracts
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           $root = 'projects/KaiTORDiplomacy'
+          $src = Join-Path $root 'src'
+          $runtime = Join-Path $src 'Runtime'
           $dll = Join-Path $root 'build/bin/Win64_Shipping_Client/KaiTOR_Diplomacy.dll'
           if (-not (Test-Path -LiteralPath $dll -PathType Leaf)) { throw "Missing DLL: $dll" }
-          Write-Host "KaiTOR v0.6.4 compile contract: PASS"
+
+          $module = Get-Content (Join-Path $root 'module/SubModule.xml') -Raw
+          if ($module -notmatch '<Version value="v0\.6\.4"') { throw 'SubModule version is not v0.6.4.' }
+
+          $required = @(
+            'KaiFamilyAffairsBehavior.cs',
+            'KaiRealmHouseGrowthBehavior.cs',
+            'KaiLoreEducationBehavior.cs',
+            'TorProfessionEffectBridge.cs',
+            'KaiBloodKissBehavior.cs',
+            'KaiVampirePopulationBehavior.cs',
+            'KaiGreenskinPopulationBehavior.cs',
+            'KaiDynasticMarriageBehavior.cs',
+            'KaiIncomingMarriageProposalBehavior.cs',
+            'KaiDiplomacyConversationBehavior.cs'
+          )
+          foreach ($name in $required) {
+            if (-not (Test-Path -LiteralPath (Join-Path $runtime $name) -PathType Leaf)) {
+              throw "Missing required runtime source: $name"
+            }
+          }
+
+          $forbiddenLegacy = @(
+            'KaiDynastyAiBehavior.cs',
+            'KaiDiplomacyOfficeBehavior.cs',
+            'KaiRacialPopulationBehavior.cs'
+          )
+          foreach ($name in $forbiddenLegacy) {
+            if (Test-Path -LiteralPath (Join-Path $runtime $name) -PathType Leaf) {
+              throw "Obsolete runtime source still present: $name"
+            }
+          }
+
+          $subModuleCs = Get-Content (Join-Path $src 'SubModule.cs') -Raw
+          foreach ($token in @('new KaiDynastyAiBehavior()', 'new KaiDiplomacyOfficeBehavior()', 'new KaiRacialPopulationBehavior()')) {
+            if ($subModuleCs.Contains($token)) { throw "Forbidden legacy registration: $token" }
+          }
+
+          $realm = Get-Content (Join-Path $runtime 'KaiRealmHouseGrowthBehavior.cs') -Raw
+          if (-not $realm.Contains('Clan.CreateCompanionToLordClan')) { throw 'Realm House native factory missing.' }
+          if ($realm -match 'Clan\.CreateClan\s*\(') { throw 'Direct Clan.CreateClan found in Realm House.' }
+          if ($realm -match 'founder\.Clan\s*=') { throw 'Direct founder.Clan assignment found in Realm House.' }
+          if ($realm -match 'newClan\.Kingdom\s*=') { throw 'Direct newClan.Kingdom assignment found in Realm House.' }
+
+          $dawi = Get-Content (Join-Path $runtime 'KaiDawiWomenBehavior.cs') -Raw
+          if ($dawi -notmatch 'AutomaticPopulationEnabled\s*=\s*false') {
+            throw 'Dawi women auto-population must remain OFF until live visual validation.'
+          }
+
+          foreach ($doc in @('CHANGELOG-v0.6.4-RU.md', 'TEST-v0.6.4-RU.md')) {
+            if (-not (Test-Path -LiteralPath (Join-Path $root "module/$doc") -PathType Leaf)) {
+              throw "Missing release document: $doc"
+            }
+          }
+
+          Write-Host "KaiTOR v0.6.4 compile + safety contracts: PASS"
 
       - name: Assemble test module
         shell: pwsh
