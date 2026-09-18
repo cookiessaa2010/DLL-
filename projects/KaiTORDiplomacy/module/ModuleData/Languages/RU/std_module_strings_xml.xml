@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<base type="string">
+  <tags>
+    <tag language="Русский"/>
+  </tags>
+  <strings>
+    <string id="kaitor_diplomacy_ui_title" text="KaiTOR: Дипломатия"/>
+    <string id="kaitor_diplomacy_ui_subtitle" text="Дома, договоры и судьба вашей державы."/>
+    <string id="kaitor_diplomacy_ui_tab_overview" text="Обзор"/>
+    <string id="kaitor_diplomacy_ui_tab_diplomacy" text="Дипломатия"/>
+    <string id="kaitor_diplomacy_ui_tab_family" text="Семья"/>
+    <string id="kaitor_diplomacy_ui_tab_population" text="Держава и население"/>
+    <string id="kaitor_diplomacy_ui_refresh" text="Обновить"/>
+    <string id="kaitor_diplomacy_ui_close" text="Закрыть"/>
+    <string id="kaitor_diplomacy_ui_select_kingdom" text="Выберите державу"/>
+    <string id="kaitor_diplomacy_ui_choose_realm" text="Выбрать державу"/>
+    <string id="kaitor_diplomacy_ui_select_kingdom_hint" text="Выберите державу для просмотра или переговоров."/>
+    <string id="kaitor_diplomacy_ui_cancel" text="Отмена"/>
+    <string id="kaitor_diplomacy_ui_no_realms" text="Других действующих держав не найдено."/>
+    <string id="kaitor_diplomacy_ui_propose_nap" text="Предложить пакт о ненападении"/>
+    <string id="kaitor_diplomacy_ui_break_nap" text="Предложить разрыв пакта"/>
+    <string id="kaitor_diplomacy_ui_duration" text="Срок: {DAYS} дней"/>
+    <string id="kaitor_diplomacy_ui_open_family" text="Открыть семейные дела"/>
+    <string id="kaitor_diplomacy_ui_open_culture" text="Сменить народность поселения"/>
+    <string id="kaitor_diplomacy_ui_dawi_test" text="Создать одну женщину-гнома для live-test"/>
+    <string id="kaitor_diplomacy_ui_fallback" text="Открыть классическое меню KaiTOR"/>
+    <string id="kaitor_diplomacy_ui_selected_realm" text="Выбранная держава"/>
+    <string id="kaitor_diplomacy_ui_family_header" text="Дом и династия"/>
+    <string id="kaitor_diplomacy_ui_population_header" text="Системы державы"/>
+    <string id="kaitor_diplomacy_ui_culture_header" text="Поселение"/>
+    <string id="kaitor_diplomacy_ui_result_header" text="Последнее действие"/>
+    <string id="kaitor_diplomacy_ui_no_campaign" text="Данные кампании недоступны."/>
+    <string id="kaitor_diplomacy_ui_no_realm" text="Нет державы"/>
+    <string id="kaitor_diplomacy_ui_overview_format" text="Дом: {CLAN}&#10;Держава: {REALM}&#10;Влияние: {INFLUENCE}&#10;Казна: {GOLD}&#10;Активные пакты о ненападении: {PACTS}"/>
+    <string id="kaitor_diplomacy_ui_no_kingdom_selected" text="Держава не выбрана."/>
+    <string id="kaitor_diplomacy_ui_pact_active" text="Пакт действует: осталось {DAYS} дн."/>
+    <string id="kaitor_diplomacy_ui_pact_none" text="Действующего пакта нет"/>
+    <string id="kaitor_diplomacy_ui_selected_kingdom_format" text="{REALM}&#10;{PACT}&#10;Доверие: {TRUST}&#10;Нарушений: {BREACHES}&#10;Новый пакт через: {COOLDOWN} дн."/>
+    <string id="kaitor_diplomacy_ui_none" text="Нет"/>
+    <string id="kaitor_diplomacy_ui_family_format" text="Супруг: {SPOUSE}&#10;Живые дети и принятые наследники: {CHILDREN}&#10;Наследники в браке: {MARRIED}"/>
+    <string id="kaitor_diplomacy_ui_population_format" text="Модуль женщин-гномов: {DAWI}&#10;Автопопуляция Dawi: {DAWI_AUTO}&#10;Население вампиров: {VAMPIRE}&#10;Население зеленокожих: {GREEN}&#10;Рост домов AI: {HOUSES}"/>
+    <string id="kaitor_diplomacy_ui_no_settlement" text="Сейчас не открыто ни одно поселение."/>
+    <string id="kaitor_diplomacy_ui_culture_format" text="Поселение: {SETTLEMENT}&#10;Владелец: {OWNER}&#10;Текущая народность: {CULTURE}"/>
+    <string id="kaitor_diplomacy_ui_refreshed" text="Состояние KaiTOR обновлено."/>
+    <string id="kaitor_diplomacy_ui_already_considering" text="Совет уже рассматривает пакт с {REALM}."/>
+    <string id="kaitor_diplomacy_ui_nap_submitted" text="Пакт о ненападении с {REALM} на {DAYS} дней вынесен на совет."/>
+    <string id="kaitor_diplomacy_ui_break_already_considering" text="Совет уже рассматривает разрыв пакта с {REALM}."/>
+    <string id="kaitor_diplomacy_ui_break_submitted" text="Разрыв пакта с {REALM} вынесен на совет."/>
+    <string id="kaitor_diplomacy_ui_dawi_unavailable" text="Модуль женщин-гномов не загружен."/>
+    <string id="kaitor_diplomacy_ui_list_pact_active" text="Пакт: {DAYS} дн."/>
+    <string id="kaitor_diplomacy_ui_list_no_pact" text="Пакта нет"/>
+    <string id="kaitor_diplomacy_ui_trust_unavailable" text="Доверие: недоступно"/>
+    <string id="kaitor_diplomacy_ui_trust" text="Доверие: {TRUST}"/>
+    <string id="kaitor_diplomacy_ui_diplomacy_unavailable" text="Дополнительная дипломатия KaiTOR сейчас недоступна."/>
+    <string id="kaitor_diplomacy_ui_realm_not_ready" text="{REALM} сейчас не готово принять это предложение."/>
+    <string id="kaitor_diplomacy_ui_influence_required" text="Требуется {INFLUENCE} влияния."/>
+    <string id="kaitor_diplomacy_ui_no_active_pact" text="С выбранной державой нет действующего пакта о ненападении."/>
+    <string id="kaitor_diplomacy_ui_yes" text="Да"/>
+    <string id="kaitor_diplomacy_ui_no" text="Нет"/>
+  </strings>
+</base>

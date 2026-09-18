@@ -1,17 +1,24 @@
+using System;
+using System.Collections.Generic;
+using KaiTOR.Diplomacy.Runtime;
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.CampaignSystem.CharacterDevelopment;
 using TaleWorlds.CampaignSystem.ComponentInterfaces;
+using TaleWorlds.Library;
 
 namespace KaiTOR.Diplomacy.Models;
 
 /// <summary>
-/// Transparent decorator over the active Bannerlord/TOR pregnancy model.
-/// KaiTOR restores world marriages, so offspring safety must apply to every married
-/// hero, not only the player clan. All probability/duration values remain owned by
-/// the underlying model for biologically safe pairings.
+/// Biological decorator over the active TOR/Bannerlord pregnancy model.
+/// Humans keep the underlying model unchanged. Dawi and long-lived elves use the exact
+/// Bannerlord 1.3.15 chance structure with a race-normalized biological age, so calendar
+/// age can no longer incorrectly cut them off at 45.
 /// </summary>
 public sealed class KaiPregnancyModel : PregnancyModel
 {
     private readonly PregnancyModel _baseModel;
+    private readonly HashSet<string> _loggedThisDay = new(StringComparer.Ordinal);
+    private int _lastLogDay = -1;
 
     public KaiPregnancyModel(PregnancyModel baseModel)
     {
@@ -35,11 +42,79 @@ public sealed class KaiPregnancyModel : PregnancyModel
         if (spouse == null)
             return _baseModel.GetDailyChanceOfPregnancyForHero(hero);
 
-        // This is a biological guard, not a social-marriage rule. Cross-race pairs,
-        // Dawi, Greenskins, vampires and other undead never enter Bannerlord's vanilla
-        // offspring generator. Every safe pairing keeps the original model unchanged.
-        return TorFamilySafety.CanUseVanillaPregnancy(hero, spouse)
-            ? _baseModel.GetDailyChanceOfPregnancyForHero(hero)
-            : 0f;
+        // Biology and social marriage are intentionally separate. A pair can be a valid
+        // family while still being excluded from Bannerlord's offspring generator.
+        if (!TorFamilySafety.CanUseVanillaPregnancy(hero, spouse))
+        {
+            LogOncePerDay("PREGNANCY_BLOCKED", hero, spouse, "biological_safety_gate");
+            return 0f;
+        }
+
+        if (!KaiRaceLifecycle.UsesCustomFertility(hero))
+            return _baseModel.GetDailyChanceOfPregnancyForHero(hero);
+
+        var chance = GetRaceAwareDailyChance(hero);
+        LogOncePerDay(
+            chance > 0f ? "PREGNANCY_ALLOWED" : "PREGNANCY_BLOCKED",
+            hero,
+            spouse,
+            $"race_aware; calendarAge={hero.Age:0.0}; biologicalAge={KaiRaceLifecycle.GetBiologicalAge(hero):0.0}; chance={chance:0.000000}");
+        return chance;
+    }
+
+    private static float GetRaceAwareDailyChance(Hero hero)
+    {
+        var spouse = hero?.Spouse;
+        var clan = hero?.Clan;
+        if (hero == null || spouse == null || clan == null)
+            return 0f;
+
+        if (!KaiRaceLifecycle.IsWithinCustomFertilityWindow(hero))
+            return 0f;
+
+        var childCountFactor = hero.Children.Count + 1;
+        var desiredClanSize = 4f + 4f * clan.Tier;
+        if (desiredClanSize <= 0f)
+            desiredClanSize = 4f;
+
+        var aliveLords = clan.AliveLords.Count;
+        var clanPopulationFactor = hero != Hero.MainHero && spouse != Hero.MainHero
+            ? Math.Min(1f, (2f * desiredClanSize - aliveLords) / desiredClanSize)
+            : 1f;
+        clanPopulationFactor = Math.Max(0f, clanPopulationFactor);
+
+        var ageFactor = KaiRaceLifecycle.GetCustomPregnancyAgeFactor(hero);
+        var chance = ageFactor / (childCountFactor * childCountFactor) * 0.12f * clanPopulationFactor;
+
+        var explained = new ExplainedNumber(chance, false, null);
+        if (hero.GetPerkValue(DefaultPerks.Charm.Virile) || spouse.GetPerkValue(DefaultPerks.Charm.Virile))
+            explained.AddFactor(DefaultPerks.Charm.Virile.PrimaryBonus, DefaultPerks.Charm.Virile.Name);
+
+        return Math.Max(0f, explained.ResultNumber);
+    }
+
+    private void LogOncePerDay(string stage, Hero hero, Hero spouse, string details)
+    {
+        try
+        {
+            var day = (int)Math.Floor(CampaignTime.Now.ToDays);
+            if (day != _lastLogDay)
+            {
+                _lastLogDay = day;
+                _loggedThisDay.Clear();
+            }
+
+            var key = $"{stage}:{hero?.StringId}:{spouse?.StringId}";
+            if (!_loggedThisDay.Add(key))
+                return;
+
+            KaiRuntimeLog.Write(
+                stage,
+                $"hero={hero?.StringId ?? "null"}; spouse={spouse?.StringId ?? "null"}; {details}");
+        }
+        catch
+        {
+            // Model calculations must stay side-effect safe even if diagnostics fail.
+        }
     }
 }

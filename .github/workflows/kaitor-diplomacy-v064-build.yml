@@ -1,0 +1,278 @@
+name: KaiTOR Diplomacy v0.6.4 Build
+
+on:
+  push:
+    branches:
+      - 'kaitor-v0.6.4-*'
+    paths:
+      - 'projects/KaiTORDiplomacy/**'
+      - '.github/workflows/kaitor-diplomacy-v064-build.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build against Bannerlord 1.3.15 reference assemblies
+        shell: pwsh
+        run: |
+          dotnet build projects/KaiTORDiplomacy/src/KaiTOR_Diplomacy.csproj `
+            -c Release `
+            -p:UseBannerlordReferenceAssemblies=true `
+            --nologo
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Verify output and v0.6.4 contracts
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = 'projects/KaiTORDiplomacy'
+          $src = Join-Path $root 'src'
+          $runtime = Join-Path $src 'Runtime'
+          $dll = Join-Path $root 'build/bin/Win64_Shipping_Client/KaiTOR_Diplomacy.dll'
+          if (-not (Test-Path -LiteralPath $dll -PathType Leaf)) { throw "Missing DLL: $dll" }
+
+          $module = Get-Content (Join-Path $root 'module/SubModule.xml') -Raw
+          if ($module -notmatch '<Version value="v0\.6\.4"') { throw 'SubModule version is not v0.6.4.' }
+
+          $required = @(
+            'KaiFamilyAffairsBehavior.cs',
+            'KaiRealmHouseGrowthBehavior.cs',
+            'KaiLoreEducationBehavior.cs',
+            'TorProfessionEffectBridge.cs',
+            'KaiBloodKissBehavior.cs',
+            'KaiVampirePopulationBehavior.cs',
+            'KaiGreenskinPopulationBehavior.cs',
+            'KaiDynasticMarriageBehavior.cs',
+            'KaiIncomingMarriageProposalBehavior.cs',
+            'KaiDiplomacyConversationBehavior.cs',
+            'KaiDiplomacyHubBehavior.cs',
+            'KaiLiveTestBehavior.cs',
+            'KaiLiveTestLog.cs',
+            'KaiConsoleText.cs'
+          )
+          foreach ($name in $required) {
+            if (-not (Test-Path -LiteralPath (Join-Path $runtime $name) -PathType Leaf)) {
+              throw "Missing required runtime source: $name"
+            }
+          }
+
+          $forbiddenLegacy = @(
+            'KaiDynastyAiBehavior.cs',
+            'KaiDiplomacyOfficeBehavior.cs',
+            'KaiRacialPopulationBehavior.cs',
+            'KaiCadetHouseSafeBehavior.cs'
+          )
+          foreach ($name in $forbiddenLegacy) {
+            if (Test-Path -LiteralPath (Join-Path $runtime $name) -PathType Leaf) {
+              throw "Obsolete runtime source still present: $name"
+            }
+          }
+
+          $subModuleCs = Get-Content (Join-Path $src 'SubModule.cs') -Raw
+          foreach ($token in @('new KaiDynastyAiBehavior()', 'new KaiDiplomacyOfficeBehavior()', 'new KaiRacialPopulationBehavior()')) {
+            if ($subModuleCs.Contains($token)) { throw "Forbidden legacy registration: $token" }
+          }
+
+          $realm = Get-Content (Join-Path $runtime 'KaiRealmHouseGrowthBehavior.cs') -Raw
+          if (-not $realm.Contains('Clan.CreateCompanionToLordClan')) { throw 'Realm House native factory missing.' }
+          if ($realm -match 'Clan\.CreateClan\s*\(') { throw 'Direct Clan.CreateClan found in Realm House.' }
+          if ($realm -match 'founder\.Clan\s*=') { throw 'Direct founder.Clan assignment found in Realm House.' }
+          if ($realm -match 'newClan\.Kingdom\s*=') { throw 'Direct newClan.Kingdom assignment found in Realm House.' }
+
+          $dawi = Get-Content (Join-Path $runtime 'KaiDawiWomenBehavior.cs') -Raw
+          if ($dawi -notmatch 'AutomaticPopulationEnabled\s*=\s*false') {
+            throw 'Dawi women auto-population must remain OFF until live visual validation.'
+          }
+
+          $moduleData = Join-Path $root 'module/ModuleData'
+          foreach ($assetText in @(
+            'action_sets.xml',
+            'kaitor_dawi_monster.xml',
+            'kaitor_dawi_women.xml',
+            'project.mbproj',
+            'skins.xml',
+            'skins.xslt'
+          )) {
+            if (-not (Test-Path -LiteralPath (Join-Path $moduleData $assetText) -PathType Leaf)) {
+              throw "Missing Dawi ModuleData contract: $assetText"
+            }
+          }
+          $dawiMonster = Get-Content (Join-Path $moduleData 'kaitor_dawi_monster.xml') -Raw
+          $dawiWomenXml = Get-Content (Join-Path $moduleData 'kaitor_dawi_women.xml') -Raw
+          if ($dawiMonster -notmatch 'as_kaitor_dwarf_female_warrior') { throw 'Dawi female action-set binding missing.' }
+          if ($dawiWomenXml -notmatch 'id="kaitor_dawi_woman_lord"' -or $dawiWomenXml -notmatch 'race="dwarf"' -or $dawiWomenXml -notmatch 'is_female="true"') {
+            throw 'Dawi woman template contract is incomplete.'
+          }
+
+          foreach ($doc in @('CHANGELOG-v0.6.4-RU.md', 'TEST-v0.6.4-RU.md')) {
+            if (-not (Test-Path -LiteralPath (Join-Path $root "module/$doc") -PathType Leaf)) {
+              throw "Missing release document: $doc"
+            }
+          }
+
+          # Diplomacy UI must remain technically isolated from KaiTOR Co-op.
+          $uiRoot = Join-Path $src 'UI'
+          foreach ($uiFile in @(
+            'KaiTORDiplomacyScreen.cs',
+            'KaiTORDiplomacyVM.cs',
+            'KaiDiplomacyKingdomItemVM.cs',
+            'KaiTORDiplomacyUiText.cs'
+          )) {
+            if (-not (Test-Path -LiteralPath (Join-Path $uiRoot $uiFile) -PathType Leaf)) {
+              throw "Missing diplomacy Gauntlet UI source: $uiFile"
+            }
+          }
+
+          $moviePath = Join-Path $root 'module/GUI/Prefabs/KaiTORDiplomacyHubUIMovie.xml'
+          if (-not (Test-Path -LiteralPath $moviePath -PathType Leaf)) {
+            throw 'Missing KaiTORDiplomacyHubUIMovie.xml.'
+          }
+          [xml]$movieXml = Get-Content $moviePath -Raw
+          $movieRaw = Get-Content $moviePath -Raw
+          if ($movieRaw -notmatch 'KaiTORDiplomacyRoot') { throw 'Diplomacy movie root id missing.' }
+          if ($movieRaw -match 'CoopConnectionUIMovie|CoopOptionsUIMovie|GameInterface\.Services\.UI') {
+            throw 'Diplomacy movie/source collides with KaiTOR Co-op UI identifiers.'
+          }
+
+          $allDiplomacyUiText = @(
+            Get-ChildItem $uiRoot -File -Filter '*.cs'
+            Get-Item (Join-Path $runtime 'KaiDiplomacyHubBehavior.cs')
+            Get-Item (Join-Path $src 'SubModule.cs')
+            Get-Item $moviePath
+          ) | ForEach-Object { Get-Content $_.FullName -Raw } | Out-String
+
+          foreach ($forbidden in @(
+            'CoopConnectionUIMovie',
+            'CoopOptionsUIMovie',
+            'namespace GameInterface.Services.UI',
+            'Modules/Coop',
+            'Modules\\Coop'
+          )) {
+            if ($allDiplomacyUiText.Contains($forbidden)) {
+              throw "KaiTOR Co-op UI collision token found in Diplomacy: $forbidden"
+            }
+          }
+
+          $screen = Get-Content (Join-Path $uiRoot 'KaiTORDiplomacyScreen.cs') -Raw
+          if ($screen -notmatch 'MovieName\s*=\s*"KaiTORDiplomacyHubUIMovie"') {
+            throw 'Diplomacy Gauntlet movie name contract changed.'
+          }
+          if ($screen -notmatch 'LayerName\s*=\s*"KaiTORDiplomacyLayer"') {
+            throw 'Diplomacy Gauntlet layer name contract changed.'
+          }
+
+          $langRoot = Join-Path $root 'module/ModuleData/Languages'
+          $enLang = Join-Path $langRoot 'std_module_strings_xml.xml'
+          $ruLang = Join-Path $langRoot 'RU/std_module_strings_xml.xml'
+          $ruData = Join-Path $langRoot 'RU/language_data.xml'
+          foreach ($langFile in @($enLang, $ruLang, $ruData)) {
+            if (-not (Test-Path -LiteralPath $langFile -PathType Leaf)) {
+              throw "Missing Diplomacy localization file: $langFile"
+            }
+            [xml](Get-Content $langFile -Raw) | Out-Null
+          }
+
+          [xml]$enXml = Get-Content $enLang -Raw
+          [xml]$ruXml = Get-Content $ruLang -Raw
+          $enIds = @($enXml.base.strings.string | ForEach-Object { [string]$_.id })
+          $ruIds = @($ruXml.base.strings.string | ForEach-Object { [string]$_.id })
+          if ($enIds.Count -eq 0) { throw 'Diplomacy EN localization is empty.' }
+          foreach ($id in $enIds) {
+            if ($id -notmatch '^kaitor_diplomacy_ui_') {
+              throw "Diplomacy localization id is outside isolated prefix: $id"
+            }
+            if ($ruIds -notcontains $id) {
+              throw "RU localization missing id: $id"
+            }
+          }
+          foreach ($id in $ruIds) {
+            if ($enIds -notcontains $id) {
+              throw "EN localization missing id: $id"
+            }
+          }
+
+          $subModuleId = [regex]::Match($module, '<Id value="([^"]+)"').Groups[1].Value
+          if ($subModuleId -ne 'KaiTOR_Diplomacy') {
+            throw "Diplomacy module id collided or changed: $subModuleId"
+          }
+          if ($subModuleCs -notmatch 'kaitor\.diplomacy\.kingdom-ui') {
+            throw 'Dedicated Diplomacy Harmony id missing.'
+          }
+
+          $liveTest = Get-Content (Join-Path $runtime 'KaiLiveTestBehavior.cs') -Raw
+          $liveLog = Get-Content (Join-Path $runtime 'KaiLiveTestLog.cs') -Raw
+          if ($liveLog -notmatch 'KaiTOR-LiveTest\.log') { throw 'Unified live-test log filename contract missing.' }
+          foreach ($token in @('OnGameLoadedEvent','OnSaveStartedEvent','OnSaveOverEvent','WriteSnapshot')) {
+            if (-not $liveTest.Contains($token)) { throw "Live-test lifecycle contract missing: $token" }
+          }
+          $runtimeLog = Get-Content (Join-Path $runtime 'KaiRuntimeLog.cs') -Raw
+          $populationLog = Get-Content (Join-Path $runtime 'KaiPopulationLog.cs') -Raw
+          $mercyLog = Get-Content (Join-Path $runtime 'KaiMercyRelationBehavior.cs') -Raw
+          if (-not $runtimeLog.Contains('KaiLiveTestLog.Write')) { throw 'Runtime events are not mirrored to unified live-test log.' }
+          if (-not $populationLog.Contains('KaiLiveTestLog.Write')) { throw 'Population events are not mirrored to unified live-test log.' }
+          if (-not $mercyLog.Contains('relationBefore') -or -not $mercyLog.Contains('relationAfter')) {
+            throw 'Mercy relation before/after live-test diagnostics missing.'
+          }
+
+          $family = Get-Content (Join-Path $runtime 'KaiFamilyAffairsBehavior.cs') -Raw
+          foreach ($token in @('marriage_member_refresh','marriage_clan_refresh','marriage_target_refresh')) {
+            if (-not $family.Contains($token)) { throw "Marriage menu refresh contract missing: $token" }
+          }
+
+          $movieRaw = Get-Content (Join-Path $root 'module/GUI/Prefabs/KaiTORDiplomacyHubUIMovie.xml') -Raw
+          foreach ($forbiddenWidget in @('ScrollablePanel','NavigatableListPanel','ItemTemplate','ScrollbarWidget')) {
+            if ($movieRaw.Contains("<$forbiddenWidget")) {
+              throw "Crash-prone dynamic widget still present in Diplomacy movie: $forbiddenWidget"
+            }
+          }
+          if ($movieRaw -notmatch 'Command.Click="ActionChooseRealm"') {
+            throw 'Safe native realm-picker button missing from Diplomacy movie.'
+          }
+
+          $vm = Get-Content (Join-Path $src 'UI/KaiTORDiplomacyVM.cs') -Raw
+          if (-not $vm.Contains('ActionChooseRealm')) { throw 'Safe realm-picker VM action missing.' }
+          if ($vm.Contains('MBBindingList<KaiDiplomacyKingdomItemVM> Kingdoms')) {
+            throw 'Crash-prone bound kingdom list is still exposed by the main Diplomacy VM.'
+          }
+
+          $commands = Get-Content (Join-Path $runtime 'KaiDiplomacyCommands.cs') -Raw
+          if (-not $commands.Contains('kaitor_diplomacy.help')) { throw 'Console help command missing.' }
+          if (-not $commands.Contains('KaiConsoleText.Safe')) { throw 'ASCII-safe console output bridge missing.' }
+          $console = Get-Content (Join-Path $runtime 'KaiConsoleText.cs') -Raw
+          if (-not $console.Contains("case 'Х'")) { throw 'Cyrillic transliteration table missing.' }
+
+          Write-Host "KaiTOR live-fix marriage/UI/console contracts: PASS"
+          Write-Host "KaiTOR unified live-test logging contract: PASS"
+          Write-Host "KaiTOR Diplomacy/Co-op UI isolation contract: PASS"
+          Write-Host "KaiTOR v0.6.4 compile + safety contracts: PASS"
+
+      - name: Assemble test module
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = 'projects/KaiTORDiplomacy'
+          $package = 'artifact/KaiTOR_Diplomacy'
+          $bin = Join-Path $package 'bin/Win64_Shipping_Client'
+          New-Item -ItemType Directory -Path $bin -Force | Out-Null
+          Copy-Item (Join-Path $root 'module/*') $package -Recurse -Force
+          Copy-Item (Join-Path $root 'build/bin/Win64_Shipping_Client/KaiTOR_Diplomacy.dll') (Join-Path $bin 'KaiTOR_Diplomacy.dll') -Force
+          $pdb = Join-Path $root 'build/bin/Win64_Shipping_Client/KaiTOR_Diplomacy.pdb'
+          if (Test-Path $pdb) { Copy-Item $pdb (Join-Path $bin 'KaiTOR_Diplomacy.pdb') -Force }
+
+      - name: Upload test module
+        uses: actions/upload-artifact@v4
+        with:
+          name: KaiTOR-Diplomacy-v0.6.4-${{ github.ref_name }}
+          path: artifact/KaiTOR_Diplomacy
+          if-no-files-found: error
+          retention-days: 30

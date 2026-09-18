@@ -19,25 +19,33 @@ public sealed class KaiNonAggressionPactDecision : KingdomDecision
     [SaveableProperty(2)]
     public int DurationDays { get; private set; }
 
-    public KaiNonAggressionPactDecision(Clan proposerClan, Kingdom targetKingdom, int durationDays)
+    [SaveableProperty(3)]
+    public bool IsIncomingAiProposal { get; private set; }
+
+    public KaiNonAggressionPactDecision(Clan proposerClan, Kingdom targetKingdom, int durationDays, bool isIncomingAiProposal = false)
         : base(proposerClan)
     {
         TargetKingdom = targetKingdom;
         DurationDays = durationDays;
+        IsIncomingAiProposal = isIncomingAiProposal;
     }
 
     public override bool IsAllowed() => GetBehavior()?.RuntimeEnabled == true;
-    public override int GetProposalInfluenceCost() => KaiDiplomacyBehavior.NapProposalInfluenceCost;
+    public override int GetProposalInfluenceCost() => IsIncomingAiProposal ? 0 : KaiDiplomacyBehavior.NapProposalInfluenceCost;
 
     public override TextObject GetGeneralTitle() => T($"Пакт о ненападении с {TargetKingdom?.Name}");
     public override TextObject GetSupportTitle() => T($"Голосование по пакту о ненападении с {TargetKingdom?.Name}");
     public override TextObject GetChooseTitle() => T($"Решение о пакте с {TargetKingdom?.Name}");
 
     public override TextObject GetSupportDescription()
-        => T($"Совет державы решает, следует ли заключить с {TargetKingdom?.Name} пакт о ненападении на {DurationDays} дней. Пока договор действует, обычное объявление войны между державами будет невозможно.");
+        => IsIncomingAiProposal
+            ? T($"{TargetKingdom?.Name} предлагает вашей державе пакт о ненападении на {DurationDays} дней. Совет решает, принимать ли предложение. Пока договор действует, обычное объявление войны между державами будет невозможно.")
+            : T($"Совет державы решает, следует ли заключить с {TargetKingdom?.Name} пакт о ненападении на {DurationDays} дней. Пока договор действует, обычное объявление войны между державами будет невозможно.");
 
     public override TextObject GetChooseDescription()
-        => T($"Как правитель, вы должны решить, заключать ли с {TargetKingdom?.Name} пакт о ненападении на {DurationDays} дней.");
+        => IsIncomingAiProposal
+            ? T($"Правитель {TargetKingdom?.Name} направил предложение о пакте на {DurationDays} дней. Как правитель, вы должны принять или отклонить его через совет.")
+            : T($"Как правитель, вы должны решить, заключать ли с {TargetKingdom?.Name} пакт о ненападении на {DurationDays} дней.");
 
     public override IEnumerable<DecisionOutcome> DetermineInitialCandidates()
     {
@@ -62,7 +70,7 @@ public sealed class KaiNonAggressionPactDecision : KingdomDecision
     {
         var nap = possibleOutcome as KaiNonAggressionPactDecisionOutcome;
         if (nap == null) return 0f;
-        if (clan == Clan.PlayerClan && clan == ProposerClan)
+        if (!IsIncomingAiProposal && clan == Clan.PlayerClan && clan == ProposerClan)
             return nap.ShouldStart ? 100f : 0f;
 
         var behavior = GetBehavior();
@@ -81,7 +89,7 @@ public sealed class KaiNonAggressionPactDecision : KingdomDecision
             return false;
         }
 
-        if (TargetKingdom != Clan.PlayerClan?.Kingdom && behavior.GetNapAcceptanceScore(Kingdom, TargetKingdom) < 0)
+        if (!IsIncomingAiProposal && TargetKingdom != Clan.PlayerClan?.Kingdom && behavior.GetNapAcceptanceScore(Kingdom, TargetKingdom) < 0)
         {
             reason = includeReason ? T($"{TargetKingdom.Name} сейчас не готово принять такое предложение.") : TextObject.GetEmpty();
             return false;
@@ -109,8 +117,12 @@ public sealed class KaiNonAggressionPactDecision : KingdomDecision
     {
         var accepted = chosenOutcome is KaiNonAggressionPactDecisionOutcome nap && nap.ShouldStart;
         if (accepted)
-            return T($"{Kingdom.Leader?.Name} утвердил пакт о ненападении с {TargetKingdom?.Name} на {DurationDays} дней.");
-        return T($"{Kingdom.Leader?.Name} отклонил предложение о пакте с {TargetKingdom?.Name}.");
+            return IsIncomingAiProposal
+                ? T($"Совет {Kingdom.Name} принял предложение {TargetKingdom?.Name}: пакт о ненападении заключён на {DurationDays} дней.")
+                : T($"{Kingdom.Leader?.Name} утвердил пакт о ненападении с {TargetKingdom?.Name} на {DurationDays} дней.");
+        return IsIncomingAiProposal
+            ? T($"Совет {Kingdom.Name} отклонил предложение {TargetKingdom?.Name} о пакте.")
+            : T($"{Kingdom.Leader?.Name} отклонил предложение о пакте с {TargetKingdom?.Name}.");
     }
 
     public override DecisionOutcome GetQueriedDecisionOutcome(MBReadOnlyList<DecisionOutcome> possibleOutcomes)

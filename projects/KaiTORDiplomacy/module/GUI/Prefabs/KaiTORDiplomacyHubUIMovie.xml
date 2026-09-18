@@ -1,0 +1,228 @@
+<Prefab>
+  <Window>
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent">
+      <Children>
+        <Standard.Background/>
+        <Standard.TopPanel Parameter.Title="@TitleText"/>
+
+        <Widget Id="KaiTORDiplomacyRoot"
+                WidthSizePolicy="Fixed" SuggestedWidth="1220"
+                HeightSizePolicy="Fixed" SuggestedHeight="760"
+                HorizontalAlignment="Center" VerticalAlignment="Center"
+                MarginTop="28">
+          <Children>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                    Sprite="BlankWhiteSquare_9" Color="#0D0908FF" AlphaFactor="0.96"
+                    DoNotAcceptEvents="true"/>
+
+            <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                       MarginLeft="30" MarginRight="30" MarginTop="26" MarginBottom="24"
+                       StackLayout.LayoutMethod="VerticalTopToBottom">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="42"
+                            Brush="Clan.TabControl.Text" Brush.FontSize="22"
+                            Brush.FontColor="#C9A66BFF"
+                            Brush.TextHorizontalAlignment="Center"
+                            Brush.TextVerticalAlignment="Center"
+                            Text="@SubtitleText"/>
+
+                <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="58"
+                           MarginTop="8" MarginBottom="18"
+                           StackLayout.LayoutMethod="HorizontalLeftToRight">
+                  <Children>
+                    <Standard.Button WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="54"
+                                     MarginRight="8" Command.Click="ActionSelectOverview"
+                                     Parameter.Text="@OverviewTabText"/>
+                    <Standard.Button WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="54"
+                                     MarginRight="8" Command.Click="ActionSelectDiplomacy"
+                                     Parameter.Text="@DiplomacyTabText"/>
+                    <Standard.Button WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="54"
+                                     MarginRight="8" Command.Click="ActionSelectFamily"
+                                     Parameter.Text="@FamilyTabText"/>
+                    <Standard.Button WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="54"
+                                     Command.Click="ActionSelectPopulation"
+                                     Parameter.Text="@PopulationTabText"/>
+                  </Children>
+                </ListPanel>
+
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="540">
+                  <Children>
+                    <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                               IsVisible="@IsOverviewVisible"
+                               MarginLeft="18" MarginRight="18" MarginTop="18" MarginBottom="18"
+                               StackLayout.LayoutMethod="VerticalTopToBottom">
+                      <Children>
+                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="46"
+                                    Brush="Clan.TabControl.Text" Brush.FontSize="30"
+                                    Brush.FontColor="#D5B275FF"
+                                    Text="@TitleText"/>
+                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="260"
+                                    MarginTop="18"
+                                    Brush="Clan.TabControl.Text" Brush.FontSize="26"
+                                    Brush.TextVerticalAlignment="Top"
+                                    Text="@OverviewText"/>
+                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="110"
+                                    MarginTop="14" IsVisible="@IsActionResultVisible"
+                                    Brush="Clan.TabControl.Text" Brush.FontSize="22"
+                                    Brush.FontColor="#D9C3A2FF"
+                                    Brush.TextVerticalAlignment="Top"
+                                    Text="@ActionResultText"/>
+                        <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="62"
+                                   MarginTop="12"
+                                   StackLayout.LayoutMethod="HorizontalLeftToRight">
+                          <Children>
+                            <Standard.Button WidthSizePolicy="Fixed" SuggestedWidth="240"
+                                             HeightSizePolicy="Fixed" SuggestedHeight="56"
+                                             Command.Click="ActionRefresh"
+                                             Parameter.Text="@RefreshText"/>
+                            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"/>
+                            <Standard.Button WidthSizePolicy="Fixed" SuggestedWidth="300"
+                                             HeightSizePolicy="Fixed" SuggestedHeight="56"
+                                             Command.Click="ActionOpenFallbackHub"
+                                             Parameter.Text="@FallbackHubText"/>
+                          </Children>
+                        </ListPanel>
+                      </Children>
+                    </ListPanel>
+
+                    <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                               IsVisible="@IsDiplomacyVisible"
+                               MarginLeft="18" MarginRight="18" MarginTop="18" MarginBottom="18"
+                               StackLayout.LayoutMethod="VerticalTopToBottom">
+                      <Children>
+                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="46"
+                                    Brush="Clan.TabControl.Text" Brush.FontSize="30"
+                                    Brush.FontColor="#D5B275FF"
+                                    Text="@SelectedRealmHeaderText"/>
+                        <Standard.Button WidthSizePolicy="Fixed" SuggestedWidth="340"
+                                         HeightSizePolicy="Fixed" SuggestedHeight="58"
+                                         MarginTop="10"
+                                         Command.Click="ActionChooseRealm"
+                                         Parameter.Text="@ChooseRealmText"/>
+                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="210"
+                                    MarginTop="16"
+                                    Brush="Clan.TabControl.Text" Brush.FontSize="25"
+                                    Brush.TextVerticalAlignment="Top"
+                                    Text="@SelectedKingdomText"/>
+                        <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="64"
+                                   MarginTop="12"
+                                   StackLayout.LayoutMethod="HorizontalLeftToRight">
+                          <Children>
+                            <Standard.Button WidthSizePolicy="Fixed" SuggestedWidth="260"
+                                             HeightSizePolicy="Fixed" SuggestedHeight="58"
+                                             MarginRight="10"
+                                             Command.Click="ActionCycleDuration"
+                                             Parameter.Text="@DurationButtonText"/>
+                            <Standard.Button WidthSizePolicy="StretchToParent"
+                                             HeightSizePolicy="Fixed" SuggestedHeight="58"
+                                             MarginRight="10"
+                                             IsDisabled="@IsProposeDisabled"
+                                             Command.Click="ActionProposeNap"
+                                             Parameter.Text="@ProposeNapText"/>
+                            <Standard.Button WidthSizePolicy="StretchToParent"
+                                             HeightSizePolicy="Fixed" SuggestedHeight="58"
+                                             IsDisabled="@IsBreakDisabled"
+                                             Command.Click="ActionBreakNap"
+                                             Parameter.Text="@BreakNapText"/>
+                          </Children>
+                        </ListPanel>
+                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="110"
+                                    MarginTop="16" IsVisible="@IsActionResultVisible"
+                                    Brush="Clan.TabControl.Text" Brush.FontSize="22"
+                                    Brush.FontColor="#D9C3A2FF"
+                                    Brush.TextVerticalAlignment="Top"
+                                    Text="@ActionResultText"/>
+                      </Children>
+                    </ListPanel>
+
+                    <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                               IsVisible="@IsFamilyVisible"
+                               MarginLeft="18" MarginRight="18" MarginTop="18" MarginBottom="18"
+                               StackLayout.LayoutMethod="VerticalTopToBottom">
+                      <Children>
+                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="46"
+                                    Brush="Clan.TabControl.Text" Brush.FontSize="30"
+                                    Brush.FontColor="#D5B275FF"
+                                    Text="@FamilyHeaderText"/>
+                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="300"
+                                    MarginTop="18"
+                                    Brush="Clan.TabControl.Text" Brush.FontSize="26"
+                                    Brush.TextVerticalAlignment="Top"
+                                    Text="@FamilySummaryText"/>
+                        <Standard.Button WidthSizePolicy="Fixed" SuggestedWidth="360"
+                                         HeightSizePolicy="Fixed" SuggestedHeight="60"
+                                         HorizontalAlignment="Left" MarginTop="18"
+                                         Command.Click="ActionOpenFamily"
+                                         Parameter.Text="@OpenFamilyText"/>
+                      </Children>
+                    </ListPanel>
+
+                    <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                               IsVisible="@IsPopulationVisible"
+                               MarginLeft="18" MarginRight="18" MarginTop="18" MarginBottom="18"
+                               StackLayout.LayoutMethod="HorizontalLeftToRight">
+                      <Children>
+                        <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                   MarginRight="22"
+                                   StackLayout.LayoutMethod="VerticalTopToBottom">
+                          <Children>
+                            <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="46"
+                                        Brush="Clan.TabControl.Text" Brush.FontSize="30"
+                                        Brush.FontColor="#D5B275FF"
+                                        Text="@PopulationHeaderText"/>
+                            <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="320"
+                                        MarginTop="16"
+                                        Brush="Clan.TabControl.Text" Brush.FontSize="24"
+                                        Brush.TextVerticalAlignment="Top"
+                                        Text="@PopulationSummaryText"/>
+                            <Standard.Button WidthSizePolicy="Fixed" SuggestedWidth="400"
+                                             HeightSizePolicy="Fixed" SuggestedHeight="58"
+                                             HorizontalAlignment="Left"
+                                             Command.Click="ActionDawiTest"
+                                             Parameter.Text="@DawiTestText"/>
+                          </Children>
+                        </ListPanel>
+
+                        <ListPanel WidthSizePolicy="Fixed" SuggestedWidth="500"
+                                   HeightSizePolicy="StretchToParent"
+                                   StackLayout.LayoutMethod="VerticalTopToBottom">
+                          <Children>
+                            <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="46"
+                                        Brush="Clan.TabControl.Text" Brush.FontSize="30"
+                                        Brush.FontColor="#D5B275FF"
+                                        Text="@CultureHeaderText"/>
+                            <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="240"
+                                        MarginTop="16"
+                                        Brush="Clan.TabControl.Text" Brush.FontSize="24"
+                                        Brush.TextVerticalAlignment="Top"
+                                        Text="@CultureSummaryText"/>
+                            <Standard.Button WidthSizePolicy="StretchToParent"
+                                             HeightSizePolicy="Fixed" SuggestedHeight="58"
+                                             Command.Click="ActionOpenCulture"
+                                             Parameter.Text="@OpenCultureText"/>
+                          </Children>
+                        </ListPanel>
+                      </Children>
+                    </ListPanel>
+                  </Children>
+                </Widget>
+
+                <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="62"
+                           MarginTop="16"
+                           StackLayout.LayoutMethod="HorizontalLeftToRight">
+                  <Children>
+                    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"/>
+                    <Standard.Button WidthSizePolicy="Fixed" SuggestedWidth="220"
+                                     HeightSizePolicy="Fixed" SuggestedHeight="56"
+                                     Command.Click="ActionClose"
+                                     Parameter.Text="@CloseText"/>
+                  </Children>
+                </ListPanel>
+              </Children>
+            </ListPanel>
+          </Children>
+        </Widget>
+      </Children>
+    </Widget>
+  </Window>
+</Prefab>

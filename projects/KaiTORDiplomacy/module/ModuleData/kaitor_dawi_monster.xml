@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Monsters>
+  <Monster id="dwarf" female_action_set="as_kaitor_dwarf_female_warrior" />
+</Monsters>

@@ -39,9 +39,10 @@ internal static class KaiDiplomacyUiPatch
             else
                 AddProposalAction(__instance, diplomacy, source, target);
         }
-        catch
+        catch (Exception ex)
         {
             // Native diplomacy remains usable even when the optional action cannot be inserted.
+            KaiRuntimeLog.Exception("DIPLOMACY_UI_FAILED", ex, "stage=OnSetPeaceItem_postfix");
         }
     }
 
@@ -204,7 +205,10 @@ internal static class KaiDiplomacyUiPatch
                 if (result is bool enabled) return enabled;
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            KaiRuntimeLog.Exception("DIPLOMACY_UI_FAILED", ex, "stage=native_proposal_availability");
+        }
 
         if (Clan.PlayerClan?.Kingdom == null)
         {
@@ -229,9 +233,23 @@ internal static class KaiDiplomacyUiPatch
         try
         {
             var force = ForceDecisionField?.GetValue(vm) as Action<KingdomDecision>;
-            force?.Invoke(decision);
+            if (force == null)
+            {
+                KaiRuntimeLog.Write(
+                    "DIPLOMACY_UI_FALLBACK",
+                    $"stage=force_decision; decision={decision?.GetType().Name ?? "null"}; reason=force_delegate_missing");
+                ShowMessage(
+                    "Решение внесено",
+                    "Предложение уже добавлено в список решений королевства, но нативное окно совета не удалось открыть автоматически. Откройте экран королевства и раздел решений.");
+                return;
+            }
+
+            force.Invoke(decision);
         }
-        catch { }
+        catch (Exception ex)
+        {
+            KaiRuntimeLog.Exception("DIPLOMACY_UI_FAILED", ex, "stage=force_decision");
+        }
     }
 
     private static void ShowMessage(string title, string text)

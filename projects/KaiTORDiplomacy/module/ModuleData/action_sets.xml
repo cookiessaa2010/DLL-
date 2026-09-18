@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<action_sets>
+  <!-- TOR 1.3.15 already ships the complete female Dawi action mapping.
+       We inherit that mapping and only bind it to the exact dwarf_skeleton_a
+       used by the standalone female mesh pack. -->
+  <action_set
+      id="as_kaitor_dwarf_female_warrior"
+      base_set="as_dwarf_female_warrior"
+      skeleton="dwarf_skeleton_a" />
+</action_sets>

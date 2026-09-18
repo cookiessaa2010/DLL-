@@ -153,6 +153,11 @@ public sealed class KaiCultureAssimilationBehavior : CampaignBehaviorBase
             false);
     }
 
+    public void OpenCultureChangeDialog()
+    {
+        CultureMenuConsequence(null);
+    }
+
     public bool TryChangeCultureImmediately(Settlement settlement, out string reason)
     {
         reason = string.Empty;
