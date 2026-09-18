@@ -25,6 +25,8 @@ internal static class KaiPopulationLog
             var line = $"{DateTime.UtcNow:O}|{safeStage}|{safeDetails}{Environment.NewLine}";
             lock (Sync)
                 File.AppendAllText(path, line);
+
+            KaiLiveTestLog.Write("population:" + safeChannel, safeStage, safeDetails);
         }
         catch
         {
