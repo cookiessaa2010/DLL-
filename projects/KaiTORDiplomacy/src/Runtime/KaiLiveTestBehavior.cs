@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using KaiTOR.Diplomacy.Models;
 using KaiTOR.Diplomacy.UI;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Settlements;
@@ -94,6 +95,14 @@ public sealed class KaiLiveTestBehavior : CampaignBehaviorBase
             $"marriage={Campaign.Current.Models.MarriageModel?.GetType().FullName ?? "null"}; " +
             $"pregnancy={Campaign.Current.Models.PregnancyModel?.GetType().FullName ?? "null"}; " +
             $"death={Campaign.Current.Models.HeroDeathProbabilityCalculationModel?.GetType().FullName ?? "null"}";
+
+        foreach (var rule in KaiRaceLifecycle.DescribeRules())
+            yield return "section=family_rule; " + rule;
+
+        yield return
+            $"section=family_population; dawiAuto={KaiDawiWomenBehavior.AutomaticPopulationEnabled}; " +
+            $"vampireAuto={KaiVampirePopulationBehavior.AutomaticPopulationEnabled}; " +
+            $"greenskinAuto={KaiGreenskinPopulationBehavior.AutomaticPopulationEnabled}";
 
         var diplomacy = Campaign.Current.GetCampaignBehavior<KaiDiplomacyBehavior>();
         var family = Campaign.Current.GetCampaignBehavior<KaiFamilyAffairsBehavior>();
