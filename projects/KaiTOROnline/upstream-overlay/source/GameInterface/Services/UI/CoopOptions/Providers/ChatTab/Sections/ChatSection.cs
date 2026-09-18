@@ -18,9 +18,9 @@ public class ChatSection : CoopOptionsSectionVM
     }
 
     public override string Id => SectionId;
-    public string TitleText => GameInterface.Services.UI.KaiTORUiText.Get("kaitor_chat", "Chat");
-    public string DescriptionText => GameInterface.Services.UI.KaiTORUiText.Get("kaitor_chat_desc", "Configure the in-game co-op chat overlay.");
-    public string ShowChatText => GameInterface.Services.UI.KaiTORUiText.Get("kaitor_show_chat", "Show Chat");
+    public string TitleText => global::GameInterface.Services.UI.KaiTORUiText.Get("kaitor_chat", "Chat");
+    public string DescriptionText => global::GameInterface.Services.UI.KaiTORUiText.Get("kaitor_chat_desc", "Configure the in-game co-op chat overlay.");
+    public string ShowChatText => global::GameInterface.Services.UI.KaiTORUiText.Get("kaitor_show_chat", "Show Chat");
 
     [DataSourceProperty]
     public bool ShowChat
