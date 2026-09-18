@@ -25,7 +25,7 @@ public class KillFeedOptionsTabProvider : ICoopOptionsTabProvider
     {
         return new CoopOptionsTabVM(
             Id,
-            GameInterface.Services.UI.KaiTORUiText.Get("kaitor_killfeed_color", TabName),
+            global::GameInterface.Services.UI.KaiTORUiText.Get("kaitor_killfeed_color", TabName),
             new CoopOptionsSectionVM[]
             {
                 new KillFeedSection(GetKillFeedColorOrDefault(options), messageBroker)
