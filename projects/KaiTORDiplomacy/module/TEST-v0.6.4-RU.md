@@ -3,6 +3,8 @@
 Сборка не считается полностью готовой, пока каждый критический путь не проверен в игре.
 
 ## 0. Старт
+- [ ] FULL-архив содержит ModuleData Dawi и AssetPackages/kaitor_dawi_female.tpac.
+- [ ] TPAC: 29 213 977 байт; SHA-256 6f4d7d3dae74b66ca34631d091e843e4e93193ae50d0496da31096e24f831699.
 - [ ] Старая save v0.6.3.3 загружается.
 - [ ] Новая кампания запускается.
 - [ ] Нет crash при старте.
@@ -64,6 +66,7 @@
 - [ ] Foreign clan leader -> guard failure, clan graph unchanged.
 - [ ] Undead -> no effect.
 - [ ] Greenskin -> no effect.
+- [ ] Обычный TOR troll encounter у Vampire открывает специальный Blood Kiss route, а не закрывается штатным greeting.
 - [ ] Troll -> hero не становится spouse/vampire и не меняет clan; в player party появляется troll warrior.
 - [ ] Cooldown переживает save/load.
 
@@ -84,6 +87,7 @@
 - [ ] Dynastic Bond активен 180 дней.
 - [ ] +20 relation.
 - [ ] +30 trust.
+- [ ] Объявление войны при активном Dynastic Bond снимает узы и отзывает их +30 trust; NAP breach при наличии NAP применяется отдельно.
 - [ ] Между разными kingdom используется существующий NAP backend.
 - [ ] Incoming AI marriage proposal можно принять/отклонить; auto-marriage отсутствует.
 - [ ] AI не предлагает female+female автоматически.
