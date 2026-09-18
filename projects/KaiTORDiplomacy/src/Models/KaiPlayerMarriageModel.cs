@@ -1,16 +1,17 @@
 using System;
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.CampaignSystem.CampaignBehaviors;
 using TaleWorlds.CampaignSystem.ComponentInterfaces;
 using TaleWorlds.CampaignSystem.GameComponents;
 
 namespace KaiTOR.Diplomacy.Models;
 
 /// <summary>
-/// World marriage compatibility layer for TOR.
-/// Social marriage and biological reproduction are separate concerns: a valid marriage
-/// no longer depends on CanUseVanillaPregnancy. Automatic NPC marriage remains
-/// conservative (same culture/race, opposite sex through DefaultMarriageModel) while
-/// long-lived races use normalized biological ages in the NPC pairing chance.
+/// KaiTOR owns TOR family eligibility because TOR's TORMarriageModel intentionally
+/// returns false for every marriage check. Conventional marriage is restored for
+/// lore-capable peoples with race-aware adulthood and no upper marriage-age cap.
+/// Biological reproduction remains a separate decision owned by TorFamilySafety and
+/// KaiPregnancyModel.
 /// </summary>
 public sealed class KaiPlayerMarriageModel : DefaultMarriageModel
 {
@@ -30,51 +31,81 @@ public sealed class KaiPlayerMarriageModel : DefaultMarriageModel
         if (firstHero == null || secondHero == null || firstHero == secondHero)
             return false;
 
+        if (!KaiRaceLifecycle.CanUseSocialMarriage(firstHero) ||
+            !KaiRaceLifecycle.CanUseSocialMarriage(secondHero))
+            return false;
+
         if (!AreCulturesCompatible(firstHero.Culture?.StringId, secondHero.Culture?.StringId))
             return false;
 
-        // Ordinary non-vampire undead do not participate in the social marriage system.
-        // Actual TOR vampires are handled separately and may form social marriages even
-        // though the pregnancy pipeline intentionally rejects them.
-        if (TorFamilySafety.IsUndeadNonVampire(firstHero) || TorFamilySafety.IsUndeadNonVampire(secondHero))
+        if (!IsClanSuitableForMarriage(firstHero.Clan) ||
+            !IsClanSuitableForMarriage(secondHero.Clan))
+            return false;
+
+        // Preserve Bannerlord's safeguard against marrying two ruling clan leaders.
+        if (firstHero.Clan?.Leader == firstHero && secondHero.Clan?.Leader == secondHero)
             return false;
 
         var involvesPlayerHouse = InvolvesPlayerClan(firstHero, secondHero);
 
-        // Random NPC marriage is deliberately narrower than player-arranged marriage:
-        // same culture + same FaceGen race only. It no longer requires biological
-        // pregnancy compatibility, which was incorrectly preventing vampire marriages.
+        // Random AI marriages stay same-culture + same FaceGen race. Player-arranged
+        // social marriages can be broader, but pregnancy still has its own strict
+        // same-race biological gate.
         if (!involvesPlayerHouse && !IsSafeNpcSocialMarriagePair(firstHero, secondHero))
             return false;
 
-        // Bannerlord's DefaultMarriageModel hard-requires opposite sexes. For the
-        // player's house we additionally allow a woman to marry another woman while
-        // preserving ordinary age, clan, engagement and close-kin restrictions.
-        if (IsPlayerClanFemaleCouple(firstHero, secondHero))
-            return IsFemaleCoupleSuitable(firstHero, secondHero);
+        if (firstHero.IsFemale == secondHero.IsFemale)
+        {
+            if (!IsPlayerClanFemaleCouple(firstHero, secondHero))
+                return false;
 
-        return base.IsCoupleSuitableForMarriage(firstHero, secondHero);
+            return IsFemaleCoupleSuitable(firstHero, secondHero);
+        }
+
+        if (AreHeroesRelated(firstHero, secondHero, 3))
+            return false;
+
+        var courtedByFirst = Romance.GetCourtedHeroInOtherClan(firstHero, secondHero);
+        if (courtedByFirst != null && courtedByFirst != secondHero)
+            return false;
+
+        var courtedBySecond = Romance.GetCourtedHeroInOtherClan(secondHero, firstHero);
+        if (courtedBySecond != null && courtedBySecond != firstHero)
+            return false;
+
+        // Do not call DefaultMarriageModel/CanMarry here: KaiTOR must own the lore-age
+        // decision instead of reintroducing TOR's global false gate.
+        return IsSuitableForMarriage(firstHero) && IsSuitableForMarriage(secondHero);
     }
 
-    public override bool IsSuitableForMarriage(Hero maidenOrSuitor)
+    public override bool IsSuitableForMarriage(Hero hero)
     {
-        if (maidenOrSuitor == null)
+        if (hero == null || !hero.IsAlive || !hero.IsActive)
             return false;
-        if (!IsSupportedMarriageCulture(maidenOrSuitor.Culture?.StringId))
+        if (!KaiRaceLifecycle.CanUseSocialMarriage(hero))
             return false;
-        if (TorFamilySafety.IsUndeadNonVampire(maidenOrSuitor))
+        if (!IsSupportedMarriageCulture(hero.Culture?.StringId))
+            return false;
+        if (hero.Spouse != null || !hero.IsLord || hero.IsMinorFactionHero || hero.IsNotable || hero.IsTemplate)
+            return false;
+        if (hero.PartyBelongedTo?.MapEvent != null || hero.PartyBelongedTo?.Army != null)
             return false;
 
-        // Dawi adulthood for family simulation begins at 30. This check is local to the
-        // marriage model and deliberately does not replace Bannerlord's global AgeModel.
-        if (maidenOrSuitor.Age < KaiRaceLifecycle.GetMinimumMarriageAge(maidenOrSuitor))
+        var marriageOffers = Campaign.Current?.GetCampaignBehavior<IMarriageOfferCampaignBehavior>();
+        if (marriageOffers != null && marriageOffers.IsHeroEngaged(hero))
             return false;
 
-        return base.IsSuitableForMarriage(maidenOrSuitor);
+        // Only the lore adulthood floor matters. There is deliberately no upper age cap.
+        return KaiRaceLifecycle.IsLoreMarriageAge(hero);
     }
 
     public override bool IsClanSuitableForMarriage(Clan clan)
-        => clan != null && IsSupportedMarriageCulture(clan.Culture?.StringId) && base.IsClanSuitableForMarriage(clan);
+    {
+        if (clan == null || clan.IsBanditFaction || clan.IsRebelClan || clan.IsEliminated)
+            return false;
+
+        return IsSupportedMarriageCulture(clan.Culture?.StringId);
+    }
 
     public override Clan GetClanAfterMarriage(Hero firstHero, Hero secondHero)
     {
@@ -93,18 +124,13 @@ public sealed class KaiPlayerMarriageModel : DefaultMarriageModel
     {
         if (!IsSafeNpcSocialMarriagePair(firstHero, secondHero))
             return 0f;
-
         if (!IsCoupleSuitableForMarriage(firstHero, secondHero))
             return 0f;
 
-        // Humans retain Bannerlord's exact formula. Long-lived races and vampires use
-        // the same formula evaluated against normalized biological/social age so a
-        // 50+ year calendar-age gap cannot make the chance negative by construction.
-        if (!UsesNormalizedMarriageAge(firstHero) && !UsesNormalizedMarriageAge(secondHero))
-            return base.NpcCoupleMarriageChance(firstHero, secondHero);
-
-        var firstAge = KaiRaceLifecycle.GetBiologicalAge(firstHero);
-        var secondAge = KaiRaceLifecycle.GetBiologicalAge(secondHero);
+        // Use a normalized social age for every people. Old heroes remain marriageable,
+        // but huge calendar ages can never make the vanilla formula negative or explode.
+        var firstAge = KaiRaceLifecycle.GetSocialMarriageAge(firstHero);
+        var secondAge = KaiRaceLifecycle.GetSocialMarriageAge(secondHero);
         var adultAge = (float)Campaign.Current.Models.AgeModel.HeroComesOfAge;
 
         var chance = 0.002f;
@@ -112,42 +138,42 @@ public sealed class KaiPlayerMarriageModel : DefaultMarriageModel
         chance *= 1f + (secondAge - adultAge) / 50f;
         chance *= Math.Max(0f, 1f - Math.Abs(secondAge - firstAge) / 50f);
 
-        if (firstHero.Clan.Kingdom != secondHero.Clan.Kingdom)
+        if (firstHero.Clan?.Kingdom != secondHero.Clan?.Kingdom)
             chance *= 0.5f;
 
         var relationFactor = 0.5f + firstHero.Clan.GetRelationWithClan(secondHero.Clan) / 200f;
-        return Math.Max(0f, chance * relationFactor);
+        return Math.Max(0f, chance * Math.Max(0f, relationFactor));
     }
 
     public override bool ShouldNpcMarriageBetweenClansBeAllowed(Clan consideringClan, Clan targetClan)
     {
-        if (consideringClan == null || targetClan == null)
+        if (!IsClanSuitableForMarriage(consideringClan) ||
+            !IsClanSuitableForMarriage(targetClan) ||
+            consideringClan == targetClan)
             return false;
 
-        if (!IsSupportedMarriageCulture(consideringClan.Culture?.StringId) ||
-            !IsSupportedMarriageCulture(targetClan.Culture?.StringId))
+        // Automatic AI pairing remains same-culture to prevent accidental cross-race
+        // dynasties. Player-arranged marriages may still use the broader pair rules.
+        if (!string.Equals(
+                consideringClan.Culture?.StringId,
+                targetClan.Culture?.StringId,
+                StringComparison.Ordinal))
             return false;
 
-        // Automatic AI marriage remains same-culture to avoid random cross-faction race
-        // mixing. Player-arranged cross-culture social marriages remain possible when
-        // the couple-level rules accept them.
-        if (!string.Equals(consideringClan.Culture?.StringId, targetClan.Culture?.StringId, StringComparison.Ordinal))
+        if (consideringClan.IsAtWarWith(targetClan))
             return false;
 
-        return base.ShouldNpcMarriageBetweenClansBeAllowed(consideringClan, targetClan);
+        return consideringClan.GetRelationWithClan(targetClan) >= -50;
     }
 
     private bool IsFemaleCoupleSuitable(Hero firstHero, Hero secondHero)
     {
         if (!IsClanSuitableForMarriage(firstHero.Clan) || !IsClanSuitableForMarriage(secondHero.Clan))
             return false;
-
         if (firstHero.Clan?.Leader == firstHero && secondHero.Clan?.Leader == secondHero)
             return false;
-
         if (AreHeroesRelated(firstHero, secondHero, 3))
             return false;
-
         if (!IsSuitableForMarriage(firstHero) || !IsSuitableForMarriage(secondHero))
             return false;
 
@@ -156,10 +182,7 @@ public sealed class KaiPlayerMarriageModel : DefaultMarriageModel
             return false;
 
         var courtedBySecond = Romance.GetCourtedHeroInOtherClan(secondHero, firstHero);
-        if (courtedBySecond != null && courtedBySecond != firstHero)
-            return false;
-
-        return firstHero.CanMarry() && secondHero.CanMarry();
+        return courtedBySecond == null || courtedBySecond == firstHero;
     }
 
     private static bool IsPlayerClanFemaleCouple(Hero firstHero, Hero secondHero)
@@ -173,6 +196,9 @@ public sealed class KaiPlayerMarriageModel : DefaultMarriageModel
             return false;
         if (InvolvesPlayerClan(firstHero, secondHero))
             return false;
+        if (!KaiRaceLifecycle.CanUseSocialMarriage(firstHero) ||
+            !KaiRaceLifecycle.CanUseSocialMarriage(secondHero))
+            return false;
         if (!IsSupportedMarriageCulture(firstHero.Culture?.StringId) ||
             !IsSupportedMarriageCulture(secondHero.Culture?.StringId))
             return false;
@@ -180,16 +206,9 @@ public sealed class KaiPlayerMarriageModel : DefaultMarriageModel
             return false;
         if (firstHero.CharacterObject.Race != secondHero.CharacterObject.Race)
             return false;
-        if (TorFamilySafety.IsUndeadNonVampire(firstHero) || TorFamilySafety.IsUndeadNonVampire(secondHero))
-            return false;
 
         return true;
     }
-
-    private static bool UsesNormalizedMarriageAge(Hero hero)
-        => KaiRaceLifecycle.IsDawi(hero) ||
-           KaiRaceLifecycle.IsLongLivedElf(hero) ||
-           TorFamilySafety.IsVampire(hero);
 
     private static bool AreHeroesRelated(Hero firstHero, Hero secondHero, int ancestorDepth)
         => AreHeroesRelatedAux(firstHero, secondHero, ancestorDepth, ancestorDepth);
@@ -222,18 +241,15 @@ public sealed class KaiPlayerMarriageModel : DefaultMarriageModel
     public static bool AreCulturesCompatible(string firstCulture, string secondCulture)
         => IsSupportedMarriageCulture(firstCulture) && IsSupportedMarriageCulture(secondCulture);
 
+    /// <summary>
+    /// TOR currently uses these living cultures plus Greenskins. Greenskins are the one
+    /// explicit conventional-marriage exclusion because they reproduce through spores.
+    /// Unknown future living cultures are not blocked here; hero-level lore/race gates
+    /// still reject Greenskins and ordinary undead.
+    /// </summary>
     public static bool IsSupportedMarriageCulture(string cultureId)
-    {
-        if (string.IsNullOrWhiteSpace(cultureId)) return false;
-
-        return string.Equals(cultureId, "empire", StringComparison.Ordinal) ||
-               string.Equals(cultureId, "vlandia", StringComparison.Ordinal) ||
-               string.Equals(cultureId, "khuzait", StringComparison.Ordinal) ||
-               string.Equals(cultureId, "mousillon", StringComparison.Ordinal) ||
-               string.Equals(cultureId, "battania", StringComparison.Ordinal) ||
-               string.Equals(cultureId, "eonir", StringComparison.Ordinal) ||
-               string.Equals(cultureId, "sturgia", StringComparison.Ordinal);
-    }
+        => !string.IsNullOrWhiteSpace(cultureId) &&
+           !string.Equals(cultureId, "aserai", StringComparison.Ordinal);
 
     internal static bool InvolvesPlayerClan(Hero firstHero, Hero secondHero)
         => firstHero == Hero.MainHero || secondHero == Hero.MainHero ||
