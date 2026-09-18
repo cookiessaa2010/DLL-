@@ -87,5 +87,8 @@
     <string id="kaitor_bug_report" text="Bug Report"/>
     <string id="kaitor_bug_report_desc" text="Configure the in-game co-op bug-report button."/>
     <string id="kaitor_show_bug_report" text="Show Co-op Bug Report Button"/>
+    <string id="kaitor_always" text="Always"/>
+    <string id="kaitor_hold_indicators" text="Hold Indicators"/>
+    <string id="kaitor_never" text="Never"/>
   </strings>
 </base>
