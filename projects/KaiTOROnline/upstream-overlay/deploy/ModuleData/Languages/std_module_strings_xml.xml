@@ -143,5 +143,6 @@
     <string id="kaitor_crash_reports_prompt" text="Enable Bannerlord's automatic crash-report mode? A full report may include process memory, logs, configuration files, and your newest save. BannerlordCoop separately keeps local crash diagnostics and never uploads them."/>
     <string id="kaitor_enable" text="Enable"/>
     <string id="kaitor_bug_submitted" text="[Bug Report] Submitted to the server. Collecting consenting client logs."/>
+    <string id="kaitor_fast_forward_disabled" text="Fast forwarding is disabled during cooperative battles."/>
   </strings>
 </base>
