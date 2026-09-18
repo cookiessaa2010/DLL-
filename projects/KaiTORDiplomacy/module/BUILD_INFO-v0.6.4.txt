@@ -1,0 +1,9 @@
+KaiTOR Diplomacy & Dawi
+Version: v0.6.4-FULL-Test
+Target: Mount & Blade II: Bannerlord 1.3.15.110062
+TOR: The Old Realms 1.3.15
+Git branch: kaitor-v0.6.4-master
+Release scope: Family Fix + Dawi Lifecycle + Realm House + TOR Children + Blood Kiss + Racial Population + Political Layer
+Dawi auto-population: OFF pending visual live-test
+Build status: CI validation required
+Live-test status: REQUIRED; see TEST-v0.6.4-RU.md
