@@ -149,7 +149,7 @@ public sealed class KaiDiplomacyHubBehavior : CampaignBehaviorBase
         starter.AddGameMenuOption(
             menuId,
             optionId,
-            "Управление державой KaiTOR",
+            "KaiTOR: Дипломатия и династия",
             EntryCondition,
             _ => OpenPrimaryUi(),
             false,
@@ -162,9 +162,8 @@ public sealed class KaiDiplomacyHubBehavior : CampaignBehaviorBase
         if (Hero.MainHero == null || Clan.PlayerClan == null)
             return false;
 
-        args.IsEnabled = Clan.PlayerClan.Kingdom != null && !Clan.PlayerClan.IsUnderMercenaryService;
-        if (!args.IsEnabled)
-            args.Tooltip = new TextObject("Для межгосударственного управления ваш клан должен входить в державу и не состоять на наёмной службе.");
+        args.IsEnabled = true;
+        args.Tooltip = new TextObject("Дипломатия, семейные дела, династия и население KaiTOR.");
         return true;
     }
 
