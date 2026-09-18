@@ -24,11 +24,11 @@ public class KillFeedSection : CoopOptionsSectionVM
 
     public override string Id => SectionId;
 
-    public string TitleText => GameInterface.Services.UI.KaiTORUiText.Get("kaitor_killfeed_color", KillFeedOptionsTabProvider.SectionTitleText);
-    public string DescriptionText => GameInterface.Services.UI.KaiTORUiText.Get("kaitor_killfeed_desc", KillFeedOptionsTabProvider.SectionDescriptionText);
-    public string KillFeedColorRedText => GameInterface.Services.UI.KaiTORUiText.Get("kaitor_red", KillFeedOptionsTabProvider.KillFeedColorRedText);
-    public string KillFeedColorGreenText => GameInterface.Services.UI.KaiTORUiText.Get("kaitor_green", KillFeedOptionsTabProvider.KillFeedColorGreenText);
-    public string KillFeedColorBlueText => GameInterface.Services.UI.KaiTORUiText.Get("kaitor_blue", KillFeedOptionsTabProvider.KillFeedColorBlueText);
+    public string TitleText => global::GameInterface.Services.UI.KaiTORUiText.Get("kaitor_killfeed_color", KillFeedOptionsTabProvider.SectionTitleText);
+    public string DescriptionText => global::GameInterface.Services.UI.KaiTORUiText.Get("kaitor_killfeed_desc", KillFeedOptionsTabProvider.SectionDescriptionText);
+    public string KillFeedColorRedText => global::GameInterface.Services.UI.KaiTORUiText.Get("kaitor_red", KillFeedOptionsTabProvider.KillFeedColorRedText);
+    public string KillFeedColorGreenText => global::GameInterface.Services.UI.KaiTORUiText.Get("kaitor_green", KillFeedOptionsTabProvider.KillFeedColorGreenText);
+    public string KillFeedColorBlueText => global::GameInterface.Services.UI.KaiTORUiText.Get("kaitor_blue", KillFeedOptionsTabProvider.KillFeedColorBlueText);
 
     [DataSourceProperty]
     public int KillFeedColorRed
