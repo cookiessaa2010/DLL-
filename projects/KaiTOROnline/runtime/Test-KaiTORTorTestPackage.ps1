@@ -62,6 +62,8 @@ $requiredFiles = @(
     'Runtime/FIRST_TOR_LIVE_TEST_RU.txt',
     'Runtime/TOR_RUNTIME_CONTRACT.txt',
     'Runtime/modules.tor-1.3.15.txt',
+    'README_EN.txt',
+    'README_RU.txt',
     'BUILD.txt',
     'SHA256SUMS.txt'
 )
@@ -129,6 +131,13 @@ $debugSymbols = @(Get-ChildItem -LiteralPath $root -Recurse -File -Filter '*.pdb
 if ($debugSymbols.Count -gt 0) {
     $debugSymbols | ForEach-Object { Write-Host "Unexpected debug symbol in release package: $($_.FullName)" }
     throw 'Release package contains PDB debug symbols.'
+}
+
+$readmeEn = Get-Content -LiteralPath (Join-Path $root 'README_EN.txt') -Raw -Encoding UTF8
+$readmeRu = Get-Content -LiteralPath (Join-Path $root 'README_RU.txt') -Raw -Encoding UTF8
+foreach ($needle in @('START_KAITOR_COOP.bat','coop.debug.kaitor.snapshot4p','D -> B -> A -> C')) {
+    if ($readmeEn -notlike "*$needle*") { throw "English quick start missing: $needle" }
+    if ($readmeRu -notlike "*$needle*") { throw "Russian quick start missing: $needle" }
 }
 
 $contract = Get-Content -LiteralPath (Join-Path $root 'Runtime/TOR_RUNTIME_CONTRACT.txt') -Raw
