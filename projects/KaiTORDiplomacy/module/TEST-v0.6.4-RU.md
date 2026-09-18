@@ -24,6 +24,8 @@
 - [ ] После save/load spouse/clan/family tree корректны.
 
 ## B. Dawi
+- [ ] `kaitor_diplomacy.dawi_status` показывает готовность ресурсов и состояние автопопуляции.
+- [ ] `kaitor_diplomacy.dawi_spawn_test` создаёт ровно одну тестовую женщину-гнома в безопасном AI-клане.
 - [ ] Female Dawi manual live-test: лицо.
 - [ ] Тело/skeleton.
 - [ ] Portrait/encyclopedia.
