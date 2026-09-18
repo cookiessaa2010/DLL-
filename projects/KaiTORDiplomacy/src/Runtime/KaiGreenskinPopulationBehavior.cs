@@ -220,7 +220,17 @@ public sealed class KaiGreenskinPopulationBehavior : CampaignBehaviorBase
             error = ex.GetBaseException().Message;
             if (hero != null)
             {
-                try { KillCharacterAction.ApplyByRemove(hero); } catch { }
+                try
+                {
+                    KillCharacterAction.ApplyByRemove(hero);
+                }
+                catch (Exception cleanupEx)
+                {
+                    KaiPopulationLog.Write(
+                        "greenskin",
+                        "CLEANUP_FAILED",
+                        $"hero={hero.StringId}; type={cleanupEx.GetType().FullName}; message={cleanupEx.GetBaseException().Message}");
+                }
                 hero = null;
             }
             return false;
