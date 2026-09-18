@@ -1,5 +1,6 @@
 ﻿using Common.Messaging;
 using GameInterface.Configuration;
+using GameInterface.Services.UI;
 using GameInterface.Services.CampaignService.Messages;
 using GameInterface.Services.UI.CoopOptions.Providers;
 using GameInterface.Services.UI.CoopOptions.Providers.BugReportTab;
