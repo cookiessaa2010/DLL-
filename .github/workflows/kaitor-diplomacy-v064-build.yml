@@ -65,7 +65,8 @@ jobs:
           $forbiddenLegacy = @(
             'KaiDynastyAiBehavior.cs',
             'KaiDiplomacyOfficeBehavior.cs',
-            'KaiRacialPopulationBehavior.cs'
+            'KaiRacialPopulationBehavior.cs',
+            'KaiCadetHouseSafeBehavior.cs'
           )
           foreach ($name in $forbiddenLegacy) {
             if (Test-Path -LiteralPath (Join-Path $runtime $name) -PathType Leaf) {
