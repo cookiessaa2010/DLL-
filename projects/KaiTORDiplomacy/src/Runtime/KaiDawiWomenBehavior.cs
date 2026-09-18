@@ -148,7 +148,7 @@ public sealed class KaiDawiWomenBehavior : CampaignBehaviorBase
             }
 
             var minimumAge = (int)Math.Ceiling(KaiRaceLifecycle.DawiFertilityStart);
-            var maximumAge = Math.Min(DawiFemaleMaximumGeneratedAge, (int)Math.Floor(KaiRaceLifecycle.DawiFertilityEnd));
+            var maximumAge = DawiFemaleMaximumGeneratedAge;
             var dayStamp = Math.Abs((int)CampaignTime.Now.ToDays);
             var ageSpan = maximumAge - minimumAge + 1;
             var age = minimumAge + dayStamp % Math.Max(1, ageSpan);
@@ -233,7 +233,7 @@ public sealed class KaiDawiWomenBehavior : CampaignBehaviorBase
     {
         yield return $"Женщины-гномы: ресурсы {(DawiWomenAssetBridge.IsAvailable ? "готовы" : "недоступны")}.";
         yield return $"Automatic population: {(AutomaticPopulationEnabled ? "ON (bounded weekly shortage fill)" : "OFF")}";
-        yield return $"Возраст для семьи: {KaiRaceLifecycle.DawiFertilityStart:0}-{KaiRaceLifecycle.DawiFertilityEnd:0} лет; возраст создаваемых женщин — не старше {DawiFemaleMaximumGeneratedAge} лет.";
+        yield return $"Возраст для семьи: {KaiRaceLifecycle.DawiFertilityStart:0}+ лет без ванильного верхнего cutoff; возраст создаваемых женщин — не старше {DawiFemaleMaximumGeneratedAge} лет.";
         if (Campaign.Current == null)
             yield break;
 
