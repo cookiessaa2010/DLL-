@@ -34,6 +34,52 @@ public sealed class KaiBloodKissBehavior : CampaignBehaviorBase
 
     private void OnSessionLaunched(CampaignGameStarter starter)
     {
+        // TOR's ordinary troll greeting goes start -> close_window, so a troll can
+        // never reach hero_main_options. For a vampire only, intercept that greeting
+        // with a higher-priority route that still requires the player to explicitly
+        // choose Blood Kiss. This works for both troll heroes and troop conversations.
+        starter.AddDialogLine(
+            "kaitor_vampire_troll_greeting",
+            "start",
+            "kaitor_vampire_troll_options",
+            "*Тролль втягивает воздух и настороженно рычит, чувствуя в вас нечто противоестественное.*",
+            CanRouteDirectTrollConversation,
+            null,
+            250,
+            null);
+
+        starter.AddPlayerLine(
+            "kaitor_vampire_troll_offer",
+            "kaitor_vampire_troll_options",
+            "kaitor_vampire_troll_response",
+            "Даровать Поцелуй крови.",
+            null,
+            null,
+            125,
+            null,
+            null);
+
+        starter.AddDialogLine(
+            "kaitor_vampire_troll_response",
+            "kaitor_vampire_troll_response",
+            "kaitor_blood_kiss_troll_choice",
+            "Тролль не принимает Поцелуй крови. Но его первобытную волю можно попытаться подчинить и обратить его силу на службу вашему дому.",
+            CanRouteDirectTrollConversation,
+            null,
+            250,
+            null);
+
+        starter.AddPlayerLine(
+            "kaitor_vampire_troll_leave",
+            "kaitor_vampire_troll_options",
+            "close_window",
+            "Уйти.",
+            null,
+            null,
+            90,
+            null,
+            null);
+
         starter.AddPlayerLine(
             "kaitor_blood_kiss_start",
             "hero_main_options",
@@ -151,6 +197,18 @@ public sealed class KaiBloodKissBehavior : CampaignBehaviorBase
             null);
     }
 
+    private bool CanRouteDirectTrollConversation()
+    {
+        if (Campaign.Current == null || !TorFamilySafety.IsVampire(Hero.MainHero))
+            return false;
+        if (_cooldownUntilDays > CampaignTime.Now.ToDays)
+            return false;
+
+        var character = CharacterObject.OneToOneConversationCharacter;
+        return character != null &&
+               character.Race == FaceGen.GetRaceOrDefault("troll");
+    }
+
     private bool CanShowBloodKissOption()
     {
         var target = Hero.OneToOneConversationHero;
@@ -252,10 +310,15 @@ public sealed class KaiBloodKissBehavior : CampaignBehaviorBase
 
     private void TryRecruitTrollWarrior()
     {
-        var target = Hero.OneToOneConversationHero;
-        if (!CanShowBloodKissOption() || target == null || !IsTargetTroll())
+        var targetHero = Hero.OneToOneConversationHero;
+        var targetCharacter = CharacterObject.OneToOneConversationCharacter;
+        var isHeroRoute = targetHero != null && CanShowBloodKissOption() && IsTargetTroll();
+        var isDirectRoute = CanRouteDirectTrollConversation();
+        if (!isHeroRoute && !isDirectRoute)
         {
-            KaiRuntimeLog.Write("BLOOD_KISS_BLOCKED", $"target={target?.StringId ?? "null"}; reason=troll_stale_or_ineligible");
+            KaiRuntimeLog.Write(
+                "BLOOD_KISS_BLOCKED",
+                $"target={targetHero?.StringId ?? targetCharacter?.StringId ?? "null"}; reason=troll_stale_or_ineligible");
             return;
         }
 
@@ -264,19 +327,20 @@ public sealed class KaiBloodKissBehavior : CampaignBehaviorBase
         var troll = manager?.GetObject<CharacterObject>(TrollWarriorTemplateId);
         if (mainParty == null || troll == null || troll.Race != FaceGen.GetRaceOrDefault("troll"))
         {
-            KaiRuntimeLog.Write("BLOOD_KISS_BLOCKED", $"target={target.StringId}; reason=troll_template_or_party_missing");
+            KaiRuntimeLog.Write(
+                "BLOOD_KISS_BLOCKED",
+                $"target={targetHero?.StringId ?? targetCharacter?.StringId ?? "null"}; reason=troll_template_or_party_missing");
             return;
         }
 
-        // The target hero is deliberately NOT moved between clans. Granting one real
-        // TOR troll warrior to the player's party fulfills the follower outcome without
-        // touching Hero.Clan, Clan.Kingdom, lord parties or succession graphs.
+        // Never transfer the conversation hero or troll-clan graph. The safe outcome
+        // is one canonical TOR Troll soldier added through the party roster.
         mainParty.MemberRoster.AddToCounts(troll, 1);
         _cooldownUntilDays = CampaignTime.Now.ToDays + BloodKissCooldownDays;
 
         KaiRuntimeLog.Write(
             "TROLL_RECRUIT",
-            $"source={Hero.MainHero.StringId}; conversationTarget={target.StringId}; troop={TrollWarriorTemplateId}; cooldown={BloodKissCooldownDays}d");
+            $"source={Hero.MainHero.StringId}; conversationTarget={targetHero?.StringId ?? targetCharacter?.StringId ?? "troop"}; troop={TrollWarriorTemplateId}; cooldown={BloodKissCooldownDays}d");
     }
 
     private static void LogBlocked(string reason)
