@@ -144,5 +144,32 @@
     <string id="kaitor_enable" text="Включить"/>
     <string id="kaitor_bug_submitted" text="[Отчёт] Отправлено на сервер. Собираются логи клиентов, давших согласие."/>
     <string id="kaitor_fast_forward_disabled" text="Ускорение времени отключено во время кооперативных сражений."/>
+    <string id="kaitor_connected_wait" text="Подключено. Ожидайте передачу данных."/>
+    <string id="kaitor_incorrect_password" text="Неверный пароль сервера."/>
+    <string id="kaitor_server_rejected" text="Сервер отклонил подключение."/>
+    <string id="kaitor_connecting" text="Подключение..."/>
+    <string id="kaitor_retrying_connection" text="Повторное подключение к серверу..."/>
+    <string id="kaitor_validation_timeout" text="Сервер не завершил проверку подключения вовремя.&#10;Возможно, сервер использует несовместимую версию мода."/>
+    <string id="kaitor_incompatible_build_unknown" text="Несовместимая сборка кооператива. Версия клиента: '{CLIENT_VERSION}', но сервер не сообщил точную версию. Обновите KaiTOR Co-op на обеих сторонах."/>
+    <string id="kaitor_incompatible_build" text="Несовместимая сборка кооператива. Версия клиента: '{CLIENT_VERSION}', версия сервера: '{SERVER_VERSION}'. Обновите KaiTOR Co-op на обеих сторонах."/>
+    <string id="kaitor_module_validation_failed" text="Проверка модулей не пройдена!&#10;Причина: {REASON}"/>
+    <string id="kaitor_character_creation_failed" text="Не удалось запустить создание персонажа."/>
+    <string id="kaitor_client_stopped" text="Клиент кооператива остановлен."/>
+    <string id="kaitor_server_full" text="Сервер KaiTOR Co-op заполнен (4/4 игроков)."/>
+    <string id="kaitor_invalid_player_identity" text="KaiTOR Co-op отклонил подключение: некорректная идентификация игрока."/>
+    <string id="kaitor_start_refused" text="Другая кооперативная сессия ещё запускается. Повторите попытку через несколько секунд."/>
+    <string id="kaitor_return_main_host" text="Вернитесь в главное меню, чтобы создать кооперативную сессию."/>
+    <string id="kaitor_invalid_visibility" text="Выберите корректный режим видимости сервера."/>
+    <string id="kaitor_hosted_server_running" text="Предыдущий кооперативный сервер ещё работает. Закройте его отдельное окно перед новым запуском."/>
+    <string id="kaitor_server_process_failed" text="Не удалось запустить процесс кооперативного сервера."/>
+    <string id="kaitor_host_client_failed" text="Не удалось запустить кооперативный клиент. Отдельный сервер останется работать, пока вы его не закроете."/>
+    <string id="kaitor_host_start_timeout" text="Кооперативный сервер не завершил запуск вовремя. Проверьте, загружается ли сохранение в одиночной игре. Окно сервера останется открытым, пока вы его не закроете."/>
+    <string id="kaitor_starting_server" text="Кооперативный сервер запускается. Вы подключитесь автоматически после его готовности."/>
+    <string id="kaitor_server_closed_early" text="Кооперативный сервер закрылся до запуска сессии."/>
+    <string id="kaitor_server_requires_password" text="Для этого сервера требуется пароль."/>
+    <string id="kaitor_steam_tunnel_failed" text="Не удалось установить соединение с хостом через Steam, а публичный адрес для резервного подключения не предоставлен."/>
+    <string id="kaitor_advertised_address_failed" text="Не удалось подключиться к объявленному адресу '{ADDRESS}:{PORT}'."/>
+    <string id="kaitor_already_in_session" text="Кооперативная сессия уже активна. Выйдите из неё перед подключением к другой."/>
+    <string id="kaitor_return_main_join" text="Вернитесь в главное меню, чтобы подключиться к кооперативной сессии."/>
   </strings>
 </base>
