@@ -160,6 +160,28 @@ public sealed class KaiVampirePopulationBehavior : CampaignBehaviorBase
         return score;
     }
 
+    public IEnumerable<string> DescribeStatus()
+    {
+        yield return $"Vampire population: automatic={(AutomaticPopulationEnabled ? "ON" : "OFF")}; cooldown={BloodKissCooldownDays}d; maxScions={MaximumVampireScions}.";
+        if (Campaign.Current == null)
+            yield break;
+
+        foreach (var kingdom in Kingdom.All
+                     .Where(IsVampireRealm)
+                     .OrderBy(k => k.StringId, StringComparer.Ordinal))
+        {
+            var heroes = kingdom.Clans
+                .Where(IsNormalNobleClan)
+                .SelectMany(c => c.Heroes)
+                .Where(h => h != null && h.IsAlive && h.IsActive)
+                .Distinct()
+                .ToArray();
+            var vampires = heroes.Count(TorFamilySafety.IsVampire);
+            var remaining = Math.Max(0d, GetCooldown(kingdom.StringId) - CampaignTime.Now.ToDays);
+            yield return $"{kingdom.StringId}: vampires={vampires}; nobleClans={kingdom.Clans.Count(IsNormalNobleClan)}; cooldown={Math.Ceiling(remaining):0}d.";
+        }
+    }
+
     private static bool IsVampireRealm(Kingdom kingdom)
     {
         if (kingdom == null || kingdom.IsEliminated || kingdom.Leader == null)
