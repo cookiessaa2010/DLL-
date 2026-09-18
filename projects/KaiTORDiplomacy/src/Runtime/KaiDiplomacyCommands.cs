@@ -122,6 +122,36 @@ public static class KaiDiplomacyCommands
             : behavior.SpawnOneForLiveTest();
     }
 
+    [CommandLineFunctionality.CommandLineArgumentFunction("ui_status", "kaitor_diplomacy")]
+    public static string UiStatus(List<string> arguments)
+    {
+        if (arguments.Count != 0) return "Использование: kaitor_diplomacy.ui_status";
+        if (Campaign.Current == null) return "Кампания не запущена.";
+
+        var family = Campaign.Current.GetCampaignBehavior<KaiFamilyAffairsBehavior>();
+        var diplomacy = GetBehavior();
+        var culture = Campaign.Current.GetCampaignBehavior<KaiCultureAssimilationBehavior>();
+        var dynastic = Campaign.Current.GetCampaignBehavior<KaiDynasticMarriageBehavior>();
+        var incoming = Campaign.Current.GetCampaignBehavior<KaiIncomingMarriageProposalBehavior>();
+
+        return string.Join("\n", new[]
+        {
+            KaiFamilyAffairsBehavior.DescribeUiStatus(),
+            $"FamilyAffairsBehavior={(family != null ? "OK" : "MISSING")}",
+            $"DiplomacyBehavior={(diplomacy != null ? (diplomacy.RuntimeEnabled ? "OK" : "BLOCKED") : "MISSING")}",
+            $"CultureAssimilationBehavior={(culture != null ? "OK" : "MISSING")}",
+            $"DynasticMarriageBehavior={(dynastic != null ? "OK" : "MISSING")}",
+            $"IncomingMarriageProposalBehavior={(incoming != null ? "OK" : "MISSING")}"
+        });
+    }
+
+    [CommandLineFunctionality.CommandLineArgumentFunction("ui_family", "kaitor_diplomacy")]
+    public static string UiFamily(List<string> arguments)
+    {
+        if (arguments.Count != 0) return "Использование: kaitor_diplomacy.ui_family";
+        return KaiFamilyAffairsBehavior.OpenFamilyMenuFromConsole();
+    }
+
     [CommandLineFunctionality.CommandLineArgumentFunction("save_status", "kaitor_diplomacy")]
     public static string SaveStatus(List<string> arguments)
     {

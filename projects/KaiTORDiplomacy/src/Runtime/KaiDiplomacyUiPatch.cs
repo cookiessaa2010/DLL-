@@ -233,7 +233,18 @@ internal static class KaiDiplomacyUiPatch
         try
         {
             var force = ForceDecisionField?.GetValue(vm) as Action<KingdomDecision>;
-            force?.Invoke(decision);
+            if (force == null)
+            {
+                KaiRuntimeLog.Write(
+                    "DIPLOMACY_UI_FALLBACK",
+                    $"stage=force_decision; decision={decision?.GetType().Name ?? "null"}; reason=force_delegate_missing");
+                ShowMessage(
+                    "Решение внесено",
+                    "Предложение уже добавлено в список решений королевства, но нативное окно совета не удалось открыть автоматически. Откройте экран королевства и раздел решений.");
+                return;
+            }
+
+            force.Invoke(decision);
         }
         catch (Exception ex)
         {

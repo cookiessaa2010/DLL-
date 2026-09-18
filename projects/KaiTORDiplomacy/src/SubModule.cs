@@ -67,6 +67,7 @@ public sealed class SubModule : MBSubModuleBase
         campaignStarter.AddBehavior(new KaiDiplomacyBehavior());
         campaignStarter.AddBehavior(new KaiDiplomacyAiBehavior());
         campaignStarter.AddBehavior(new KaiDiplomacyConversationBehavior());
+        campaignStarter.AddBehavior(new KaiDiplomacyHubBehavior());
         campaignStarter.AddBehavior(new KaiCultureAssimilationBehavior());
         campaignStarter.AddBehavior(new KaiDynasticMarriageBehavior());
         campaignStarter.AddBehavior(new KaiFamilyAffairsBehavior());
