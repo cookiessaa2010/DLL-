@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<base type="string">
+  <tags>
+    <tag language="Русский"/>
+  </tags>
+  <strings>
+    <string id="kaitor_brand_title" text="KaiTOR Кооператив"/>
+    <string id="kaitor_brand_subtitle" text="Четыре героя. Один живой Старый Свет."/>
+    <string id="kaitor_menu_host" text="Создать игру KaiTOR"/>
+    <string id="kaitor_menu_join" text="Подключиться к KaiTOR"/>
+    <string id="kaitor_join" text="Подключиться"/>
+    <string id="kaitor_refresh" text="Обновить"/>
+    <string id="kaitor_search" text="Поиск"/>
+    <string id="kaitor_previous" text="Назад"/>
+    <string id="kaitor_next" text="Далее"/>
+    <string id="kaitor_discord" text="Discord"/>
+    <string id="kaitor_patreon" text="Patreon"/>
+    <string id="kaitor_donate" text="Поддержать"/>
+    <string id="kaitor_credits" text="Авторы"/>
+    <string id="kaitor_join_header" text="Подключиться к KaiTOR"/>
+    <string id="kaitor_community" text="Сообщество"/>
+    <string id="kaitor_direct" text="Прямое подключение"/>
+    <string id="kaitor_steam_lobbies" text="Лобби Steam"/>
+    <string id="kaitor_hosted_steam_servers" text="Серверы Steam: {SERVER_COUNT}; игроков: {PLAYER_COUNT}"/>
+    <string id="kaitor_page_of" text="Страница {CURRENT_PAGE} из {PAGE_COUNT}"/>
+    <string id="kaitor_host_name" text="Имя хоста"/>
+    <string id="kaitor_host_search_placeholder" text="Введите имя хоста..."/>
+    <string id="kaitor_password" text="Пароль"/>
+    <string id="kaitor_minimum_players" text="Минимум игроков"/>
+    <string id="kaitor_connected_players" text="Игроки"/>
+    <string id="kaitor_access" text="Доступ"/>
+    <string id="kaitor_status" text="Статус"/>
+    <string id="kaitor_server_address" text="Адрес сервера:"/>
+    <string id="kaitor_password_colon" text="Пароль:"/>
+    <string id="kaitor_server_address_hint" text="IP-адрес или имя хоста кооперативного сервера. Порт можно указать после двоеточия, например localhost:4300. Если порт не указан, используется 4200."/>
+    <string id="kaitor_password_hint" text="Пароль сессии, установленный хостом. Оставьте поле пустым, если пароль не используется."/>
+    <string id="kaitor_no_password" text="Без пароля"/>
+    <string id="kaitor_password_required" text="Требуется пароль"/>
+    <string id="kaitor_any_password" text="Любой пароль"/>
+    <string id="kaitor_lobby_unavailable" text="Поиск лобби Steam недоступен."/>
+    <string id="kaitor_lobby_searching" text="Поиск доступных лобби Steam..."/>
+    <string id="kaitor_lobby_search_failed" text="Не удалось выполнить поиск лобби Steam: {ERROR}"/>
+    <string id="kaitor_invalid_server_address" text="ОШИБКА: укажите корректный адрес сервера и, при необходимости, порт."/>
+    <string id="kaitor_password_too_long" text="ОШИБКА: пароль не может быть длиннее {MAX_LENGTH} символов."/>
+    <string id="kaitor_no_ipv4" text="ОШИБКА: для хоста не найден IPv4-адрес."/>
+    <string id="kaitor_address_resolution_failed" text="ОШИБКА: не удалось определить адрес подключения: {ERROR}"/>
+    <string id="kaitor_no_lobbies" text="Доступные лобби Steam не найдены."/>
+    <string id="kaitor_no_lobbies_filtered" text="Нет лобби Steam, соответствующих выбранным фильтрам."/>
+    <string id="kaitor_unknown_host" text="Неизвестный хост"/>
+    <string id="kaitor_compatible" text="Совместимо"/>
+    <string id="kaitor_incompatible" text="Несовместимо"/>
+    <string id="kaitor_password_required_short" text="Нужен пароль"/>
+    <string id="kaitor_no_password_short" text="Без пароля"/>
+    <string id="kaitor_host_version_hint" text="Версия хоста: {HOST_VERSION}; ваша версия: {CLIENT_VERSION}."/>
+    <string id="kaitor_protocol_version_hint" text="Версия протокола хоста: {HOST_PROTOCOL}; ваша версия протокола: {CLIENT_PROTOCOL}."/>
+    <string id="kaitor_unknown_version" text="неизвестно"/>
+    <string id="kaitor_options_header" text="Настройки KaiTOR Co-op"/>
+    <string id="kaitor_apply" text="Применить"/>
+    <string id="kaitor_options_updated" text="Настройки KaiTOR Co-op обновлены."/>
+    <string id="kaitor_options_update_failed" text="Не удалось обновить настройки KaiTOR Co-op."/>
+  </strings>
+</base>
