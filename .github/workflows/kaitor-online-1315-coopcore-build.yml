@@ -19,6 +19,8 @@ on:
       - 'projects/KaiTOROnline/runtime/**'
       - 'projects/KaiTOROnline/DEDICATED_CAMPAIGN_SERVER.md'
       - 'projects/KaiTOROnline/FOUR_PLAYER_PERSISTENCE_AUDIT.md'
+      - 'projects/KaiTOROnline/README_RU.txt'
+      - 'projects/KaiTOROnline/README_EN.txt'
       - 'projects/KaiTOROnline/upstream-overlay/**'
       - 'projects/KaiTOROnline/probes/Bannerlord1315ApiProbe/**'
       - '.github/workflows/kaitor-online-1315-coopcore-build.yml'
@@ -289,6 +291,7 @@ jobs:
             'TOR runtime order: TOR_Armory -> TOR_Environment -> TOR_Core -> Coop',
             'UI: KaiTOR dark-fantasy Gauntlet skin',
             'Languages: English + Russian',
+            'Optional integration: KaiCleave v0.3.1; KaiTOR Stability v0.5.0',
             'ServerConsole: auxiliary rendezvous/NAT/listing service; NOT the campaign world server',
             'Native no-render/headless TOR mode: NOT CLAIMED (TOR_Core metadata opts out)',
             'Purpose: first four-client TOR runtime acceptance using the user installed legal game and TOR files.',
