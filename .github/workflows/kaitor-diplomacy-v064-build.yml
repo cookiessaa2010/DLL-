@@ -57,7 +57,8 @@ jobs:
             'KaiDiplomacyConversationBehavior.cs',
             'KaiDiplomacyHubBehavior.cs',
             'KaiLiveTestBehavior.cs',
-            'KaiLiveTestLog.cs'
+            'KaiLiveTestLog.cs',
+            'KaiConsoleText.cs'
           )
           foreach ($name in $required) {
             if (-not (Test-Path -LiteralPath (Join-Path $runtime $name) -PathType Leaf)) {
@@ -223,6 +224,34 @@ jobs:
             throw 'Mercy relation before/after live-test diagnostics missing.'
           }
 
+          $family = Get-Content (Join-Path $runtime 'KaiFamilyAffairsBehavior.cs') -Raw
+          foreach ($token in @('marriage_member_refresh','marriage_clan_refresh','marriage_target_refresh')) {
+            if (-not $family.Contains($token)) { throw "Marriage menu refresh contract missing: $token" }
+          }
+
+          $movieRaw = Get-Content (Join-Path $root 'module/GUI/Prefabs/KaiTORDiplomacyHubUIMovie.xml') -Raw
+          foreach ($forbiddenWidget in @('ScrollablePanel','NavigatableListPanel','ItemTemplate','ScrollbarWidget')) {
+            if ($movieRaw.Contains("<$forbiddenWidget")) {
+              throw "Crash-prone dynamic widget still present in Diplomacy movie: $forbiddenWidget"
+            }
+          }
+          if ($movieRaw -notmatch 'Command.Click="ActionChooseRealm"') {
+            throw 'Safe native realm-picker button missing from Diplomacy movie.'
+          }
+
+          $vm = Get-Content (Join-Path $src 'UI/KaiTORDiplomacyVM.cs') -Raw
+          if (-not $vm.Contains('ActionChooseRealm')) { throw 'Safe realm-picker VM action missing.' }
+          if ($vm.Contains('MBBindingList<KaiDiplomacyKingdomItemVM> Kingdoms')) {
+            throw 'Crash-prone bound kingdom list is still exposed by the main Diplomacy VM.'
+          }
+
+          $commands = Get-Content (Join-Path $runtime 'KaiDiplomacyCommands.cs') -Raw
+          if (-not $commands.Contains('kaitor_diplomacy.help')) { throw 'Console help command missing.' }
+          if (-not $commands.Contains('KaiConsoleText.Safe')) { throw 'ASCII-safe console output bridge missing.' }
+          $console = Get-Content (Join-Path $runtime 'KaiConsoleText.cs') -Raw
+          if (-not $console.Contains("case 'Х'")) { throw 'Cyrillic transliteration table missing.' }
+
+          Write-Host "KaiTOR live-fix marriage/UI/console contracts: PASS"
           Write-Host "KaiTOR unified live-test logging contract: PASS"
           Write-Host "KaiTOR Diplomacy/Co-op UI isolation contract: PASS"
           Write-Host "KaiTOR v0.6.4 compile + safety contracts: PASS"
