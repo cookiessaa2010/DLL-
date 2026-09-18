@@ -58,5 +58,34 @@
     <string id="kaitor_apply" text="Применить"/>
     <string id="kaitor_options_updated" text="Настройки KaiTOR Co-op обновлены."/>
     <string id="kaitor_options_update_failed" text="Не удалось обновить настройки KaiTOR Co-op."/>
+    <string id="kaitor_chat" text="Чат"/>
+    <string id="kaitor_global_chat" text="Общий чат"/>
+    <string id="kaitor_direct_message" text="Личное сообщение: {PLAYER}"/>
+    <string id="kaitor_chat_input_hint" text="Enter или Отправить — отправить    Esc — закрыть"/>
+    <string id="kaitor_send" text="Отправить"/>
+    <string id="kaitor_mute" text="Заглушить"/>
+    <string id="kaitor_unmute" text="Включить звук"/>
+    <string id="kaitor_chat_desc" text="Настройка внутриигрового кооперативного чата."/>
+    <string id="kaitor_show_chat" text="Показывать чат"/>
+    <string id="kaitor_network" text="Сеть"/>
+    <string id="kaitor_movement_bandwidth" text="Пропускная способность"/>
+    <string id="kaitor_movement_bandwidth_desc" text="Ограничивает объём сжатых данных движения, которые клиент отправляет и получает. Изменения применяются при открытии следующей миссии."/>
+    <string id="kaitor_upload_limit" text="Лимит отдачи"/>
+    <string id="kaitor_download_limit" text="Лимит загрузки"/>
+    <string id="kaitor_map_time" text="Время на карте"/>
+    <string id="kaitor_map_time_desc" text="Настройка отображения времени карты во время миссий."/>
+    <string id="kaitor_show_map_time" text="Показывать время карты в миссиях"/>
+    <string id="kaitor_killfeed_color" text="Цвет ленты убийств"/>
+    <string id="kaitor_killfeed_desc" text="Убийства вашего героя и его войск будут показаны этим цветом в ленте убийств у всех игроков."/>
+    <string id="kaitor_red" text="Красный"/>
+    <string id="kaitor_green" text="Зелёный"/>
+    <string id="kaitor_blue" text="Синий"/>
+    <string id="kaitor_nameplates" text="Имена игроков"/>
+    <string id="kaitor_player_nameplates" text="Имена над игроками"/>
+    <string id="kaitor_player_nameplates_desc" text="Показывает имена над союзными игроками в кооперативных миссиях."/>
+    <string id="kaitor_display_mode" text="Режим отображения"/>
+    <string id="kaitor_bug_report" text="Сообщить об ошибке"/>
+    <string id="kaitor_bug_report_desc" text="Настройка внутриигровой кнопки отправки отчёта об ошибке."/>
+    <string id="kaitor_show_bug_report" text="Показывать кнопку отчёта об ошибке"/>
   </strings>
 </base>
