@@ -34,6 +34,8 @@
 - Стадии 8/14/16 дополняют обычное взросление.
 - Реализован ProfessionEffectBridge по фактическим TOR Character Creation effects.
 - Поддержаны career/attributes/abilities/known lore/casting/religious influence/perks/skills/specializations.
+- TOR specialization attribute bonus теперь де-дублируется так же, как в Character Creation.
+- Vampire/Necromancer/Blood Knight/Necrarch эффекты применяются к самому ребёнку/AI-герою без вызова небезопасных TOR InitialCareerSetup, привязанных к Hero.MainHero.
 - Не переносятся стартовые телепорты, фракционные join-actions и стартовые companion grants.
 - AI-дети используют тот же TOR lifecycle без popup.
 
@@ -44,6 +46,8 @@
 - Foreign clan leader: охрана блокирует действие, clan graph не меняется.
 - Undead/Vampire/Greenskin/unsupported race: нет эффекта.
 - Troll: целевой hero не переносится между кланами; игрок получает одного настоящего TOR troll warrior как боевого воина.
+- Добавлен прямой vampire-only маршрут из TOR troll encounter, потому что штатное приветствие тролля закрывает разговор до hero_main_options.
+- Blood Kiss conversion получает безопасный персональный MinorVampire package TOR без изменения player/world state.
 - Cooldown и persistence добавлены.
 
 ## F — Racial Population
@@ -52,6 +56,7 @@
 - Vampire AI не трогает игрока и использует bounded quota/cooldown.
 - Greenskin population не использует marriage/pregnancy; hero создаётся через HeroCreator с native clan initialization.
 - Раздельные save keys и логи.
+- Ошибка очистки неудачного Greenskin spawn больше не подавляется пустым catch и записывается в лог.
 
 ## G — Political Layer
 - Один общий native marriage barter bridge для Family UI, AI offers и political marriage.
@@ -59,10 +64,18 @@
 - При отмене/ошибке escrow возвращается; при состоявшейся свадьбе передаётся другому дому.
 - Dynastic Bond: 180 дней, +20 relation, +30 diplomacy trust; при разных державах использует существующий NAP backend, а не второй treaty system.
 - AI marriage proposals: AI только предлагает; игрок принимает/отказывает; AI female+female proposals выключены.
+- Возрастной score входящих брачных предложений для Dawi/эльфов использует нормализованный социальный возраст.
+- Нарушение активного Dynastic Bond войной всегда отзывает его +30 trust, даже если NAP не был создан или уже снят.
 - AI -> Player NAP: иностранный AI платит стоимость предложения, а решение проходит через совет player-led kingdom; игрок не оплачивает входящее предложение и не получает автоматическое решение за себя.
 - Добавлен ruler dialogue frontend для NAP 30/60/90/180, использующий тот же KaiNonAggressionPactDecision.
 - Добавлены STARTUP/DIPLOMACY_UI_READY/DIPLOMACY_UI_FAILED diagnostics.
 - Старый settlement Diplomacy Office удалён.
+- Удалён последний неактивный KaiCadetHouseSafeBehavior со старым Clan.CreateClan/founder.Clan path; CI запрещает его возврат.
+
+## FULL package
+- В ModuleData возвращены проверенные Dawi XML/action-set/skin patch files.
+- FULL-Test архив обязан содержать проверенный `kaitor_dawi_female.tpac` из v0.6.3.3: 29 213 977 байт, SHA-256 `6f4d7d3dae74b66ca34631d091e843e4e93193ae50d0496da31096e24f831699`.
+- Автогенерация Dawi-женщин всё ещё OFF до визуального live-test.
 
 ## Статус
 CODE DONE / BUILD должен быть подтверждён CI.
