@@ -19,9 +19,9 @@ public class BugReportSection : CoopOptionsSectionVM
     }
 
     public override string Id => SectionId;
-    public string TitleText => GameInterface.Services.UI.KaiTORUiText.Get("kaitor_bug_report", "Bug Report");
-    public string DescriptionText => GameInterface.Services.UI.KaiTORUiText.Get("kaitor_bug_report_desc", "Configure the in-game co-op bug-report button.");
-    public string ShowBugReportButtonText => GameInterface.Services.UI.KaiTORUiText.Get("kaitor_show_bug_report", "Show Co-op Bug Report Button");
+    public string TitleText => global::GameInterface.Services.UI.KaiTORUiText.Get("kaitor_bug_report", "Bug Report");
+    public string DescriptionText => global::GameInterface.Services.UI.KaiTORUiText.Get("kaitor_bug_report_desc", "Configure the in-game co-op bug-report button.");
+    public string ShowBugReportButtonText => global::GameInterface.Services.UI.KaiTORUiText.Get("kaitor_show_bug_report", "Show Co-op Bug Report Button");
 
     [DataSourceProperty]
     public bool ShowBugReportButton
