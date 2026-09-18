@@ -717,7 +717,8 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
         var target = _selectedTargetHero;
         var clan = _selectedTargetClan;
         var returnMenu = string.IsNullOrWhiteSpace(_returnMenuId) ? "town" : _returnMenuId;
-        GameMenu.SwitchToMenu(returnMenu);
+        if (!SafeSwitchToMenu(returnMenu, "dynastic_barter_return"))
+            return;
 
         if (!behavior.BeginPoliticalMarriage(member, target, clan, out reason))
             ShowQuick(reason);
@@ -740,10 +741,36 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
         // is also used by incoming AI proposals and political marriages so all three
         // frontends exercise exactly the same MarriageBarterable -> MarriageAction path.
         var returnMenu = string.IsNullOrWhiteSpace(_returnMenuId) ? "town" : _returnMenuId;
-        GameMenu.SwitchToMenu(returnMenu);
+        if (!SafeSwitchToMenu(returnMenu, "marriage_barter_return"))
+            return;
 
         if (!KaiMarriageBarterBridge.TryStart(member, target, targetClan, out reason))
             ShowQuick(reason);
+    }
+
+    public static string DescribeUiStatus()
+    {
+        var current = Campaign.Current?.CurrentMenuContext?.GameMenu?.StringId ?? "none";
+        return $"KaiTOR UI: currentMenu={current}; returnMenu={_returnMenuId}; " +
+               $"member={_selectedHouseMember?.StringId ?? "none"}; " +
+               $"targetClan={_selectedTargetClan?.StringId ?? "none"}; " +
+               $"targetHero={_selectedTargetHero?.StringId ?? "none"}.";
+    }
+
+    public static string OpenFamilyMenuFromConsole()
+    {
+        if (Campaign.Current == null)
+            return "Кампания не запущена.";
+        if (Hero.MainHero == null || Clan.PlayerClan == null)
+            return "Главный герой или клан игрока недоступен.";
+
+        var current = Campaign.Current.CurrentMenuContext?.GameMenu?.StringId;
+        if (!string.IsNullOrWhiteSpace(current) && !IsFamilyMenu(current))
+            _returnMenuId = current;
+
+        return SafeSwitchToMenu(FamilyMenuId, "console_entry")
+            ? "Меню «Семейные дела» открыто."
+            : "Не удалось открыть меню «Семейные дела». Проверьте KaiTOR runtime log.";
     }
 
     private static IEnumerable<Hero> GetMarriageHouseMembers()
