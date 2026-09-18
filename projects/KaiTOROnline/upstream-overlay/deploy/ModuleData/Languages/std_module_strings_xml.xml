@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<base type="string">
+  <tags>
+    <tag language="English"/>
+  </tags>
+  <strings>
+    <string id="kaitor_brand_title" text="KaiTOR Co-op"/>
+    <string id="kaitor_brand_subtitle" text="Four heroes. One living Old World."/>
+    <string id="kaitor_menu_host" text="Host KaiTOR Co-op"/>
+    <string id="kaitor_menu_join" text="Join KaiTOR Co-op"/>
+    <string id="kaitor_join" text="Join"/>
+    <string id="kaitor_refresh" text="Refresh"/>
+    <string id="kaitor_search" text="Search"/>
+    <string id="kaitor_previous" text="Previous"/>
+    <string id="kaitor_next" text="Next"/>
+    <string id="kaitor_discord" text="Discord"/>
+    <string id="kaitor_patreon" text="Patreon"/>
+    <string id="kaitor_donate" text="Donate"/>
+    <string id="kaitor_credits" text="Credits"/>
+    <string id="kaitor_join_header" text="Join KaiTOR Co-op"/>
+    <string id="kaitor_community" text="Community"/>
+    <string id="kaitor_direct" text="Direct Connection"/>
+    <string id="kaitor_steam_lobbies" text="Steam Lobbies"/>
+    <string id="kaitor_hosted_steam_servers" text="Hosted Steam Servers ({SERVER_COUNT} servers; {PLAYER_COUNT} players)"/>
+    <string id="kaitor_page_of" text="Page {CURRENT_PAGE} of {PAGE_COUNT}"/>
+    <string id="kaitor_host_name" text="Host Name"/>
+    <string id="kaitor_host_search_placeholder" text="Type a host name..."/>
+    <string id="kaitor_password" text="Password"/>
+    <string id="kaitor_minimum_players" text="Minimum Players"/>
+    <string id="kaitor_connected_players" text="Connected Players"/>
+    <string id="kaitor_access" text="Access"/>
+    <string id="kaitor_status" text="Status"/>
+    <string id="kaitor_server_address" text="Server Address:"/>
+    <string id="kaitor_password_colon" text="Password:"/>
+    <string id="kaitor_server_address_hint" text="The co-op server IP address or host name. Add a custom port after a colon, for example localhost:4300. Port 4200 is used when omitted."/>
+    <string id="kaitor_password_hint" text="The session password set by the host. Leave empty if no password is configured."/>
+    <string id="kaitor_no_password" text="No Password"/>
+    <string id="kaitor_password_required" text="Password Required"/>
+    <string id="kaitor_any_password" text="Any Password"/>
+    <string id="kaitor_lobby_unavailable" text="Steam lobby discovery is unavailable."/>
+    <string id="kaitor_lobby_searching" text="Searching for hosted Steam lobbies..."/>
+    <string id="kaitor_lobby_search_failed" text="Could not search Steam lobbies: {ERROR}"/>
+    <string id="kaitor_invalid_server_address" text="ERROR: Enter a valid server address with an optional port."/>
+    <string id="kaitor_password_too_long" text="ERROR: The password cannot exceed {MAX_LENGTH} characters."/>
+    <string id="kaitor_no_ipv4" text="ERROR: No IPv4 address found for host."/>
+    <string id="kaitor_address_resolution_failed" text="ERROR: The connection address could not be resolved: {ERROR}"/>
+    <string id="kaitor_no_lobbies" text="No hosted Steam lobbies were found."/>
+    <string id="kaitor_no_lobbies_filtered" text="No hosted Steam lobbies match the current filters."/>
+    <string id="kaitor_unknown_host" text="Unknown host"/>
+    <string id="kaitor_compatible" text="Compatible"/>
+    <string id="kaitor_incompatible" text="Incompatible"/>
+    <string id="kaitor_password_required_short" text="Password required"/>
+    <string id="kaitor_no_password_short" text="No password"/>
+    <string id="kaitor_host_version_hint" text="The host version is {HOST_VERSION}; your version is {CLIENT_VERSION}."/>
+    <string id="kaitor_protocol_version_hint" text="The host protocol version is {HOST_PROTOCOL}; your protocol version is {CLIENT_PROTOCOL}."/>
+    <string id="kaitor_unknown_version" text="unknown"/>
+    <string id="kaitor_options_header" text="KaiTOR Co-op Options"/>
+    <string id="kaitor_apply" text="Apply"/>
+    <string id="kaitor_options_updated" text="KaiTOR Co-op options updated."/>
+    <string id="kaitor_options_update_failed" text="KaiTOR Co-op options could not be updated."/>
+  </strings>
+</base>
