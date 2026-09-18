@@ -143,5 +143,6 @@
     <string id="kaitor_crash_reports_prompt" text="Включить автоматические отчёты Bannerlord о сбоях? Полный отчёт может содержать память процесса, логи, конфигурационные файлы и последнее сохранение. BannerlordCoop отдельно хранит локальную диагностику сбоев и сам её не загружает."/>
     <string id="kaitor_enable" text="Включить"/>
     <string id="kaitor_bug_submitted" text="[Отчёт] Отправлено на сервер. Собираются логи клиентов, давших согласие."/>
+    <string id="kaitor_fast_forward_disabled" text="Ускорение времени отключено во время кооперативных сражений."/>
   </strings>
 </base>
