@@ -65,9 +65,9 @@ public sealed class KaiDawiWomenBehavior : CampaignBehaviorBase
     public string SpawnOneForLiveTest()
     {
         if (Campaign.Current == null)
-            return "No campaign is active.";
+            return "Кампания не запущена.";
         if (!DawiWomenAssetBridge.IsAvailable)
-            return "Dawi female template/asset chain is not READY.";
+            return "Шаблон или ресурсы женщины-гнома недоступны.";
 
         foreach (var clan in Clan.All
                      .Where(IsEligibleDawiClan)
@@ -79,10 +79,10 @@ public sealed class KaiDawiWomenBehavior : CampaignBehaviorBase
                 continue;
 
             if (TryCreateDawiWoman(clan, settlement))
-                return $"Created one Dawi woman for {clan.Name} at {settlement.Name}. Save, inspect her portrait/body, enter a scene, then reload before automatic population is enabled.";
+                return $"Создана одна женщина-гном для клана {clan.Name} в поселении {settlement.Name}. Проверьте портрет, тело, экипировку и анимации, затем сохраните и загрузите игру.";
         }
 
-        return "No eligible non-player Dawi clan with a safe home settlement was found.";
+        return "Не найден подходящий клан гномов с безопасным поселением для тестового появления.";
     }
 
     private void TryPopulateClan(Clan clan)
@@ -216,9 +216,9 @@ public sealed class KaiDawiWomenBehavior : CampaignBehaviorBase
 
     public IEnumerable<string> DescribeStatus()
     {
-        yield return $"Dawi women assets: {(DawiWomenAssetBridge.IsAvailable ? "READY" : "MISSING/SAFE-OFF")}";
+        yield return $"Женщины-гномы: ресурсы {(DawiWomenAssetBridge.IsAvailable ? "готовы" : "недоступны")}.";
         yield return $"Automatic population: {(AutomaticPopulationEnabled ? "ON" : "OFF (awaiting manual rig/save-load test)")}";
-        yield return $"Dawi fertility window: {KaiRaceLifecycle.DawiFertilityStart:0}-{KaiRaceLifecycle.DawiFertilityEnd:0}; generated age <= {DawiFemaleMaximumGeneratedAge}.";
+        yield return $"Возраст для семьи: {KaiRaceLifecycle.DawiFertilityStart:0}-{KaiRaceLifecycle.DawiFertilityEnd:0} лет; возраст создаваемых женщин — не старше {DawiFemaleMaximumGeneratedAge} лет.";
         if (Campaign.Current == null)
             yield break;
 
