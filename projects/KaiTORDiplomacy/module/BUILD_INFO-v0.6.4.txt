@@ -22,3 +22,8 @@ Unified live-test log CI run: 35352581414 (PASS)
 Unified live-test source head: bd11ac0ee9016636c402ec7359c06ee0e9592bf6
 Unified live-test master merge: 0c91bac74c8e2a7830374f95ca1bfb642f977ebc
 Live-test file: %LOCALAPPDATA%\KaiTORDiplomacy\KaiTOR-LiveTest.log
+
+LiveFix-1 CI run: 35374026375 (PASS)
+LiveFix-1 source head: 45bbac751e1aeaf3e663fd94d044c181003786f5
+LiveFix-1 master merge: 78a2bd1e6340923dd5fc66a8c771d7875046141a
+LiveFix-1: marriage refresh + safe realm picker + ASCII RGL console
