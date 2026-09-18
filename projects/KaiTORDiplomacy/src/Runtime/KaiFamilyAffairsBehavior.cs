@@ -188,7 +188,7 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
         starter.AddGameMenuOption(
             MarriageMenuId,
             "kaitor_family_dynastic_marriage",
-            $"Династический союз ({KaiDynasticMarriageBehavior.PoliticalMarriageCost:N0} динаров)",
+            $"Династический брак ({KaiDynasticMarriageBehavior.PoliticalMarriageCost:N0} динаров)",
             PoliticalMarriageCondition,
             _ => ConfirmPoliticalMarriage(),
             false,
@@ -343,7 +343,7 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
         if (behavior == null || !behavior.CanBeginPoliticalMarriage(_selectedHouseMember, _selectedTargetHero, _selectedTargetClan, out reason))
         {
             args.IsEnabled = false;
-            args.Tooltip = new TextObject(string.IsNullOrWhiteSpace(reason) ? "Династический договор сейчас недоступен." : reason);
+            args.Tooltip = new TextObject(string.IsNullOrWhiteSpace(reason) ? "Династический брак сейчас недоступен." : reason);
             return true;
         }
 
@@ -646,13 +646,13 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
         var behavior = Campaign.Current?.GetCampaignBehavior<KaiDynasticMarriageBehavior>();
         if (behavior == null || !behavior.CanBeginPoliticalMarriage(_selectedHouseMember, _selectedTargetHero, _selectedTargetClan, out reason))
         {
-            ShowQuick(string.IsNullOrWhiteSpace(reason) ? "Династический договор сейчас недоступен." : reason);
+            ShowQuick(string.IsNullOrWhiteSpace(reason) ? "Династический брак сейчас недоступен." : reason);
             return;
         }
 
         InformationManager.ShowInquiry(
             new InquiryData(
-                "Династический союз",
+                "Династический брак",
                 $"Заключить политический брачный договор между {_selectedHouseMember.Name} и {_selectedTargetHero.Name}? " +
                 $"До окончания переговоров будет зарезервировано {KaiDynasticMarriageBehavior.PoliticalMarriageCost:N0} динаров. " +
                 "Если свадьба состоится, другой дом получит эту сумму, отношения домов улучшатся, дипломатическое доверие вырастет, а между разными державами будет использован существующий NAP сроком до 180 дней. При отмене переговоров деньги вернутся полностью.",
@@ -677,7 +677,7 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
         var behavior = Campaign.Current?.GetCampaignBehavior<KaiDynasticMarriageBehavior>();
         if (behavior == null)
         {
-            ShowQuick("Династический договор сейчас недоступен.");
+            ShowQuick("Династический брак сейчас недоступен.");
             return;
         }
 
