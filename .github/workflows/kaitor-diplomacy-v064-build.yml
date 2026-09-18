@@ -38,6 +38,7 @@ jobs:
           $root = 'projects/KaiTORDiplomacy'
           $src = Join-Path $root 'src'
           $runtime = Join-Path $src 'Runtime'
+          $models = Join-Path $src 'Models'
           $dll = Join-Path $root 'build/bin/Win64_Shipping_Client/KaiTOR_Diplomacy.dll'
           if (-not (Test-Path -LiteralPath $dll -PathType Leaf)) { throw "Missing DLL: $dll" }
 
@@ -57,7 +58,8 @@ jobs:
             'KaiDiplomacyConversationBehavior.cs',
             'KaiDiplomacyHubBehavior.cs',
             'KaiLiveTestBehavior.cs',
-            'KaiLiveTestLog.cs'
+            'KaiLiveTestLog.cs',
+            'KaiConsoleText.cs'
           )
           foreach ($name in $required) {
             if (-not (Test-Path -LiteralPath (Join-Path $runtime $name) -PathType Leaf)) {
@@ -89,9 +91,50 @@ jobs:
           if ($realm -match 'newClan\.Kingdom\s*=') { throw 'Direct newClan.Kingdom assignment found in Realm House.' }
 
           $dawi = Get-Content (Join-Path $runtime 'KaiDawiWomenBehavior.cs') -Raw
-          if ($dawi -notmatch 'AutomaticPopulationEnabled\s*=\s*false') {
-            throw 'Dawi women auto-population must remain OFF until live visual validation.'
+          if ($dawi -notmatch 'AutomaticPopulationEnabled\s*=\s*true') {
+            throw 'Dawi women bounded auto-population must be ON.'
           }
+
+          $marriageModel = Get-Content (Join-Path $models 'KaiPlayerMarriageModel.cs') -Raw
+          $pregnancyModel = Get-Content (Join-Path $models 'KaiPregnancyModel.cs') -Raw
+          $familySafety = Get-Content (Join-Path $models 'TorFamilySafety.cs') -Raw
+          $raceLifecycle = Get-Content (Join-Path $models 'KaiRaceLifecycle.cs') -Raw
+          $vampirePopulation = Get-Content (Join-Path $runtime 'KaiVampirePopulationBehavior.cs') -Raw
+          $greenskinPopulation = Get-Content (Join-Path $runtime 'KaiGreenskinPopulationBehavior.cs') -Raw
+          $commands = Get-Content (Join-Path $runtime 'KaiDiplomacyCommands.cs') -Raw
+
+          if (-not $marriageModel.Contains('KaiRaceLifecycle.IsLoreMarriageAge')) {
+            throw 'Lore-aware marriage age gate missing.'
+          }
+          if ($marriageModel.Contains('return base.IsCoupleSuitableForMarriage')) {
+            throw 'Marriage model still delegates pair eligibility back to vanilla age/couple gate.'
+          }
+          if ($marriageModel.Contains('return base.IsSuitableForMarriage')) {
+            throw 'Marriage model still delegates hero eligibility back to vanilla/TOR marriage gate.'
+          }
+          if (-not $raceLifecycle.Contains('return hero.Age >= DawiFertilityStart;')) {
+            throw 'Dawi pregnancy still has an upper vanilla-style cutoff.'
+          }
+          if (-not $raceLifecycle.Contains('return hero.Age >= ElfFertilityStart;')) {
+            throw 'Elf pregnancy still has an upper vanilla-style cutoff.'
+          }
+          if (-not $familySafety.Contains('KaiRaceLifecycle.CanUseBiologicalPregnancy')) {
+            throw 'Central lore pregnancy gate missing.'
+          }
+          if ($familySafety.Contains('IsVampireMethod == null && (IsVampireCulture')) {
+            throw 'Legacy vampire-culture blanket pregnancy block still present.'
+          }
+          if ($vampirePopulation -notmatch 'AutomaticPopulationEnabled\s*=\s*true') {
+            throw 'Vampire automatic Blood Kiss population must be ON.'
+          }
+          if ($greenskinPopulation -notmatch 'AutomaticPopulationEnabled\s*=\s*true') {
+            throw 'Greenskin automatic spore population must be ON.'
+          }
+          if (-not $commands.Contains('CommandLineArgumentFunction("family_rules"')) {
+            throw 'family_rules diagnostic command missing.'
+          }
+
+          Write-Host "KaiTOR lore family lifecycle contracts: PASS"
 
           $moduleData = Join-Path $root 'module/ModuleData'
           foreach ($assetText in @(

@@ -11,10 +11,9 @@ using TaleWorlds.ObjectSystem;
 namespace KaiTOR.Diplomacy.Runtime;
 
 /// <summary>
-/// Dawi female-population bridge. The automatic weekly population path remains gated
-/// until the integrated female dwarf rig has passed the required live visual/save-load
-/// test. The complete automatic algorithm is present behind that gate so enabling it
-/// later is a one-line release decision rather than another rewrite.
+/// Dawi female-population bridge. The bounded weekly shortage-filling path is enabled.
+/// It creates at most a small number of female Dawi per eligible AI clan and uses a long
+/// per-clan cooldown so population growth remains controlled.
 /// </summary>
 public sealed class KaiDawiWomenBehavior : CampaignBehaviorBase
 {
@@ -24,10 +23,9 @@ public sealed class KaiDawiWomenBehavior : CampaignBehaviorBase
     private const int GenerationCooldownDays = 336;
     private const string CooldownSaveKey = "kaitor_dawi_women_generation_cooldown_v1";
 
-    // Master-TZ requirement: automation is enabled only after manual confirmation of
-    // skeleton/body/equipment/portrait/scene/encyclopedia/save-load. Until then the
-    // diagnostic one-at-a-time command is the only creation entry point.
-    public const bool AutomaticPopulationEnabled = false;
+    // Automatic generation is bounded by MaximumGeneratedWomenPerClan and
+    // GenerationCooldownDays. The manual command remains available for diagnostics.
+    public const bool AutomaticPopulationEnabled = true;
 
     private Dictionary<string, double> _generationCooldownUntilDays = new();
 
@@ -60,7 +58,8 @@ public sealed class KaiDawiWomenBehavior : CampaignBehaviorBase
 
     /// <summary>
     /// Creates exactly one female Dawi for the first safe non-player Dawi clan.
-    /// Diagnostic entry point only; it never runs automatically while the gate is off.
+    /// Diagnostic entry point: creates exactly one woman immediately without waiting
+    /// for the weekly automatic population pass.
     /// </summary>
     public string SpawnOneForLiveTest()
     {
@@ -148,7 +147,7 @@ public sealed class KaiDawiWomenBehavior : CampaignBehaviorBase
             }
 
             var minimumAge = (int)Math.Ceiling(KaiRaceLifecycle.DawiFertilityStart);
-            var maximumAge = Math.Min(DawiFemaleMaximumGeneratedAge, (int)Math.Floor(KaiRaceLifecycle.DawiFertilityEnd));
+            var maximumAge = DawiFemaleMaximumGeneratedAge;
             var dayStamp = Math.Abs((int)CampaignTime.Now.ToDays);
             var ageSpan = maximumAge - minimumAge + 1;
             var age = minimumAge + dayStamp % Math.Max(1, ageSpan);
@@ -232,8 +231,8 @@ public sealed class KaiDawiWomenBehavior : CampaignBehaviorBase
     public IEnumerable<string> DescribeStatus()
     {
         yield return $"Женщины-гномы: ресурсы {(DawiWomenAssetBridge.IsAvailable ? "готовы" : "недоступны")}.";
-        yield return $"Automatic population: {(AutomaticPopulationEnabled ? "ON" : "OFF (awaiting manual rig/save-load test)")}";
-        yield return $"Возраст для семьи: {KaiRaceLifecycle.DawiFertilityStart:0}-{KaiRaceLifecycle.DawiFertilityEnd:0} лет; возраст создаваемых женщин — не старше {DawiFemaleMaximumGeneratedAge} лет.";
+        yield return $"Automatic population: {(AutomaticPopulationEnabled ? "ON (bounded weekly shortage fill)" : "OFF")}";
+        yield return $"Возраст для семьи: {KaiRaceLifecycle.DawiFertilityStart:0}+ лет без ванильного верхнего cutoff; возраст создаваемых женщин — не старше {DawiFemaleMaximumGeneratedAge} лет.";
         if (Campaign.Current == null)
             yield break;
 

@@ -9,6 +9,7 @@ public sealed class KaiTORDiplomacyScreen : ScreenBase
 {
     public const string LayerName = "KaiTORDiplomacyLayer";
     public const string MovieName = "KaiTORDiplomacyHubUIMovie";
+    public const string DiagnosticStage = "LIVEFIX-1-safe-static-dashboard";
 
     private static bool _isOpen;
 
@@ -52,14 +53,16 @@ public sealed class KaiTORDiplomacyScreen : ScreenBase
 
         AddLayer(_gauntletLayer);
         _gauntletLayer.InputRestrictions.SetInputRestrictions();
+        KaiRuntimeLog.Write("GAUNTLET_UI_LOAD_BEGIN", $"stage={DiagnosticStage}; movie={MovieName}; layer={LayerName}");
         _gauntletMovie = _gauntletLayer.LoadMovie(MovieName, _dataSource);
-
-        KaiRuntimeLog.Write("GAUNTLET_UI_OPEN", $"movie={MovieName}; layer={LayerName}");
+        KaiRuntimeLog.Write("GAUNTLET_UI_LOAD_END", $"stage={DiagnosticStage}; movie={MovieName}; layer={LayerName}");
+        KaiRuntimeLog.Write("GAUNTLET_UI_OPEN", $"stage={DiagnosticStage}; movie={MovieName}; layer={LayerName}");
     }
 
     protected override void OnActivate()
     {
         base.OnActivate();
+        KaiRuntimeLog.Write("GAUNTLET_UI_ACTIVATE", $"stage={DiagnosticStage}");
         if (_gauntletLayer != null)
             ScreenManager.TrySetFocus(_gauntletLayer);
     }

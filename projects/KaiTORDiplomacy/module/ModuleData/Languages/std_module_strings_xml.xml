@@ -13,6 +13,10 @@
     <string id="kaitor_diplomacy_ui_refresh" text="Refresh"/>
     <string id="kaitor_diplomacy_ui_close" text="Close"/>
     <string id="kaitor_diplomacy_ui_select_kingdom" text="Select a realm"/>
+    <string id="kaitor_diplomacy_ui_choose_realm" text="Choose realm"/>
+    <string id="kaitor_diplomacy_ui_select_kingdom_hint" text="Choose the realm you want to inspect or negotiate with."/>
+    <string id="kaitor_diplomacy_ui_cancel" text="Cancel"/>
+    <string id="kaitor_diplomacy_ui_no_realms" text="No other active realms are available."/>
     <string id="kaitor_diplomacy_ui_propose_nap" text="Propose non-aggression pact"/>
     <string id="kaitor_diplomacy_ui_break_nap" text="Propose ending pact"/>
     <string id="kaitor_diplomacy_ui_duration" text="Duration: {DAYS} days"/>

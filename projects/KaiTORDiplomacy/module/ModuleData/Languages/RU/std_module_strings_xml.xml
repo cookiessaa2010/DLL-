@@ -13,6 +13,10 @@
     <string id="kaitor_diplomacy_ui_refresh" text="Обновить"/>
     <string id="kaitor_diplomacy_ui_close" text="Закрыть"/>
     <string id="kaitor_diplomacy_ui_select_kingdom" text="Выберите державу"/>
+    <string id="kaitor_diplomacy_ui_choose_realm" text="Выбрать державу"/>
+    <string id="kaitor_diplomacy_ui_select_kingdom_hint" text="Выберите державу для просмотра или переговоров."/>
+    <string id="kaitor_diplomacy_ui_cancel" text="Отмена"/>
+    <string id="kaitor_diplomacy_ui_no_realms" text="Других действующих держав не найдено."/>
     <string id="kaitor_diplomacy_ui_propose_nap" text="Предложить пакт о ненападении"/>
     <string id="kaitor_diplomacy_ui_break_nap" text="Предложить разрыв пакта"/>
     <string id="kaitor_diplomacy_ui_duration" text="Срок: {DAYS} дней"/>

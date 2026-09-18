@@ -33,10 +33,12 @@
 - [ ] Settlement scene animations.
 - [ ] Save/load.
 - [ ] Dawi age 30+ может вступить в брак.
-- [ ] Dawi женщина старше 45, но внутри Dawi fertility window, может получить ненулевой pregnancy chance.
+- [ ] Dawi женщина старше 45 получает ненулевой pregnancy chance; человеческий верхний cutoff не применяется.
+- [ ] Dawi женщина старше 180 всё ещё проходит lore pregnancy gate; biological chance curve насыщается, но не становится 0 только из-за возраста.
 - [ ] Dawi беременность проходит.
 - [ ] Рождается Dawi ребёнок.
-- [ ] Только после visual test можно включать automatic Dawi women population.
+- [ ] Automatic Dawi women population уже ON: после weekly tick shortage-клан получает не более одной новой женщины за cooldown.
+- [ ] На одном AI Dawi-клане auto-generated женщин не становится больше 3.
 
 ## C. Realm House
 - [ ] В AI kingdom есть clan deficit.
@@ -91,7 +93,8 @@
 - [ ] +30 trust.
 - [ ] Объявление войны при активном Dynastic Bond снимает узы и отзывает их +30 trust; NAP breach при наличии NAP применяется отдельно.
 - [ ] Между разными kingdom используется существующий NAP backend.
-- [ ] Incoming AI marriage proposal можно принять/отклонить; auto-marriage отсутствует.
+- [ ] Incoming AI marriage proposal можно принять/отклонить.
+- [ ] Обычные AI-кланы сами заключают браки через восстановленный MarriageModel при подходящей паре.
 - [ ] AI не предлагает female+female автоматически.
 - [ ] AI -> Player NAP появляется только если PlayerClan правит kingdom.
 - [ ] Входящий NAP проходит через player council и не списывает 150 влияния с игрока.
@@ -157,3 +160,17 @@
 - [ ] Save пишет `SAVE_STARTED` и `SAVE_OVER success=True`; после него автоматически идёт snapshot.
 - [ ] После reload есть `GAME_LOADED` и новый snapshot с теми же persistent состояниями.
 - [ ] В конце выполнить `kaitor_diplomacy.live_test_snapshot` и передать один файл `KaiTOR-LiveTest.log`.
+
+
+## H. Lore family lifecycle
+- [ ] `kaitor_diplomacy.family_rules` показывает: Human 18+/18-45, Dawi 30+/30+, Elf 18+/18+, Vampire marriage/Blood Kiss, Greenskin spores, Undead OFF.
+- [ ] Human/mortal NPC opposite-sex same-race pair может заключить AI marriage.
+- [ ] Dawi opposite-sex dwarf pair 30+ может заключить AI marriage.
+- [ ] Elf opposite-sex elf pair 18+ может заключить AI marriage.
+- [ ] Vampire opposite-sex vampire pair 18+ может заключить social marriage, но `PREGNANCY_BLOCKED`.
+- [ ] Mortal human в khuzait/mousillon culture не блокируется только из-за vampire culture id.
+- [ ] Greenskin не получает conventional marriage/pregnancy; spore population продолжает работать.
+- [ ] Ordinary undead не получает conventional marriage/pregnancy.
+- [ ] Межрасовая пара может быть social-only только через разрешённый player-arranged путь; vanilla offspring pipeline для cross-race всегда заблокирован.
+- [ ] Старый Dawi/Elf возраст 100+ не делает NPC marriage chance отрицательным.
+- [ ] Save/load сохраняет супругов, беременности, детей и Dawi auto-population cooldown.

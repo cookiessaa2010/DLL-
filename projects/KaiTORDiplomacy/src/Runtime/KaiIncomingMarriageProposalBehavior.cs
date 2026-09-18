@@ -139,8 +139,8 @@ public sealed class KaiIncomingMarriageProposalBehavior : CampaignBehaviorBase
 
         // Long-lived races use the same normalized social age as the marriage
         // model, so a century-scale Dawi/elf calendar gap is not treated as a human gap.
-        var memberAge = KaiRaceLifecycle.GetBiologicalAge(member);
-        var targetAge = KaiRaceLifecycle.GetBiologicalAge(target);
+        var memberAge = KaiRaceLifecycle.GetSocialMarriageAge(member);
+        var targetAge = KaiRaceLifecycle.GetSocialMarriageAge(target);
         var ageGap = Math.Abs(memberAge - targetAge);
         score -= (int)Math.Min(25f, ageGap / 4f);
         return score;

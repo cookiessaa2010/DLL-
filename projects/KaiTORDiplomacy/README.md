@@ -57,9 +57,15 @@ Diplomacy и Co-op технически разделены:
 - входящие AI-предложения брака с accept/reject.
 
 ### Race-aware family / children
-- Dawi marriage/fertility age handled separately from human 18–45;
-- long-lived elf age normalization;
-- pregnancy wrapper preserves underlying TOR/Bannerlord model for ordinary humans;
+- TOR native marriage model disables all marriages; KaiTOR restores marriage for lore-capable peoples.
+- Marriage uses only a lore adulthood floor and has no upper age cap.
+- Humans/mortal peoples: marriage 18+; biological pregnancy keeps the ordinary 18–45 human curve.
+- Dawi: marriage 30+; biological pregnancy 30+ with no vanilla upper-age cutoff; same dwarf race and female-Dawi assets required.
+- Elves: marriage 18+; biological pregnancy 18+ with no vanilla upper-age cutoff.
+- Vampires: social marriage allowed; biological pregnancy disabled; population grows through Blood Kiss.
+- Greenskins: conventional marriage/pregnancy disabled; population grows through spores.
+- Ordinary undead: conventional marriage and biological pregnancy disabled.
+- pregnancy wrapper preserves the active TOR/Bannerlord model for ordinary mortals;
 - social marriage and biological pregnancy are separated;
 - TOR child education stages 8/14/16;
 - profession/specialization effects;
@@ -72,7 +78,7 @@ Diplomacy и Co-op технически разделены:
 - `kaitor_diplomacy.dawi_spawn_test`;
 - live-test spawn reports hero name, clan and settlement;
 - spawned test woman is explicitly entered into the reported settlement;
-- automatic Dawi population remains **OFF** until model/rig/scene/save-load live validation passes.
+- bounded automatic Dawi women population is **ON**: shortage-based weekly pass, max 3 generated women per eligible AI clan, 336-day per-clan cooldown.
 
 ### Other systems
 - Blood Kiss + troll route;
@@ -92,7 +98,7 @@ Diplomacy и Co-op технически разделены:
 - Family affairs, arranged marriage, dynastic marriage and adoption.
 - Race-aware Dawi / long-lived-elf family simulation.
 - TOR child education stages and profession packages.
-- Dawi female live-test tooling; automatic population stays off until visual/save-load certification.
+- Dawi female live-test tooling plus bounded automatic female-Dawi shortage filling.
 - Blood Kiss, bounded Vampire/Greenskin population, realm-house growth.
 - Settlement nationality conversion.
 - Mercy relation reward on deliberate lord release.
@@ -104,6 +110,7 @@ kaitor_diplomacy.status
 kaitor_diplomacy.world_status
 kaitor_diplomacy.marriages
 kaitor_diplomacy.racial_status
+kaitor_diplomacy.family_rules
 kaitor_diplomacy.dawi_status
 kaitor_diplomacy.dawi_spawn_test
 kaitor_diplomacy.ui_status
@@ -121,6 +128,6 @@ kaitor_diplomacy.inspect <kingdomA> <kingdomB>
 - CODE: implementation candidate
 - CI compile/safety/package: required before promotion
 - LIVE TEST: still required in the real TOR campaign
-- Dawi automatic population: intentionally OFF until visual + save/load acceptance
+- Dawi automatic population: ON, bounded by per-clan quota/cooldown; still requires live observation for balance/save integrity
 
 See `module/TEST-v0.6.4-RU.md` for the live-test checklist.
