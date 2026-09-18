@@ -155,6 +155,38 @@ public static class KaiDiplomacyCommands
         return KaiFamilyAffairsBehavior.OpenFamilyMenuFromConsole();
     }
 
+    [CommandLineFunctionality.CommandLineArgumentFunction("live_test_start", "kaitor_diplomacy")]
+    public static string LiveTestStart(List<string> arguments)
+    {
+        if (arguments.Count != 0) return "Использование: kaitor_diplomacy.live_test_start";
+        if (Campaign.Current == null) return "Кампания не запущена.";
+        return KaiLiveTestBehavior.ResetAndSnapshot();
+    }
+
+    [CommandLineFunctionality.CommandLineArgumentFunction("live_test_snapshot", "kaitor_diplomacy")]
+    public static string LiveTestSnapshot(List<string> arguments)
+    {
+        if (arguments.Count != 0) return "Использование: kaitor_diplomacy.live_test_snapshot";
+        if (Campaign.Current == null) return "Кампания не запущена.";
+        return KaiLiveTestBehavior.AppendSnapshot();
+    }
+
+    [CommandLineFunctionality.CommandLineArgumentFunction("live_test_path", "kaitor_diplomacy")]
+    public static string LiveTestPath(List<string> arguments)
+    {
+        if (arguments.Count != 0) return "Использование: kaitor_diplomacy.live_test_path";
+        return KaiLiveTestLog.FilePath;
+    }
+
+    [CommandLineFunctionality.CommandLineArgumentFunction("live_test_mark", "kaitor_diplomacy")]
+    public static string LiveTestMark(List<string> arguments)
+    {
+        if (arguments.Count == 0) return "Использование: kaitor_diplomacy.live_test_mark <текст>";
+        var marker = string.Join(" ", arguments);
+        KaiLiveTestLog.Write("manual", "MARK", $"text={marker}");
+        return "Метка добавлена в KaiTOR-LiveTest.log: " + marker;
+    }
+
     [CommandLineFunctionality.CommandLineArgumentFunction("save_status", "kaitor_diplomacy")]
     public static string SaveStatus(List<string> arguments)
     {
