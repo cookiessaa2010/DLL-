@@ -178,5 +178,7 @@
     <string id="kaitor_wrong_game_version" text="Неверная версия игры. Сервер: '{SERVER_VERSION}', клиент: '{CLIENT_VERSION}'."/>
     <string id="kaitor_incompatible_hint_label" text="Несовместимо (i)"/>
     <string id="kaitor_interaction" text="ВЗАИМОДЕЙСТВИЕ"/>
+    <string id="kaitor_another_player" text="Другой игрок"/>
+    <string id="kaitor_awaiting_proposal" text="Ожидание предложения от {PLAYER}..."/>
   </strings>
 </base>
