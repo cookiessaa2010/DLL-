@@ -23,6 +23,8 @@ internal static class KaiRuntimeLog
 
             lock (Sync)
                 File.AppendAllText(path, line);
+
+            KaiLiveTestLog.Write("runtime", safeStage, safeDetails);
         }
         catch
         {

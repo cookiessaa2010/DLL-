@@ -55,7 +55,9 @@ jobs:
             'KaiDynasticMarriageBehavior.cs',
             'KaiIncomingMarriageProposalBehavior.cs',
             'KaiDiplomacyConversationBehavior.cs',
-            'KaiDiplomacyHubBehavior.cs'
+            'KaiDiplomacyHubBehavior.cs',
+            'KaiLiveTestBehavior.cs',
+            'KaiLiveTestLog.cs'
           )
           foreach ($name in $required) {
             if (-not (Test-Path -LiteralPath (Join-Path $runtime $name) -PathType Leaf)) {
@@ -206,6 +208,22 @@ jobs:
             throw 'Dedicated Diplomacy Harmony id missing.'
           }
 
+          $liveTest = Get-Content (Join-Path $runtime 'KaiLiveTestBehavior.cs') -Raw
+          $liveLog = Get-Content (Join-Path $runtime 'KaiLiveTestLog.cs') -Raw
+          if ($liveLog -notmatch 'KaiTOR-LiveTest\.log') { throw 'Unified live-test log filename contract missing.' }
+          foreach ($token in @('OnGameLoadedEvent','OnSaveStartedEvent','OnSaveOverEvent','WriteSnapshot')) {
+            if (-not $liveTest.Contains($token)) { throw "Live-test lifecycle contract missing: $token" }
+          }
+          $runtimeLog = Get-Content (Join-Path $runtime 'KaiRuntimeLog.cs') -Raw
+          $populationLog = Get-Content (Join-Path $runtime 'KaiPopulationLog.cs') -Raw
+          $mercyLog = Get-Content (Join-Path $runtime 'KaiMercyRelationBehavior.cs') -Raw
+          if (-not $runtimeLog.Contains('KaiLiveTestLog.Write')) { throw 'Runtime events are not mirrored to unified live-test log.' }
+          if (-not $populationLog.Contains('KaiLiveTestLog.Write')) { throw 'Population events are not mirrored to unified live-test log.' }
+          if (-not $mercyLog.Contains('relationBefore') -or -not $mercyLog.Contains('relationAfter')) {
+            throw 'Mercy relation before/after live-test diagnostics missing.'
+          }
+
+          Write-Host "KaiTOR unified live-test logging contract: PASS"
           Write-Host "KaiTOR Diplomacy/Co-op UI isolation contract: PASS"
           Write-Host "KaiTOR v0.6.4 compile + safety contracts: PASS"
 

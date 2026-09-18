@@ -520,6 +520,37 @@ public sealed class KaiLoreEducationBehavior : CampaignBehaviorBase
         _completedMasks[hero.StringId] = mask | (1 << (stage - 1));
     }
 
+    public IEnumerable<string> DescribePlayerClanStatus()
+    {
+        var playerClan = Clan.PlayerClan;
+        if (playerClan == null)
+        {
+            yield return "playerClan=none";
+            yield break;
+        }
+
+        foreach (var hero in playerClan.Heroes
+                     .Where(h => h != null && h.IsAlive)
+                     .OrderBy(h => h.StringId, StringComparer.Ordinal))
+        {
+            _completedMasks.TryGetValue(hero.StringId, out var completedMask);
+            _professionChoices.TryGetValue(hero.StringId, out var profession);
+            _specializationChoices.TryGetValue(hero.StringId, out var specialization);
+            _careerApplied.TryGetValue(hero.StringId, out var careerApplied);
+            _pendingStage2Effects.TryGetValue(hero.StringId, out var pendingStage2);
+            _stageChoices.TryGetValue(StageKey(hero, 1), out var stage1);
+            _stageChoices.TryGetValue(StageKey(hero, 2), out var stage2);
+            _stageChoices.TryGetValue(StageKey(hero, 3), out var stage3);
+
+            yield return
+                $"hero={hero.StringId}; name={hero.Name}; age={hero.Age:0.0}; " +
+                $"mask={completedMask}; stage8={stage1 ?? "none"}; stage14={stage2 ?? "none"}; " +
+                $"stage16={stage3 ?? "none"}; profession={profession ?? "none"}; " +
+                $"specialization={specialization ?? "none"}; careerApplied={careerApplied}; " +
+                $"stage14Retry={pendingStage2 ?? "none"}";
+        }
+    }
+
     private static string StageKey(Hero hero, int stage) => hero.StringId + ":" + stage;
 
     private static int StableScore(string value)
