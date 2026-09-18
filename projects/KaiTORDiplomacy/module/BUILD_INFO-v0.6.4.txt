@@ -17,3 +17,4 @@ Gauntlet UI artifact: 10539946769
 Master merge commit: d1c6ced8ddba6154047a0c41cce8a6519fb59bb6
 Co-op isolation: PASS; separate movie/layer/namespace/module/localization prefixes
 Dawi live-test placement: explicit EnterSettlementAction + name/clan/settlement response
+Final isolation-fix merge: 2252131fcba2b6177be32fa14383593b1f16e8a8
