@@ -90,6 +90,26 @@ jobs:
             throw 'Dawi women auto-population must remain OFF until live visual validation.'
           }
 
+          $moduleData = Join-Path $root 'module/ModuleData'
+          foreach ($assetText in @(
+            'action_sets.xml',
+            'kaitor_dawi_monster.xml',
+            'kaitor_dawi_women.xml',
+            'project.mbproj',
+            'skins.xml',
+            'skins.xslt'
+          )) {
+            if (-not (Test-Path -LiteralPath (Join-Path $moduleData $assetText) -PathType Leaf)) {
+              throw "Missing Dawi ModuleData contract: $assetText"
+            }
+          }
+          $dawiMonster = Get-Content (Join-Path $moduleData 'kaitor_dawi_monster.xml') -Raw
+          $dawiWomenXml = Get-Content (Join-Path $moduleData 'kaitor_dawi_women.xml') -Raw
+          if ($dawiMonster -notmatch 'as_kaitor_dwarf_female_warrior') { throw 'Dawi female action-set binding missing.' }
+          if ($dawiWomenXml -notmatch 'id="kaitor_dawi_woman_lord"' -or $dawiWomenXml -notmatch 'race="dwarf"' -or $dawiWomenXml -notmatch 'is_female="true"') {
+            throw 'Dawi woman template contract is incomplete.'
+          }
+
           foreach ($doc in @('CHANGELOG-v0.6.4-RU.md', 'TEST-v0.6.4-RU.md')) {
             if (-not (Test-Path -LiteralPath (Join-Path $root "module/$doc") -PathType Leaf)) {
               throw "Missing release document: $doc"
