@@ -15,17 +15,13 @@ public static class KaiDynastyCommands
         if (Campaign.Current == null)
             return "No campaign is active.";
 
-        var recruitment = Campaign.Current.GetCampaignBehavior<KaiDynastyAiBehavior>();
         var realmGrowth = Campaign.Current.GetCampaignBehavior<KaiRealmHouseGrowthBehavior>();
-        if (recruitment == null)
-            return "Dynasty AI behavior is not loaded.";
+        if (realmGrowth == null)
+            return "Realm-house growth behavior is not loaded.";
 
-        var lines = recruitment.DescribeStatus().ToList();
-        if (realmGrowth != null)
-            lines.AddRange(realmGrowth.DescribeStatus());
-
+        var lines = realmGrowth.DescribeStatus().ToList();
         return lines.Count == 0
-            ? "No active kingdoms found."
-            : "Kingdom clan-growth status:\n" + string.Join("\n", lines);
+            ? "No active realm-house state found."
+            : "Realm-house growth status:\n" + string.Join("\n", lines);
     }
 }
