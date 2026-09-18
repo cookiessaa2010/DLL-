@@ -38,11 +38,18 @@ public sealed class KaiMercyRelationBehavior : CampaignBehaviorBase
         if (!IsPlayerMercyRelease(formerCaptorParty, detail))
             return;
 
+        var relationBefore = Hero.MainHero?.GetRelation(prisoner) ?? 0;
+
         ChangeRelationAction.ApplyPlayerRelation(
             prisoner,
             PostBattleMercyRelationBonus,
             affectRelatives: true,
             showQuickNotification: true);
+
+        var relationAfter = Hero.MainHero?.GetRelation(prisoner) ?? relationBefore;
+        KaiRuntimeLog.Write(
+            "MERCY_RELEASE",
+            $"hero={prisoner.StringId}; name={prisoner.Name}; detail={detail}; relationBefore={relationBefore}; relationAfter={relationAfter}; expectedBonus={PostBattleMercyRelationBonus}; actualDelta={relationAfter - relationBefore}; relatives=true");
 
         MBInformationManager.AddQuickInformation(
             new TextObject($"{prisoner.Name}: милосердие +{PostBattleMercyRelationBonus} к отношениям."),
