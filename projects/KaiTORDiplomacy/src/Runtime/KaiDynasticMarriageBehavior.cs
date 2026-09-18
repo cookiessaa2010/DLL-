@@ -195,7 +195,7 @@ public sealed class KaiDynasticMarriageBehavior : CampaignBehaviorBase
             $"member={memberId}; target={targetId}; playerClan={playerClan.StringId}; targetClan={targetClan.StringId}; paid={paid}; relation=+{DynasticRelationBonus}; trust=+{DynasticTrustBonus}; nap={napResult}; duration={DynasticBondDays}d");
 
         MBInformationManager.AddQuickInformation(
-            new TextObject($"Династический союз заключён. Дом {targetClan.Name} получил {paid:N0} динаров; династические узы действуют {DynasticBondDays} дней."),
+            new TextObject($"Династический брак заключён. Дом {targetClan.Name} получил {paid:N0} динаров; династические узы действуют {DynasticBondDays} дней."),
             5000,
             targetClan.Leader?.CharacterObject,
             null,
