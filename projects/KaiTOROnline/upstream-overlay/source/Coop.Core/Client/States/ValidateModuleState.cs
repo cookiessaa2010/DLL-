@@ -12,6 +12,7 @@ using GameInterface.Services.Modules;
 using Serilog;
 using System;
 using System.Threading;
+using System.Text.RegularExpressions;
 
 namespace Coop.Core.Client.States;
 
@@ -161,16 +162,83 @@ public class ValidateModuleState : ClientStateBase
 
     private void RejectModuleValidation(string? reason)
     {
+        var localizedReason = LocalizeModuleValidationReason(reason);
         var message = global::GameInterface.Services.UI.KaiTORUiText.Format(
             "kaitor_module_validation_failed",
             "Module validation failed!\nReason: {REASON}",
-            ("REASON", reason ?? string.Empty));
+            ("REASON", localizedReason));
         messageBroker.Publish(this, new SendInformationMessage(message));
 
         // Carry the reason into the teardown pop-up: the information message above lands in the
         // chat log, which is invisible behind the forced loading screen the player is watching.
         disconnectReason = message;
         Logic.Disconnect();
+    }
+
+    private static string LocalizeModuleValidationReason(string? reason)
+    {
+        if (string.IsNullOrWhiteSpace(reason)) return string.Empty;
+
+        var lines = reason.Split(new[] { Environment.NewLine }, StringSplitOptions.None);
+        for (var i = 0; i < lines.Length; i++)
+        {
+            var line = lines[i];
+
+            var required = Regex.Match(line, "^To join the server the module '(.+)' with version '(.+)' is required\\.$");
+            if (required.Success)
+            {
+                lines[i] = global::GameInterface.Services.UI.KaiTORUiText.Format(
+                    "kaitor_required_module",
+                    "Required module '{MODULE}' version '{VERSION}' is missing.",
+                    ("MODULE", required.Groups[1].Value),
+                    ("VERSION", required.Groups[2].Value));
+                continue;
+            }
+
+            var moduleVersion = Regex.Match(line, "^Wrong version of module '(.+)' detected\\. Server uses '(.+)', client uses '(.+)'\\.$");
+            if (moduleVersion.Success)
+            {
+                lines[i] = global::GameInterface.Services.UI.KaiTORUiText.Format(
+                    "kaitor_wrong_module_version",
+                    "Wrong version of module '{MODULE}'. Server: '{SERVER_VERSION}', client: '{CLIENT_VERSION}'.",
+                    ("MODULE", moduleVersion.Groups[1].Value),
+                    ("SERVER_VERSION", moduleVersion.Groups[2].Value),
+                    ("CLIENT_VERSION", moduleVersion.Groups[3].Value));
+                continue;
+            }
+
+            var unsupported = Regex.Match(line, "^Server does not support module '(.+)'\\.$");
+            if (unsupported.Success)
+            {
+                lines[i] = global::GameInterface.Services.UI.KaiTORUiText.Format(
+                    "kaitor_unsupported_client_module",
+                    "Server does not support client module '{MODULE}'.",
+                    ("MODULE", unsupported.Groups[1].Value));
+                continue;
+            }
+
+            var dlc = Regex.Match(line, "^DLC is not supported\\. Please disable the following module\\(s\\): (.+)\\.$");
+            if (dlc.Success)
+            {
+                lines[i] = global::GameInterface.Services.UI.KaiTORUiText.Format(
+                    "kaitor_dlc_not_supported",
+                    "DLC is not supported. Disable: {MODULES}.",
+                    ("MODULES", dlc.Groups[1].Value));
+                continue;
+            }
+
+            var gameVersion = Regex.Match(line, "^Wrong game version detected\\. Server uses '(.+)', client uses '(.+)'\\.$");
+            if (gameVersion.Success)
+            {
+                lines[i] = global::GameInterface.Services.UI.KaiTORUiText.Format(
+                    "kaitor_wrong_game_version",
+                    "Wrong game version. Server: '{SERVER_VERSION}', client: '{CLIENT_VERSION}'.",
+                    ("SERVER_VERSION", gameVersion.Groups[1].Value),
+                    ("CLIENT_VERSION", gameVersion.Groups[2].Value));
+            }
+        }
+
+        return string.Join(Environment.NewLine, lines);
     }
 
     internal void Handle_NetworkClientValidated(MessagePayload<NetworkClientValidated> obj)
