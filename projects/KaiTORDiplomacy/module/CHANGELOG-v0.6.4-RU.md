@@ -103,3 +103,18 @@ LIVE TEST PASSED ставится только после проверки в р
 - RU/ENG localization добавлена отдельным набором `kaitor_diplomacy_ui_*`.
 - UI технически изолирован от KaiTOR Co-op: отдельные movie/layer/namespace/module/localization prefixes; CI содержит collision guard.
 - `dawi_spawn_test` теперь возвращает имя созданной дворфийки и явно помещает её в указанное безопасное поселение.
+
+
+## Единый live-test лог
+- Добавлен `%LOCALAPPDATA%\KaiTORDiplomacy\KaiTOR-LiveTest.log`.
+- Все события `KaiRuntimeLog` автоматически зеркалируются в единый файл.
+- Vampire/Greenskin population logs также зеркалируются туда с отдельным source.
+- Автоматические lifecycle отметки: session launched, game loaded, save started, save finished.
+- После загрузки и успешного сохранения пишется полный snapshot состояния кампании.
+- Snapshot включает: модели, behaviors, UI/movie/layer, NAP/history/trust/breach/cooldown, dynastic bonds, членов семьи, TOR education 8/14/16, Dawi/Vampire/Greenskin, Realm House, текущую народность поселения и мировые счётчики.
+- Освобождение лорда пишет `MERCY_RELEASE` с relationBefore/relationAfter/actualDelta и ожидаемым +50.
+- Команды:
+  - `kaitor_diplomacy.live_test_start`
+  - `kaitor_diplomacy.live_test_snapshot`
+  - `kaitor_diplomacy.live_test_path`
+  - `kaitor_diplomacy.live_test_mark <текст>`
