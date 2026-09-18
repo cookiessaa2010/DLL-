@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param()
 
 $ErrorActionPreference = 'Stop'
@@ -12,10 +12,6 @@ $PackageRoot = Split-Path -Parent $PSScriptRoot
 $DefaultBannerlordRoot = $PackageRoot
 $TorLauncher = Join-Path $PSScriptRoot 'Start-KaiTORTorCampaignServer.ps1'
 $Readiness = Join-Path $PSScriptRoot 'Test-KaiTORTorLiveReadiness.ps1'
-
-function Decode-Utf8([string]$Value) {
-    return [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($Value))
-}
 
 $EN = @{
     title='KaiTOR Co-op - Server Control'
@@ -55,41 +51,41 @@ $EN = @{
     footer='KaiTOR Co-op v1.3.15.10 | Bannerlord/TOR 1.3.15 | UDP 4200'
 }
 $RU = @{
-    title=Decode-Utf8 'S2FpVE9SIENvLW9wIOKAlCDQn9Cw0L3QtdC70Ywg0YHQtdGA0LLQtdGA0LA='
-    bannerlord=Decode-Utf8 '0J/Rg9GC0Ywg0LogQmFubmVybG9yZA=='
-    browse=Decode-Utf8 '0J7QsdC30L7RgA=='
-    save=Decode-Utf8 '0KHQvtGF0YDQsNC90LXQvdC40LUg0LrQsNC80L/QsNC90LjQuA=='
-    password=Decode-Utf8 '0J/QsNGA0L7Qu9GM'
-    visibility=Decode-Utf8 '0JTQvtGB0YLRg9C/'
-    private=Decode-Utf8 '0J/RgNC40LLQsNGC0L3Ri9C5'
-    friends=Decode-Utf8 '0KLQvtC70YzQutC+INC00YDRg9C30YzRjw=='
-    public=Decode-Utf8 '0J/Rg9Cx0LvQuNGH0L3Ri9C5'
-    port=Decode-Utf8 '0J/QvtGA0YI='
-    players=Decode-Utf8 '0JjQs9GA0L7QutC4'
-    server=Decode-Utf8 '0KHQtdGA0LLQtdGA'
-    offline=Decode-Utf8 '0J3QlSDQl9CQ0J/Qo9Cp0JXQnQ=='
-    online=Decode-Utf8 '0JfQkNCf0KPQqdCV0J0='
-    preflight=Decode-Utf8 '0J/RgNC+0LLQtdGA0LjRgtGM'
-    start=Decode-Utf8 '0JfQsNC/0YPRgdGC0LjRgtGMINGB0LXRgNCy0LXRgA=='
-    stop=Decode-Utf8 '0J7RgdGC0LDQvdC+0LLQuNGC0Ywg0YHQtdGA0LLQtdGA'
-    log=Decode-Utf8 '0J7RgtC60YDRi9GC0Ywg0LvQvtCz'
-    openfolder=Decode-Utf8 '0J7RgtC60YDRi9GC0Ywg0L/QsNC/0LrRgw=='
-    language=Decode-Utf8 '0K/Qt9GL0Lo='
-    ready=Decode-Utf8 '0JPQvtGC0L7QstC+LiDQn9C10YDQtdC0INC30LDQv9GD0YHQutC+0Lwg0YDQtdC60L7QvNC10L3QtNGD0LXRgtGB0Y8g0LLRi9C/0L7Qu9C90LjRgtGMINC/0YDQvtCy0LXRgNC60YMu'
-    preflight_run=Decode-Utf8 '0JLRi9C/0L7Qu9C90Y/QtdGC0YHRjyDQv9GA0L7QstC10YDQutCwINGB0L7QstC80LXRgdGC0LjQvNC+0YHRgtC4Li4u'
-    preflight_ok=Decode-Utf8 '0J/RgNC+0LLQtdGA0LrQsCDQv9GA0L7QudC00LXQvdCwLiDQodC10YDQstC10YAg0LPQvtGC0L7QsiDQuiDQt9Cw0L/Rg9GB0LrRgy4='
-    preflight_fail=Decode-Utf8 '0J/RgNC+0LLQtdGA0LrQsCDQvdC1INC/0YDQvtC50LTQtdC90LA6IA=='
-    start_ok=Decode-Utf8 '0JrQvtC80LDQvdC00LAg0LfQsNC/0YPRgdC60LAg0L7RgtC/0YDQsNCy0LvQtdC90LAuINCe0LbQuNC00LDQtdGC0YHRjyDQt9Cw0L/Rg9GB0LogQmFubmVybG9yZC4='
-    start_fail=Decode-Utf8 '0J3QtSDRg9C00LDQu9C+0YHRjCDQt9Cw0L/Rg9GB0YLQuNGC0Ywg0YHQtdGA0LLQtdGAOiA='
-    stop_ok=Decode-Utf8 '0KHQtdGA0LLQtdGA0L3Ri9C5INC/0YDQvtGG0LXRgdGBINC+0YHRgtCw0L3QvtCy0LvQtdC9Lg=='
-    stop_none=Decode-Utf8 '0KHQtdGA0LLQtdGA0L3Ri9C5INC/0YDQvtGG0LXRgdGBIEthaVRPUiDQvdC1INC90LDQudC00LXQvS4='
-    log_none=Decode-Utf8 '0JvQvtCzINGB0LXRgNCy0LXRgNCwINC/0L7QutCwINC90LUg0L3QsNC50LTQtdC9Lg=='
-    select_root=Decode-Utf8 '0JLRi9Cx0LXRgNC40YLQtSDQutC+0YDQvdC10LLRg9GOINC/0LDQv9C60YMgTW91bnQgJiBCbGFkZSBJSSBCYW5uZXJsb3Jk'
-    invalid_root=Decode-Utf8 '0JIg0LLRi9Cx0YDQsNC90L3QvtC5INC/0LDQv9C60LUg0L3QtSDQvdCw0LnQtNC10L0gYmluXFdpbjY0X1NoaXBwaW5nX0NsaWVudFxCYW5uZXJsb3JkLmV4ZS4='
-    save_required=Decode-Utf8 '0KPQutCw0LbQuNGC0LUg0LjQvNGPINGB0L7RhdGA0LDQvdC10L3QuNGPINC60LDQvNC/0LDQvdC40Lgu'
-    status=Decode-Utf8 '0KHRgtCw0YLRg9GB'
-    unknown_players=Decode-Utf8 '4oCUIC8gNA=='
-    footer=Decode-Utf8 'S2FpVE9SIENvLW9wIHYxLjMuMTUuMTAg4oCiIEJhbm5lcmxvcmQvVE9SIDEuMy4xNSDigKIgVURQIDQyMDA='
+    title='KaiTOR Co-op — Панель сервера'
+    bannerlord='Путь к Bannerlord'
+    browse='Обзор'
+    save='Сохранение кампании'
+    password='Пароль'
+    visibility='Доступ'
+    private='Приватный'
+    friends='Только друзья'
+    public='Публичный'
+    port='Порт'
+    players='Игроки'
+    server='Сервер'
+    offline='НЕ ЗАПУЩЕН'
+    online='ЗАПУЩЕН'
+    preflight='Проверить'
+    start='Запустить сервер'
+    stop='Остановить сервер'
+    log='Открыть лог'
+    openfolder='Открыть папку'
+    language='Язык'
+    ready='Готово. Перед запуском сервера выполни проверку.'
+    preflight_run='Выполняется проверка совместимости...'
+    preflight_ok='Проверка пройдена. Сервер готов к запуску.'
+    preflight_fail='Проверка не пройдена: '
+    start_ok='Команда запуска отправлена. Ожидается запуск Bannerlord.'
+    start_fail='Не удалось запустить сервер: '
+    stop_ok='Серверный процесс остановлен.'
+    stop_none='Серверный процесс KaiTOR не найден.'
+    log_none='Лог сервера пока не найден.'
+    select_root='Выберите корневую папку Mount & Blade II Bannerlord'
+    invalid_root='В выбранной папке не найден bin\Win64_Shipping_Client\Bannerlord.exe.'
+    save_required='Укажите имя сохранения кампании.'
+    status='Статус'
+    unknown_players='— / 4'
+    footer='KaiTOR Co-op v1.3.15.10 | Bannerlord/TOR 1.3.15 | UDP 4200'
 }
 
 $script:Text = $RU
