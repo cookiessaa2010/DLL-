@@ -8,7 +8,7 @@
 
         <!--
           KaiTOR Diplomacy owns this movie exclusively.
-          Do not reuse CoopConnectionUIMovie / CoopOptionsUIMovie identifiers.
+          Network/co-op UI identifiers and resources must never be reused here.
           Native Bannerlord brushes are used until the dedicated diplomacy sprite atlas
           passes live UI validation.
         -->
