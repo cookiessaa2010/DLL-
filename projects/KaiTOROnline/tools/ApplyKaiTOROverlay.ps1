@@ -23,7 +23,11 @@ Get-ChildItem -LiteralPath $overlayRoot -Recurse -File | ForEach-Object {
 # namespace in qualified references. Normalize KaiTOR localization references after copy.
 Get-ChildItem -LiteralPath (Join-Path $root 'source') -Recurse -File -Filter '*.cs' | ForEach-Object {
     $text = [IO.File]::ReadAllText($_.FullName)
-    $normalized = $text.Replace('GameInterface.Services.UI.KaiTORUiText', 'global::GameInterface.Services.UI.KaiTORUiText')
+    $normalized = $text.Replace('global::global::GameInterface.Services.UI.KaiTORUiText', 'global::GameInterface.Services.UI.KaiTORUiText')
+    $normalized = [regex]::Replace(
+        $normalized,
+        '(?<!global::)GameInterface\.Services\.UI\.KaiTORUiText',
+        'global::GameInterface.Services.UI.KaiTORUiText')
     if ($normalized -ne $text) {
         [IO.File]::WriteAllText($_.FullName, $normalized, [Text.UTF8Encoding]::new($true))
     }
