@@ -85,7 +85,7 @@ The generated Coop `SubModule.xml` currently contains:
 
 The source contains a branch for a server with no loading-screen UI, but the module metadata does not yet establish that Bannerlord 1.3.15 can run this campaign server in a native no-render process.
 
-Therefore the verified description for 0.0.1 is:
+Therefore the verified description for KaiTOR Co-op v1.3.15.10 is:
 
 > **standalone authoritative Bannerlord campaign-server process**
 
@@ -119,7 +119,7 @@ The script:
 - uses `/server /coopsave` so the process auto-loads the named save;
 - defaults visibility to `none` for a safe local/LAN test;
 - never prints the server password;
-- uses UDP `4200`, because the pinned 0.0.1 command-line contract does not expose a port argument.
+- uses UDP `4200`, because the pinned upstream command-line contract used by KaiTOR Co-op v1.3.15.10 does not expose a port argument.
 
 Use `-DryRun` to validate the command without starting Bannerlord.
 
