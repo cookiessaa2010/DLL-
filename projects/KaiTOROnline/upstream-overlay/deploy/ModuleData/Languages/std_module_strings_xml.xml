@@ -58,5 +58,34 @@
     <string id="kaitor_apply" text="Apply"/>
     <string id="kaitor_options_updated" text="KaiTOR Co-op options updated."/>
     <string id="kaitor_options_update_failed" text="KaiTOR Co-op options could not be updated."/>
+    <string id="kaitor_chat" text="Chat"/>
+    <string id="kaitor_global_chat" text="Global chat"/>
+    <string id="kaitor_direct_message" text="Direct message: {PLAYER}"/>
+    <string id="kaitor_chat_input_hint" text="Enter or click Send to send    Esc: close"/>
+    <string id="kaitor_send" text="Send"/>
+    <string id="kaitor_mute" text="Mute"/>
+    <string id="kaitor_unmute" text="Unmute"/>
+    <string id="kaitor_chat_desc" text="Configure the in-game co-op chat overlay."/>
+    <string id="kaitor_show_chat" text="Show Chat"/>
+    <string id="kaitor_network" text="Network"/>
+    <string id="kaitor_movement_bandwidth" text="Movement Bandwidth"/>
+    <string id="kaitor_movement_bandwidth_desc" text="Limits compressed movement data uploaded and downloaded by this client. Changes apply when the next mission opens."/>
+    <string id="kaitor_upload_limit" text="Upload limit"/>
+    <string id="kaitor_download_limit" text="Download limit"/>
+    <string id="kaitor_map_time" text="Map Time"/>
+    <string id="kaitor_map_time_desc" text="Configure the map time display shown while inside missions."/>
+    <string id="kaitor_show_map_time" text="Show Map Time in Missions"/>
+    <string id="kaitor_killfeed_color" text="Kill-feed Color"/>
+    <string id="kaitor_killfeed_desc" text="Kills from you and your own troops use this color in the kill-feed for all players."/>
+    <string id="kaitor_red" text="Red"/>
+    <string id="kaitor_green" text="Green"/>
+    <string id="kaitor_blue" text="Blue"/>
+    <string id="kaitor_nameplates" text="Nameplates"/>
+    <string id="kaitor_player_nameplates" text="Player Nameplates"/>
+    <string id="kaitor_player_nameplates_desc" text="Show names above allied players in co-op missions."/>
+    <string id="kaitor_display_mode" text="Display Mode"/>
+    <string id="kaitor_bug_report" text="Bug Report"/>
+    <string id="kaitor_bug_report_desc" text="Configure the in-game co-op bug-report button."/>
+    <string id="kaitor_show_bug_report" text="Show Co-op Bug Report Button"/>
   </strings>
 </base>
