@@ -165,16 +165,16 @@ public sealed class KaiLoreEducationBehavior : CampaignBehaviorBase
 
         var heading = stage switch
         {
-            1 => "Лорное становление: происхождение",
-            2 => "Лорное становление: путь взросления",
-            _ => "Лорное становление: будущая профессия"
+            1 => "Воспитание: происхождение",
+            2 => "Воспитание: путь взросления",
+            _ => "Воспитание: будущая профессия"
         };
 
         var intro = stage switch
         {
-            1 => $"{child.Name} достиг возраста, когда происхождение и традиции рода начинают определять дальнейший путь. Этот выбор дополняет обычное воспитание Bannerlord.",
-            2 => $"Пришло время определить, чему посвятит юность {child.Name}. Выбор использует данные The Old Realms.",
-            _ => $"{child.Name} должен выбрать будущую профессию The Old Realms. Если у профессии есть специализация, она будет предложена следующим отдельным окном."
+            1 => $"{child.Name} достиг возраста, когда происхождение и традиции рода начинают определять дальнейший путь. Этот выбор дополнит обычное воспитание ребёнка.",
+            2 => $"Пришло время определить, чему посвятит юность {child.Name}. Этот выбор повлияет на дальнейшее взросление и навыки.",
+            _ => $"{child.Name} должен выбрать будущую профессию. Если выбранный путь предполагает специализацию, её можно будет выбрать следующим шагом."
         };
 
         _inquiryOpen = true;
@@ -220,7 +220,7 @@ public sealed class KaiLoreEducationBehavior : CampaignBehaviorBase
         MBInformationManager.ShowMultiSelectionInquiry(
             new MultiSelectionInquiryData(
                 "Профессиональная специализация",
-                $"Выберите специализацию для {child.Name}. Применяются личные эффекты TOR; телепорты, смена королевства и другие стартовые эффекты создания персонажа не используются.",
+                $"Выберите специализацию для {child.Name}. Она определит личные навыки и способности и не изменит положение вашего дома или державы.",
                 elements,
                 true,
                 1,
@@ -404,7 +404,7 @@ public sealed class KaiLoreEducationBehavior : CampaignBehaviorBase
             _careerApplied[hero.StringId] = true;
             KaiRuntimeLog.Write("CAREER_APPLY", $"hero={hero.StringId}; profession={professionId}; specialization={specializationId ?? "none"}; career={TorProfessionEffectBridge.GetCurrentCareerId(hero) ?? "none"}");
             if (hero.Clan == Clan.PlayerClan)
-                InformationManager.DisplayMessage(new InformationMessage($"{hero.Name} вступает на выбранный профессиональный путь The Old Realms."));
+                InformationManager.DisplayMessage(new InformationMessage($"{hero.Name} вступает на выбранный профессиональный путь."));
         }
         else
         {
