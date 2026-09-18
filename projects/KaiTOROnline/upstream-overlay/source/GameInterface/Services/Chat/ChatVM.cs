@@ -34,7 +34,7 @@ internal sealed class ChatVM : ViewModel
         this.getLocalControllerId = getLocalControllerId;
 
         Channels = new MBBindingList<ChatChannelVM>();
-        var global = EnsureChannel(GlobalChannelId, GameInterface.Services.UI.KaiTORUiText.Get("kaitor_global_chat", "Global chat"));
+        var global = EnsureChannel(GlobalChannelId, global::GameInterface.Services.UI.KaiTORUiText.Get("kaitor_global_chat", "Global chat"));
         SelectChannel(global);
     }
 
@@ -49,28 +49,28 @@ internal sealed class ChatVM : ViewModel
 
     [DataSourceProperty]
     public string ActiveChannelText => selectedChannel?.IsGlobal == false
-        ? GameInterface.Services.UI.KaiTORUiText.Format(
+        ? global::GameInterface.Services.UI.KaiTORUiText.Format(
             "kaitor_direct_message",
             "Direct message: {PLAYER}",
             ("PLAYER", selectedChannel.Name.TrimEnd(' ', '*')))
-        : GameInterface.Services.UI.KaiTORUiText.Get("kaitor_global_chat", "Global chat");
+        : global::GameInterface.Services.UI.KaiTORUiText.Get("kaitor_global_chat", "Global chat");
 
     [DataSourceProperty]
-    public string InputHintText => GameInterface.Services.UI.KaiTORUiText.Get("kaitor_chat_input_hint", "Enter or click Send to send    Esc: close");
+    public string InputHintText => global::GameInterface.Services.UI.KaiTORUiText.Get("kaitor_chat_input_hint", "Enter or click Send to send    Esc: close");
 
     [DataSourceProperty]
-    public string SendButtonText => GameInterface.Services.UI.KaiTORUiText.Get("kaitor_send", "Send");
+    public string SendButtonText => global::GameInterface.Services.UI.KaiTORUiText.Get("kaitor_send", "Send");
 
     [DataSourceProperty]
     public bool IsMuteButtonVisible => selectedChannel?.IsGlobal == false;
 
     [DataSourceProperty]
     public string MuteButtonText => selectedChannel?.IsMuted == true
-        ? GameInterface.Services.UI.KaiTORUiText.Get("kaitor_unmute", "Unmute")
-        : GameInterface.Services.UI.KaiTORUiText.Get("kaitor_mute", "Mute");
+        ? global::GameInterface.Services.UI.KaiTORUiText.Get("kaitor_unmute", "Unmute")
+        : global::GameInterface.Services.UI.KaiTORUiText.Get("kaitor_mute", "Mute");
 
     [DataSourceProperty]
-    public string RibbonText => GameInterface.Services.UI.KaiTORUiText.Get("kaitor_chat", "Chat");
+    public string RibbonText => global::GameInterface.Services.UI.KaiTORUiText.Get("kaitor_chat", "Chat");
 
     [DataSourceProperty]
     public bool IsRibbonVisible => !IsOpen;
