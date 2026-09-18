@@ -247,6 +247,8 @@ jobs:
           Copy-Item ./kaitor/projects/KaiTOROnline/runtime/START_KAITOR_COOP.bat (Join-Path $stage 'START_KAITOR_COOP.bat') -Force
           Copy-Item ./kaitor/projects/KaiTOROnline/DEDICATED_CAMPAIGN_SERVER.md (Join-Path $stage 'Docs/DEDICATED_CAMPAIGN_SERVER.md') -Force
           Copy-Item ./kaitor/projects/KaiTOROnline/FOUR_PLAYER_PERSISTENCE_AUDIT.md (Join-Path $stage 'Docs/FOUR_PLAYER_PERSISTENCE_AUDIT.md') -Force
+          Copy-Item ./kaitor/projects/KaiTOROnline/README_EN.txt (Join-Path $stage 'README_EN.txt') -Force
+          Copy-Item ./kaitor/projects/KaiTOROnline/README_RU.txt (Join-Path $stage 'README_RU.txt') -Force
 
           # Release package: keep runtime binaries/resources only, not compiler debug symbols.
           Get-ChildItem $stage -Recurse -File -Filter '*.pdb' | Remove-Item -Force
