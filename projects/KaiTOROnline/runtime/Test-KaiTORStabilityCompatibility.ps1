@@ -9,7 +9,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 $ExpectedModuleId = 'KaiTOR_Stability'
-$ExpectedVersion = 'v0.4.1'
+$ExpectedVersion = 'v0.5.0'
 $ExpectedGameVersion = 'v1.3.15'
 
 $root = (Resolve-Path -LiteralPath $BannerlordRoot).Path
