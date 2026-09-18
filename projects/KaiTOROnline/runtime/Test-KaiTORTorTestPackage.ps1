@@ -91,7 +91,28 @@ foreach ($requiredDep in @('Native','SandBoxCore','Sandbox','CustomBattle','Stor
 $englishStrings = Get-Content -LiteralPath (Join-Path $root 'Modules/Coop/ModuleData/Languages/std_module_strings_xml.xml') -Raw -Encoding UTF8
 $russianStrings = Get-Content -LiteralPath (Join-Path $root 'Modules/Coop/ModuleData/Languages/RU/std_module_strings_xml.xml') -Raw -Encoding UTF8
 $russianManifest = Get-Content -LiteralPath (Join-Path $root 'Modules/Coop/ModuleData/Languages/RU/language_data.xml') -Raw -Encoding UTF8
-foreach ($id in @('kaitor_menu_host','kaitor_menu_join','kaitor_join_header','kaitor_direct','kaitor_steam_lobbies','kaitor_chat','kaitor_options_header')) {
+foreach ($id in @(
+    'kaitor_menu_host',
+    'kaitor_menu_join',
+    'kaitor_join_header',
+    'kaitor_direct',
+    'kaitor_steam_lobbies',
+    'kaitor_chat',
+    'kaitor_options_header',
+    'kaitor_server_visibility',
+    'kaitor_server_password_title',
+    'kaitor_connecting_title',
+    'kaitor_hosting_title',
+    'kaitor_applying_patches',
+    'kaitor_validating_modules',
+    'kaitor_coop_options',
+    'kaitor_invite_friends',
+    'kaitor_report_bug',
+    'kaitor_bug_share_title',
+    'kaitor_crash_reports_title',
+    'kaitor_credits',
+    'kaitor_donate_prompt'
+)) {
     if ($englishStrings -notmatch ('id="' + [regex]::Escape($id) + '"')) { throw "English localization missing id: $id" }
     if ($russianStrings -notmatch ('id="' + [regex]::Escape($id) + '"')) { throw "Russian localization missing id: $id" }
 }
