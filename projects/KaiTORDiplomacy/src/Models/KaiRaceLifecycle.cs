@@ -19,11 +19,11 @@ internal static class KaiRaceLifecycle
 
     public const float DawiMarriageAge = 30f;
     public const float DawiFertilityStart = 30f;
-    public const float DawiFertilityEnd = 180f;
+    public const float DawiFertilityCurveSaturationAge = 180f;
 
     public const float ElfMarriageAge = 18f;
     public const float ElfFertilityStart = 18f;
-    public const float ElfFertilityEnd = 300f;
+    public const float ElfFertilityCurveSaturationAge = 300f;
 
     public const float VampireMarriageAge = 18f;
 
@@ -115,10 +115,10 @@ internal static class KaiRaceLifecycle
             return false;
 
         if (IsDawi(hero))
-            return hero.Age >= DawiFertilityStart && hero.Age <= DawiFertilityEnd;
+            return hero.Age >= DawiFertilityStart;
 
         if (IsLongLivedElf(hero))
-            return hero.Age >= ElfFertilityStart && hero.Age <= ElfFertilityEnd;
+            return hero.Age >= ElfFertilityStart;
 
         return hero.Age >= HumanFertilityStart && hero.Age <= HumanFertilityEnd;
     }
@@ -138,10 +138,10 @@ internal static class KaiRaceLifecycle
             return HumanFertilityStart;
 
         if (IsDawi(hero))
-            return Project(hero.Age, DawiFertilityStart, DawiFertilityEnd);
+            return Project(Math.Min(hero.Age, DawiFertilityCurveSaturationAge), DawiFertilityStart, DawiFertilityCurveSaturationAge);
 
         if (IsLongLivedElf(hero))
-            return Project(hero.Age, ElfFertilityStart, ElfFertilityEnd);
+            return Project(Math.Min(hero.Age, ElfFertilityCurveSaturationAge), ElfFertilityStart, ElfFertilityCurveSaturationAge);
 
         if (TorFamilySafety.IsVampire(hero))
             return Clamp(hero.Age, HumanFertilityStart, HumanFertilityEnd);
@@ -160,10 +160,10 @@ internal static class KaiRaceLifecycle
             return HumanMarriageAge;
 
         if (IsDawi(hero))
-            return ProjectFromAdulthood(hero.Age, DawiMarriageAge, DawiFertilityEnd);
+            return ProjectFromAdulthood(hero.Age, DawiMarriageAge, DawiFertilityCurveSaturationAge);
 
         if (IsLongLivedElf(hero))
-            return ProjectFromAdulthood(hero.Age, ElfMarriageAge, ElfFertilityEnd);
+            return ProjectFromAdulthood(hero.Age, ElfMarriageAge, ElfFertilityCurveSaturationAge);
 
         return Clamp(hero.Age, HumanMarriageAge, HumanFertilityEnd);
     }
@@ -180,8 +180,8 @@ internal static class KaiRaceLifecycle
     public static IEnumerable<string> DescribeRules()
     {
         yield return "Human/mortal: marriage 18+ (no upper cap); pregnancy 18-45.";
-        yield return "Dawi: marriage 30+ (no upper cap); pregnancy 30-180; same dwarf race; female assets required.";
-        yield return "Elf: marriage 18+ (no upper cap); pregnancy 18-300; same race.";
+        yield return "Dawi: marriage 30+ (no upper cap); pregnancy 30+ (no vanilla upper cap); same dwarf race; female assets required.";
+        yield return "Elf: marriage 18+ (no upper cap); pregnancy 18+ (no vanilla upper cap); same race.";
         yield return "Vampire: social marriage 18+ (no upper cap); biological pregnancy OFF; reproduction via Blood Kiss.";
         yield return "Greenskin: conventional marriage OFF; biological pregnancy OFF; reproduction via spores.";
         yield return "Ordinary undead: conventional marriage OFF; biological pregnancy OFF.";
