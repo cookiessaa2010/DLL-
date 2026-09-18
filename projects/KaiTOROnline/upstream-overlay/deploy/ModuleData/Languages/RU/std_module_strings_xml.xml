@@ -176,5 +176,7 @@
     <string id="kaitor_unsupported_client_module" text="Сервер не поддерживает клиентский модуль '{MODULE}'."/>
     <string id="kaitor_dlc_not_supported" text="DLC не поддерживаются. Отключите: {MODULES}."/>
     <string id="kaitor_wrong_game_version" text="Неверная версия игры. Сервер: '{SERVER_VERSION}', клиент: '{CLIENT_VERSION}'."/>
+    <string id="kaitor_incompatible_hint_label" text="Несовместимо (i)"/>
+    <string id="kaitor_interaction" text="ВЗАИМОДЕЙСТВИЕ"/>
   </strings>
 </base>
