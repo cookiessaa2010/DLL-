@@ -1,0 +1,433 @@
+<Prefab>
+  <Window>
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent">
+      <Children>
+        <Standard.Background/>
+
+        <Standard.TopPanel Parameter.Title="@MovieTextHeader"/>
+
+        <!-- KaiTOR dark-fantasy options frame. -->
+        <Widget Id="KaiTOROptionsFrame" WidthSizePolicy="Fixed" SuggestedWidth="1135"
+                HeightSizePolicy="Fixed" SuggestedHeight="760"
+                HorizontalAlignment="Center" VerticalAlignment="Center"
+                MarginTop="-70" DoNotAcceptEvents="true">
+          <Children>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                    Sprite="BlankWhiteSquare_9" Color="#6A1C12FF" AlphaFactor="0.38"/>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                    MarginLeft="5" MarginRight="5" MarginTop="5" MarginBottom="5"
+                    Sprite="BlankWhiteSquare_9" Color="#0D0908FF" AlphaFactor="0.90"/>
+          </Children>
+        </Widget>
+
+        <ListPanel WidthSizePolicy="Fixed" SuggestedWidth="1050" HeightSizePolicy="CoverChildren"
+                   HorizontalAlignment="Center" VerticalAlignment="Center" MarginTop="-80"
+                   LayoutImp.LayoutMethod="VerticalTopToBottom">
+          <Children>
+            <ListPanel DataSource="{Tabs}" WidthSizePolicy="CoverChildren" HeightSizePolicy="Fixed" SuggestedHeight="66"
+                       HorizontalAlignment="Center" MarginBottom="24" StackLayout.LayoutMethod="HorizontalLeftToRight">
+              <ItemTemplate>
+                <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                              SuggestedWidth="168" SuggestedHeight="58" Brush="Header.Tab.Center"
+                              Command.Click="ExecuteSelection" IsSelected="@IsSelected" UpdateChildrenStates="true">
+                  <Children>
+                    <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                Brush="Clan.TabControl.Text" Brush.TextHorizontalAlignment="Center"
+                                Brush.TextVerticalAlignment="Center" Text="@Name"/>
+                  </Children>
+                </ButtonWidget>
+              </ItemTemplate>
+            </ListPanel>
+
+            <ListPanel DataSource="{KillFeedTab}" IsVisible="@IsSelected" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                       LayoutImp.LayoutMethod="VerticalTopToBottom">
+              <Children>
+                <ListPanel DataSource="{Sections}" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                           LayoutImp.LayoutMethod="VerticalTopToBottom">
+                  <ItemTemplate>
+                    <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                               LayoutImp.LayoutMethod="VerticalTopToBottom">
+                      <Children>
+                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="48"
+                                    Brush="Clan.TabControl.Text" Brush.FontSize="36"
+                                    Brush.TextHorizontalAlignment="Center" Brush.TextVerticalAlignment="Center"
+                                    Text="@TitleText"/>
+                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="58"
+                                    Brush="Clan.TabControl.Text" Brush.FontSize="22" Brush.FontColor="#C9B08BFF"
+                                    Brush.TextHorizontalAlignment="Center" Brush.TextVerticalAlignment="Center"
+                                    Text="@DescriptionText"/>
+
+                        <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="78"
+                                   LayoutImp.LayoutMethod="HorizontalLeftToRight">
+                          <Children>
+                            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="132" HeightSizePolicy="StretchToParent"
+                                        Brush="Clan.TabControl.Text" Brush.FontSize="28"
+                                        Brush.TextVerticalAlignment="Center" Text="@KillFeedColorRedText"/>
+                            <Standard.Slider WidthSizePolicy="Fixed" SuggestedWidth="420" HeightSizePolicy="Fixed" SuggestedHeight="46"
+                                             VerticalAlignment="Center" Parameter.ValueInt="@KillFeedColorRed" Parameter.MinValue="0" Parameter.MaxValue="255"/>
+                            <IntegerInputTextWidget WidthSizePolicy="Fixed" SuggestedWidth="96" HeightSizePolicy="Fixed" SuggestedHeight="48"
+                                                    VerticalAlignment="Center" MarginLeft="28"
+                                                    Brush="ScoreboardPanels_2" Brush.AlphaFactor="0.75" Brush.FontSize="28"
+                                                    Brush.TextHorizontalAlignment="Center" Brush.TextVerticalAlignment="Center"
+                                                    IntText="@KillFeedColorRed" MaxInt="255" MinInt="0" EnableClamp="true"/>
+                          </Children>
+                        </ListPanel>
+
+                        <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="78"
+                                   LayoutImp.LayoutMethod="HorizontalLeftToRight">
+                          <Children>
+                            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="132" HeightSizePolicy="StretchToParent"
+                                        Brush="Clan.TabControl.Text" Brush.FontSize="28"
+                                        Brush.TextVerticalAlignment="Center" Text="@KillFeedColorGreenText"/>
+                            <Standard.Slider WidthSizePolicy="Fixed" SuggestedWidth="420" HeightSizePolicy="Fixed" SuggestedHeight="46"
+                                             VerticalAlignment="Center" Parameter.ValueInt="@KillFeedColorGreen" Parameter.MinValue="0" Parameter.MaxValue="255"/>
+                            <IntegerInputTextWidget WidthSizePolicy="Fixed" SuggestedWidth="96" HeightSizePolicy="Fixed" SuggestedHeight="48"
+                                                    VerticalAlignment="Center" MarginLeft="28"
+                                                    Brush="ScoreboardPanels_2" Brush.AlphaFactor="0.75" Brush.FontSize="28"
+                                                    Brush.TextHorizontalAlignment="Center" Brush.TextVerticalAlignment="Center"
+                                                    IntText="@KillFeedColorGreen" MaxInt="255" MinInt="0" EnableClamp="true"/>
+                          </Children>
+                        </ListPanel>
+
+                        <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="78"
+                                   LayoutImp.LayoutMethod="HorizontalLeftToRight">
+                          <Children>
+                            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="132" HeightSizePolicy="StretchToParent"
+                                        Brush="Clan.TabControl.Text" Brush.FontSize="28"
+                                        Brush.TextVerticalAlignment="Center" Text="@KillFeedColorBlueText"/>
+                            <Standard.Slider WidthSizePolicy="Fixed" SuggestedWidth="420" HeightSizePolicy="Fixed" SuggestedHeight="46"
+                                             VerticalAlignment="Center" Parameter.ValueInt="@KillFeedColorBlue" Parameter.MinValue="0" Parameter.MaxValue="255"/>
+                            <IntegerInputTextWidget WidthSizePolicy="Fixed" SuggestedWidth="96" HeightSizePolicy="Fixed" SuggestedHeight="48"
+                                                    VerticalAlignment="Center" MarginLeft="28"
+                                                    Brush="ScoreboardPanels_2" Brush.AlphaFactor="0.75" Brush.FontSize="28"
+                                                    Brush.TextHorizontalAlignment="Center" Brush.TextVerticalAlignment="Center"
+                                                    IntText="@KillFeedColorBlue" MaxInt="255" MinInt="0" EnableClamp="true"/>
+                          </Children>
+                        </ListPanel>
+
+                        <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="Fixed" SuggestedHeight="72"
+                                   HorizontalAlignment="Center" LayoutImp.LayoutMethod="HorizontalLeftToRight">
+                          <Children>
+                            <ColorButtonWidget WidthSizePolicy="Fixed" SuggestedWidth="96" HeightSizePolicy="Fixed" SuggestedHeight="58"
+                                               VerticalAlignment="Center" Brush="Creation.ColorCard"
+                                               ColorToApply="@KillFeedPreviewColorString" UpdateChildrenStates="true"/>
+                          </Children>
+                        </ListPanel>
+                      </Children>
+                    </ListPanel>
+                  </ItemTemplate>
+                </ListPanel>
+              </Children>
+            </ListPanel>
+			<ListPanel DataSource="{MapTimeTab}" IsVisible="@IsSelected" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+			           LayoutImp.LayoutMethod="VerticalTopToBottom">
+			    <Children>
+			        <ListPanel DataSource="{Sections}" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+			                   LayoutImp.LayoutMethod="VerticalTopToBottom">
+			            <ItemTemplate>
+			                <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+			                           LayoutImp.LayoutMethod="VerticalTopToBottom">
+			                    <Children>
+			                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="48"
+			                                    Brush="Clan.TabControl.Text" Brush.FontSize="36"
+			                                    Brush.TextHorizontalAlignment="Center" Brush.TextVerticalAlignment="Center"
+			                                    Text="@TitleText"/>
+
+			                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="58"
+			                                    Brush="Clan.TabControl.Text" Brush.FontSize="22" Brush.FontColor="#C9B08BFF"
+			                                    Brush.TextHorizontalAlignment="Center" Brush.TextVerticalAlignment="Center"
+			                                    Text="@DescriptionText"/>
+
+			                        <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="Fixed" SuggestedHeight="64"
+			                                   HorizontalAlignment="Center" LayoutImp.LayoutMethod="HorizontalLeftToRight">
+			                            <Children>
+			                                <ButtonWidget DoNotPassEventsToChildren="true"
+			                                              WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+			                                              SuggestedWidth="40" SuggestedHeight="40"
+			                                              VerticalAlignment="Center"
+			                                              Brush="SPOptions.Checkbox.Empty.Button"
+			                                              ButtonType="Toggle"
+			                                              IsSelected="@ShowMapTimeInMissions"
+			                                              ToggleIndicator="ToggleIndicator"
+			                                              UpdateChildrenStates="true">
+			                                    <Children>
+			                                        <BrushWidget Id="ToggleIndicator"
+			                                                     WidthSizePolicy="StretchToParent"
+			                                                     HeightSizePolicy="StretchToParent"
+			                                                     Brush="SPOptions.Checkbox.Full.Button"/>
+			                                    </Children>
+			                                </ButtonWidget>
+			                                <TextWidget WidthSizePolicy="CoverChildren"
+			                                            HeightSizePolicy="StretchToParent"
+			                                            MarginLeft="16"
+			                                            Brush="Clan.TabControl.Text"
+			                                            Brush.FontSize="28"
+			                                            Brush.TextVerticalAlignment="Center"
+			                                            Text="@ShowMapTimeInMissionsText"/>
+			                            </Children>
+			                        </ListPanel>
+			                    </Children>
+			                </ListPanel>
+			            </ItemTemplate>
+			        </ListPanel>
+			    </Children>
+			</ListPanel>
+			<ListPanel DataSource="{BugReportTab}" IsVisible="@IsSelected" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+			           LayoutImp.LayoutMethod="VerticalTopToBottom">
+			    <Children>
+			        <ListPanel DataSource="{Sections}" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+			                   LayoutImp.LayoutMethod="VerticalTopToBottom">
+			            <ItemTemplate>
+			                <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+			                           LayoutImp.LayoutMethod="VerticalTopToBottom">
+			                    <Children>
+			                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="48"
+			                                    Brush="Clan.TabControl.Text" Brush.FontSize="36"
+			                                    Brush.TextHorizontalAlignment="Center" Brush.TextVerticalAlignment="Center"
+			                                    Text="@TitleText"/>
+
+			                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="58"
+			                                    Brush="Clan.TabControl.Text" Brush.FontSize="22" Brush.FontColor="#C9B08BFF"
+			                                    Brush.TextHorizontalAlignment="Center" Brush.TextVerticalAlignment="Center"
+			                                    Text="@DescriptionText"/>
+
+			                        <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="Fixed" SuggestedHeight="64"
+			                                   HorizontalAlignment="Center" LayoutImp.LayoutMethod="HorizontalLeftToRight">
+			                            <Children>
+			                                <ButtonWidget DoNotPassEventsToChildren="true"
+			                                              WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+			                                              SuggestedWidth="40" SuggestedHeight="40"
+			                                              VerticalAlignment="Center"
+			                                              Brush="SPOptions.Checkbox.Empty.Button"
+			                                              ButtonType="Toggle"
+			                                              IsSelected="@ShowBugReportButton"
+			                                              ToggleIndicator="ToggleIndicator"
+			                                              UpdateChildrenStates="true">
+			                                    <Children>
+			                                        <BrushWidget Id="ToggleIndicator"
+			                                                     WidthSizePolicy="StretchToParent"
+			                                                     HeightSizePolicy="StretchToParent"
+			                                                     Brush="SPOptions.Checkbox.Full.Button"/>
+			                                    </Children>
+			                                </ButtonWidget>
+			                                <TextWidget WidthSizePolicy="CoverChildren"
+			                                            HeightSizePolicy="StretchToParent"
+			                                            MarginLeft="16"
+			                                            Brush="Clan.TabControl.Text"
+			                                            Brush.FontSize="28"
+			                                            Brush.TextVerticalAlignment="Center"
+			                                            Text="@ShowBugReportButtonText"/>
+			                            </Children>
+			                        </ListPanel>
+			                    </Children>
+			                </ListPanel>
+			            </ItemTemplate>
+			        </ListPanel>
+			    </Children>
+			</ListPanel>
+			<ListPanel DataSource="{ChatTab}" IsVisible="@IsSelected" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+			           LayoutImp.LayoutMethod="VerticalTopToBottom">
+			    <Children>
+			        <ListPanel DataSource="{Sections}" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+			                   LayoutImp.LayoutMethod="VerticalTopToBottom">
+			            <ItemTemplate>
+			                <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+			                           LayoutImp.LayoutMethod="VerticalTopToBottom">
+			                    <Children>
+			                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="48"
+			                                    Brush="Clan.TabControl.Text" Brush.FontSize="36"
+			                                    Brush.TextHorizontalAlignment="Center" Brush.TextVerticalAlignment="Center"
+			                                    Text="@TitleText"/>
+
+			                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="58"
+			                                    Brush="Clan.TabControl.Text" Brush.FontSize="22" Brush.FontColor="#C9B08BFF"
+			                                    Brush.TextHorizontalAlignment="Center" Brush.TextVerticalAlignment="Center"
+			                                    Text="@DescriptionText"/>
+
+			                        <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="Fixed" SuggestedHeight="64"
+			                                   HorizontalAlignment="Center" LayoutImp.LayoutMethod="HorizontalLeftToRight">
+			                            <Children>
+			                                <ButtonWidget DoNotPassEventsToChildren="true"
+			                                              WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+			                                              SuggestedWidth="40" SuggestedHeight="40"
+			                                              VerticalAlignment="Center"
+			                                              Brush="SPOptions.Checkbox.Empty.Button"
+			                                              ButtonType="Toggle"
+			                                              IsSelected="@ShowChat"
+			                                              ToggleIndicator="ToggleIndicator"
+			                                              UpdateChildrenStates="true">
+			                                    <Children>
+			                                        <BrushWidget Id="ToggleIndicator"
+			                                                     WidthSizePolicy="StretchToParent"
+			                                                     HeightSizePolicy="StretchToParent"
+			                                                     Brush="SPOptions.Checkbox.Full.Button"/>
+			                                    </Children>
+			                                </ButtonWidget>
+			                                <TextWidget WidthSizePolicy="CoverChildren"
+			                                            HeightSizePolicy="StretchToParent"
+			                                            MarginLeft="16"
+			                                            Brush="Clan.TabControl.Text"
+			                                            Brush.FontSize="28"
+			                                            Brush.TextVerticalAlignment="Center"
+			                                            Text="@ShowChatText"/>
+			                            </Children>
+			                        </ListPanel>
+			                    </Children>
+			                </ListPanel>
+			            </ItemTemplate>
+			        </ListPanel>
+			    </Children>
+			</ListPanel>
+			<ListPanel DataSource="{PlayerNameplatesTab}" IsVisible="@IsSelected" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+			           LayoutImp.LayoutMethod="VerticalTopToBottom">
+			    <Children>
+			        <ListPanel DataSource="{Sections}" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+			                   LayoutImp.LayoutMethod="VerticalTopToBottom">
+			            <ItemTemplate>
+			                <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+			                           LayoutImp.LayoutMethod="VerticalTopToBottom">
+			                    <Children>
+			                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="48"
+			                                    Brush="Clan.TabControl.Text" Brush.FontSize="36"
+			                                    Brush.TextHorizontalAlignment="Center" Brush.TextVerticalAlignment="Center"
+			                                    Text="@TitleText"/>
+
+			                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="58"
+			                                    Brush="Clan.TabControl.Text" Brush.FontSize="22" Brush.FontColor="#C9B08BFF"
+			                                    Brush.TextHorizontalAlignment="Center" Brush.TextVerticalAlignment="Center"
+			                                    Text="@DescriptionText"/>
+
+			                        <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="Fixed" SuggestedHeight="64"
+			                                   HorizontalAlignment="Center" LayoutImp.LayoutMethod="HorizontalLeftToRight">
+			                            <Children>
+			                                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="StretchToParent"
+			                                            MarginRight="16" Brush="Clan.TabControl.Text" Brush.FontSize="28"
+			                                            Brush.TextVerticalAlignment="Center" Text="@DisplayModeText"/>
+			                                <Standard.DropdownWithHorizontalControl VerticalAlignment="Center"
+			                                                                        Parameter.SelectorDataSource="{DisplayModeSelector}"/>
+			                            </Children>
+			                        </ListPanel>
+			                    </Children>
+			                </ListPanel>
+			            </ItemTemplate>
+			        </ListPanel>
+			    </Children>
+			</ListPanel>
+			<ListPanel DataSource="{NetworkTab}" IsVisible="@IsSelected" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+			           LayoutImp.LayoutMethod="VerticalTopToBottom">
+			  <Children>
+			    <ListPanel DataSource="{Sections}" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+			               LayoutImp.LayoutMethod="VerticalTopToBottom">
+			      <ItemTemplate>
+			        <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+			                   LayoutImp.LayoutMethod="VerticalTopToBottom">
+			          <Children>
+			            <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="48"
+			                        Brush="Clan.TabControl.Text" Brush.FontSize="36"
+			                        Brush.TextHorizontalAlignment="Center" Brush.TextVerticalAlignment="Center"
+			                        Text="@TitleText"/>
+			            <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="82"
+			                        Brush="Clan.TabControl.Text" Brush.FontSize="22" Brush.FontColor="#C9B08BFF"
+			                        Brush.TextHorizontalAlignment="Center" Brush.TextVerticalAlignment="Center"
+			                        Text="@DescriptionText"/>
+
+			            <ListPanel WidthSizePolicy="Fixed" SuggestedWidth="640" HeightSizePolicy="Fixed" SuggestedHeight="76"
+			                       HorizontalAlignment="Center" LayoutImp.LayoutMethod="HorizontalLeftToRight">
+			              <Children>
+			                <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="320" HeightSizePolicy="StretchToParent"
+			                            Brush="Clan.TabControl.Text" Brush.FontSize="28"
+			                            Brush.TextHorizontalAlignment="Right" Brush.TextVerticalAlignment="Center"
+			                            MarginRight="24" Text="@UploadText"/>
+			                <FloatInputTextWidget WidthSizePolicy="Fixed" SuggestedWidth="180" HeightSizePolicy="Fixed" SuggestedHeight="52"
+			                                      VerticalAlignment="Center" Brush="ScoreboardPanels_2" Brush.AlphaFactor="0.75"
+			                                      Brush.FontSize="28" Brush.TextHorizontalAlignment="Center" Brush.TextVerticalAlignment="Center"
+			                                      FloatText="@MovementUploadMiBPerSecond" MinFloat="0.01" MaxFloat="1024"
+			                                      EnableClamp="true" MaxLength="8"/>
+			                <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="90" HeightSizePolicy="StretchToParent"
+			                            MarginLeft="18" Brush="Clan.TabControl.Text" Brush.FontSize="24"
+			                            Brush.TextVerticalAlignment="Center" Text="@UnitText"/>
+			              </Children>
+			            </ListPanel>
+
+			            <ListPanel WidthSizePolicy="Fixed" SuggestedWidth="640" HeightSizePolicy="Fixed" SuggestedHeight="76"
+			                       HorizontalAlignment="Center" LayoutImp.LayoutMethod="HorizontalLeftToRight">
+			              <Children>
+			                <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="320" HeightSizePolicy="StretchToParent"
+			                            Brush="Clan.TabControl.Text" Brush.FontSize="28"
+			                            Brush.TextHorizontalAlignment="Right" Brush.TextVerticalAlignment="Center"
+			                            MarginRight="24" Text="@DownloadText"/>
+			                <FloatInputTextWidget WidthSizePolicy="Fixed" SuggestedWidth="180" HeightSizePolicy="Fixed" SuggestedHeight="52"
+			                                      VerticalAlignment="Center" Brush="ScoreboardPanels_2" Brush.AlphaFactor="0.75"
+			                                      Brush.FontSize="28" Brush.TextHorizontalAlignment="Center" Brush.TextVerticalAlignment="Center"
+			                                      FloatText="@MovementDownloadMiBPerSecond" MinFloat="0.01" MaxFloat="1024"
+			                                      EnableClamp="true" MaxLength="8"/>
+			                <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="90" HeightSizePolicy="StretchToParent"
+			                            MarginLeft="18" Brush="Clan.TabControl.Text" Brush.FontSize="24"
+			                            Brush.TextVerticalAlignment="Center" Text="@UnitText"/>
+			              </Children>
+			            </ListPanel>
+			          </Children>
+			        </ListPanel>
+			      </ItemTemplate>
+			    </ListPanel>
+			  </Children>
+			</ListPanel>
+
+            <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                       HorizontalAlignment="Center" MarginTop="36"
+                       LayoutImp.LayoutMethod="HorizontalLeftToRight">
+              <Children>
+                <Standard.Button Brush="Standard.BackButton" HorizontalAlignment="Center" SuggestedWidth="128"
+                                 Command.Click="ActionCancel" SuggestedHeight="64" MarginRight="24"/>
+                <Standard.Button HorizontalAlignment="Center" SuggestedWidth="156" IsVisible="@IsApplyButtonVisible"
+                                 Command.Click="ActionApply" Parameter.Text="@ApplyButtonText" SuggestedHeight="64"/>
+              </Children>
+            </ListPanel>
+          </Children>
+        </ListPanel>
+		  
+		<!-- Bottom-right community links (mirrors the connect screen). Lifted higher than the connect
+            screen so the lowest button clears the campaign map's bottom HUD/toolbar. -->
+		<TextWidget WidthSizePolicy="Fixed" SuggestedWidth="256" HeightSizePolicy="Fixed" SuggestedHeight="64"
+					VerticalAlignment="Bottom" HorizontalAlignment="Right" PositionYOffset="-320" PositionXOffset="-6"
+					Brush="ScoreboardPanels_2" Text="@CommunityText"/>
+
+		<ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+					HorizontalAlignment="Right" VerticalAlignment="Bottom" MarginBottom="110"
+					StackLayout.LayoutMethod="HorizontalLeftToRight">
+			<Children>
+				<Standard.Button HorizontalAlignment="Left" VerticalAlignment="Bottom"
+								Command.Click="ActionDiscord" Parameter.Text="@DiscordButtonText" PositionXOffset="-20"/>
+			</Children>
+		</ListPanel>
+
+		<ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+					HorizontalAlignment="Right" VerticalAlignment="Bottom" MarginBottom="160"
+					StackLayout.LayoutMethod="HorizontalLeftToRight">
+			<Children>
+				<Standard.Button HorizontalAlignment="Left" VerticalAlignment="Bottom"
+								Command.Click="ActionPatreon" Parameter.Text="@PatreonButtonText" PositionXOffset="-20"/>
+			</Children>
+		</ListPanel>
+
+		<ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+					HorizontalAlignment="Right" VerticalAlignment="Bottom" MarginBottom="210"
+					StackLayout.LayoutMethod="HorizontalLeftToRight">
+			<Children>
+				<Standard.Button HorizontalAlignment="Left" VerticalAlignment="Bottom"
+								Command.Click="ActionDonate" Parameter.Text="@DonateButtonText" PositionXOffset="-20"/>
+			</Children>
+		</ListPanel>
+
+		<ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+					HorizontalAlignment="Right" VerticalAlignment="Bottom" MarginBottom="260"
+					StackLayout.LayoutMethod="HorizontalLeftToRight">
+			<Children>
+				<Standard.Button HorizontalAlignment="Left" VerticalAlignment="Bottom"
+								Command.Click="ActionCredits" Parameter.Text="@CreditsButtonText" PositionXOffset="-20"/>
+			</Children>
+		</ListPanel>
+      </Children>
+    </Widget>
+  </Window>
+</Prefab>
