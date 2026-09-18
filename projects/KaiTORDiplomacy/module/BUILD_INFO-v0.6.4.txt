@@ -10,3 +10,10 @@ CI audit run: 35321847996 (PASS)
 CI source head: 0f9d4ef0deebe4a7a331d37ca2dba56f7bec5be2
 Master merge: 80447e20dedfa43b2db63fbbaa1af929f91a3ad4
 Live-test status: REQUIRED; see TEST-v0.6.4-RU.md
+
+Gauntlet UI source head: a240a9493dccd73b033098460736bf6b790912c6
+Gauntlet UI CI run: 35328117257 (PASS)
+Gauntlet UI artifact: 10539946769
+Master merge commit: d1c6ced8ddba6154047a0c41cce8a6519fb59bb6
+Co-op isolation: PASS; separate movie/layer/namespace/module/localization prefixes
+Dawi live-test placement: explicit EnterSettlementAction + name/clan/settlement response
