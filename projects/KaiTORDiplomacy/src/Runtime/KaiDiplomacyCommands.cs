@@ -80,6 +80,23 @@ public static class KaiDiplomacyCommands
             : $"KaiTOR world marriages ({pairs.Length}):\n" + string.Join("\n", pairs);
     }
 
+    [CommandLineFunctionality.CommandLineArgumentFunction("family_rules", "kaitor_diplomacy")]
+    public static string FamilyRules(List<string> arguments)
+    {
+        if (arguments.Count != 0) return "Usage: kaitor_diplomacy.family_rules";
+
+        var lines = new List<string>
+        {
+            "KaiTOR lore family rules:",
+            "TOR native marriage model: globally disabled; KaiTOR wrapper: ACTIVE."
+        };
+        lines.AddRange(KaiRaceLifecycle.DescribeRules());
+        lines.Add($"Dawi automatic women population: {(KaiDawiWomenBehavior.AutomaticPopulationEnabled ? "ON" : "OFF")}");
+        lines.Add("NPC marriage: same culture + same FaceGen race; no upper marriage-age cap.");
+        lines.Add("Pregnancy: opposite sex + same FaceGen race + lore biology gate.");
+        return C(string.Join("\n", lines));
+    }
+
     [CommandLineFunctionality.CommandLineArgumentFunction("racial_status", "kaitor_diplomacy")]
     public static string RacialStatus(List<string> arguments)
     {
