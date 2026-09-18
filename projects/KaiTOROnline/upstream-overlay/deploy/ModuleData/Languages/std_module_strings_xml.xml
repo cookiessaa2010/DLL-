@@ -144,5 +144,32 @@
     <string id="kaitor_enable" text="Enable"/>
     <string id="kaitor_bug_submitted" text="[Bug Report] Submitted to the server. Collecting consenting client logs."/>
     <string id="kaitor_fast_forward_disabled" text="Fast forwarding is disabled during cooperative battles."/>
+    <string id="kaitor_connected_wait" text="Connected! Please wait for transfer."/>
+    <string id="kaitor_incorrect_password" text="The server password is incorrect."/>
+    <string id="kaitor_server_rejected" text="The server rejected the connection."/>
+    <string id="kaitor_connecting" text="Connecting..."/>
+    <string id="kaitor_retrying_connection" text="Retrying connection to server..."/>
+    <string id="kaitor_validation_timeout" text="Timed out waiting for the server to validate the connection.&#10;The server may be running an incompatible version of the mod."/>
+    <string id="kaitor_incompatible_build_unknown" text="Incompatible co-op mod build. This client uses '{CLIENT_VERSION}', but the server did not report an exact build. Update KaiTOR Co-op on both sides."/>
+    <string id="kaitor_incompatible_build" text="Incompatible co-op mod build. This client uses '{CLIENT_VERSION}', but the server uses '{SERVER_VERSION}'. Update KaiTOR Co-op on both sides."/>
+    <string id="kaitor_module_validation_failed" text="Module validation failed!&#10;Reason: {REASON}"/>
+    <string id="kaitor_character_creation_failed" text="Failed to start character creation."/>
+    <string id="kaitor_client_stopped" text="Client has been stopped."/>
+    <string id="kaitor_server_full" text="KaiTOR Co-op server is full (4/4 players)."/>
+    <string id="kaitor_invalid_player_identity" text="KaiTOR Co-op rejected the connection because the player identity is invalid."/>
+    <string id="kaitor_start_refused" text="Another co-op session is still starting; try joining again shortly."/>
+    <string id="kaitor_return_main_host" text="Return to the main menu to host a co-op session."/>
+    <string id="kaitor_invalid_visibility" text="Choose a valid server visibility setting."/>
+    <string id="kaitor_hosted_server_running" text="A hosted co-op server is still running; close its standalone server window before hosting again."/>
+    <string id="kaitor_server_process_failed" text="Could not start the co-op server process."/>
+    <string id="kaitor_host_client_failed" text="Could not start the co-op client; the standalone server remains open until you close it."/>
+    <string id="kaitor_host_start_timeout" text="The co-op server did not finish starting. Check that the save loads in singleplayer. The standalone server remains open until you close it."/>
+    <string id="kaitor_starting_server" text="Starting the co-op server; you will join it automatically once it is up."/>
+    <string id="kaitor_server_closed_early" text="The co-op server closed before the session could start."/>
+    <string id="kaitor_server_requires_password" text="This server requires a password."/>
+    <string id="kaitor_steam_tunnel_failed" text="Could not set up the Steam connection to the host, and the host has not shared a public address to fall back to."/>
+    <string id="kaitor_advertised_address_failed" text="Could not connect to the advertised address '{ADDRESS}:{PORT}'."/>
+    <string id="kaitor_already_in_session" text="Already in a co-op session; leave it before joining another."/>
+    <string id="kaitor_return_main_join" text="Return to the main menu to join a co-op session."/>
   </strings>
 </base>
