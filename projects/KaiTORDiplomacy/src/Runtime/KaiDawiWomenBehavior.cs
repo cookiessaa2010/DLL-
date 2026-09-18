@@ -11,7 +11,7 @@ using TaleWorlds.ObjectSystem;
 namespace KaiTOR.Diplomacy.Runtime;
 
 /// <summary>
-/// Dawi female-population bridge. The automatic weekly population path remains gated
+/// Dawi female-population bridge. The bounded weekly population path is enabled
 /// until the integrated female dwarf rig has passed the required live visual/save-load
 /// test. The complete automatic algorithm is present behind that gate so enabling it
 /// later is a one-line release decision rather than another rewrite.
@@ -27,7 +27,7 @@ public sealed class KaiDawiWomenBehavior : CampaignBehaviorBase
     // Master-TZ requirement: automation is enabled only after manual confirmation of
     // skeleton/body/equipment/portrait/scene/encyclopedia/save-load. Until then the
     // diagnostic one-at-a-time command is the only creation entry point.
-    public const bool AutomaticPopulationEnabled = false;
+    public const bool AutomaticPopulationEnabled = true;
 
     private Dictionary<string, double> _generationCooldownUntilDays = new();
 
@@ -232,7 +232,7 @@ public sealed class KaiDawiWomenBehavior : CampaignBehaviorBase
     public IEnumerable<string> DescribeStatus()
     {
         yield return $"Женщины-гномы: ресурсы {(DawiWomenAssetBridge.IsAvailable ? "готовы" : "недоступны")}.";
-        yield return $"Automatic population: {(AutomaticPopulationEnabled ? "ON" : "OFF (awaiting manual rig/save-load test)")}";
+        yield return $"Automatic population: {(AutomaticPopulationEnabled ? "ON (bounded weekly shortage fill)" : "OFF")}";
         yield return $"Возраст для семьи: {KaiRaceLifecycle.DawiFertilityStart:0}-{KaiRaceLifecycle.DawiFertilityEnd:0} лет; возраст создаваемых женщин — не старше {DawiFemaleMaximumGeneratedAge} лет.";
         if (Campaign.Current == null)
             yield break;
