@@ -55,44 +55,35 @@ internal static class TorFamilySafety
         if (firstHero?.CharacterObject == null || secondHero?.CharacterObject == null)
             return false;
 
-        // Social same-sex marriages are deliberately childless in the biological
-        // pipeline. Family growth for them is handled through adoption instead.
+        // Social marriage and biological reproduction are separate. Same-sex couples
+        // remain valid social families where KaiTOR allows them, but Bannerlord's
+        // offspring generator requires one female and one male parent.
         if (firstHero.IsFemale == secondHero.IsFemale)
             return false;
 
         // Bannerlord 1.3.x DeliverOffSpring asserts that both parents use the same
-        // CharacterObject.Race. Never allow the vanilla pregnancy pipeline to reach
-        // that method for a cross-race marriage.
+        // CharacterObject.Race. Cross-race social marriages are therefore childless.
         if (firstHero.CharacterObject.Race != secondHero.CharacterObject.Race)
             return false;
 
-        // Greenskins reproduce through the off-screen spore lifecycle, never through
-        // Bannerlord pregnancy.
-        if (IsCulture(firstHero, "aserai") || IsCulture(secondHero, "aserai"))
+        // Central lore biology gate:
+        // - living humans/mortals: biological pregnancy
+        // - Dawi: biological pregnancy with the female-Dawi asset chain
+        // - elves: biological pregnancy
+        // - vampires: no pregnancy; Blood Kiss is their reproductive route
+        // - Greenskins: no pregnancy; spores are their reproductive route
+        // - ordinary undead: no biological reproduction
+        if (!KaiRaceLifecycle.CanUseBiologicalPregnancy(firstHero) ||
+            !KaiRaceLifecycle.CanUseBiologicalPregnancy(secondHero))
             return false;
 
-        // Dawi use normal same-race family mechanics only when the complete optional
-        // female-Dawi asset chain is actually registered.
-        if (IsCulture(firstHero, "sturgia") || IsCulture(secondHero, "sturgia"))
+        // Dawi can only enter Bannerlord's offspring generator when both parents are
+        // actual dwarf race and the complete female-Dawi assets are registered.
+        if (KaiRaceLifecycle.IsDawi(firstHero) || KaiRaceLifecycle.IsDawi(secondHero))
         {
             if (!DawiWomenAssetBridge.IsSupportedDawiPair(firstHero, secondHero))
                 return false;
         }
-
-        // TOR's canonical vampire test is race-based. Keep these heroes completely out
-        // of Bannerlord's biological pregnancy pipeline.
-        if (IsVampire(firstHero) || IsVampire(secondHero))
-            return false;
-
-        if (TryInvokeFlag(IsUndeadMethod, firstHero, out var firstUndead) && firstUndead)
-            return false;
-        if (TryInvokeFlag(IsUndeadMethod, secondHero, out var secondUndead) && secondUndead)
-            return false;
-
-        // If TOR's vampire helper is unavailable, fail closed for its vampire cultures.
-        // This fallback is used only when the method itself cannot be resolved.
-        if (IsVampireMethod == null && (IsVampireCulture(firstHero) || IsVampireCulture(secondHero)))
-            return false;
 
         return true;
     }
