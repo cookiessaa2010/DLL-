@@ -324,6 +324,8 @@ public static class KaiDiplomacyCommands
                $"cooldown={behavior.GetNapCooldownRemainingDays(first, second)} day(s).";
     }
 
+    private static string C(string value) => KaiConsoleText.Safe(value);
+
     private const string DisabledMessage =
         "KaiTOR Diplomacy runtime is disabled by the TOR compatibility gate.";
 
