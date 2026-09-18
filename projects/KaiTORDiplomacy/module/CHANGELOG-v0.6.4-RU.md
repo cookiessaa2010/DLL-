@@ -118,3 +118,11 @@ LIVE TEST PASSED ставится только после проверки в р
   - `kaitor_diplomacy.live_test_snapshot`
   - `kaitor_diplomacy.live_test_path`
   - `kaitor_diplomacy.live_test_mark <текст>`
+
+
+## LiveFix-1
+- После выбора члена рода / другого дома / кандидата брачное меню принудительно пересчитывается, поэтому следующие шаги больше не остаются серыми из-за stale GameMenu state.
+- Крашевый bound-список держав в Gauntlet удалён. Выбор державы теперь идёт через нативный MultiSelectionInquiry, а основной KaiTOR Gauntlet dashboard сохранён.
+- Удалены из основного movie ScrollablePanel / NavigatableListPanel / ItemTemplate / custom ScrollbarWidget, которые были локализованы как область native Access Violation.
+- В RGL console добавлена ASCII-safe транслитерация, диагностические команды возвращают читаемый текст и StringId вместо кириллических имён там, где это возможно.
+- Добавлена команда `kaitor_diplomacy.help`.
