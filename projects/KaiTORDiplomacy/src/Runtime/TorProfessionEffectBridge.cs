@@ -172,6 +172,7 @@ internal static class TorProfessionEffectBridge
                     AddTorPerk(hero, "Spellcraft", "EntrySpells");
                     SetCareerSafe(hero, "Necromancer");
                     AddReligion(hero, "cult_of_nagash", 25);
+                    ApplyUndeadFaithTransition(hero, 25);
                     break;
 
                 case "option_3_dw_shield_breaker":
@@ -193,6 +194,7 @@ internal static class TorProfessionEffectBridge
                     break;
                 case "option_3_mousillon_knight_errant":
                     SetCareerSafe(hero, "BlackGrailKnight");
+                    ApplyBlackGrailFaithTransition(hero);
                     break;
                 case "option_3_we_waywatcher":
                 case "option_3_eo_ghost_strider":
@@ -268,6 +270,8 @@ internal static class TorProfessionEffectBridge
             // several TOR career setup implementations reference Hero.MainHero.
             hero.CharacterObject.Race = vampireRace;
             SetCareerSafe(hero, "MinorVampire");
+            ApplyVampireCasterIdentity(hero, false);
+            ApplyUndeadFaithTransition(hero, 25);
             return hero.CharacterObject.Race == vampireRace &&
                    string.Equals(GetCurrentCareerId(hero), GetCareerStringId("MinorVampire"), StringComparison.Ordinal);
         }
@@ -357,11 +361,15 @@ internal static class TorProfessionEffectBridge
                 SetSkillFloor(hero, "Spellcraft", 25);
                 AddTorPerk(hero, "Spellcraft", "EntrySpells");
                 SetCareerSafe(hero, "MinorVampire");
+                ApplyVampireCasterIdentity(hero, false);
+                ApplyUndeadFaithTransition(hero, 25);
                 break;
             case "bloodline_blood_dragon":
             case "bloodline_blood_dragon_mous":
                 SetRace(hero, "vampire");
                 SetCareerSafe(hero, "BloodKnight");
+                ApplyBloodKnightIdentity(hero);
+                ApplyUndeadFaithTransition(hero, 25);
                 break;
             case "bloodline_necrarch":
             case "bloodline_necrarch_mous":
@@ -373,6 +381,8 @@ internal static class TorProfessionEffectBridge
                 SetSkillFloor(hero, "Spellcraft", 25);
                 AddTorPerk(hero, "Spellcraft", "EntrySpells");
                 SetCareerSafe(hero, "Necrarch");
+                ApplyVampireCasterIdentity(hero, true);
+                ApplyUndeadFaithTransition(hero, 25);
                 break;
 
             case "knight_blazing_sun": AddReligion(hero, "cult_of_myrmidia", 30); break;
@@ -389,6 +399,94 @@ internal static class TorProfessionEffectBridge
             case "lore_of_life": AddLore(hero, "LoreOfLife"); AddAbility(hero, "DrainLife"); break;
             // knight_panthers / knight_reiksguard have only spawn effects in TOR CC.
         }
+    }
+
+    private static void ApplyVampireCasterIdentity(Hero hero, bool necrarch)
+    {
+        SetRace(hero, necrarch ? "necrarch" : "vampire");
+        AddAttribute(hero, "Necromancer");
+        AddAttribute(hero, "SpellCaster");
+        SetSkillFloor(hero, "Spellcraft", 25);
+        AddLore(hero, "Necromancy");
+        AddAbility(hero, "SummonSkeleton");
+        AddLore(hero, "MinorMagic");
+        AddAbility(hero, "Dart");
+    }
+
+    private static void ApplyBloodKnightIdentity(Hero hero)
+    {
+        SetRace(hero, "vampire");
+        AddAttribute(hero, "Necromancer");
+        RemoveAttribute(hero, "SpellCaster");
+        SetSkillExact(hero, "Spellcraft", 0);
+        RemoveAllKnownLores(hero);
+        RemoveAllSpells(hero);
+    }
+
+    private static void ApplyUndeadFaithTransition(Hero hero, int nagashBonus)
+    {
+        foreach (var religion in EnumerateReligions())
+        {
+            var pantheon = religion?.GetType().GetProperty("Pantheon", BindingFlags.Public | BindingFlags.Instance)?.GetValue(religion);
+            if (pantheon != null && string.Equals(pantheon.ToString(), "Human", StringComparison.OrdinalIgnoreCase))
+                InvokeReligiousInfluence(hero, religion, -100);
+        }
+
+        if (nagashBonus != 0)
+            AddReligion(hero, "cult_of_nagash", nagashBonus);
+    }
+
+    private static void ApplyBlackGrailFaithTransition(Hero hero)
+    {
+        AddReligion(hero, "cult_of_lady", -100);
+        AddReligion(hero, "cult_of_nagash", 25);
+    }
+
+    private static IEnumerable EnumerateReligions()
+    {
+        var all = _religionObject.GetProperty("All", BindingFlags.Public | BindingFlags.Static)?.GetValue(null) as IEnumerable;
+        return all ?? Array.Empty<object>();
+    }
+
+    private static void InvokeReligiousInfluence(Hero hero, object religion, int amount)
+    {
+        if (hero == null || religion == null || amount == 0) return;
+        var method = _heroExtensions.GetMethods(BindingFlags.Public | BindingFlags.Static)
+            .FirstOrDefault(m => m.Name == "AddReligiousInfluence" && m.GetParameters().Length == 4 && m.GetParameters()[0].ParameterType == typeof(Hero));
+        if (method == null) throw new MissingMethodException("HeroExtensions.AddReligiousInfluence");
+        method.Invoke(null, new[] { (object)hero, religion, amount, false });
+    }
+
+    private static void RemoveAllKnownLores(Hero hero)
+    {
+        var info = GetExtendedInfo(hero);
+        if (info == null) return;
+
+        var loreType = _torAssembly.GetType("TOR_Core.AbilitySystem.Spells.LoreObject");
+        var getAll = loreType?.GetMethod("GetAll", BindingFlags.Public | BindingFlags.Static);
+        var all = getAll?.Invoke(null, null) as IEnumerable;
+        var remove = info.GetType().GetMethod("RemoveKnownLore", BindingFlags.Public | BindingFlags.Instance, null, new[] { typeof(string) }, null);
+        if (all == null || remove == null) return;
+
+        foreach (var lore in all)
+        {
+            var id = lore?.GetType().GetProperty("StringId", BindingFlags.Public | BindingFlags.Instance)?.GetValue(lore) as string;
+            if (!string.IsNullOrWhiteSpace(id))
+                remove.Invoke(info, new object[] { id });
+        }
+    }
+
+    private static void RemoveAllSpells(Hero hero)
+    {
+        var info = GetExtendedInfo(hero);
+        info?.GetType().GetMethod("RemoveAllSpells", BindingFlags.Public | BindingFlags.Instance)?.Invoke(info, null);
+    }
+
+    private static void SetSkillExact(Hero hero, string property, int value)
+    {
+        var skill = GetStaticMember(_torSkills, property) as SkillObject;
+        if (skill == null) throw new InvalidOperationException("TOR skill missing: " + property);
+        hero.HeroDeveloper.SetInitialSkillLevel(skill, Math.Max(0, value));
     }
 
     private static void SetCareerSafe(Hero hero, string careerProperty)
@@ -415,6 +513,7 @@ internal static class TorProfessionEffectBridge
     }
 
     private static void AddAttribute(Hero hero, string value) => InvokeHeroExtension("AddAttribute", hero, value);
+    private static void RemoveAttribute(Hero hero, string value) => InvokeHeroExtension("RemoveAttribute", hero, value);
     private static void AddAbility(Hero hero, string value) => InvokeHeroExtension("AddAbility", hero, value);
     private static void AddLore(Hero hero, string value) => InvokeHeroExtension("AddKnownLore", hero, value);
 
@@ -448,20 +547,14 @@ internal static class TorProfessionEffectBridge
 
     private static void AddReligion(Hero hero, string religionId, int amount)
     {
-        var all = _religionObject.GetProperty("All", BindingFlags.Public | BindingFlags.Static)?.GetValue(null) as IEnumerable;
-        if (all == null) throw new InvalidOperationException("ReligionObject.All missing");
         object religion = null;
-        foreach (var item in all)
+        foreach (var item in EnumerateReligions())
         {
             var id = item?.GetType().GetProperty("StringId", BindingFlags.Public | BindingFlags.Instance)?.GetValue(item) as string;
             if (string.Equals(id, religionId, StringComparison.Ordinal)) { religion = item; break; }
         }
         if (religion == null) throw new InvalidOperationException("Religion missing: " + religionId);
-
-        var method = _heroExtensions.GetMethods(BindingFlags.Public | BindingFlags.Static)
-            .FirstOrDefault(m => m.Name == "AddReligiousInfluence" && m.GetParameters().Length == 4 && m.GetParameters()[0].ParameterType == typeof(Hero));
-        if (method == null) throw new MissingMethodException("HeroExtensions.AddReligiousInfluence");
-        method.Invoke(null, new[] { (object)hero, religion, amount, false });
+        InvokeReligiousInfluence(hero, religion, amount);
     }
 
     private static object GetExtendedInfo(Hero hero)
