@@ -3,6 +3,7 @@ using System.Linq;
 using KaiTOR.Diplomacy.Decisions;
 using KaiTOR.Diplomacy.Runtime;
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.Core;
 using TaleWorlds.Library;
 
 namespace KaiTOR.Diplomacy.UI;
@@ -19,7 +20,6 @@ public sealed class KaiTORDiplomacyVM : ViewModel, IDisposable
 
     public KaiTORDiplomacyVM()
     {
-        Kingdoms = new MBBindingList<KaiDiplomacyKingdomItemVM>();
         Refresh();
     }
 
@@ -37,6 +37,7 @@ public sealed class KaiTORDiplomacyVM : ViewModel, IDisposable
     [DataSourceProperty] public string RefreshText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_refresh", "Refresh");
     [DataSourceProperty] public string CloseText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_close", "Close");
     [DataSourceProperty] public string SelectKingdomHeaderText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_select_kingdom", "Select a realm");
+    [DataSourceProperty] public string ChooseRealmText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_choose_realm", "Choose realm");
     [DataSourceProperty] public string ProposeNapText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_propose_nap", "Propose non-aggression pact");
     [DataSourceProperty] public string BreakNapText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_break_nap", "Propose ending pact");
     [DataSourceProperty] public string DurationButtonText => KaiTORDiplomacyUiText.Format(
@@ -52,9 +53,6 @@ public sealed class KaiTORDiplomacyVM : ViewModel, IDisposable
     [DataSourceProperty] public string PopulationHeaderText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_population_header", "Realm systems");
     [DataSourceProperty] public string CultureHeaderText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_culture_header", "Settlement");
     [DataSourceProperty] public string ResultHeaderText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_result_header", "Latest action");
-
-    [DataSourceProperty]
-    public MBBindingList<KaiDiplomacyKingdomItemVM> Kingdoms { get; }
 
     [DataSourceProperty]
     public bool IsOverviewVisible => _selectedTab == 0;
@@ -229,6 +227,82 @@ public sealed class KaiTORDiplomacyVM : ViewModel, IDisposable
         ActionResultText = KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_refreshed", "KaiTOR status refreshed.");
     }
 
+    public void ActionChooseRealm()
+    {
+        if (_disposed) return;
+
+        var source = Clan.PlayerClan?.Kingdom;
+        var diplomacy = Campaign.Current?.GetCampaignBehavior<KaiDiplomacyBehavior>();
+        if (source == null || diplomacy == null || !diplomacy.RuntimeEnabled)
+        {
+            ActionResultText = KaiTORDiplomacyUiText.Get(
+                "kaitor_diplomacy_ui_diplomacy_unavailable",
+                "KaiTOR diplomacy is currently unavailable.");
+            return;
+        }
+
+        var elements = Kingdom.All
+            .Where(k => k != null && !k.IsEliminated && k != source)
+            .OrderBy(k => k.Name?.ToString() ?? string.Empty, StringComparer.Ordinal)
+            .Select(k =>
+            {
+                var active = diplomacy.IsNonAggressionPactActive(source, k);
+                var status = active
+                    ? KaiTORDiplomacyUiText.Format(
+                        "kaitor_diplomacy_ui_list_pact_active",
+                        "Pact: {DAYS} days",
+                        ("DAYS", diplomacy.GetRemainingDays(source, k)))
+                    : KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_list_no_pact", "No pact");
+
+                var trust = KaiTORDiplomacyUiText.Format(
+                    "kaitor_diplomacy_ui_trust",
+                    "Trust: {TRUST}",
+                    ("TRUST", diplomacy.GetTrust(source, k)));
+
+                return new InquiryElement(
+                    k,
+                    k.Name.ToString(),
+                    null,
+                    true,
+                    status + " | " + trust);
+            })
+            .ToList();
+
+        if (elements.Count == 0)
+        {
+            ActionResultText = KaiTORDiplomacyUiText.Get(
+                "kaitor_diplomacy_ui_no_realms",
+                "No other active realms are available.");
+            return;
+        }
+
+        MBInformationManager.ShowMultiSelectionInquiry(
+            new MultiSelectionInquiryData(
+                KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_select_kingdom", "Select a realm"),
+                KaiTORDiplomacyUiText.Get(
+                    "kaitor_diplomacy_ui_select_kingdom_hint",
+                    "Choose the realm you want to inspect or negotiate with."),
+                elements,
+                true,
+                1,
+                1,
+                KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_choose_realm", "Choose realm"),
+                KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_cancel", "Cancel"),
+                selected =>
+                {
+                    if (selected.Count == 0 || selected[0].Identifier is not Kingdom kingdom)
+                        return;
+
+                    _selectedKingdom = kingdom;
+                    KaiRuntimeLog.Write("GAUNTLET_REALM_SELECTED", $"kingdom={kingdom.StringId}");
+                    OnPropertyChanged(nameof(SelectedKingdomText));
+                    NotifyActionAvailability();
+                },
+                null),
+            true,
+            true);
+    }
+
     public void ActionCycleDuration()
     {
         if (_disposed) return;
@@ -354,80 +428,15 @@ public sealed class KaiTORDiplomacyVM : ViewModel, IDisposable
     {
         if (_disposed) return;
         _disposed = true;
-        Kingdoms.Clear();
     }
 
     private void Refresh()
     {
-        RefreshKingdoms();
-        NotifySummaryProperties();
-        NotifyActionAvailability();
-    }
-
-    private void RefreshKingdoms()
-    {
-        var previousId = _selectedKingdom?.StringId;
-        Kingdoms.Clear();
-
-        var source = Clan.PlayerClan?.Kingdom;
-        var diplomacy = Campaign.Current?.GetCampaignBehavior<KaiDiplomacyBehavior>();
-        if (source == null)
-        {
+        if (_selectedKingdom != null &&
+            (_selectedKingdom.IsEliminated || _selectedKingdom == Clan.PlayerClan?.Kingdom))
             _selectedKingdom = null;
-            OnPropertyChanged(nameof(SelectedKingdomText));
-            return;
-        }
 
-        foreach (var kingdom in Kingdom.All
-                     .Where(k => k != null && !k.IsEliminated && k != source)
-                     .OrderBy(k => k.Name?.ToString() ?? string.Empty, StringComparer.Ordinal))
-        {
-            var active = diplomacy?.IsNonAggressionPactActive(source, kingdom) == true;
-            var status = active
-                ? KaiTORDiplomacyUiText.Format(
-                    "kaitor_diplomacy_ui_list_pact_active",
-                    "Pact: {DAYS} days",
-                    ("DAYS", diplomacy.GetRemainingDays(source, kingdom)))
-                : KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_list_no_pact", "No pact");
-
-            var trust = diplomacy == null
-                ? KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_trust_unavailable", "Trust: unavailable")
-                : KaiTORDiplomacyUiText.Format(
-                    "kaitor_diplomacy_ui_trust",
-                    "Trust: {TRUST}",
-                    ("TRUST", diplomacy.GetTrust(source, kingdom)));
-
-            var item = new KaiDiplomacyKingdomItemVM(
-                kingdom,
-                status,
-                trust,
-                string.Equals(previousId, kingdom.StringId, StringComparison.Ordinal),
-                SelectKingdom);
-
-            Kingdoms.Add(item);
-        }
-
-        _selectedKingdom = Kingdoms.FirstOrDefault(x => x.IsSelected)?.Kingdom;
-        if (_selectedKingdom == null && Kingdoms.Count > 0)
-        {
-            Kingdoms[0].IsSelected = true;
-            _selectedKingdom = Kingdoms[0].Kingdom;
-        }
-
-        OnPropertyChanged(nameof(SelectedKingdomText));
-    }
-
-    private void SelectKingdom(KaiDiplomacyKingdomItemVM item)
-    {
-        if (_disposed || item?.Kingdom == null) return;
-
-        foreach (var current in Kingdoms)
-            current.IsSelected = ReferenceEquals(current, item);
-
-        _selectedKingdom = item.Kingdom;
-        KaiRuntimeLog.Write("GAUNTLET_REALM_SELECTED", $"kingdom={_selectedKingdom.StringId}");
-
-        OnPropertyChanged(nameof(SelectedKingdomText));
+        NotifySummaryProperties();
         NotifyActionAvailability();
     }
 
