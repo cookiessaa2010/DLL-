@@ -610,58 +610,18 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
             return;
         }
 
-        try
-        {
-            var member = _selectedHouseMember;
-            var target = _selectedTargetHero;
-            var targetLeader = _selectedTargetClan.Leader;
+        var member = _selectedHouseMember;
+        var target = _selectedTargetHero;
+        var targetClan = _selectedTargetClan;
 
-            // Match Bannerlord's native arranged-marriage flow. The romantic state is
-            // only the negotiation marker; the actual marriage is applied by the native
-            // MarriageBarterable after the player accepts a balanced barter.
-            var current = Romance.GetRomanticLevel(member, target);
-            if (current < Romance.RomanceLevelEnum.MatchMadeByFamily)
-                ChangeRomanticStateAction.Apply(member, target, Romance.RomanceLevelEnum.MatchMadeByFamily);
+        // Return to the settlement menu before opening native barter. The shared bridge
+        // is also used by incoming AI proposals and political marriages so all three
+        // frontends exercise exactly the same MarriageBarterable -> MarriageAction path.
+        var returnMenu = string.IsNullOrWhiteSpace(_returnMenuId) ? "town" : _returnMenuId;
+        GameMenu.SwitchToMenu(returnMenu);
 
-            var marriageBarterable = new MarriageBarterable(
-                Hero.MainHero,
-                PartyBase.MainParty,
-                member,
-                target);
-
-            var otherParty = targetLeader.PartyBelongedTo?.Party;
-            KaiRuntimeLog.Write(
-                "MARRIAGE_BARTER_BEGIN",
-                $"member={member.StringId}; target={target.StringId}; leader={targetLeader.StringId}; targetClan={_selectedTargetClan.StringId}");
-
-            // Return to the settlement menu before opening barter. This avoids leaving
-            // the custom family submenu underneath the barter screen.
-            var returnMenu = string.IsNullOrWhiteSpace(_returnMenuId) ? "town" : _returnMenuId;
-            GameMenu.SwitchToMenu(returnMenu);
-
-            BarterManager.Instance.StartBarterOffer(
-                Hero.MainHero,
-                targetLeader,
-                PartyBase.MainParty,
-                otherParty,
-                null,
-                (barterable, data, _) =>
-                    BarterManager.Instance.InitializeMarriageBarterContext(
-                        barterable,
-                        data,
-                        new Tuple<Hero, Hero>(member, target)),
-                0,
-                false,
-                new Barterable[] { marriageBarterable });
-        }
-        catch (Exception ex)
-        {
-            KaiRuntimeLog.Exception(
-                "MARRIAGE_FAILED",
-                ex,
-                $"stage=start_barter; member={_selectedHouseMember?.StringId ?? "none"}; target={_selectedTargetHero?.StringId ?? "none"}");
-            ShowQuick("Брачные переговоры не удалось начать. Причина записана в журнал.");
-        }
+        if (!KaiMarriageBarterBridge.TryStart(member, target, targetClan, out reason))
+            ShowQuick(reason);
     }
 
     private static IEnumerable<Hero> GetMarriageHouseMembers()
