@@ -272,6 +272,44 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
     public int GetNapCooldownRemainingDays(Kingdom first, Kingdom second)
         => first == null || second == null ? 0 : GetCooldownRemainingDays(TreatyKey.For(first, second));
 
+    /// <summary>
+    /// Additive hook for systems such as Dynastic Bond. It modifies the same trust
+    /// dictionary used by NAP; no parallel diplomacy state is created.
+    /// </summary>
+    public void AdjustTrust(Kingdom first, Kingdom second, int delta)
+    {
+        if (!_runtimeEnabled || first == null || second == null || first == second || delta == 0)
+            return;
+        ChangeTrust(TreatyKey.For(first, second), delta);
+    }
+
+    /// <summary>
+    /// Reuses the existing NAP backend for a treaty granted by another accepted
+    /// contract. If a pact already exists, it is only extended when necessary.
+    /// </summary>
+    public bool EnsureNonAggressionPactAtLeast(Kingdom first, Kingdom second, int durationDays, out string reason)
+    {
+        reason = string.Empty;
+        if (!_runtimeEnabled || first == null || second == null || durationDays < 1)
+        {
+            reason = "Пакт сейчас недоступен.";
+            return false;
+        }
+
+        var key = TreatyKey.For(first, second);
+        ReconcilePair(key);
+        if (IsNonAggressionPactActive(first, second))
+        {
+            var requestedExpiry = CampaignTime.Now.ToDays + durationDays;
+            if (_nonAggressionExpiryDays.TryGetValue(key, out var currentExpiry) && currentExpiry < requestedExpiry)
+                _nonAggressionExpiryDays[key] = requestedExpiry;
+            reason = $"Действующий пакт сохранён как минимум на {durationDays} дней.";
+            return true;
+        }
+
+        return TryCreateNonAggressionPact(first, second, durationDays, out reason);
+    }
+
     public string DescribeSaveCompatibility()
     {
         var status = _saveSchemaCompatible ? "PASS" : "BLOCKED";
