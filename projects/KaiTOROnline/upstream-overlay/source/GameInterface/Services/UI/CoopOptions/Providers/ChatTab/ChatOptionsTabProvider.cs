@@ -20,7 +20,7 @@ public class ChatOptionsTabProvider : ICoopOptionsTabProvider
     {
         return new CoopOptionsTabVM(
             Id,
-            GameInterface.Services.UI.KaiTORUiText.Get("kaitor_chat", TabName),
+            global::GameInterface.Services.UI.KaiTORUiText.Get("kaitor_chat", TabName),
             new CoopOptionsSectionVM[]
             {
                 new ChatSection(GetShowChatOrDefault(options), messageBroker)
