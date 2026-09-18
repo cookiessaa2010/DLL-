@@ -10,9 +10,10 @@ namespace KaiTOR.Diplomacy.Models;
 
 /// <summary>
 /// Biological decorator over the active TOR/Bannerlord pregnancy model.
-/// Humans keep the underlying model unchanged. Dawi and long-lived elves use the exact
-/// Bannerlord 1.3.15 chance structure with a race-normalized biological age, so calendar
-/// age can no longer incorrectly cut them off at 45.
+/// Ordinary mortal humans keep the active Bannerlord/TOR pregnancy model. Dawi and
+/// long-lived elves use the Bannerlord 1.3.15 chance structure with a race-normalized
+/// biological age and no vanilla upper-age cutoff. Vampires, ordinary undead and
+/// Greenskins are routed out by the central lore biology gate.
 /// </summary>
 public sealed class KaiPregnancyModel : PregnancyModel
 {
