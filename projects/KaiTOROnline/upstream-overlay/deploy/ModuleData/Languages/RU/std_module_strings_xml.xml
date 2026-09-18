@@ -171,5 +171,10 @@
     <string id="kaitor_advertised_address_failed" text="Не удалось подключиться к объявленному адресу '{ADDRESS}:{PORT}'."/>
     <string id="kaitor_already_in_session" text="Кооперативная сессия уже активна. Выйдите из неё перед подключением к другой."/>
     <string id="kaitor_return_main_join" text="Вернитесь в главное меню, чтобы подключиться к кооперативной сессии."/>
+    <string id="kaitor_required_module" text="Отсутствует обязательный модуль '{MODULE}' версии '{VERSION}'."/>
+    <string id="kaitor_wrong_module_version" text="Неверная версия модуля '{MODULE}'. Сервер: '{SERVER_VERSION}', клиент: '{CLIENT_VERSION}'."/>
+    <string id="kaitor_unsupported_client_module" text="Сервер не поддерживает клиентский модуль '{MODULE}'."/>
+    <string id="kaitor_dlc_not_supported" text="DLC не поддерживаются. Отключите: {MODULES}."/>
+    <string id="kaitor_wrong_game_version" text="Неверная версия игры. Сервер: '{SERVER_VERSION}', клиент: '{CLIENT_VERSION}'."/>
   </strings>
 </base>
