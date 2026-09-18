@@ -54,7 +54,8 @@ jobs:
             'KaiGreenskinPopulationBehavior.cs',
             'KaiDynasticMarriageBehavior.cs',
             'KaiIncomingMarriageProposalBehavior.cs',
-            'KaiDiplomacyConversationBehavior.cs'
+            'KaiDiplomacyConversationBehavior.cs',
+            'KaiDiplomacyHubBehavior.cs'
           )
           foreach ($name in $required) {
             if (-not (Test-Path -LiteralPath (Join-Path $runtime $name) -PathType Leaf)) {
@@ -116,6 +117,96 @@ jobs:
             }
           }
 
+          # Diplomacy UI must remain technically isolated from KaiTOR Co-op.
+          $uiRoot = Join-Path $src 'UI'
+          foreach ($uiFile in @(
+            'KaiTORDiplomacyScreen.cs',
+            'KaiTORDiplomacyVM.cs',
+            'KaiDiplomacyKingdomItemVM.cs',
+            'KaiTORDiplomacyUiText.cs'
+          )) {
+            if (-not (Test-Path -LiteralPath (Join-Path $uiRoot $uiFile) -PathType Leaf)) {
+              throw "Missing diplomacy Gauntlet UI source: $uiFile"
+            }
+          }
+
+          $moviePath = Join-Path $root 'module/GUI/Prefabs/KaiTORDiplomacyHubUIMovie.xml'
+          if (-not (Test-Path -LiteralPath $moviePath -PathType Leaf)) {
+            throw 'Missing KaiTORDiplomacyHubUIMovie.xml.'
+          }
+          [xml]$movieXml = Get-Content $moviePath -Raw
+          $movieRaw = Get-Content $moviePath -Raw
+          if ($movieRaw -notmatch 'KaiTORDiplomacyRoot') { throw 'Diplomacy movie root id missing.' }
+          if ($movieRaw -match 'CoopConnectionUIMovie|CoopOptionsUIMovie|GameInterface\.Services\.UI') {
+            throw 'Diplomacy movie/source collides with KaiTOR Co-op UI identifiers.'
+          }
+
+          $allDiplomacyUiText = @(
+            Get-ChildItem $uiRoot -File -Filter '*.cs'
+            Get-Item (Join-Path $runtime 'KaiDiplomacyHubBehavior.cs')
+            Get-Item (Join-Path $src 'SubModule.cs')
+            Get-Item $moviePath
+          ) | ForEach-Object { Get-Content $_.FullName -Raw } | Out-String
+
+          foreach ($forbidden in @(
+            'CoopConnectionUIMovie',
+            'CoopOptionsUIMovie',
+            'namespace GameInterface.Services.UI',
+            'Modules/Coop',
+            'Modules\\Coop'
+          )) {
+            if ($allDiplomacyUiText.Contains($forbidden)) {
+              throw "KaiTOR Co-op UI collision token found in Diplomacy: $forbidden"
+            }
+          }
+
+          $screen = Get-Content (Join-Path $uiRoot 'KaiTORDiplomacyScreen.cs') -Raw
+          if ($screen -notmatch 'MovieName\s*=\s*"KaiTORDiplomacyHubUIMovie"') {
+            throw 'Diplomacy Gauntlet movie name contract changed.'
+          }
+          if ($screen -notmatch 'LayerName\s*=\s*"KaiTORDiplomacyLayer"') {
+            throw 'Diplomacy Gauntlet layer name contract changed.'
+          }
+
+          $langRoot = Join-Path $root 'module/ModuleData/Languages'
+          $enLang = Join-Path $langRoot 'std_module_strings_xml.xml'
+          $ruLang = Join-Path $langRoot 'RU/std_module_strings_xml.xml'
+          $ruData = Join-Path $langRoot 'RU/language_data.xml'
+          foreach ($langFile in @($enLang, $ruLang, $ruData)) {
+            if (-not (Test-Path -LiteralPath $langFile -PathType Leaf)) {
+              throw "Missing Diplomacy localization file: $langFile"
+            }
+            [xml](Get-Content $langFile -Raw) | Out-Null
+          }
+
+          [xml]$enXml = Get-Content $enLang -Raw
+          [xml]$ruXml = Get-Content $ruLang -Raw
+          $enIds = @($enXml.base.strings.string | ForEach-Object { [string]$_.id })
+          $ruIds = @($ruXml.base.strings.string | ForEach-Object { [string]$_.id })
+          if ($enIds.Count -eq 0) { throw 'Diplomacy EN localization is empty.' }
+          foreach ($id in $enIds) {
+            if ($id -notmatch '^kaitor_diplomacy_ui_') {
+              throw "Diplomacy localization id is outside isolated prefix: $id"
+            }
+            if ($ruIds -notcontains $id) {
+              throw "RU localization missing id: $id"
+            }
+          }
+          foreach ($id in $ruIds) {
+            if ($enIds -notcontains $id) {
+              throw "EN localization missing id: $id"
+            }
+          }
+
+          $subModuleId = [regex]::Match($module, '<Id value="([^"]+)"').Groups[1].Value
+          if ($subModuleId -ne 'KaiTOR_Diplomacy') {
+            throw "Diplomacy module id collided or changed: $subModuleId"
+          }
+          if ($subModuleCs -notmatch 'kaitor\.diplomacy\.kingdom-ui') {
+            throw 'Dedicated Diplomacy Harmony id missing.'
+          }
+
+          Write-Host "KaiTOR Diplomacy/Co-op UI isolation contract: PASS"
           Write-Host "KaiTOR v0.6.4 compile + safety contracts: PASS"
 
       - name: Assemble test module
