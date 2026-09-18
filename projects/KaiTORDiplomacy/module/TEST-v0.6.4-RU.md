@@ -157,3 +157,14 @@
 - [ ] Save пишет `SAVE_STARTED` и `SAVE_OVER success=True`; после него автоматически идёт snapshot.
 - [ ] После reload есть `GAME_LOADED` и новый snapshot с теми же persistent состояниями.
 - [ ] В конце выполнить `kaitor_diplomacy.live_test_snapshot` и передать один файл `KaiTOR-LiveTest.log`.
+
+
+## LiveFix-1 acceptance
+- [ ] `kaitor_diplomacy.help` читаемо отображается в RGL console без `????`.
+- [ ] `kaitor_diplomacy.dawi_status` читаем (ASCII/translit) без сломанной кириллицы.
+- [ ] Выбрать члена рода -> кнопка «Выбрать другой дом» сразу становится активной.
+- [ ] Выбрать дом -> кнопка «Выбрать кандидата» сразу становится активной.
+- [ ] Выбрать кандидата -> обычные/династические переговоры получают корректный enabled-state.
+- [ ] KaiTOR Gauntlet dashboard открывается без native crash.
+- [ ] Все 4 вкладки переключаются.
+- [ ] Во вкладке «Дипломатия» кнопка выбора державы открывает нативный список; после выбора обновляются NAP/trust/breach/cooldown.
