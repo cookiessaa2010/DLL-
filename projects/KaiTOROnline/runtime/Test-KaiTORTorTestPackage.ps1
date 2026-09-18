@@ -140,6 +140,37 @@ foreach ($needle in @('START_KAITOR_COOP.bat','coop.debug.kaitor.snapshot4p','D 
     if ($readmeRu -notlike "*$needle*") { throw "Russian quick start missing: $needle" }
 }
 
+# Parse the tester-facing launcher without executing it. This catches packaging/encoding/syntax
+# failures before the archive is published while keeping CI headless.
+$launcherPath = Join-Path $root 'Runtime/KaiTOR-Coop-Launcher.ps1'
+$launcherTokens = $null
+$launcherErrors = $null
+[System.Management.Automation.Language.Parser]::ParseFile(
+    $launcherPath,
+    [ref]$launcherTokens,
+    [ref]$launcherErrors) | Out-Null
+if (@($launcherErrors).Count -gt 0) {
+    $launcherErrors | ForEach-Object { Write-Host "Launcher parse error: $($_.Message)" }
+    throw 'KaiTOR-Coop-Launcher.ps1 contains PowerShell syntax errors.'
+}
+$launcherText = Get-Content -LiteralPath $launcherPath -Raw -Encoding UTF8
+foreach ($needle in @(
+    'KaiTOR Co-op — Панель сервера',
+    'KaiTOR Co-op - Server Control',
+    'Start-KaiTORTorCampaignServer.ps1',
+    'Test-KaiTORTorLiveReadiness.ps1',
+    '4200 UDP'
+)) {
+    if ($launcherText -notlike "*$needle*") {
+        throw "KaiTOR server panel missing required RU/EN/runtime marker: $needle"
+    }
+}
+
+$rootBat = Get-Content -LiteralPath (Join-Path $root 'START_KAITOR_COOP.bat') -Raw
+if ($rootBat -notmatch 'KaiTOR-Coop-Launcher\.ps1') {
+    throw 'START_KAITOR_COOP.bat does not launch the server control panel.'
+}
+
 $contract = Get-Content -LiteralPath (Join-Path $root 'Runtime/TOR_RUNTIME_CONTRACT.txt') -Raw
 $contractChecks = @(
     'Bannerlord 1.3.15.110062',
