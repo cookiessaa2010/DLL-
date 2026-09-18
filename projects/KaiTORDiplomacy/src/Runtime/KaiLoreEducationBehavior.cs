@@ -29,12 +29,14 @@ public sealed class KaiLoreEducationBehavior : CampaignBehaviorBase
     private const string StageChoicesKey = "kaitor_lore_education_stage_choices_v1";
     private const string SpecializationKey = "kaitor_lore_education_specialization_v1";
     private const string CareerAppliedKey = "kaitor_lore_education_career_applied_v1";
+    private const string Stage2PendingKey = "kaitor_lore_education_stage2_pending_v1";
 
     private Dictionary<string, int> _completedMasks = new();
     private Dictionary<string, string> _professionChoices = new();
     private Dictionary<string, string> _stageChoices = new();
     private Dictionary<string, string> _specializationChoices = new();
     private Dictionary<string, bool> _careerApplied = new();
+    private Dictionary<string, string> _pendingStage2Effects = new();
 
     private List<LoreOption> _options = new();
     private List<SpecializationOption> _specializations = new();
@@ -56,12 +58,14 @@ public sealed class KaiLoreEducationBehavior : CampaignBehaviorBase
         dataStore.SyncData(StageChoicesKey, ref _stageChoices);
         dataStore.SyncData(SpecializationKey, ref _specializationChoices);
         dataStore.SyncData(CareerAppliedKey, ref _careerApplied);
+        dataStore.SyncData(Stage2PendingKey, ref _pendingStage2Effects);
 
         _completedMasks ??= new Dictionary<string, int>();
         _professionChoices ??= new Dictionary<string, string>();
         _stageChoices ??= new Dictionary<string, string>();
         _specializationChoices ??= new Dictionary<string, string>();
         _careerApplied ??= new Dictionary<string, bool>();
+        _pendingStage2Effects ??= new Dictionary<string, string>();
     }
 
     private void OnSessionLaunched(CampaignGameStarter starter)
@@ -87,6 +91,8 @@ public sealed class KaiLoreEducationBehavior : CampaignBehaviorBase
     {
         if (!_loaded) LoadTorOptions();
         if (!_loaded || Campaign.Current == null) return;
+
+        RetryPendingStage2Effects();
 
         // Player UI is serialized one popup at a time. Specialization is deliberately
         // offered on a later tick after profession selection, never Inquiry->Inquiry.
@@ -281,8 +287,16 @@ public sealed class KaiLoreEducationBehavior : CampaignBehaviorBase
             ApplyNarrativeBonus(child, option);
             _stageChoices[StageKey(child, stage)] = option.Id;
 
-            if (stage == 2 && !TorProfessionEffectBridge.ApplyStage2Effect(child, option.Id, out var stageError))
-                KaiRuntimeLog.Write("CAREER_EFFECT_FAIL", $"hero={child.StringId}; stage=2; option={option.Id}; error={stageError}");
+            if (stage == 2)
+            {
+                if (TorProfessionEffectBridge.ApplyStage2Effect(child, option.Id, out var stageError))
+                    _pendingStage2Effects.Remove(child.StringId);
+                else
+                {
+                    _pendingStage2Effects[child.StringId] = option.Id;
+                    KaiRuntimeLog.Write("CAREER_EFFECT_FAIL", $"hero={child.StringId}; stage=2; option={option.Id}; error={stageError}; retry=pending");
+                }
+            }
 
             if (stage == 3)
                 _professionChoices[child.StringId] = option.Id;
@@ -293,6 +307,37 @@ public sealed class KaiLoreEducationBehavior : CampaignBehaviorBase
         catch (Exception ex)
         {
             KaiRuntimeLog.Exception("CAREER_EFFECT_FAIL", ex, $"hero={child?.StringId ?? "null"}; stage={stage}; option={option?.Id ?? "null"}");
+        }
+    }
+
+    private void RetryPendingStage2Effects()
+    {
+        if (_pendingStage2Effects == null || _pendingStage2Effects.Count == 0)
+            return;
+
+        foreach (var pair in _pendingStage2Effects.ToArray())
+        {
+            var hero = Hero.AllAliveHeroes.FirstOrDefault(h =>
+                h != null &&
+                h.IsAlive &&
+                h.IsActive &&
+                string.Equals(h.StringId, pair.Key, StringComparison.Ordinal));
+
+            if (hero == null)
+            {
+                _pendingStage2Effects.Remove(pair.Key);
+                continue;
+            }
+
+            if (TorProfessionEffectBridge.ApplyStage2Effect(hero, pair.Value, out var error))
+            {
+                _pendingStage2Effects.Remove(pair.Key);
+                KaiRuntimeLog.Write("CAREER_EFFECT_REPAIRED", $"hero={hero.StringId}; stage=2; option={pair.Value}");
+            }
+            else
+            {
+                KaiRuntimeLog.Write("CAREER_EFFECT_FAIL", $"hero={hero.StringId}; stage=2; option={pair.Value}; error={error}; retry=pending");
+            }
         }
     }
 
