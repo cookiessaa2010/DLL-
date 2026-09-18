@@ -126,3 +126,21 @@
 - [ ] `kaitor_diplomacy.ui_status` показывает состояние UI behaviors.
 - [ ] `kaitor_diplomacy.ui_family` принудительно открывает «Семейные дела».
 - [ ] При невозможности открыть нативный council UI нет бесшумного клика: появляется fallback-сообщение.
+
+
+## Gauntlet UI / anti-collision live-test
+- [ ] В городе, town_outside и замке видна кнопка «KaiTOR: Дипломатия и династия».
+- [ ] Кнопка открывает именно `KaiTORDiplomacyHubUIMovie`, а не Co-op movie.
+- [ ] Co-op main menu / Join / Options продолжают открывать `CoopConnectionUIMovie` и `CoopOptionsUIMovie` без изменений.
+- [ ] Переключаются вкладки Обзор / Дипломатия / Семья / Держава и население.
+- [ ] Список держав скроллится; выбор обновляет NAP/trust/breach/cooldown.
+- [ ] Срок NAP циклически меняется 30 → 60 → 90 → 180 → 30.
+- [ ] «Предложить пакт» создаёт council decision, а не прямой договор.
+- [ ] При активном NAP кнопка разрыва создаёт council decision.
+- [ ] «Открыть семейные дела» закрывает Gauntlet screen и открывает Family Affairs без мёртвого клика.
+- [ ] «Сменить народность» закрывает screen и открывает существующий culture dialog.
+- [ ] Dawi live-test из вкладки населения показывает имя + клан + поселение.
+- [ ] Созданная Dawi-женщина реально присутствует в HeroesWithoutParty указанного поселения.
+- [ ] После save/load Dawi-женщина, NAP, династические связи и UI runtime продолжают работать.
+- [ ] `kaitor_diplomacy.ui_status` показывает `KaiTORDiplomacyHubUIMovie` и `KaiTORDiplomacyLayer`.
+- [ ] В логах нет обращений Diplomacy к `CoopConnectionUIMovie`, `CoopOptionsUIMovie` или `GameInterface.Services.UI`.

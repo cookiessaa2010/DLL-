@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using KaiTOR.Diplomacy.Models;
+using KaiTOR.Diplomacy.UI;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.Library;
 
@@ -137,6 +138,8 @@ public static class KaiDiplomacyCommands
         return string.Join("\n", new[]
         {
             KaiFamilyAffairsBehavior.DescribeUiStatus(),
+            $"GauntletMovie={KaiTORDiplomacyScreen.MovieName}",
+            $"GauntletLayer={KaiTORDiplomacyScreen.LayerName}",
             $"FamilyAffairsBehavior={(family != null ? "OK" : "MISSING")}",
             $"DiplomacyBehavior={(diplomacy != null ? (diplomacy.RuntimeEnabled ? "OK" : "BLOCKED") : "MISSING")}",
             $"CultureAssimilationBehavior={(culture != null ? "OK" : "MISSING")}",

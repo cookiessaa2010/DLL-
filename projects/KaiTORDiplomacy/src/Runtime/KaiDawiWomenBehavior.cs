@@ -78,8 +78,8 @@ public sealed class KaiDawiWomenBehavior : CampaignBehaviorBase
             if (settlement == null)
                 continue;
 
-            if (TryCreateDawiWoman(clan, settlement))
-                return $"Создана одна женщина-гном для клана {clan.Name} в поселении {settlement.Name}. Проверьте портрет, тело, экипировку и анимации, затем сохраните и загрузите игру.";
+            if (TryCreateDawiWoman(clan, settlement, out var createdHero))
+                return $"Создана {createdHero.Name} — женщина-гном клана {clan.Name}. Сейчас она находится в поселении {settlement.Name}. Найдите её через энциклопедию клана или список персонажей поселения, проверьте портрет, тело, экипировку и анимации, затем сохраните и загрузите игру.";
         }
 
         return "Не найден подходящий клан гномов с безопасным поселением для тестового появления.";
@@ -114,14 +114,15 @@ public sealed class KaiDawiWomenBehavior : CampaignBehaviorBase
             return;
         }
 
-        if (!TryCreateDawiWoman(clan, settlement))
+        if (!TryCreateDawiWoman(clan, settlement, out _))
             return;
 
         _generationCooldownUntilDays[clan.StringId] = now + GenerationCooldownDays;
     }
 
-    private static bool TryCreateDawiWoman(Clan clan, Settlement settlement)
+    private static bool TryCreateDawiWoman(Clan clan, Settlement settlement, out Hero createdHero)
     {
+        createdHero = null;
         try
         {
             var manager = MBObjectManager.Instance;
@@ -168,10 +169,24 @@ public sealed class KaiDawiWomenBehavior : CampaignBehaviorBase
             if (!hero.IsLord)
                 hero.SetNewOccupation(Occupation.Lord);
 
-            var success = hero.IsAlive && hero.IsLord && hero.Clan == clan && KaiRaceLifecycle.IsDawi(hero);
+            if (settlement != null && !settlement.HeroesWithoutParty.Contains(hero))
+                EnterSettlementAction.ApplyForCharacterOnly(hero, settlement);
+
+            var placedInSettlement = settlement != null && settlement.HeroesWithoutParty.Contains(hero);
+            var success = hero.IsAlive &&
+                          hero.IsLord &&
+                          hero.Clan == clan &&
+                          KaiRaceLifecycle.IsDawi(hero) &&
+                          placedInSettlement;
+
+            if (success)
+                createdHero = hero;
+            else if (hero.IsAlive)
+                KillCharacterAction.ApplyByRemove(hero);
+
             KaiRuntimeLog.Write(
                 success ? "DAWI_WOMAN_CREATE" : "DAWI_WOMAN_FAIL",
-                $"clan={clan.StringId}; hero={hero.StringId}; age={hero.Age:0.0}; settlement={settlement?.StringId ?? "null"}; success={success}");
+                $"clan={clan.StringId}; hero={hero.StringId}; name={hero.Name}; age={hero.Age:0.0}; settlement={settlement?.StringId ?? "null"}; placed={placedInSettlement}; success={success}");
             return success;
         }
         catch (Exception ex)

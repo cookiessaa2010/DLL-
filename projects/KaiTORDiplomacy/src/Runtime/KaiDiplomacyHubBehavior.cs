@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using KaiTOR.Diplomacy.Decisions;
+using KaiTOR.Diplomacy.UI;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.GameMenus;
 using TaleWorlds.CampaignSystem.Settlements;
@@ -148,9 +149,9 @@ public sealed class KaiDiplomacyHubBehavior : CampaignBehaviorBase
         starter.AddGameMenuOption(
             menuId,
             optionId,
-            "Управление державой KaiTOR",
+            "KaiTOR: Дипломатия и династия",
             EntryCondition,
-            _ => OpenHub(),
+            _ => OpenPrimaryUi(),
             false,
             index);
     }
@@ -161,9 +162,8 @@ public sealed class KaiDiplomacyHubBehavior : CampaignBehaviorBase
         if (Hero.MainHero == null || Clan.PlayerClan == null)
             return false;
 
-        args.IsEnabled = Clan.PlayerClan.Kingdom != null && !Clan.PlayerClan.IsUnderMercenaryService;
-        if (!args.IsEnabled)
-            args.Tooltip = new TextObject("Для межгосударственного управления ваш клан должен входить в державу и не состоять на наёмной службе.");
+        args.IsEnabled = true;
+        args.Tooltip = new TextObject("Дипломатия, семейные дела, династия и население KaiTOR.");
         return true;
     }
 
@@ -291,13 +291,34 @@ public sealed class KaiDiplomacyHubBehavior : CampaignBehaviorBase
         return true;
     }
 
-    private static void OpenHub()
+    private static void OpenPrimaryUi()
     {
         var current = Campaign.Current?.CurrentMenuContext?.GameMenu?.StringId;
         if (!string.IsNullOrWhiteSpace(current) && !string.Equals(current, HubMenuId, StringComparison.Ordinal))
             _returnMenuId = current;
 
-        TrySwitch(HubMenuId, "hub_entry");
+        if (KaiTORDiplomacyScreen.TryOpen())
+        {
+            KaiRuntimeLog.Write("UI_PRIMARY_OPEN", $"screen={KaiTORDiplomacyScreen.MovieName}; return={_returnMenuId}");
+            return;
+        }
+
+        KaiRuntimeLog.Write("UI_PRIMARY_FALLBACK", $"return={_returnMenuId}");
+        TrySwitch(HubMenuId, "hub_entry_fallback");
+    }
+
+    public static string OpenHubFromExternalUi()
+    {
+        if (Campaign.Current == null)
+            return "Кампания не запущена.";
+
+        var current = Campaign.Current.CurrentMenuContext?.GameMenu?.StringId;
+        if (!string.IsNullOrWhiteSpace(current) && !string.Equals(current, HubMenuId, StringComparison.Ordinal))
+            _returnMenuId = current;
+
+        return TrySwitch(HubMenuId, "external_ui_fallback")
+            ? "Классическое меню KaiTOR открыто."
+            : "Не удалось открыть классическое меню KaiTOR.";
     }
 
     private static void ReturnToPreviousMenu()

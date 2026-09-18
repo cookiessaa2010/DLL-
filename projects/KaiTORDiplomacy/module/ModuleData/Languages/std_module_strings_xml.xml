@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<base type="string">
+  <tags>
+    <tag language="English"/>
+  </tags>
+  <strings>
+    <string id="kaitor_diplomacy_ui_title" text="KaiTOR Diplomacy"/>
+    <string id="kaitor_diplomacy_ui_subtitle" text="Houses, treaties and the fate of your realm."/>
+    <string id="kaitor_diplomacy_ui_tab_overview" text="Overview"/>
+    <string id="kaitor_diplomacy_ui_tab_diplomacy" text="Diplomacy"/>
+    <string id="kaitor_diplomacy_ui_tab_family" text="Family"/>
+    <string id="kaitor_diplomacy_ui_tab_population" text="Realm &amp; Population"/>
+    <string id="kaitor_diplomacy_ui_refresh" text="Refresh"/>
+    <string id="kaitor_diplomacy_ui_close" text="Close"/>
+    <string id="kaitor_diplomacy_ui_select_kingdom" text="Select a realm"/>
+    <string id="kaitor_diplomacy_ui_propose_nap" text="Propose non-aggression pact"/>
+    <string id="kaitor_diplomacy_ui_break_nap" text="Propose ending pact"/>
+    <string id="kaitor_diplomacy_ui_duration" text="Duration: {DAYS} days"/>
+    <string id="kaitor_diplomacy_ui_open_family" text="Open family affairs"/>
+    <string id="kaitor_diplomacy_ui_open_culture" text="Change settlement nationality"/>
+    <string id="kaitor_diplomacy_ui_dawi_test" text="Spawn one Dawi woman for live test"/>
+    <string id="kaitor_diplomacy_ui_fallback" text="Open classic KaiTOR menu"/>
+    <string id="kaitor_diplomacy_ui_selected_realm" text="Selected realm"/>
+    <string id="kaitor_diplomacy_ui_family_header" text="House and dynasty"/>
+    <string id="kaitor_diplomacy_ui_population_header" text="Realm systems"/>
+    <string id="kaitor_diplomacy_ui_culture_header" text="Settlement"/>
+    <string id="kaitor_diplomacy_ui_result_header" text="Latest action"/>
+    <string id="kaitor_diplomacy_ui_no_campaign" text="Campaign data is not available."/>
+    <string id="kaitor_diplomacy_ui_no_realm" text="No realm"/>
+    <string id="kaitor_diplomacy_ui_overview_format" text="House: {CLAN}&#10;Realm: {REALM}&#10;Influence: {INFLUENCE}&#10;Treasury: {GOLD}&#10;Active non-aggression pacts: {PACTS}"/>
+    <string id="kaitor_diplomacy_ui_no_kingdom_selected" text="No realm selected."/>
+    <string id="kaitor_diplomacy_ui_pact_active" text="Pact active: {DAYS} days remaining"/>
+    <string id="kaitor_diplomacy_ui_pact_none" text="No active pact"/>
+    <string id="kaitor_diplomacy_ui_selected_kingdom_format" text="{REALM}&#10;{PACT}&#10;Trust: {TRUST}&#10;Breaches: {BREACHES}&#10;Cooldown: {COOLDOWN} days"/>
+    <string id="kaitor_diplomacy_ui_none" text="None"/>
+    <string id="kaitor_diplomacy_ui_family_format" text="Spouse: {SPOUSE}&#10;Living children and adopted heirs: {CHILDREN}&#10;Married heirs: {MARRIED}"/>
+    <string id="kaitor_diplomacy_ui_population_format" text="Dawi women module: {DAWI}&#10;Dawi automatic population: {DAWI_AUTO}&#10;Vampire population: {VAMPIRE}&#10;Greenskin population: {GREEN}&#10;AI realm-house growth: {HOUSES}"/>
+    <string id="kaitor_diplomacy_ui_no_settlement" text="No settlement is currently open."/>
+    <string id="kaitor_diplomacy_ui_culture_format" text="Settlement: {SETTLEMENT}&#10;Owner: {OWNER}&#10;Current nationality: {CULTURE}"/>
+    <string id="kaitor_diplomacy_ui_refreshed" text="KaiTOR status refreshed."/>
+    <string id="kaitor_diplomacy_ui_already_considering" text="The council is already considering a pact with {REALM}."/>
+    <string id="kaitor_diplomacy_ui_nap_submitted" text="A {DAYS}-day non-aggression pact with {REALM} was submitted to the council."/>
+    <string id="kaitor_diplomacy_ui_break_already_considering" text="The council is already considering ending the pact with {REALM}."/>
+    <string id="kaitor_diplomacy_ui_break_submitted" text="Ending the pact with {REALM} was submitted to the council."/>
+    <string id="kaitor_diplomacy_ui_dawi_unavailable" text="The Dawi women module is not loaded."/>
+    <string id="kaitor_diplomacy_ui_list_pact_active" text="Pact: {DAYS} days"/>
+    <string id="kaitor_diplomacy_ui_list_no_pact" text="No pact"/>
+    <string id="kaitor_diplomacy_ui_trust_unavailable" text="Trust: unavailable"/>
+    <string id="kaitor_diplomacy_ui_trust" text="Trust: {TRUST}"/>
+    <string id="kaitor_diplomacy_ui_diplomacy_unavailable" text="KaiTOR diplomacy is currently unavailable."/>
+    <string id="kaitor_diplomacy_ui_realm_not_ready" text="{REALM} is not ready to accept this proposal."/>
+    <string id="kaitor_diplomacy_ui_influence_required" text="{INFLUENCE} influence is required."/>
+    <string id="kaitor_diplomacy_ui_no_active_pact" text="There is no active non-aggression pact with the selected realm."/>
+    <string id="kaitor_diplomacy_ui_yes" text="Yes"/>
+    <string id="kaitor_diplomacy_ui_no" text="No"/>
+  </strings>
+</base>

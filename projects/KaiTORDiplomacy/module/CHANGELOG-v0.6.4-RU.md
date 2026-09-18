@@ -91,3 +91,15 @@ LIVE TEST PASSED ставится только после проверки в р
 - Переходы семейного UI теперь логируются через UI_NAV_BEGIN/UI_NAV_OK/UI_NAV_FAILED; при ошибке игрок получает видимое сообщение вместо «мёртвого клика».
 - Добавлены команды `kaitor_diplomacy.ui_status` и `kaitor_diplomacy.ui_family`.
 - Если приватный `KingdomDiplomacyVM._forceDecision` недоступен, игрок получает явное сообщение, а уже созданное решение остаётся доступно в списке решений королевства.
+
+
+## Полноценный Gauntlet UI
+- Добавлен собственный экран `KaiTORDiplomacyHubUIMovie` на отдельном layer `KaiTORDiplomacyLayer`.
+- Основная кнопка в городе/замке теперь открывает Gauntlet dashboard; старый GameMenu-hub остаётся fallback.
+- Вкладки: Обзор / Дипломатия / Семья / Держава и население.
+- В Diplomacy tab: список держав, доверие, NAP status, выбор срока 30/60/90/180, внесение NAP и разрыва на совет.
+- Family tab показывает дом/супруга/наследников и открывает стабильный Family Affairs workflow.
+- Realm & Population tab показывает Dawi/Vampire/Greenskin/Realm House status, даёт Dawi live-test и переход к смене народности.
+- RU/ENG localization добавлена отдельным набором `kaitor_diplomacy_ui_*`.
+- UI технически изолирован от KaiTOR Co-op: отдельные movie/layer/namespace/module/localization prefixes; CI содержит collision guard.
+- `dawi_spawn_test` теперь возвращает имя созданной дворфийки и явно помещает её в указанное безопасное поселение.

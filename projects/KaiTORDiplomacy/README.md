@@ -1,76 +1,126 @@
-# KaiTOR Diplomacy
+# KaiTOR Diplomacy & Dawi — v0.6.4 FULL-Test
 
-## v0.6.4 FULL-Test build
+Target:
+- Mount & Blade II: Bannerlord 1.3.15.110062
+- The Old Realms 1.3.15
+- Module id: `KaiTOR_Diplomacy`
 
-This branch is the unified v0.6.4 test line for Bannerlord 1.3.15.110062 / The Old Realms 1.3.15. It combines diplomacy, family/lifecycle, realm-house, TOR children, Blood Kiss, bounded racial population, and political-layer work. Live-test certification remains separate from compile/package validation.
+This module is additive around The Old Realms. TOR keeps ownership of its war/peace/alliance/trade rules and lore restrictions; KaiTOR adds non-aggression pacts, family and dynastic workflows, race-aware family simulation, settlement nationality conversion, bounded racial population systems and safe realm-house growth.
 
-Compatibility/diplomacy module for The Old Realms 1.3.15 and Mount & Blade II: Bannerlord 1.3.15.110062.
+## RU — что входит
 
-## v0.4.5 live-test scope
+### Полноценный UI
+- основной экран: `KaiTORDiplomacyHubUIMovie`;
+- отдельный Gauntlet layer: `KaiTORDiplomacyLayer`;
+- вкладки: Обзор / Дипломатия / Семья / Держава и население;
+- список держав с доверием и состоянием NAP;
+- выбор срока 30/60/90/180 дней;
+- предложение NAP и предложение разрыва из собственного UI;
+- переход в семейные дела;
+- переход к смене народности поселения;
+- Dawi live-test из UI;
+- классический GameMenu-hub сохранён как fallback;
+- если нативный Kingdom UI не может открыть совет через reflection, игрок получает видимое сообщение вместо «мёртвого клика».
 
-The module remains additive around TOR's diplomacy stack. It keeps TOR ownership of war, peace, alliance, trade and kingdom-decision rules, while selectively restoring Bannerlord's standard marriage flow through a wrapper over the exact `TOR_Core.Models.TORMarriageModel`.
+### Изоляция от KaiTOR Co-op
+Diplomacy и Co-op технически разделены:
+- Co-op module id: `Coop`;
+- Diplomacy module id: `KaiTOR_Diplomacy`;
+- Co-op movies: `CoopConnectionUIMovie`, `CoopOptionsUIMovie`;
+- Diplomacy movie: `KaiTORDiplomacyHubUIMovie`;
+- Co-op namespace: `GameInterface.Services.UI`;
+- Diplomacy namespace: `KaiTOR.Diplomacy.UI`;
+- Diplomacy localization ids: только `kaitor_diplomacy_ui_*`;
+- Diplomacy Harmony id: `kaitor.diplomacy.kingdom-ui`;
+- CI валит сборку при обнаружении Co-op UI identifiers внутри Diplomacy.
 
-Implemented in the live branch:
+### Дипломатия
+- NAP с сохранением срока, доверия, нарушений и cooldown;
+- 30/60/90/180 дней через UI;
+- council decision для предложения/разрыва;
+- блок обычного объявления войны при активном NAP через permission wrapper;
+- штрафы доверия/отношений за досрочный разрыв и нарушение войной;
+- AI -> Player NAP;
+- AI -> AI NAP;
+- диалоговый frontend с правителем;
+- native kingdom-screen action остаётся дополнительной точкой входа.
 
-- non-aggression pacts with trust/breach/cooldown persistence;
-- native Russian in-game diplomacy menu;
-- TOR `town_outside` entry for `Дипломатия`;
-- TOR `town_outside` entry for `Сменить народность поселения`;
-- full settlement nationality/culture conversion through the existing TOR service bridge;
-- AI ruler recruitment of existing noble clans through native `JoinKingdomAsClanBarterable`;
-- standard Bannerlord marriage/courtship/arranged-marriage flow via `KaiPlayerMarriageModel`;
-- standard AI marriage offers to the player's clan via Bannerlord `MarriageOfferCampaignBehavior`;
-- staged cadet-house creation from an existing unmarried/childless adult lord of the ruling clan;
-- cadet creation is queued on weekly tick and committed only after safe player settlement entry;
-- `kaitor_diplomacy.marriage_status` and `kaitor_diplomacy.dynasty_status` diagnostics.
+### Семья и династия
+- «Семейные дела» в городе/замке;
+- выбор члена рода, другого дома и кандидата;
+- обычные брачные переговоры через `MarriageBarterable -> Barter -> MarriageAction`;
+- династический брак: 500 000 динаров через persisted escrow;
+- +20 отношений, +30 доверия, Dynastic Bond 180 дней;
+- предупреждение о бездетном браке до сделки;
+- female+female social marriage для дома игрока;
+- усыновление через native `AdoptHeroAction`;
+- входящие AI-предложения брака с accept/reject.
 
-## Safety boundaries
+### Race-aware family / children
+- Dawi marriage/fertility age handled separately from human 18–45;
+- long-lived elf age normalization;
+- pregnancy wrapper preserves underlying TOR/Bannerlord model for ordinary humans;
+- social marriage and biological pregnancy are separated;
+- TOR child education stages 8/14/16;
+- profession/specialization effects;
+- safe retry for failed stage-14 TOR effect;
+- profession repair pass for adults.
 
-Still intentionally disabled in LoadSafe:
+### Dawi women
+- integrated Dawi female template + dwarf race + TPAC gate;
+- `kaitor_diplomacy.dawi_status`;
+- `kaitor_diplomacy.dawi_spawn_test`;
+- live-test spawn reports hero name, clan and settlement;
+- spawned test woman is explicitly entered into the reported settlement;
+- automatic Dawi population remains **OFF** until model/rig/scene/save-load live validation passes.
 
-- pregnancy wrapper;
-- natural aging/death wrapper;
-- custom marriage warning dialogue injection;
-- Greenskin spore hero generation;
-- Vampire Blood Kiss automation;
-- Dawi women generation and Dawi pregnancy.
+### Other systems
+- Blood Kiss + troll route;
+- bounded Vampire population;
+- bounded Greenskin population;
+- safe AI realm-house growth through native clan factory;
+- settlement nationality conversion with TOR service/market/caravan/recruit refresh;
+- +50 relation mercy reward for deliberate lord release;
+- save compatibility and runtime diagnostics.
 
-The Dawi female-asset gate remains hard `SAFE-OFF`.
+## EN — included systems
 
-Cadet-house limits:
+- Isolated Gauntlet diplomacy dashboard with Overview / Diplomacy / Family / Realm & Population tabs.
+- Independent naming and resource boundaries from KaiTOR Co-op.
+- Non-aggression pacts with trust, breach penalties and cooldown persistence.
+- Native council decisions for NAP proposals and pact termination.
+- Family affairs, arranged marriage, dynastic marriage and adoption.
+- Race-aware Dawi / long-lived-elf family simulation.
+- TOR child education stages and profession packages.
+- Dawi female live-test tooling; automatic population stays off until visual/save-load certification.
+- Blood Kiss, bounded Vampire/Greenskin population, realm-house growth.
+- Settlement nationality conversion.
+- Mercy relation reward on deliberate lord release.
 
-- only if kingdom noble-clan deficit is at least 2;
-- founder must already exist and be an adult lord of the ruling clan;
-- founder must be unmarried, childless, not prisoner, not governor and have no owned party;
-- ruling clan must keep at least one fortification;
-- ruler needs at least 50,000 gold;
-- one pending cadet request globally;
-- request waits at least one campaign day;
-- mutation occurs only on player fortification entry;
-- 42-day global cooldown;
-- 84-day per-kingdom cooldown.
-
-## Compatibility gate
-
-The runtime verifies TOR ownership of the critical model slots:
-
-- `TOR_Core.Models.TORDiplomacyModel`
-- `TOR_Core.Models.TORAllianceModel`
-- `TOR_Core.Models.TORTradeAgreementModel`
-- `TOR_Core.Models.TORMarriageModel` or the approved wrapper over that exact model
-- `TOR_Core.CampaignMechanics.Diplomacy.TORKingdomDecisionPermissionModel`
-
-If the expected stack is not present, treaty logic fails closed.
-
-## Useful in-game diagnostics
+## Diagnostics
 
 ```text
 kaitor_diplomacy.status
-kaitor_diplomacy.marriage_status
-kaitor_diplomacy.dynasty_status
-kaitor_diplomacy.settlement
+kaitor_diplomacy.world_status
+kaitor_diplomacy.marriages
+kaitor_diplomacy.racial_status
+kaitor_diplomacy.dawi_status
+kaitor_diplomacy.dawi_spawn_test
+kaitor_diplomacy.ui_status
+kaitor_diplomacy.ui_family
+kaitor_diplomacy.save_status
 kaitor_diplomacy.culture_support
+kaitor_diplomacy.settlement
+kaitor_diplomacy.kingdoms
 kaitor_diplomacy.ledger
+kaitor_diplomacy.inspect <kingdomA> <kingdomB>
 ```
 
-See `FIRST_TEST_RU.md` for the current live-test procedure.
+## Release status
+
+- CODE: implementation candidate
+- CI compile/safety/package: required before promotion
+- LIVE TEST: still required in the real TOR campaign
+- Dawi automatic population: intentionally OFF until visual + save/load acceptance
+
+See `module/TEST-v0.6.4-RU.md` for the live-test checklist.
