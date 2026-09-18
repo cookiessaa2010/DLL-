@@ -188,11 +188,11 @@ foreach ($needle in $contractChecks) {
 }
 
 $cleaveCompatibility = Get-Content -LiteralPath (Join-Path $root 'Runtime/Test-KaiTORCleaveCompatibility.ps1') -Raw
-if ($cleaveCompatibility -notmatch [regex]::Escape("$ExpectedVersion = 'v0.3.1'")) {
+if ($cleaveCompatibility -notmatch [regex]::Escape('$ExpectedVersion = ''v0.3.1''')) {
     throw 'KaiCleave compatibility gate is not pinned to the current validated v0.3.1 build.'
 }
 $stabilityCompatibility = Get-Content -LiteralPath (Join-Path $root 'Runtime/Test-KaiTORStabilityCompatibility.ps1') -Raw
-if ($stabilityCompatibility -notmatch [regex]::Escape("$ExpectedVersion = 'v0.5.0'")) {
+if ($stabilityCompatibility -notmatch [regex]::Escape('$ExpectedVersion = ''v0.5.0''')) {
     throw 'KaiTOR Stability compatibility gate is not pinned to the current validated v0.5.0 build.'
 }
 
