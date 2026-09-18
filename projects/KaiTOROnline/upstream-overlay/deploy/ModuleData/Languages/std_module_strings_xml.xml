@@ -178,5 +178,7 @@
     <string id="kaitor_wrong_game_version" text="Wrong game version. Server: '{SERVER_VERSION}', client: '{CLIENT_VERSION}'."/>
     <string id="kaitor_incompatible_hint_label" text="Incompatible (i)"/>
     <string id="kaitor_interaction" text="INTERACTION"/>
+    <string id="kaitor_another_player" text="Another player"/>
+    <string id="kaitor_awaiting_proposal" text="Awaiting proposal from {PLAYER}..."/>
   </strings>
 </base>
