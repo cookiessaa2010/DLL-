@@ -32,7 +32,7 @@ public static class KaiTORUiText
         {
             foreach (var variable in variables)
             {
-                text.SetTextVariable(variable.Name, variable.Value);
+                text.SetTextVariable(variable.Name, new TextObject(variable.Value?.ToString() ?? string.Empty));
             }
         }
 
