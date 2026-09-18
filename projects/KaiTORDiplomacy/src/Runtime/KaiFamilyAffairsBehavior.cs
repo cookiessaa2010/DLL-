@@ -187,6 +187,15 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
 
         starter.AddGameMenuOption(
             MarriageMenuId,
+            "kaitor_family_dynastic_marriage",
+            $"Династический союз ({KaiDynasticMarriageBehavior.PoliticalMarriageCost:N0} динаров)",
+            PoliticalMarriageCondition,
+            _ => ConfirmPoliticalMarriage(),
+            false,
+            4);
+
+        starter.AddGameMenuOption(
+            MarriageMenuId,
             "kaitor_family_marriage_reset",
             "Сбросить выбор",
             ManageOptionCondition,
@@ -196,7 +205,7 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
                 ShowQuick("Выбор для брачного союза сброшен.");
             },
             false,
-            4);
+            5);
 
         starter.AddGameMenuOption(
             MarriageMenuId,
@@ -316,6 +325,31 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
         args.IsEnabled = valid;
         if (!valid)
             args.Tooltip = new TextObject(reason);
+        return true;
+    }
+
+    private static bool PoliticalMarriageCondition(MenuCallbackArgs args)
+    {
+        args.optionLeaveType = GameMenuOption.LeaveType.Manage;
+
+        if (!ValidateSelectedMarriage(out var reason))
+        {
+            args.IsEnabled = false;
+            args.Tooltip = new TextObject(reason);
+            return true;
+        }
+
+        var behavior = Campaign.Current?.GetCampaignBehavior<KaiDynasticMarriageBehavior>();
+        if (behavior == null || !behavior.CanBeginPoliticalMarriage(_selectedHouseMember, _selectedTargetHero, _selectedTargetClan, out reason))
+        {
+            args.IsEnabled = false;
+            args.Tooltip = new TextObject(string.IsNullOrWhiteSpace(reason) ? "Династический договор сейчас недоступен." : reason);
+            return true;
+        }
+
+        args.IsEnabled = true;
+        args.Tooltip = new TextObject(
+            $"Политический брак резервирует {KaiDynasticMarriageBehavior.PoliticalMarriageCost:N0} динаров. После состоявшейся свадьбы дома получат династические узы, +20 отношений, +30 доверия и до 180 дней пакта о ненападении между державами.");
         return true;
     }
 
@@ -599,6 +633,62 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
         }
 
         BeginMarriageBarter();
+    }
+
+    private static void ConfirmPoliticalMarriage()
+    {
+        if (!ValidateSelectedMarriage(out var reason))
+        {
+            ShowQuick(reason);
+            return;
+        }
+
+        var behavior = Campaign.Current?.GetCampaignBehavior<KaiDynasticMarriageBehavior>();
+        if (behavior == null || !behavior.CanBeginPoliticalMarriage(_selectedHouseMember, _selectedTargetHero, _selectedTargetClan, out reason))
+        {
+            ShowQuick(string.IsNullOrWhiteSpace(reason) ? "Династический договор сейчас недоступен." : reason);
+            return;
+        }
+
+        InformationManager.ShowInquiry(
+            new InquiryData(
+                "Династический союз",
+                $"Заключить политический брачный договор между {_selectedHouseMember.Name} и {_selectedTargetHero.Name}? " +
+                $"До окончания переговоров будет зарезервировано {KaiDynasticMarriageBehavior.PoliticalMarriageCost:N0} динаров. " +
+                "Если свадьба состоится, другой дом получит эту сумму, отношения домов улучшатся, дипломатическое доверие вырастет, а между разными державами будет использован существующий NAP сроком до 180 дней. При отмене переговоров деньги вернутся полностью.",
+                true,
+                true,
+                "Начать переговоры",
+                "Отмена",
+                BeginPoliticalMarriage,
+                null),
+            false,
+            false);
+    }
+
+    private static void BeginPoliticalMarriage()
+    {
+        if (!ValidateSelectedMarriage(out var reason))
+        {
+            ShowQuick(reason);
+            return;
+        }
+
+        var behavior = Campaign.Current?.GetCampaignBehavior<KaiDynasticMarriageBehavior>();
+        if (behavior == null)
+        {
+            ShowQuick("Династический договор сейчас недоступен.");
+            return;
+        }
+
+        var member = _selectedHouseMember;
+        var target = _selectedTargetHero;
+        var clan = _selectedTargetClan;
+        var returnMenu = string.IsNullOrWhiteSpace(_returnMenuId) ? "town" : _returnMenuId;
+        GameMenu.SwitchToMenu(returnMenu);
+
+        if (!behavior.BeginPoliticalMarriage(member, target, clan, out reason))
+            ShowQuick(reason);
     }
 
     private static void BeginMarriageBarter()
