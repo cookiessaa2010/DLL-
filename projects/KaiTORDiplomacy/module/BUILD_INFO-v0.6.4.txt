@@ -18,3 +18,7 @@ Master merge commit: d1c6ced8ddba6154047a0c41cce8a6519fb59bb6
 Co-op isolation: PASS; separate movie/layer/namespace/module/localization prefixes
 Dawi live-test placement: explicit EnterSettlementAction + name/clan/settlement response
 Final isolation-fix merge: 2252131fcba2b6177be32fa14383593b1f16e8a8
+Unified live-test log CI run: 35352581414 (PASS)
+Unified live-test source head: bd11ac0ee9016636c402ec7359c06ee0e9592bf6
+Unified live-test master merge: 0c91bac74c8e2a7830374f95ca1bfb642f977ebc
+Live-test file: %LOCALAPPDATA%\KaiTORDiplomacy\KaiTOR-LiveTest.log
