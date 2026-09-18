@@ -164,7 +164,7 @@ public sealed class KaiIncomingMarriageProposalBehavior : CampaignBehaviorBase
             new InquiryData(
                 "Брачное предложение",
                 $"Дом {targetClan.Name} направил к вам предложение: заключить брак между {member.Name} и {target.Name}. " +
-                "Принятие не заключит брак автоматически — откроются обычные переговоры и нативный barter.",
+                "Принятие не заключит брак автоматически — после него откроются обычные брачные переговоры.",
                 true,
                 true,
                 "Рассмотреть предложение",
