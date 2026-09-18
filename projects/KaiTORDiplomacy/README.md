@@ -1,5 +1,9 @@
 # KaiTOR Diplomacy
 
+## v0.6.4 FULL-Test build
+
+This branch is the unified v0.6.4 test line for Bannerlord 1.3.15.110062 / The Old Realms 1.3.15. It combines diplomacy, family/lifecycle, realm-house, TOR children, Blood Kiss, bounded racial population, and political-layer work. Live-test certification remains separate from compile/package validation.
+
 Compatibility/diplomacy module for The Old Realms 1.3.15 and Mount & Blade II: Bannerlord 1.3.15.110062.
 
 ## v0.4.5 live-test scope
