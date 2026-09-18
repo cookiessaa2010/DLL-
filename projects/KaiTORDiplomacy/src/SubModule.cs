@@ -11,7 +11,6 @@ namespace KaiTOR.Diplomacy;
 
 public sealed class SubModule : MBSubModuleBase
 {
-    private const bool LoadSafeDiagnostics = true;
     private const bool EnableLifecycleRestore = true;
     private const bool EnableLoreOldAgeMortality = true;
     private const bool EnableMarriageWarnings = true;
@@ -54,9 +53,12 @@ public sealed class SubModule : MBSubModuleBase
         // ordinary war proposals while an active non-aggression pact exists.
         InstallPermissionWrapper(campaignStarter);
 
-        // Dangerous automatic population generation remains isolated behind the safety latch.
-        if (!LoadSafeDiagnostics)
-            campaignStarter.AddBehavior(new KaiRacialPopulationBehavior());
+        // v0.6.4: autonomous race growth is split into independent, bounded modules.
+        // The old monolithic KaiRacialPopulationBehavior remains unregistered.
+        if (KaiVampirePopulationBehavior.AutomaticPopulationEnabled)
+            campaignStarter.AddBehavior(new KaiVampirePopulationBehavior());
+        if (KaiGreenskinPopulationBehavior.AutomaticPopulationEnabled)
+            campaignStarter.AddBehavior(new KaiGreenskinPopulationBehavior());
 
         campaignStarter.AddBehavior(new KaiDiplomacyBehavior());
         campaignStarter.AddBehavior(new KaiDiplomacyAiBehavior());
