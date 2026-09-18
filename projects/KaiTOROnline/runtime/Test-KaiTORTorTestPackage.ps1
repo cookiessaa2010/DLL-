@@ -39,6 +39,16 @@ $requiredFiles = @(
     'Modules/Coop/bin/Win64_Shipping_Client/Coop.Core.dll',
     'Modules/Coop/bin/Win64_Shipping_Client/GameInterface.dll',
     'Modules/Coop/bin/Win64_Shipping_Client/Missions.dll',
+    'Modules/Coop/GUI/Prefabs/CoopConnectionUIMovie.xml',
+    'Modules/Coop/GUI/Prefabs/CoopOptionsUIMovie.xml',
+    'Modules/Coop/GUI/Prefabs/CoopChatUIMovie.xml',
+    'Modules/Coop/GUI/Prefabs/CoopJoinCancelOverlay.xml',
+    'Modules/Coop/ModuleData/Languages/std_module_strings_xml.xml',
+    'Modules/Coop/ModuleData/Languages/RU/language_data.xml',
+    'Modules/Coop/ModuleData/Languages/RU/std_module_strings_xml.xml',
+    'START_KAITOR_COOP.bat',
+    'Runtime/KaiTOR-Coop-Launcher.ps1',
+    'Runtime/START_KAITOR_COOP.bat',
     'Runtime/Start-KaiTORCampaignServer.ps1',
     'Runtime/Start-KaiTORTorCampaignServer.ps1',
     'Runtime/KaiTORTorWorkshopRuntime.ps1',
@@ -52,12 +62,113 @@ $requiredFiles = @(
     'Runtime/FIRST_TOR_LIVE_TEST_RU.txt',
     'Runtime/TOR_RUNTIME_CONTRACT.txt',
     'Runtime/modules.tor-1.3.15.txt',
+    'README_EN.txt',
+    'README_RU.txt',
     'BUILD.txt',
     'SHA256SUMS.txt'
 )
 
 foreach ($relative in $requiredFiles) {
     Require-File $relative | Out-Null
+}
+
+# Release metadata and bilingual UI are part of the KaiTOR module contract.
+[xml]$moduleXml = Get-Content -LiteralPath (Join-Path $root 'Modules/Coop/SubModule.xml') -Raw
+if ([string]$moduleXml.Module.Id.value -ne 'Coop') {
+    throw "KaiTOR network-compatible module Id must remain Coop."
+}
+if ([string]$moduleXml.Module.Name.value -ne 'KaiTOR Co-op') {
+    throw "Unexpected module display name: $([string]$moduleXml.Module.Name.value)"
+}
+if ([string]$moduleXml.Module.Version.value -ne 'v1.3.15.10') {
+    throw "Unexpected KaiTOR module version: $([string]$moduleXml.Module.Version.value)"
+}
+$moduleDeps = @($moduleXml.Module.DependedModules.DependedModule | ForEach-Object { [string]$_.Id })
+foreach ($requiredDep in @('Native','SandBoxCore','Sandbox','CustomBattle','StoryMode','TOR_Armory','TOR_Environment','TOR_Core')) {
+    if ($moduleDeps -notcontains $requiredDep) {
+        throw "KaiTOR SubModule.xml missing dependency: $requiredDep"
+    }
+}
+
+$englishStrings = Get-Content -LiteralPath (Join-Path $root 'Modules/Coop/ModuleData/Languages/std_module_strings_xml.xml') -Raw -Encoding UTF8
+$russianStrings = Get-Content -LiteralPath (Join-Path $root 'Modules/Coop/ModuleData/Languages/RU/std_module_strings_xml.xml') -Raw -Encoding UTF8
+$russianManifest = Get-Content -LiteralPath (Join-Path $root 'Modules/Coop/ModuleData/Languages/RU/language_data.xml') -Raw -Encoding UTF8
+foreach ($id in @(
+    'kaitor_menu_host',
+    'kaitor_menu_join',
+    'kaitor_join_header',
+    'kaitor_direct',
+    'kaitor_steam_lobbies',
+    'kaitor_chat',
+    'kaitor_options_header',
+    'kaitor_server_visibility',
+    'kaitor_server_password_title',
+    'kaitor_connecting_title',
+    'kaitor_hosting_title',
+    'kaitor_applying_patches',
+    'kaitor_validating_modules',
+    'kaitor_coop_options',
+    'kaitor_invite_friends',
+    'kaitor_report_bug',
+    'kaitor_bug_share_title',
+    'kaitor_crash_reports_title',
+    'kaitor_credits',
+    'kaitor_donate_prompt'
+)) {
+    if ($englishStrings -notmatch ('id="' + [regex]::Escape($id) + '"')) { throw "English localization missing id: $id" }
+    if ($russianStrings -notmatch ('id="' + [regex]::Escape($id) + '"')) { throw "Russian localization missing id: $id" }
+}
+if ($russianManifest -notmatch 'LanguageData id="Русский"') {
+    throw 'Russian language manifest does not register Русский.'
+}
+
+$connectPrefab = Get-Content -LiteralPath (Join-Path $root 'Modules/Coop/GUI/Prefabs/CoopConnectionUIMovie.xml') -Raw -Encoding UTF8
+if ($connectPrefab -notmatch 'KaiTORFrame' -or $connectPrefab -notmatch '@BrandSubtitleText') {
+    throw 'KaiTOR dark-fantasy connection UI frame is missing.'
+}
+
+$debugSymbols = @(Get-ChildItem -LiteralPath $root -Recurse -File -Filter '*.pdb')
+if ($debugSymbols.Count -gt 0) {
+    $debugSymbols | ForEach-Object { Write-Host "Unexpected debug symbol in release package: $($_.FullName)" }
+    throw 'Release package contains PDB debug symbols.'
+}
+
+$readmeEn = Get-Content -LiteralPath (Join-Path $root 'README_EN.txt') -Raw -Encoding UTF8
+$readmeRu = Get-Content -LiteralPath (Join-Path $root 'README_RU.txt') -Raw -Encoding UTF8
+foreach ($needle in @('START_KAITOR_COOP.bat','coop.debug.kaitor.snapshot4p','D -> B -> A -> C')) {
+    if ($readmeEn -notlike "*$needle*") { throw "English quick start missing: $needle" }
+    if ($readmeRu -notlike "*$needle*") { throw "Russian quick start missing: $needle" }
+}
+
+# Parse the tester-facing launcher without executing it. This catches packaging/encoding/syntax
+# failures before the archive is published while keeping CI headless.
+$launcherPath = Join-Path $root 'Runtime/KaiTOR-Coop-Launcher.ps1'
+$launcherTokens = $null
+$launcherErrors = $null
+[System.Management.Automation.Language.Parser]::ParseFile(
+    $launcherPath,
+    [ref]$launcherTokens,
+    [ref]$launcherErrors) | Out-Null
+if (@($launcherErrors).Count -gt 0) {
+    $launcherErrors | ForEach-Object { Write-Host "Launcher parse error: $($_.Message)" }
+    throw 'KaiTOR-Coop-Launcher.ps1 contains PowerShell syntax errors.'
+}
+$launcherText = Get-Content -LiteralPath $launcherPath -Raw -Encoding UTF8
+foreach ($needle in @(
+    'KaiTOR Co-op — Панель сервера',
+    'KaiTOR Co-op - Server Control',
+    'Start-KaiTORTorCampaignServer.ps1',
+    'Test-KaiTORTorLiveReadiness.ps1',
+    '4200 UDP'
+)) {
+    if ($launcherText -notlike "*$needle*") {
+        throw "KaiTOR server panel missing required RU/EN/runtime marker: $needle"
+    }
+}
+
+$rootBat = Get-Content -LiteralPath (Join-Path $root 'START_KAITOR_COOP.bat') -Raw
+if ($rootBat -notmatch 'KaiTOR-Coop-Launcher\.ps1') {
+    throw 'START_KAITOR_COOP.bat does not launch the server control panel.'
 }
 
 $contract = Get-Content -LiteralPath (Join-Path $root 'Runtime/TOR_RUNTIME_CONTRACT.txt') -Raw
@@ -177,7 +288,7 @@ if ($listedPaths.Count -ne $actualFiles.Count) {
     throw "SHA256SUMS.txt file count mismatch: listed $($listedPaths.Count), package contains $($actualFiles.Count) non-manifest files."
 }
 
-Write-Host 'KaiTOR TOR test-package contract PASS.'
+Write-Host 'KaiTOR TOR full-module package contract PASS.'
 Write-Host "Package root: $root"
 Write-Host 'Target: Bannerlord 1.3.15.110062 + The Old Realms 1.3.15'
 Write-Host 'Admission limit: 4 simultaneous players'

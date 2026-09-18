@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="utf-8"?>
+<base type="string">
+  <tags>
+    <tag language="Русский"/>
+  </tags>
+  <strings>
+    <string id="kaitor_brand_title" text="KaiTOR Кооператив"/>
+    <string id="kaitor_brand_subtitle" text="Четыре героя. Один живой Старый Свет."/>
+    <string id="kaitor_menu_host" text="Создать игру KaiTOR"/>
+    <string id="kaitor_menu_join" text="Подключиться к KaiTOR"/>
+    <string id="kaitor_join" text="Подключиться"/>
+    <string id="kaitor_refresh" text="Обновить"/>
+    <string id="kaitor_search" text="Поиск"/>
+    <string id="kaitor_previous" text="Назад"/>
+    <string id="kaitor_next" text="Далее"/>
+    <string id="kaitor_discord" text="Discord"/>
+    <string id="kaitor_patreon" text="Patreon"/>
+    <string id="kaitor_donate" text="Поддержать"/>
+    <string id="kaitor_credits" text="Авторы"/>
+    <string id="kaitor_join_header" text="Подключиться к KaiTOR"/>
+    <string id="kaitor_community" text="Сообщество"/>
+    <string id="kaitor_direct" text="Прямое подключение"/>
+    <string id="kaitor_steam_lobbies" text="Лобби Steam"/>
+    <string id="kaitor_hosted_steam_servers" text="Серверы Steam: {SERVER_COUNT}; игроков: {PLAYER_COUNT}"/>
+    <string id="kaitor_page_of" text="Страница {CURRENT_PAGE} из {PAGE_COUNT}"/>
+    <string id="kaitor_host_name" text="Имя хоста"/>
+    <string id="kaitor_host_search_placeholder" text="Введите имя хоста..."/>
+    <string id="kaitor_password" text="Пароль"/>
+    <string id="kaitor_minimum_players" text="Минимум игроков"/>
+    <string id="kaitor_connected_players" text="Игроки"/>
+    <string id="kaitor_access" text="Доступ"/>
+    <string id="kaitor_status" text="Статус"/>
+    <string id="kaitor_server_address" text="Адрес сервера:"/>
+    <string id="kaitor_password_colon" text="Пароль:"/>
+    <string id="kaitor_server_address_hint" text="IP-адрес или имя хоста кооперативного сервера. Порт можно указать после двоеточия, например localhost:4300. Если порт не указан, используется 4200."/>
+    <string id="kaitor_password_hint" text="Пароль сессии, установленный хостом. Оставьте поле пустым, если пароль не используется."/>
+    <string id="kaitor_no_password" text="Без пароля"/>
+    <string id="kaitor_password_required" text="Требуется пароль"/>
+    <string id="kaitor_any_password" text="Любой пароль"/>
+    <string id="kaitor_lobby_unavailable" text="Поиск лобби Steam недоступен."/>
+    <string id="kaitor_lobby_searching" text="Поиск доступных лобби Steam..."/>
+    <string id="kaitor_lobby_search_failed" text="Не удалось выполнить поиск лобби Steam: {ERROR}"/>
+    <string id="kaitor_invalid_server_address" text="ОШИБКА: укажите корректный адрес сервера и, при необходимости, порт."/>
+    <string id="kaitor_password_too_long" text="ОШИБКА: пароль не может быть длиннее {MAX_LENGTH} символов."/>
+    <string id="kaitor_no_ipv4" text="ОШИБКА: для хоста не найден IPv4-адрес."/>
+    <string id="kaitor_address_resolution_failed" text="ОШИБКА: не удалось определить адрес подключения: {ERROR}"/>
+    <string id="kaitor_no_lobbies" text="Доступные лобби Steam не найдены."/>
+    <string id="kaitor_no_lobbies_filtered" text="Нет лобби Steam, соответствующих выбранным фильтрам."/>
+    <string id="kaitor_unknown_host" text="Неизвестный хост"/>
+    <string id="kaitor_compatible" text="Совместимо"/>
+    <string id="kaitor_incompatible" text="Несовместимо"/>
+    <string id="kaitor_password_required_short" text="Нужен пароль"/>
+    <string id="kaitor_no_password_short" text="Без пароля"/>
+    <string id="kaitor_host_version_hint" text="Версия хоста: {HOST_VERSION}; ваша версия: {CLIENT_VERSION}."/>
+    <string id="kaitor_protocol_version_hint" text="Версия протокола хоста: {HOST_PROTOCOL}; ваша версия протокола: {CLIENT_PROTOCOL}."/>
+    <string id="kaitor_unknown_version" text="неизвестно"/>
+    <string id="kaitor_options_header" text="Настройки KaiTOR Co-op"/>
+    <string id="kaitor_apply" text="Применить"/>
+    <string id="kaitor_options_updated" text="Настройки KaiTOR Co-op обновлены."/>
+    <string id="kaitor_options_update_failed" text="Не удалось обновить настройки KaiTOR Co-op."/>
+    <string id="kaitor_chat" text="Чат"/>
+    <string id="kaitor_global_chat" text="Общий чат"/>
+    <string id="kaitor_direct_message" text="Личное сообщение: {PLAYER}"/>
+    <string id="kaitor_chat_input_hint" text="Enter или Отправить — отправить    Esc — закрыть"/>
+    <string id="kaitor_send" text="Отправить"/>
+    <string id="kaitor_mute" text="Заглушить"/>
+    <string id="kaitor_unmute" text="Включить звук"/>
+    <string id="kaitor_chat_desc" text="Настройка внутриигрового кооперативного чата."/>
+    <string id="kaitor_show_chat" text="Показывать чат"/>
+    <string id="kaitor_network" text="Сеть"/>
+    <string id="kaitor_movement_bandwidth" text="Пропускная способность"/>
+    <string id="kaitor_movement_bandwidth_desc" text="Ограничивает объём сжатых данных движения, которые клиент отправляет и получает. Изменения применяются при открытии следующей миссии."/>
+    <string id="kaitor_upload_limit" text="Лимит отдачи"/>
+    <string id="kaitor_download_limit" text="Лимит загрузки"/>
+    <string id="kaitor_map_time" text="Время на карте"/>
+    <string id="kaitor_map_time_desc" text="Настройка отображения времени карты во время миссий."/>
+    <string id="kaitor_show_map_time" text="Показывать время карты в миссиях"/>
+    <string id="kaitor_killfeed_color" text="Цвет ленты убийств"/>
+    <string id="kaitor_killfeed_desc" text="Убийства вашего героя и его войск будут показаны этим цветом в ленте убийств у всех игроков."/>
+    <string id="kaitor_red" text="Красный"/>
+    <string id="kaitor_green" text="Зелёный"/>
+    <string id="kaitor_blue" text="Синий"/>
+    <string id="kaitor_nameplates" text="Имена игроков"/>
+    <string id="kaitor_player_nameplates" text="Имена над игроками"/>
+    <string id="kaitor_player_nameplates_desc" text="Показывает имена над союзными игроками в кооперативных миссиях."/>
+    <string id="kaitor_display_mode" text="Режим отображения"/>
+    <string id="kaitor_bug_report" text="Сообщить об ошибке"/>
+    <string id="kaitor_bug_report_desc" text="Настройка внутриигровой кнопки отправки отчёта об ошибке."/>
+    <string id="kaitor_show_bug_report" text="Показывать кнопку отчёта об ошибке"/>
+    <string id="kaitor_always" text="Всегда"/>
+    <string id="kaitor_hold_indicators" text="При удержании индикаторов"/>
+    <string id="kaitor_never" text="Никогда"/>
+    <string id="kaitor_public" text="Публичный"/>
+    <string id="kaitor_public_hint" text="Сервер виден всем в списке серверов."/>
+    <string id="kaitor_friends_only" text="Только друзья"/>
+    <string id="kaitor_friends_only_hint" text="Сервер виден в списке только вашим друзьям Steam."/>
+    <string id="kaitor_hidden" text="Скрытый"/>
+    <string id="kaitor_hidden_hint" text="Сервер скрыт из списка; подключение через Steam, прямой адрес и локальное подключение владельца продолжают работать."/>
+    <string id="kaitor_server_visibility" text="Видимость сервера"/>
+    <string id="kaitor_server_visibility_desc" text="Выберите, кто сможет найти этот сервер."/>
+    <string id="kaitor_continue" text="Продолжить"/>
+    <string id="kaitor_cancel" text="Отмена"/>
+    <string id="kaitor_server_password_title" text="Пароль сервера"/>
+    <string id="kaitor_server_password_desc" text="Задайте пароль сервера или оставьте поле пустым, чтобы разрешить подключение без пароля."/>
+    <string id="kaitor_host" text="Создать"/>
+    <string id="kaitor_password_max_error" text="Пароль не может быть длиннее {MAX_LENGTH} символов."/>
+    <string id="kaitor_connecting_title" text="Подключение к KaiTOR Co-op"/>
+    <string id="kaitor_hosting_title" text="Запуск KaiTOR Co-op"/>
+    <string id="kaitor_contacting_server" text="Подключение к серверу..."/>
+    <string id="kaitor_contacting_steam" text="Подключение к хосту через Steam..."/>
+    <string id="kaitor_waiting_server" text="Ожидание загрузки сохранения на сервере..."/>
+    <string id="kaitor_connection_cancelled" text="Попытка подключения отменена."/>
+    <string id="kaitor_stop_waiting" text="Прекратить ожидание"/>
+    <string id="kaitor_stopped_waiting_notice" text="Ожидание сервера прекращено. Окно серверного процесса останется открытым, пока вы его не закроете."/>
+    <string id="kaitor_applying_patches" text="Применение патчей..."/>
+    <string id="kaitor_validating_modules" text="Проверка модулей..."/>
+    <string id="kaitor_coop_options" text="Настройки KaiTOR Co-op"/>
+    <string id="kaitor_invite_friends" text="Пригласить друзей"/>
+    <string id="kaitor_saving_disabled" text="Сохранение на клиенте отключено: кампанию сохраняет хост."/>
+    <string id="kaitor_steam_overlay_unavailable" text="Оверлей Steam недоступен. Включите его и повторите попытку."/>
+    <string id="kaitor_report_bug" text="Сообщить об ошибке"/>
+    <string id="kaitor_bug_disclosure" text="Ваш сетевой ID, краткое описание и подробности будут опубликованы в публичном issue на GitHub. Приложенные логи доступны по публичным ссылкам без гарантированного срока удаления."/>
+    <string id="kaitor_summary" text="Кратко"/>
+    <string id="kaitor_description" text="Описание"/>
+    <string id="kaitor_submit" text="Отправить"/>
+    <string id="kaitor_enter_summary" text="Введите краткое описание."/>
+    <string id="kaitor_enter_description" text="Введите подробное описание."/>
+    <string id="kaitor_bug_send_failed" text="Не удалось отправить отчёт об ошибке."/>
+    <string id="kaitor_sponsors" text="Спонсоры"/>
+    <string id="kaitor_supporters" text="Поддержавшие"/>
+    <string id="kaitor_contributors" text="Участники разработки"/>
+    <string id="kaitor_close" text="Закрыть"/>
+    <string id="kaitor_coming_soon" text="Скоро"/>
+    <string id="kaitor_donate_prompt" text="Исходный проект Bannerlord Coop бесплатный и разрабатывается добровольцами.&#10;&#10;Пожертвования помогают его авторам оплачивать серверы, инструменты разработки и другие расходы.&#10;&#10;Если хотите поддержать upstream-проект, выберите платформу ниже."/>
+    <string id="kaitor_buy_coffee" text="Купить кофе"/>
+    <string id="kaitor_bug_share_title" text="Отправить отчёт и диагностические данные?"/>
+    <string id="kaitor_bug_share_prompt" text="При отправке отчёта ваш сетевой ID, краткое описание и подробности передаются выделенному серверу и сервису отчётов BannerlordCoop. Сетевой ID автора публикуется в публичном issue на GitHub. Сервер также создаёт и загружает текущее сохранение кампании и связанные данные кооперативной сессии. Сохранение и включённые серверные/клиентские логи размещаются по публично доступным ссылкам; удаление или срок хранения не гарантируются. Сохранения и логи могут содержать имена игроков, Steam ID, IP-адреса, пути к файлам и сведения об игре или сети. Аргументы команд и типовые секреты редактируются. Клиентские сохранения, конфигурационные файлы и дампы памяти не включаются. Нажмите «Разрешить», чтобы отправить данные, или «Нет, спасибо», чтобы отменить отчёт."/>
+    <string id="kaitor_allow" text="Разрешить"/>
+    <string id="kaitor_no_thanks" text="Нет, спасибо"/>
+    <string id="kaitor_bug_logs_title" text="Передавать диагностические логи кооператива?"/>
+    <string id="kaitor_bug_logs_prompt" text="Разрешить добавлять текущий лог BannerlordCoop этого клиента к логам других согласившихся игроков и отправлять его вместе с диагностическими отчётами? Отчёты создают публичный issue на GitHub с сетевым ID автора. Серверное сохранение, данные сессии и переданные логи могут быть публично доступны и содержать имена игроков, Steam ID, IP-адреса, пути к файлам и сведения об игре или сети. Выберите «Нет, спасибо», чтобы оставить лог этого клиента только локально."/>
+    <string id="kaitor_crash_reports_title" text="Автоматические отчёты о сбоях"/>
+    <string id="kaitor_crash_reports_prompt" text="Включить автоматические отчёты Bannerlord о сбоях? Полный отчёт может содержать память процесса, логи, конфигурационные файлы и последнее сохранение. BannerlordCoop отдельно хранит локальную диагностику сбоев и сам её не загружает."/>
+    <string id="kaitor_enable" text="Включить"/>
+    <string id="kaitor_bug_submitted" text="[Отчёт] Отправлено на сервер. Собираются логи клиентов, давших согласие."/>
+    <string id="kaitor_fast_forward_disabled" text="Ускорение времени отключено во время кооперативных сражений."/>
+    <string id="kaitor_connected_wait" text="Подключено. Ожидайте передачу данных."/>
+    <string id="kaitor_incorrect_password" text="Неверный пароль сервера."/>
+    <string id="kaitor_server_rejected" text="Сервер отклонил подключение."/>
+    <string id="kaitor_connecting" text="Подключение..."/>
+    <string id="kaitor_retrying_connection" text="Повторное подключение к серверу..."/>
+    <string id="kaitor_validation_timeout" text="Сервер не завершил проверку подключения вовремя.&#10;Возможно, сервер использует несовместимую версию мода."/>
+    <string id="kaitor_incompatible_build_unknown" text="Несовместимая сборка кооператива. Версия клиента: '{CLIENT_VERSION}', но сервер не сообщил точную версию. Обновите KaiTOR Co-op на обеих сторонах."/>
+    <string id="kaitor_incompatible_build" text="Несовместимая сборка кооператива. Версия клиента: '{CLIENT_VERSION}', версия сервера: '{SERVER_VERSION}'. Обновите KaiTOR Co-op на обеих сторонах."/>
+    <string id="kaitor_module_validation_failed" text="Проверка модулей не пройдена!&#10;Причина: {REASON}"/>
+    <string id="kaitor_character_creation_failed" text="Не удалось запустить создание персонажа."/>
+    <string id="kaitor_client_stopped" text="Клиент кооператива остановлен."/>
+    <string id="kaitor_server_full" text="Сервер KaiTOR Co-op заполнен (4/4 игроков)."/>
+    <string id="kaitor_invalid_player_identity" text="KaiTOR Co-op отклонил подключение: некорректная идентификация игрока."/>
+    <string id="kaitor_start_refused" text="Другая кооперативная сессия ещё запускается. Повторите попытку через несколько секунд."/>
+    <string id="kaitor_return_main_host" text="Вернитесь в главное меню, чтобы создать кооперативную сессию."/>
+    <string id="kaitor_invalid_visibility" text="Выберите корректный режим видимости сервера."/>
+    <string id="kaitor_hosted_server_running" text="Предыдущий кооперативный сервер ещё работает. Закройте его отдельное окно перед новым запуском."/>
+    <string id="kaitor_server_process_failed" text="Не удалось запустить процесс кооперативного сервера."/>
+    <string id="kaitor_host_client_failed" text="Не удалось запустить кооперативный клиент. Отдельный сервер останется работать, пока вы его не закроете."/>
+    <string id="kaitor_host_start_timeout" text="Кооперативный сервер не завершил запуск вовремя. Проверьте, загружается ли сохранение в одиночной игре. Окно сервера останется открытым, пока вы его не закроете."/>
+    <string id="kaitor_starting_server" text="Кооперативный сервер запускается. Вы подключитесь автоматически после его готовности."/>
+    <string id="kaitor_server_closed_early" text="Кооперативный сервер закрылся до запуска сессии."/>
+    <string id="kaitor_server_requires_password" text="Для этого сервера требуется пароль."/>
+    <string id="kaitor_steam_tunnel_failed" text="Не удалось установить соединение с хостом через Steam, а публичный адрес для резервного подключения не предоставлен."/>
+    <string id="kaitor_advertised_address_failed" text="Не удалось подключиться к объявленному адресу '{ADDRESS}:{PORT}'."/>
+    <string id="kaitor_already_in_session" text="Кооперативная сессия уже активна. Выйдите из неё перед подключением к другой."/>
+    <string id="kaitor_return_main_join" text="Вернитесь в главное меню, чтобы подключиться к кооперативной сессии."/>
+    <string id="kaitor_required_module" text="Отсутствует обязательный модуль '{MODULE}' версии '{VERSION}'."/>
+    <string id="kaitor_wrong_module_version" text="Неверная версия модуля '{MODULE}'. Сервер: '{SERVER_VERSION}', клиент: '{CLIENT_VERSION}'."/>
+    <string id="kaitor_unsupported_client_module" text="Сервер не поддерживает клиентский модуль '{MODULE}'."/>
+    <string id="kaitor_dlc_not_supported" text="DLC не поддерживаются. Отключите: {MODULES}."/>
+    <string id="kaitor_wrong_game_version" text="Неверная версия игры. Сервер: '{SERVER_VERSION}', клиент: '{CLIENT_VERSION}'."/>
+  </strings>
+</base>

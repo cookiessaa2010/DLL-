@@ -202,7 +202,18 @@ $clientReplacement = @'
     {
         if (!string.IsNullOrWhiteSpace(obj.What.RejectionReason))
         {
-            var message = obj.What.RejectionReason;
+            var message = obj.What.RejectionReason switch
+            {
+                "KaiTOR Online server is full (4/4 players)." =>
+                    global::GameInterface.Services.UI.KaiTORUiText.Get(
+                        "kaitor_server_full",
+                        "KaiTOR Co-op server is full (4/4 players)."),
+                "KaiTOR Online rejected the connection because the player identity is invalid." =>
+                    global::GameInterface.Services.UI.KaiTORUiText.Get(
+                        "kaitor_invalid_player_identity",
+                        "KaiTOR Co-op rejected the connection because the player identity is invalid."),
+                _ => obj.What.RejectionReason,
+            };
             messageBroker.Publish(this, new SendInformationMessage(message));
             disconnectReason = message;
             Logic.Disconnect();
