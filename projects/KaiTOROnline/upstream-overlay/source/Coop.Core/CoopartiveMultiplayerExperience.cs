@@ -1,0 +1,745 @@
+﻿using Autofac;
+using Common;
+using Common.Logging;
+using Common.LogicStates;
+using Common.Messaging;
+using Common.Network;
+using Common.Network.Session;
+using Common.Network.Session.Messages;
+using Coop.Core.Client;
+using Coop.Core.Client.Messages;
+using Coop.Core.Client.Services.Session;
+using Coop.Core.Common.Configuration;
+using Coop.Core.Common.Services.Connection.Messages;
+using Coop.Core.Common.Session;
+using Coop.Core.Common.Session.Messages;
+using Coop.Core.Server;
+using GameInterface;
+using GameInterface.AutoSync;
+using GameInterface.Services.GameDebug.Messages;
+using GameInterface.Services.GameState;
+using GameInterface.Services.GameState.Interfaces;
+using GameInterface.Services.UI.Interfaces;
+using GameInterface.Services.UI.Messages;
+using Serilog;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using TaleWorlds.Library;
+
+namespace Coop.Core
+{
+    public class CoopartiveMultiplayerExperience : IDisposable
+    {
+        private static readonly ILogger Logger = LogManager.GetLogger<CoopartiveMultiplayerExperience>();
+
+        private IMessageBroker messageBroker;
+        private INetworkConfig configuration;
+        private IContainer container;
+        private readonly SteamOrDirectJoinEndpointPreparer joinEndpointPreparer = new SteamOrDirectJoinEndpointPreparer();
+        private readonly ServerProcessManager serverProcessManager;
+        private readonly Action<string> setCrashPhase;
+        private readonly string coopLogFilePath;
+        private readonly object containerGate = new object();
+        private readonly bool standaloneServerProcess;
+        private volatile bool coopStarting;
+        private volatile bool hostedSession;
+        private volatile bool clientConnectedOnce;
+        private bool passwordInquiryPending;
+        private int coopStartGeneration;
+        // Bumped when a new host attempt starts, so a prior attempt's deferred exit handling drops out.
+        private volatile int hostSessionGeneration;
+
+        // A spawned server has to load the whole campaign save before it binds its port.
+        public static readonly TimeSpan HostedServerStartTimeout = TimeSpan.FromMinutes(5);
+
+        public const string StartRefusedNotice =
+            "Another co-op session is still starting; try joining again shortly";
+        private const string HostClientStartFailedNotice =
+            "Could not start the co-op client; the standalone server remains open until you close it";
+
+        public CoopartiveMultiplayerExperience(
+            bool standaloneServerProcess = false,
+            Action<string> setCrashPhase = null,
+            string coopLogFilePath = null)
+        {
+            // TODO use DI maybe?
+            messageBroker = MessageBroker.Instance;
+            configuration = new NetworkConfig();
+            serverProcessManager = new ServerProcessManager(messageBroker);
+            this.standaloneServerProcess = standaloneServerProcess;
+            this.setCrashPhase = setCrashPhase ?? (_ => { });
+            this.coopLogFilePath = coopLogFilePath;
+
+            messageBroker.Subscribe<AttemptJoin>(Handle);
+            messageBroker.Subscribe<AttemptHost>(Handle);
+            messageBroker.Subscribe<HostSaveGame>(Handle);
+            messageBroker.Subscribe<EndCoopMode>(Handle);
+            messageBroker.Subscribe<SessionJoinInfoResolved>(Handle);
+            messageBroker.Subscribe<SessionJoinFailed>(Handle);
+            messageBroker.Subscribe<HostedServerExited>(Handle);
+            messageBroker.Subscribe<NetworkConnected>(Handle);
+        }
+
+        public bool Running { get
+            {
+                if (container == null) return false;
+
+                var logic = container.Resolve<ILogic>();
+
+                return logic.RunningState;
+            }
+        }
+
+        public void Dispose() => DestroyContainer();
+
+        private void Handle(MessagePayload<AttemptJoin> obj)
+        {
+            var connectMessage = obj.What;
+
+            AbandonAnyStartingSession();
+
+            configuration = new NetworkConfig()
+            {
+                Address = connectMessage.Address.ToString(),
+                Port = connectMessage.Port,
+                Token = connectMessage.Password ?? string.Empty,
+            };
+
+            var advertisementConfig = new SessionAdvertisementConfig
+            {
+                EnableSteamInvites = connectMessage.EnableSteamInvites,
+            };
+
+            if (!StartAsClient(configuration, advertisementConfig, JoinIntent.PlayerDirect))
+            {
+                InformationManager.DisplayMessage(new InformationMessage(
+                    global::GameInterface.Services.UI.KaiTORUiText.Get("kaitor_start_refused", StartRefusedNotice)));
+            }
+        }
+
+        private void Handle(MessagePayload<AttemptHost> obj)
+        {
+            if (!GameStateQuery.IsAtMainMenu)
+            {
+                InformationManager.DisplayMessage(new InformationMessage(
+                    global::GameInterface.Services.UI.KaiTORUiText.Get("kaitor_return_main_host", "Return to the main menu to host a co-op session.")));
+                return;
+            }
+
+            // A previous start is still applying patches; StartAsClient/StartAsServer would no-op,
+            // so bail before spawning a server this instance can't wire itself to.
+            if (coopStarting) return;
+
+            var password = obj.What.Password ?? string.Empty;
+            if (!ConnectionPassword.IsValid(password))
+            {
+                InformationManager.DisplayMessage(new InformationMessage(
+                    global::GameInterface.Services.UI.KaiTORUiText.Format(
+                        "kaitor_password_max_error",
+                        "Password cannot exceed {MAX_LENGTH} characters.",
+                        ("MAX_LENGTH", ConnectionPassword.MaxLength))));
+                return;
+            }
+
+            var visibility = obj.What.Visibility;
+            if (!Enum.IsDefined(typeof(ServerVisibility), visibility))
+            {
+                InformationManager.DisplayMessage(new InformationMessage(
+                    global::GameInterface.Services.UI.KaiTORUiText.Get("kaitor_invalid_visibility", "Choose a valid server visibility setting.")));
+                return;
+            }
+
+            AbandonAnyStartingSession();
+
+            // Already launched this process with /server and its anonymous
+            // Steam game-server session owns the fixed Steam ports. Host here so the existing
+            // server container advertises the lobby instead of spawning a second server that
+            // competes for those ports.
+            if (standaloneServerProcess)
+            {
+                Logger.Information("Standalone server process hosting save '{SaveName}' in-process",
+                    obj.What.SaveName);
+                StartAsServer(obj.What.SaveName, password, visibility);
+                return;
+            }
+
+            // Off Steam, keep the in-process dedicated-server behavior: this instance becomes
+            // the server, and the player launches a second instance to join it.
+            if (!SessionDiscovery.SteamAvailable)
+            {
+                StartAsServer(obj.What.SaveName, password, visibility);
+                return;
+            }
+
+            if (serverProcessManager.IsRunning)
+            {
+                InformationManager.DisplayMessage(new InformationMessage(
+                    global::GameInterface.Services.UI.KaiTORUiText.Get(
+                        "kaitor_hosted_server_running",
+                        "A hosted co-op server is still running; close its standalone server window before hosting again.")));
+                return;
+            }
+
+            // Mark the session active before spawning, so an instantly-crashing child's exit event
+            // is recognised by Handle(HostedServerExited) instead of dropped on !hostedSession.
+            hostedSession = true;
+            clientConnectedOnce = false;
+
+            try
+            {
+                serverProcessManager.Start(obj.What.SaveName, password, visibility);
+            }
+            catch (Exception ex)
+            {
+                hostedSession = false;
+                Logger.Error(ex, "Failed to spawn the co-op server process");
+                InformationManager.DisplayMessage(new InformationMessage(
+                    global::GameInterface.Services.UI.KaiTORUiText.Get("kaitor_server_process_failed", "Could not start the co-op server process.")));
+                return;
+            }
+
+            configuration = new NetworkConfig()
+            {
+                Address = "127.0.0.1",
+                Token = password,
+            };
+
+            var advertisementConfig = new SessionAdvertisementConfig
+            {
+                // The spawned server owns the Steam listener and public lobby. This loopback
+                // client must not create a second lobby and user-flavor tunnel.
+                EnableSteamInvites = false,
+                Visibility = visibility,
+            };
+
+            try
+            {
+                if (!StartAsClient(configuration, advertisementConfig, JoinIntent.HostLoopback))
+                {
+                    hostedSession = false;
+                    InformationManager.DisplayMessage(new InformationMessage(
+                        global::GameInterface.Services.UI.KaiTORUiText.Get("kaitor_host_client_failed", HostClientStartFailedNotice)));
+                    return;
+                }
+
+                container.Resolve<SteamJoinWatchdog>().Arm(configuration.Address, configuration.Port,
+                    timeout: HostedServerStartTimeout,
+                    timeoutText: global::GameInterface.Services.UI.KaiTORUiText.Get(
+                        "kaitor_host_start_timeout",
+                        "The co-op server did not finish starting. Check that the save loads in singleplayer. The standalone server remains open until you close it."));
+
+                InformationManager.DisplayMessage(new InformationMessage(
+                    global::GameInterface.Services.UI.KaiTORUiText.Get(
+                        "kaitor_starting_server",
+                        "Starting the co-op server; you will join it automatically once it is up.")));
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "Hosted co-op session failed to start");
+                hostedSession = false;
+                DestroyContainer();
+                InformationManager.DisplayMessage(new InformationMessage(
+                        global::GameInterface.Services.UI.KaiTORUiText.Get("kaitor_host_client_failed", HostClientStartFailedNotice)));
+            }
+        }
+
+        // A deliberate new session supersedes the client-side state for any half-started attempt.
+        // Its standalone server remains independent and must be closed by the user.
+        private void AbandonAnyStartingSession()
+        {
+            hostSessionGeneration++;
+            hostedSession = false;
+            clientConnectedOnce = false;
+        }
+
+        private void Handle(MessagePayload<HostedServerExited> obj)
+        {
+            if (!hostedSession) return;
+
+            // Once connected, a dead server surfaces as a normal disconnect and that
+            // path already returns the player to the main menu with a message.
+            if (clientConnectedOnce) return;
+
+            // The exit is for this host attempt; a newer attempt bumps the generation so its
+            // just-built session isn't torn down by a stale exit that fires a frame later.
+            var generation = hostSessionGeneration;
+
+            GameThread.RunSafe(() =>
+            {
+                if (hostSessionGeneration != generation) return;
+                if (!hostedSession || clientConnectedOnce || container == null) return;
+
+                messageBroker.Publish(this, new SendPopupMessage(
+                    global::GameInterface.Services.UI.KaiTORUiText.Get("kaitor_server_closed_early", "The co-op server closed before the session could start.")));
+                messageBroker.Publish(this, new EndCoopMode());
+            }, context: "HostedServerExited");
+        }
+
+        private void Handle(MessagePayload<NetworkConnected> obj)
+        {
+            clientConnectedOnce = true;
+            setCrashPhase("connected");
+        }
+
+        private void Handle(MessagePayload<SessionJoinInfoResolved> obj)
+        {
+            var joinInfo = obj.What.JoinInfo;
+            if (!CanStartResolvedJoin()) return;
+
+            if (joinInfo.PasswordRequired)
+            {
+                PromptForSessionPassword(joinInfo);
+                return;
+            }
+
+            StartResolvedJoin(joinInfo);
+        }
+
+        private void PromptForSessionPassword(SessionJoinInfo joinInfo)
+        {
+            if (passwordInquiryPending) return;
+            passwordInquiryPending = true;
+
+            InformationManager.ShowTextInquiry(new TextInquiryData(
+                global::GameInterface.Services.UI.KaiTORUiText.Get("kaitor_server_password_title", "Server Password"),
+                global::GameInterface.Services.UI.KaiTORUiText.Get("kaitor_server_requires_password", "This server requires a password."),
+                true,
+                true,
+                global::GameInterface.Services.UI.KaiTORUiText.Get("kaitor_join", "Join"),
+                global::GameInterface.Services.UI.KaiTORUiText.Get("kaitor_cancel", "Cancel"),
+                password =>
+                {
+                    passwordInquiryPending = false;
+                    joinInfo.Password = password ?? string.Empty;
+                    StartResolvedJoin(joinInfo);
+                },
+                () =>
+                {
+                    passwordInquiryPending = false;
+                    // The join keeps its Steam lobby membership alive while this prompt is
+                    // open; abandoning tells the join listener to leave, so a later Join
+                    // click starts a fresh attempt instead of no-oping on the stale membership.
+                    messageBroker.Publish(this, new SessionJoinAbandoned());
+                },
+                shouldInputBeObfuscated: true,
+                textCondition: password =>
+                {
+                    bool valid = ConnectionPassword.IsValid(password);
+                    return Tuple.Create(valid, valid
+                        ? string.Empty
+                        : global::GameInterface.Services.UI.KaiTORUiText.Format(
+                            "kaitor_password_max_error",
+                            "Password cannot exceed {MAX_LENGTH} characters.",
+                            ("MAX_LENGTH", ConnectionPassword.MaxLength)));
+                }));
+        }
+
+        private void StartResolvedJoin(SessionJoinInfo joinInfo)
+        {
+            if (!CanStartResolvedJoin()) return;
+
+            var prepared = joinEndpointPreparer.PrepareAsync(joinInfo).GetAwaiter().GetResult();
+
+            // A failed tunnel setup falls back to the advertised address, which a
+            // tunnel-only lobby doesn't have; an empty address would resolve to this machine.
+            if (!prepared.HasAddress)
+            {
+                InformationManager.DisplayMessage(new InformationMessage(
+                    global::GameInterface.Services.UI.KaiTORUiText.Get(
+                        "kaitor_steam_tunnel_failed",
+                        "Could not set up the Steam connection to the host, and the host has not shared a public address to fall back to.")));
+                return;
+            }
+
+            configuration = new NetworkConfig()
+            {
+                Address = prepared.Address,
+                Port = prepared.Port,
+                IsTunneled = prepared.Tunneled,
+                Token = joinInfo.Password ?? string.Empty,
+            };
+
+            try
+            {
+                // A refusal leaves the process-wide tunnel and lobby to the start still in flight.
+                if (!StartAsClient(configuration, intent: JoinIntent.PlayerSteam))
+                {
+                    InformationManager.DisplayMessage(new InformationMessage(
+                    global::GameInterface.Services.UI.KaiTORUiText.Get("kaitor_start_refused", StartRefusedNotice)));
+                    return;
+                }
+
+                container.Resolve<SteamJoinWatchdog>().Arm(prepared.Address, prepared.Port, prepared.Tunneled);
+            }
+            catch (Exception ex)
+            {
+                // Tear down the half-built container, otherwise it blocks every later Steam join.
+                Logger.Error(ex, "Steam-initiated join to {Address}:{Port} failed to start", prepared.Address, prepared.Port);
+                DestroyContainer();
+                // This failure exit publishes no session message, so the tunnel is closed here.
+                joinEndpointPreparer.TearDownActiveTunnel();
+                InformationManager.DisplayMessage(new InformationMessage(
+                    global::GameInterface.Services.UI.KaiTORUiText.Format(
+                        "kaitor_advertised_address_failed",
+                        "Could not connect to the advertised address '{ADDRESS}:{PORT}'.",
+                        ("ADDRESS", prepared.Address),
+                        ("PORT", prepared.Port))));
+            }
+        }
+
+        private bool CanStartResolvedJoin()
+        {
+            // Steam callbacks can fire at any moment, so every prompt and callback rechecks state.
+            if (container != null)
+            {
+                InformationManager.DisplayMessage(new InformationMessage(
+                    global::GameInterface.Services.UI.KaiTORUiText.Get("kaitor_already_in_session", "Already in a co-op session; leave it before joining another.")));
+                return false;
+            }
+
+            if (!GameStateQuery.IsAtMainMenu)
+            {
+                InformationManager.DisplayMessage(new InformationMessage(
+                    global::GameInterface.Services.UI.KaiTORUiText.Get("kaitor_return_main_join", "Return to the main menu to join a co-op session.")));
+                return false;
+            }
+
+            return true;
+        }
+
+        private void Handle(MessagePayload<SessionJoinFailed> obj)
+        {
+            InformationManager.DisplayMessage(new InformationMessage(obj.What.Reason));
+        }
+
+        private void Handle(MessagePayload<HostSaveGame> obj)
+        {
+            StartAsServer(obj.What.SaveName, ManagedServerConfig.Password, ManagedServerConfig.Visibility);
+        }
+
+        private void Handle(MessagePayload<EndCoopMode> payload)
+        {
+            setCrashPhase("ending-session");
+
+            // Network callbacks can publish this event from the poller. Teardown on the game thread
+            // lets the poll callback return before the container waits for that poller to stop.
+            GameThread.RunSafe(() =>
+            {
+                DestroyContainer();
+
+                // Ending the client session never owns the standalone server's lifetime. This includes
+                // startup failures and watchdog timeouts; only the user closing that process stops it.
+                hostedSession = false;
+                clientConnectedOnce = false;
+
+                messageBroker.Publish(this, new CoopModeEnded());
+            }, context: nameof(EndCoopMode));
+        }
+
+        public int Priority => 0;
+
+        public void StartAsServer(string saveName = null) =>
+            StartAsServer(saveName, null, ServerVisibility.Public);
+
+        public void StartAsServer(string saveName, string password) =>
+            StartAsServer(saveName, password, ServerVisibility.Public);
+
+        public void StartAsServer(string saveName, string password, ServerVisibility visibility)
+        {
+            lock (containerGate)
+            {
+                StartAsServerCore(saveName, password, visibility);
+            }
+        }
+
+        private void StartAsServerCore(string saveName, string password, ServerVisibility visibility)
+        {
+            // A second Host or Join click while patches are still applying would tear down the in-flight start
+            if (coopStarting) return;
+
+            if (!ConnectionPassword.IsValid(password))
+                throw new ArgumentOutOfRangeException(nameof(password),
+                    $"The server password cannot exceed {ConnectionPassword.MaxLength} characters");
+            if (!Enum.IsDefined(typeof(ServerVisibility), visibility))
+                throw new ArgumentOutOfRangeException(nameof(visibility));
+            if (!ManagedServerConfig.IsValidPort(ManagedServerConfig.Port))
+                throw new ArgumentOutOfRangeException(nameof(ManagedServerConfig.Port),
+                    "The server port must be between 1 and 65535");
+
+            DestroyContainer();
+            setCrashPhase("starting-server");
+
+            ModInformation.IsServer = true;
+
+            ContainerBuilder builder = new ContainerBuilder();
+            builder.RegisterModule<ServerModule>();
+            builder.RegisterModule<GameInterfaceModule>();
+            builder.RegisterInstance(new CoopLogFile(coopLogFilePath)).As<ICoopLogFile>().SingleInstance();
+            builder.RegisterInstance(new NetworkConfig
+            {
+                Token = password ?? string.Empty,
+                Port = ManagedServerConfig.Port,
+            })
+                .As<INetworkConfig>()
+                .SingleInstance();
+            builder.RegisterInstance(new SessionAdvertisementConfig { Visibility = visibility })
+                .AsSelf()
+                .SingleInstance();
+            container = builder.Build();
+
+            GameInterface.ContainerProvider.SetContainer(container);
+
+            var gameInterface = container.Resolve<IGameInterface>();
+            var loadingInterface = container.Resolve<ILoadingInterface>();
+
+            // Headless server has no loading window to keep alive; patch synchronously
+            if (!loadingInterface.IsLoadingScreenAvailable)
+            {
+                setCrashPhase("applying-patches");
+                gameInterface.PatchAll();
+                StartServerLogic(saveName);
+                return;
+            }
+
+            loadingInterface.ShowLoadingScreen("Hosting Coop Server", "Applying patches...");
+
+            PatchAllOffGameThread(gameInterface, loadingInterface, () =>
+            {
+                loadingInterface.SetLoadingMessage("Hosting Coop Server", "Loading campaign save...");
+                StartServerLogic(saveName);
+            });
+        }
+
+        // LoadGame must follow PatchAll (the LoadPatches postfix publishes GameLoaded), so it runs here, after patching, not at the caller
+        private void StartServerLogic(string saveName)
+        {
+            container.Resolve<ILogic>().Start();
+
+            if (saveName != null)
+            {
+                setCrashPhase("loading-save");
+                container.Resolve<IGameStateInterface>().LoadGame(saveName);
+            }
+            else
+            {
+                setCrashPhase("server-running");
+            }
+        }
+
+        // The ~30s patch compile must stay off the game thread so the loading window keeps drawing, like the client patching on its network thread
+        private void PatchAllOffGameThread(IGameInterface gameInterface, ILoadingInterface loadingInterface, Action continueStart)
+        {
+            int startGeneration = Interlocked.Increment(ref coopStartGeneration);
+            coopStarting = true;
+            setCrashPhase("applying-patches");
+            CancellationToken sessionCancellation = container.Resolve<CancellationTokenSource>().Token;
+
+            Task.Factory.StartNew(() =>
+            {
+                using (GameThread.ActivateCancellation(sessionCancellation))
+                {
+                    if (CompleteCanceledStart(sessionCancellation, startGeneration)) return;
+
+                    try
+                    {
+                        // Teardown must not dispose the scope while patching is still binding handlers.
+                        lock (containerGate)
+                        {
+                            if (CompleteCanceledStart(sessionCancellation, startGeneration)) return;
+
+                            gameInterface.PatchAll();
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        Logger.Error(e, "Applying patches failed while starting coop");
+                        CompleteCoopStart(startGeneration);
+                        GameThread.RunSafe(loadingInterface.HideLoadingScreen);
+                        return;
+                    }
+
+                    if (CompleteCanceledStart(sessionCancellation, startGeneration)) return;
+
+                    GameThread.RunSafe(() =>
+                    {
+                        lock (containerGate)
+                        {
+                            if (sessionCancellation.IsCancellationRequested ||
+                                Volatile.Read(ref coopStartGeneration) != startGeneration)
+                            {
+                                CompleteCoopStart(startGeneration);
+                                return;
+                            }
+
+                            try
+                            {
+                                continueStart();
+                            }
+                            catch
+                            {
+                                loadingInterface.HideLoadingScreen();
+                                throw;
+                            }
+                            finally
+                            {
+                                CompleteCoopStart(startGeneration);
+                            }
+                        }
+                    });
+                }
+            }, TaskCreationOptions.LongRunning);
+        }
+
+        private bool CompleteCanceledStart(CancellationToken cancellation, int startGeneration)
+        {
+            if (!cancellation.IsCancellationRequested) return false;
+
+            CompleteCoopStart(startGeneration);
+            return true;
+        }
+
+        private void CompleteCoopStart(int startGeneration)
+        {
+            lock (containerGate)
+            {
+                if (Volatile.Read(ref coopStartGeneration) == startGeneration)
+                {
+                    coopStarting = false;
+                }
+            }
+        }
+
+        /// <returns>
+        /// <see langword="false"/> when the start was refused because another one is still in flight,
+        /// so callers do not act on a container that belongs to that other attempt.
+        /// </returns>
+        public bool StartAsClient(
+            INetworkConfig configuration = null,
+            SessionAdvertisementConfig advertisementConfig = null,
+            JoinIntent intent = JoinIntent.PlayerDirect)
+        {
+            lock (containerGate)
+            {
+                return StartAsClientCore(configuration, advertisementConfig, intent);
+            }
+        }
+
+        private bool StartAsClientCore(
+            INetworkConfig configuration,
+            SessionAdvertisementConfig advertisementConfig,
+            JoinIntent intent)
+        {
+            // A second Host or Join click while patches are still applying would tear down the in-flight start
+            if (coopStarting) return false;
+
+            DestroyContainer();
+            setCrashPhase("starting-client");
+
+            ModInformation.IsServer = false;
+
+            ContainerBuilder builder = new ContainerBuilder();
+            builder.RegisterModule<ClientModule>();
+            builder.RegisterModule<GameInterfaceModule>();
+            builder.RegisterInstance(new CoopLogFile(coopLogFilePath)).As<ICoopLogFile>().SingleInstance();
+
+            if (configuration != null)
+            {
+                builder.RegisterInstance(configuration).As<INetworkConfig>().SingleInstance();
+            }
+
+            if (advertisementConfig != null)
+            {
+                builder.RegisterInstance(advertisementConfig).AsSelf().SingleInstance();
+            }
+
+            var presentation = JoinAttemptPresentation.For(intent);
+            builder.RegisterInstance(presentation).AsSelf().SingleInstance();
+
+            container = builder.Build();
+
+            GameInterface.ContainerProvider.SetContainer(container);
+
+            // Client process does not own the export directory — only the server writes
+            // debug export files. This prevents DebugAutoConnect races on that directory.
+            AutoSyncConfiguration.ExportFiles = false;
+
+#if DEBUG
+            // For debugging faster, normally this is done after connection
+            var gameInterface = container.Resolve<IGameInterface>();
+            var loadingInterface = container.Resolve<ILoadingInterface>();
+
+            if (loadingInterface.IsLoadingScreenAvailable)
+            {
+                // Marshalled: Steam callbacks arrive off the game thread.
+                GameThread.RunSafe(
+                    () => loadingInterface.ShowLoadingScreen(presentation.Title, "Applying patches..."),
+                    context: "PrimeJoinAttemptLoadingScreen");
+
+                PatchAllOffGameThread(gameInterface, loadingInterface, () =>
+                {
+                    setCrashPhase("connecting");
+                    container.Resolve<ILogic>().Start();
+                });
+                return true;
+            }
+
+            setCrashPhase("applying-patches");
+            gameInterface.PatchAll();
+#endif
+
+            var logic = container.Resolve<ILogic>();
+            setCrashPhase("connecting");
+            logic.Start();
+
+            return true;
+        }
+
+        private void DestroyContainer()
+        {
+            lock (containerGate)
+            {
+                DestroyContainerCore();
+            }
+        }
+
+        private void DestroyContainerCore()
+        {
+            Interlocked.Increment(ref coopStartGeneration);
+            coopStarting = false;
+
+            IContainer oldContainer = container;
+            container = null;
+
+            if (oldContainer == null)
+            {
+                GameInterface.ContainerProvider.Clear();
+                setCrashPhase("idle");
+                return;
+            }
+
+            try
+            {
+                oldContainer.Resolve<CancellationTokenSource>().Cancel();
+                oldContainer.Resolve<INetwork>().Dispose();
+                oldContainer.Resolve<IGameInterface>().UnpatchAll();
+            }
+            finally
+            {
+                // UnpatchAll is currently disabled (see GameInterface.UnpatchAll), so patched setters
+                // must stop resolving against the scope before its handlers are disposed.
+                GameInterface.ContainerProvider.Clear();
+                try
+                {
+                    oldContainer.Dispose();
+                }
+                finally
+                {
+                    // Post-session resolves (console cheats, leftover patches) must fail gracefully.
+                    GameInterface.ContainerProvider.Clear();
+                    setCrashPhase("idle");
+                }
+            }
+        }
+    }
+}
