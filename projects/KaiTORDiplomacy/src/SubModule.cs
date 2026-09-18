@@ -25,10 +25,12 @@ public sealed class SubModule : MBSubModuleBase
         {
             _harmony = new Harmony("kaitor.diplomacy.kingdom-ui");
             _harmony.PatchAll(typeof(SubModule).Assembly);
+            KaiRuntimeLog.Write("DIPLOMACY_UI_READY", "Harmony PatchAll completed.");
         }
-        catch
+        catch (Exception ex)
         {
             // Never prevent the campaign from loading if an optional UI patch cannot be installed.
+            KaiRuntimeLog.Exception("DIPLOMACY_UI_FAILED", ex, "stage=PatchAll");
         }
     }
 
@@ -36,6 +38,8 @@ public sealed class SubModule : MBSubModuleBase
     {
         base.OnGameStart(game, gameStarterObject);
         if (gameStarterObject is not CampaignGameStarter campaignStarter) return;
+
+        KaiRuntimeLog.Write("STARTUP", "KaiTOR Diplomacy v0.6.4 campaign start.");
 
         // Family lifecycle: native Bannerlord maturation stays intact; TOR remains the base model stack.
         InstallMarriageWrapper(campaignStarter);
@@ -62,8 +66,11 @@ public sealed class SubModule : MBSubModuleBase
 
         campaignStarter.AddBehavior(new KaiDiplomacyBehavior());
         campaignStarter.AddBehavior(new KaiDiplomacyAiBehavior());
+        campaignStarter.AddBehavior(new KaiDiplomacyConversationBehavior());
         campaignStarter.AddBehavior(new KaiCultureAssimilationBehavior());
+        campaignStarter.AddBehavior(new KaiDynasticMarriageBehavior());
         campaignStarter.AddBehavior(new KaiFamilyAffairsBehavior());
+        campaignStarter.AddBehavior(new KaiIncomingMarriageProposalBehavior());
         campaignStarter.AddBehavior(new KaiLoreEducationBehavior());
         campaignStarter.AddBehavior(new KaiBloodKissBehavior());
         campaignStarter.AddBehavior(new KaiDynastyAiBehavior());
