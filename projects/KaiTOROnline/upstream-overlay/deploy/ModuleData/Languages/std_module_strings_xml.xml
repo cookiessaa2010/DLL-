@@ -90,5 +90,48 @@
     <string id="kaitor_always" text="Always"/>
     <string id="kaitor_hold_indicators" text="Hold Indicators"/>
     <string id="kaitor_never" text="Never"/>
+    <string id="kaitor_public" text="Public"/>
+    <string id="kaitor_public_hint" text="Listed in Server Discovery for everyone."/>
+    <string id="kaitor_friends_only" text="Friends Only"/>
+    <string id="kaitor_friends_only_hint" text="Listed in Server Discovery for your Steam friends only."/>
+    <string id="kaitor_hidden" text="Hidden"/>
+    <string id="kaitor_hidden_hint" text="Hidden from Server Discovery; Steam joins, direct connections, and owner loopback still work."/>
+    <string id="kaitor_server_visibility" text="Server visibility"/>
+    <string id="kaitor_server_visibility_desc" text="Choose who can discover this server."/>
+    <string id="kaitor_continue" text="Continue"/>
+    <string id="kaitor_cancel" text="Cancel"/>
+    <string id="kaitor_server_password_title" text="Server Password"/>
+    <string id="kaitor_server_password_desc" text="Set an optional password for this server. Leave it blank to allow anyone to join."/>
+    <string id="kaitor_host" text="Host"/>
+    <string id="kaitor_password_max_error" text="Password cannot exceed {MAX_LENGTH} characters."/>
+    <string id="kaitor_connecting_title" text="Connecting to KaiTOR Co-op"/>
+    <string id="kaitor_hosting_title" text="Hosting KaiTOR Co-op"/>
+    <string id="kaitor_contacting_server" text="Contacting the server..."/>
+    <string id="kaitor_contacting_steam" text="Contacting the host through Steam..."/>
+    <string id="kaitor_waiting_server" text="Waiting for the server to load the campaign save..."/>
+    <string id="kaitor_connection_cancelled" text="Connection attempt cancelled."/>
+    <string id="kaitor_stop_waiting" text="Stop Waiting"/>
+    <string id="kaitor_stopped_waiting_notice" text="Stopped waiting for the co-op server. Its window stays open until you close it."/>
+    <string id="kaitor_applying_patches" text="Applying patches..."/>
+    <string id="kaitor_validating_modules" text="Validating modules..."/>
+    <string id="kaitor_coop_options" text="KaiTOR Co-op Options"/>
+    <string id="kaitor_invite_friends" text="Invite Friends"/>
+    <string id="kaitor_saving_disabled" text="Saving is disabled on clients; the host saves the campaign."/>
+    <string id="kaitor_steam_overlay_unavailable" text="Steam overlay is unavailable. Enable the Steam overlay and try again."/>
+    <string id="kaitor_report_bug" text="Report Co-op Bug"/>
+    <string id="kaitor_bug_disclosure" text="Your network ID, summary, and description will be published in a public GitHub issue. Included logs are available through public links, with no guaranteed remote expiry."/>
+    <string id="kaitor_summary" text="Summary"/>
+    <string id="kaitor_description" text="Description"/>
+    <string id="kaitor_submit" text="Submit"/>
+    <string id="kaitor_enter_summary" text="Enter a summary."/>
+    <string id="kaitor_enter_description" text="Enter a description."/>
+    <string id="kaitor_bug_send_failed" text="The bug report could not be sent."/>
+    <string id="kaitor_sponsors" text="Sponsors"/>
+    <string id="kaitor_supporters" text="Supporters"/>
+    <string id="kaitor_contributors" text="Contributors"/>
+    <string id="kaitor_close" text="Close"/>
+    <string id="kaitor_coming_soon" text="Coming soon"/>
+    <string id="kaitor_donate_prompt" text="Bannerlord Coop upstream is free and developed by volunteers.&#10;&#10;Donations help its maintainers cover servers, development tools, and other project costs.&#10;&#10;If you want to support the upstream project, choose a platform below."/>
+    <string id="kaitor_buy_coffee" text="Buy a Coffee"/>
   </strings>
 </base>
