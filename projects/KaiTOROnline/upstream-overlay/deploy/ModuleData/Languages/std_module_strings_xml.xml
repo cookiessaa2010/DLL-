@@ -176,5 +176,7 @@
     <string id="kaitor_unsupported_client_module" text="Server does not support client module '{MODULE}'."/>
     <string id="kaitor_dlc_not_supported" text="DLC is not supported. Disable: {MODULES}."/>
     <string id="kaitor_wrong_game_version" text="Wrong game version. Server: '{SERVER_VERSION}', client: '{CLIENT_VERSION}'."/>
+    <string id="kaitor_incompatible_hint_label" text="Incompatible (i)"/>
+    <string id="kaitor_interaction" text="INTERACTION"/>
   </strings>
 </base>
