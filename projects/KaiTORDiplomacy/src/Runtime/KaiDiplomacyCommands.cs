@@ -10,6 +10,34 @@ namespace KaiTOR.Diplomacy.Runtime;
 
 public static class KaiDiplomacyCommands
 {
+    [CommandLineFunctionality.CommandLineArgumentFunction("help", "kaitor_diplomacy")]
+    public static string Help(List<string> arguments)
+    {
+        if (arguments.Count != 0) return "Usage: kaitor_diplomacy.help";
+        return string.Join("\n", new[]
+        {
+            "KaiTOR Diplomacy commands:",
+            "kaitor_diplomacy.status",
+            "kaitor_diplomacy.world_status",
+            "kaitor_diplomacy.marriages",
+            "kaitor_diplomacy.racial_status",
+            "kaitor_diplomacy.dawi_status",
+            "kaitor_diplomacy.dawi_spawn_test",
+            "kaitor_diplomacy.ui_status",
+            "kaitor_diplomacy.ui_family",
+            "kaitor_diplomacy.live_test_start",
+            "kaitor_diplomacy.live_test_snapshot",
+            "kaitor_diplomacy.live_test_path",
+            "kaitor_diplomacy.live_test_mark <text>",
+            "kaitor_diplomacy.save_status",
+            "kaitor_diplomacy.culture_support",
+            "kaitor_diplomacy.settlement",
+            "kaitor_diplomacy.kingdoms",
+            "kaitor_diplomacy.ledger",
+            "kaitor_diplomacy.inspect <kingdomA> <kingdomB>"
+        });
+    }
+
     [CommandLineFunctionality.CommandLineArgumentFunction("status", "kaitor_diplomacy")]
     public static string Status(List<string> arguments)
     {
@@ -17,12 +45,12 @@ public static class KaiDiplomacyCommands
 
         var behavior = GetBehavior();
         if (behavior == null) return "KaiTOR Diplomacy behavior is not loaded.";
-        if (!behavior.RuntimeEnabled) return DisabledMessage + " " + behavior.DescribeSaveCompatibility();
+        if (!behavior.RuntimeEnabled) return C(DisabledMessage + " " + behavior.DescribeSaveCompatibility());
 
         var pacts = behavior.DescribeActivePacts().ToArray();
-        return pacts.Length == 0
+        return C(pacts.Length == 0
             ? "KaiTOR Diplomacy: PASS; no active non-aggression pacts.\n" + behavior.DescribeSaveCompatibility()
-            : "KaiTOR Diplomacy: PASS\n" + behavior.DescribeSaveCompatibility() + "\n" + string.Join("\n", pacts);
+            : "KaiTOR Diplomacy: PASS\n" + behavior.DescribeSaveCompatibility() + "\n" + string.Join("\n", pacts));
     }
 
     [CommandLineFunctionality.CommandLineArgumentFunction("world_status", "kaitor_diplomacy")]
@@ -39,7 +67,7 @@ public static class KaiDiplomacyCommands
         var activeKingdoms = Kingdom.All.Count(kingdom => kingdom != null && !kingdom.IsEliminated);
         var activeClans = Clan.All.Count(clan => clan != null && !clan.IsEliminated);
 
-        return C(string.Join("\n", new[]
+        return string.Join("\n", new[]
         {
             $"KaiTOR world lifecycle: {(CampaignOptions.IsLifeDeathCycleDisabled ? "DISABLED" : "ENABLED")}",
             $"MarriageModel: {Campaign.Current.Models.MarriageModel?.GetType().FullName ?? "<null>"}",
@@ -62,16 +90,15 @@ public static class KaiDiplomacyCommands
                 hero?.Spouse != null &&
                 hero.Spouse.IsAlive &&
                 string.CompareOrdinal(hero.StringId, hero.Spouse.StringId) < 0)
-            .OrderBy(hero => hero.Clan?.Name?.ToString() ?? string.Empty, StringComparer.Ordinal)
-            .ThenBy(hero => hero.Name?.ToString() ?? string.Empty, StringComparer.Ordinal)
+            .OrderBy(hero => hero.StringId, StringComparer.Ordinal)
             .Select(hero =>
             {
                 var spouse = hero.Spouse;
                 var fertility = TorFamilySafety.CanUseVanillaPregnancy(hero, spouse)
                     ? "offspring-safe"
                     : "childless";
-                return $"{hero.Name} [{hero.Culture?.Name}; {hero.Clan?.Name ?? hero.Name}] <-> " +
-                       $"{spouse.Name} [{spouse.Culture?.Name}; {spouse.Clan?.Name ?? spouse.Name}] ({fertility})";
+                return $"{hero.StringId} [{hero.Culture?.StringId ?? "none"}; {hero.Clan?.StringId ?? "none"}] <-> " +
+                       $"{spouse.StringId} [{spouse.Culture?.StringId ?? "none"}; {spouse.Clan?.StringId ?? "none"}] ({fertility})";
             })
             .ToArray();
 
@@ -90,7 +117,7 @@ public static class KaiDiplomacyCommands
         var greenskin = Campaign.Current.GetCampaignBehavior<KaiGreenskinPopulationBehavior>();
         var dawi = Campaign.Current.GetCampaignBehavior<KaiDawiWomenBehavior>();
         if (vampire == null && greenskin == null && dawi == null)
-            return C("KaiTOR racial population systems are not loaded.");
+            return "KaiTOR racial population systems are not loaded.";
 
         var lines = new List<string>();
         if (vampire != null) lines.AddRange(vampire.DescribeStatus());
@@ -107,27 +134,27 @@ public static class KaiDiplomacyCommands
 
         var behavior = Campaign.Current.GetCampaignBehavior<KaiDawiWomenBehavior>();
         return behavior == null
-            ? "Система женщин-гномов не загружена."
-            : string.Join("\n", behavior.DescribeStatus());
+            ? "Dawi women system is not loaded."
+            : C(string.Join("\n", behavior.DescribeStatus()));
     }
 
     [CommandLineFunctionality.CommandLineArgumentFunction("dawi_spawn_test", "kaitor_diplomacy")]
     public static string DawiSpawnTest(List<string> arguments)
     {
         if (arguments.Count != 0) return "Usage: kaitor_diplomacy.dawi_spawn_test";
-        if (Campaign.Current == null) return "Кампания не запущена.";
+        if (Campaign.Current == null) return "No campaign is active.";
 
         var behavior = Campaign.Current.GetCampaignBehavior<KaiDawiWomenBehavior>();
         return behavior == null
-            ? "Система женщин-гномов не загружена."
-            : behavior.SpawnOneForLiveTest();
+            ? "Dawi women system is not loaded."
+            : C(behavior.SpawnOneForLiveTest());
     }
 
     [CommandLineFunctionality.CommandLineArgumentFunction("ui_status", "kaitor_diplomacy")]
     public static string UiStatus(List<string> arguments)
     {
         if (arguments.Count != 0) return "Usage: kaitor_diplomacy.ui_status";
-        if (Campaign.Current == null) return "Кампания не запущена.";
+        if (Campaign.Current == null) return "No campaign is active.";
 
         var family = Campaign.Current.GetCampaignBehavior<KaiFamilyAffairsBehavior>();
         var diplomacy = GetBehavior();
@@ -135,7 +162,7 @@ public static class KaiDiplomacyCommands
         var dynastic = Campaign.Current.GetCampaignBehavior<KaiDynasticMarriageBehavior>();
         var incoming = Campaign.Current.GetCampaignBehavior<KaiIncomingMarriageProposalBehavior>();
 
-        return string.Join("\n", new[]
+        return C(string.Join("\n", new[]
         {
             KaiFamilyAffairsBehavior.DescribeUiStatus(),
             $"GauntletMovie={KaiTORDiplomacyScreen.MovieName}",
@@ -145,7 +172,7 @@ public static class KaiDiplomacyCommands
             $"CultureAssimilationBehavior={(culture != null ? "OK" : "MISSING")}",
             $"DynasticMarriageBehavior={(dynastic != null ? "OK" : "MISSING")}",
             $"IncomingMarriageProposalBehavior={(incoming != null ? "OK" : "MISSING")}"
-        });
+        }));
     }
 
     [CommandLineFunctionality.CommandLineArgumentFunction("ui_family", "kaitor_diplomacy")]
@@ -159,16 +186,18 @@ public static class KaiDiplomacyCommands
     public static string LiveTestStart(List<string> arguments)
     {
         if (arguments.Count != 0) return "Usage: kaitor_diplomacy.live_test_start";
-        if (Campaign.Current == null) return "Кампания не запущена.";
-        return KaiLiveTestBehavior.ResetAndSnapshot();
+        if (Campaign.Current == null) return "No campaign is active.";
+        KaiLiveTestBehavior.ResetAndSnapshot();
+        return "KaiTOR live-test log started. Path: %LOCALAPPDATA%\\KaiTORDiplomacy\\KaiTOR-LiveTest.log";
     }
 
     [CommandLineFunctionality.CommandLineArgumentFunction("live_test_snapshot", "kaitor_diplomacy")]
     public static string LiveTestSnapshot(List<string> arguments)
     {
         if (arguments.Count != 0) return "Usage: kaitor_diplomacy.live_test_snapshot";
-        if (Campaign.Current == null) return "Кампания не запущена.";
-        return KaiLiveTestBehavior.AppendSnapshot();
+        if (Campaign.Current == null) return "No campaign is active.";
+        KaiLiveTestBehavior.AppendSnapshot();
+        return "KaiTOR live-test snapshot appended.";
     }
 
     [CommandLineFunctionality.CommandLineArgumentFunction("live_test_path", "kaitor_diplomacy")]
@@ -226,7 +255,7 @@ public static class KaiDiplomacyCommands
         return string.Join("\n", Kingdom.All
             .Where(k => k != null && !k.IsEliminated)
             .OrderBy(k => k.StringId, StringComparer.Ordinal)
-            .Select(k => $"{k.StringId} = {k.Name}"));
+            .Select(k => k.StringId));
     }
 
     [CommandLineFunctionality.CommandLineArgumentFunction("nap", "kaitor_diplomacy")]
@@ -282,7 +311,7 @@ public static class KaiDiplomacyCommands
         var entries = behavior.DescribeDiplomaticHistory().ToArray();
         return entries.Length == 0
             ? "KaiTOR Diplomacy ledger is empty."
-            : string.Join("\n", entries);
+            : C(string.Join("\n", entries));
     }
 
     [CommandLineFunctionality.CommandLineArgumentFunction("inspect", "kaitor_diplomacy")]
@@ -307,7 +336,9 @@ public static class KaiDiplomacyCommands
                $"cooldown={behavior.GetNapCooldownRemainingDays(first, second)} day(s).";
     }
 
-    private static string C(string value) => KaiConsoleText.Safe(value);\n\n    private const string DisabledMessage =
+    private static string C(string value) => KaiConsoleText.Safe(value);
+
+    private const string DisabledMessage =
         "KaiTOR Diplomacy runtime is disabled by the TOR compatibility gate.";
 
     private static KaiDiplomacyBehavior GetBehavior()
