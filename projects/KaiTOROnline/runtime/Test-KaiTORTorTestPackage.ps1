@@ -122,6 +122,37 @@ if ($russianManifest -notmatch 'LanguageData id="Русский"') {
     throw 'Russian language manifest does not register Русский.'
 }
 
+
+# Both language packs must expose exactly the same KaiTOR string ids.
+[xml]$englishXml = $englishStrings
+[xml]$russianXml = $russianStrings
+$englishIds = @($englishXml.base.strings.string | ForEach-Object { [string]$_.id } | Sort-Object -Unique)
+$russianIds = @($russianXml.base.strings.string | ForEach-Object { [string]$_.id } | Sort-Object -Unique)
+$missingRussian = @($englishIds | Where-Object { $russianIds -notcontains $_ })
+$missingEnglish = @($russianIds | Where-Object { $englishIds -notcontains $_ })
+if ($missingRussian.Count -gt 0 -or $missingEnglish.Count -gt 0) {
+    throw "RU/EN localization id mismatch. Missing RU: $($missingRussian -join ', '); missing EN: $($missingEnglish -join ', ')"
+}
+
+# Visible prefab copy must be data-bound/localized. Strip XML comments first so commented
+# upstream reference text does not trigger the release gate. "(i)" and the wager arrow are
+# language-neutral UI glyphs.
+$allowedLiteralUiText = @('(i)', '-&gt;')
+$prefabRoot = Join-Path $root 'Modules/Coop/GUI/Prefabs'
+foreach ($prefab in Get-ChildItem -LiteralPath $prefabRoot -File -Filter '*.xml') {
+    $prefabText = Get-Content -LiteralPath $prefab.FullName -Raw -Encoding UTF8
+    $activePrefabText = [regex]::Replace($prefabText, '<!--.*?-->', '', [Text.RegularExpressions.RegexOptions]::Singleline)
+    $matches = [regex]::Matches($activePrefabText, '\b[A-Za-z0-9_.]*Text="([^"]+)"')
+    foreach ($match in $matches) {
+        $value = $match.Groups[1].Value
+        if ($value.StartsWith('@') -or $value.StartsWith('{=')) { continue }
+        if ($allowedLiteralUiText -contains $value) { continue }
+        if ($value -match '[A-Za-z]') {
+            throw "Unlocalized visible prefab text '$value' in $($prefab.Name)."
+        }
+    }
+}
+
 $connectPrefab = Get-Content -LiteralPath (Join-Path $root 'Modules/Coop/GUI/Prefabs/CoopConnectionUIMovie.xml') -Raw -Encoding UTF8
 if ($connectPrefab -notmatch 'KaiTORFrame' -or $connectPrefab -notmatch '@BrandSubtitleText') {
     throw 'KaiTOR dark-fantasy connection UI frame is missing.'
