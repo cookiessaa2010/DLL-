@@ -499,8 +499,11 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
                         _selectedHouseMember = hero;
                         _selectedTargetClan = null;
                         _selectedTargetHero = null;
-                        KaiRuntimeLog.Write("MARRIAGE_MEMBER_SELECTED", $"hero={hero.StringId}");
+                        KaiRuntimeLog.Write(
+                            "MARRIAGE_MEMBER_SELECTED",
+                            $"hero={hero.StringId}; valid={IsSelectedHouseMemberStillValid()}");
                         ShowQuick($"Для брачного союза выбран: {hero.Name}.", hero);
+                        SafeSwitchToMenu(MarriageMenuId, "marriage_member_refresh");
                     },
                     null),
                 true,
@@ -559,8 +562,11 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
 
                         _selectedTargetClan = clan;
                         _selectedTargetHero = null;
-                        KaiRuntimeLog.Write("MARRIAGE_CLAN_SELECTED", $"clan={clan.StringId}; member={_selectedHouseMember?.StringId ?? "none"}");
+                        KaiRuntimeLog.Write(
+                            "MARRIAGE_CLAN_SELECTED",
+                            $"clan={clan.StringId}; member={_selectedHouseMember?.StringId ?? "none"}; validMember={IsSelectedHouseMemberStillValid()}");
                         ShowQuick($"Выбран дом: {clan.Name}.", clan.Leader);
+                        SafeSwitchToMenu(MarriageMenuId, "marriage_clan_refresh");
                     },
                     null),
                 true,
@@ -618,8 +624,11 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
                             return;
 
                         _selectedTargetHero = hero;
-                        KaiRuntimeLog.Write("MARRIAGE_TARGET_SELECTED", $"member={_selectedHouseMember?.StringId ?? "none"}; target={hero.StringId}");
+                        KaiRuntimeLog.Write(
+                            "MARRIAGE_TARGET_SELECTED",
+                            $"member={_selectedHouseMember?.StringId ?? "none"}; target={hero.StringId}; clan={_selectedTargetClan?.StringId ?? "none"}");
                         ShowQuick($"Кандидат выбран: {hero.Name}.", hero);
+                        SafeSwitchToMenu(MarriageMenuId, "marriage_target_refresh");
                     },
                     null),
                 true,
