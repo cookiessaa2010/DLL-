@@ -21,7 +21,7 @@ public class BugReportOptionsTabProvider : ICoopOptionsTabProvider
     {
         return new CoopOptionsTabVM(
             Id,
-            GameInterface.Services.UI.KaiTORUiText.Get("kaitor_bug_report", TabName),
+            global::GameInterface.Services.UI.KaiTORUiText.Get("kaitor_bug_report", TabName),
             new CoopOptionsSectionVM[]
             {
                 new BugReportSection(GetShowBugReportButtonOrDefault(options), messageBroker)
