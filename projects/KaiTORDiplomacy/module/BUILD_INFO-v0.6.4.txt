@@ -27,3 +27,12 @@ LiveFix-1 CI run: 35374026375 (PASS)
 LiveFix-1 source head: 45bbac751e1aeaf3e663fd94d044c181003786f5
 LiveFix-1 master merge: 78a2bd1e6340923dd5fc66a8c771d7875046141a
 LiveFix-1: marriage refresh + safe realm picker + ASCII RGL console
+
+Lore family lifecycle source head: 53aa9d556fcfede8ca2e16d6e1c049d397059a8b
+Lore family lifecycle CI run: 35394747060 (PASS)
+Lore family lifecycle artifact: 10566888955
+Lore family lifecycle master merge: 64896a35babdc0917dbfea06b5c019324b728fb5
+Marriage: lore-capable peoples restored; no upper marriage-age cap
+Pregnancy: mortal humans human-like; Dawi/Elves race-aware; Vampire=Blood Kiss; Greenskin=spores; Undead=OFF
+Dawi automatic women population: ON, bounded quota/cooldown
+LiveFix1 UI/console fixes carried forward
