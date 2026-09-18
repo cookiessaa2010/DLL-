@@ -133,5 +133,15 @@
     <string id="kaitor_coming_soon" text="Coming soon"/>
     <string id="kaitor_donate_prompt" text="Bannerlord Coop upstream is free and developed by volunteers.&#10;&#10;Donations help its maintainers cover servers, development tools, and other project costs.&#10;&#10;If you want to support the upstream project, choose a platform below."/>
     <string id="kaitor_buy_coffee" text="Buy a Coffee"/>
+    <string id="kaitor_bug_share_title" text="Share Diagnostics and Submit Bug Report?"/>
+    <string id="kaitor_bug_share_prompt" text="Submitting this report sends your network ID, summary, and description to the dedicated server and BannerlordCoop's bug-report service. The reporting network ID is published in a public GitHub issue. The server creates and uploads its current campaign save and paired co-op session data with the report. Save data and included server/client logs are uploaded to publicly accessible links; remote deletion or expiry is not guaranteed. Server saves and logs may contain player names, Steam IDs, IP addresses, file paths, and gameplay or network details. Runtime command arguments and common credential values are redacted. Client saves, configuration files, and memory dumps are not included. Choose Allow to share diagnostics and submit this report, or No thanks to cancel."/>
+    <string id="kaitor_allow" text="Allow"/>
+    <string id="kaitor_no_thanks" text="No thanks"/>
+    <string id="kaitor_bug_logs_title" text="Share Co-op Diagnostic Logs?"/>
+    <string id="kaitor_bug_logs_prompt" text="Allow this client's current BannerlordCoop log to be packaged with other consenting client logs and submitted with diagnostic reports? Reports create a public GitHub issue containing the reporting player's network ID. Server save/session data and shared logs may be publicly accessible and may contain player names, Steam IDs, IP addresses, file paths, and gameplay or network details. Choose No thanks to keep this client's log local."/>
+    <string id="kaitor_crash_reports_title" text="Automatic Crash Reports"/>
+    <string id="kaitor_crash_reports_prompt" text="Enable Bannerlord's automatic crash-report mode? A full report may include process memory, logs, configuration files, and your newest save. BannerlordCoop separately keeps local crash diagnostics and never uploads them."/>
+    <string id="kaitor_enable" text="Enable"/>
+    <string id="kaitor_bug_submitted" text="[Bug Report] Submitted to the server. Collecting consenting client logs."/>
   </strings>
 </base>
