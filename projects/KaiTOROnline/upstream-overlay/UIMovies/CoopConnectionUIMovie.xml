@@ -315,7 +315,7 @@
                                                             DoNotAcceptEvents="true" Brush="Clan.TabControl.Text"
                                                             Brush.FontSize="26" Brush.FontColor="#FF8080FF"
                                                             Brush.TextHorizontalAlignment="Right" Brush.TextVerticalAlignment="Center"
-                                                            Text="Incompatible (i)"/>
+                                                            Text="@StatusHintLabelText"/>
                                               </Children>
                                             </HintWidget>
                                           </Children>
