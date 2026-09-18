@@ -8,7 +8,7 @@
         <!-- DIAG-A: intentionally minimal.
              No ScrollablePanel, no NavigatableListPanel, no ItemTemplate,
              no custom ScrollbarWidget. -->
-        <Widget Id="KaiTORDiplomacyDiagARoot"
+        <Widget Id="KaiTORDiplomacyRoot"
                 WidthSizePolicy="Fixed" SuggestedWidth="980"
                 HeightSizePolicy="Fixed" SuggestedHeight="560"
                 HorizontalAlignment="Center" VerticalAlignment="Center">
