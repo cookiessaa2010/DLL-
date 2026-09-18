@@ -620,7 +620,7 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
             InformationManager.ShowInquiry(
                 new InquiryData(
                     "Брачный союз без биологических детей",
-                    $"{member.Name} и {target.Name} могут заключить полноценный брачный союз, но обычная биологическая беременность для этой пары отключена. Продолжить переговоры?",
+                    $"{member.Name} и {target.Name} могут заключить полноценный брачный союз, но у этой пары не будет биологических детей. Продолжить переговоры?",
                     true,
                     true,
                     "Продолжить",
@@ -650,12 +650,17 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
             return;
         }
 
+        var childlessWarning = TorFamilySafety.CanUseVanillaPregnancy(_selectedHouseMember, _selectedTargetHero)
+            ? string.Empty
+            : " У этой пары не будет биологических детей.";
+
         InformationManager.ShowInquiry(
             new InquiryData(
                 "Династический брак",
                 $"Заключить политический брачный договор между {_selectedHouseMember.Name} и {_selectedTargetHero.Name}? " +
                 $"До окончания переговоров будет зарезервировано {KaiDynasticMarriageBehavior.PoliticalMarriageCost:N0} динаров. " +
-                "Если свадьба состоится, другой дом получит эту сумму, отношения домов улучшатся, дипломатическое доверие вырастет, а между разными державами будет использован существующий NAP сроком до 180 дней. При отмене переговоров деньги вернутся полностью.",
+                "Если свадьба состоится, другой дом получит эту сумму, отношения домов улучшатся, дипломатическое доверие вырастет, а между разными державами будет заключён пакт о ненападении сроком до 180 дней. При отмене переговоров деньги вернутся полностью." +
+                childlessWarning,
                 true,
                 true,
                 "Начать переговоры",
