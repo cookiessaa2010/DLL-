@@ -87,5 +87,8 @@
     <string id="kaitor_bug_report" text="Сообщить об ошибке"/>
     <string id="kaitor_bug_report_desc" text="Настройка внутриигровой кнопки отправки отчёта об ошибке."/>
     <string id="kaitor_show_bug_report" text="Показывать кнопку отчёта об ошибке"/>
+    <string id="kaitor_always" text="Всегда"/>
+    <string id="kaitor_hold_indicators" text="При удержании индикаторов"/>
+    <string id="kaitor_never" text="Никогда"/>
   </strings>
 </base>
