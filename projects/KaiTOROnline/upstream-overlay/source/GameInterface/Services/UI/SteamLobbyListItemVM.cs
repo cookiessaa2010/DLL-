@@ -86,6 +86,9 @@ public sealed class SteamLobbyListItemVM : ViewModel
     public bool IsStatusHintVisible => !IsCompatible;
 
     [DataSourceProperty]
+    public string StatusHintLabelText => KaiTORUiText.Get("kaitor_incompatible_hint_label", "Incompatible (i)");
+
+    [DataSourceProperty]
     public HintViewModel StatusHint { get; }
 
     [DataSourceProperty]
