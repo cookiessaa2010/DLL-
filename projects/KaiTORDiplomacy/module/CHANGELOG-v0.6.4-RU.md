@@ -118,3 +118,20 @@ LIVE TEST PASSED ставится только после проверки в р
   - `kaitor_diplomacy.live_test_snapshot`
   - `kaitor_diplomacy.live_test_path`
   - `kaitor_diplomacy.live_test_mark <текст>`
+
+
+## H — Lore Family Lifecycle
+- Проверено исходное `TORMarriageModel`: TOR возвращает `false` для всех marriage-checks; KaiTOR теперь полностью владеет разрешением семейных союзов.
+- Убрана зависимость браков от TOR/vanilla marriage gate. Для обычных пар используются KaiTOR lore-rules и стандартные безопасные ограничения Bannerlord: герой активен, свободен, Lord, не template/minor/notable, не занят map event/army, не помолвлен, не близкий родственник.
+- Верхнего возрастного лимита для брака больше нет. Используется только лорный возраст взросления.
+- Humans/mortals: marriage 18+; pregnancy использует обычную human-like биологию.
+- Dawi: marriage 30+ без верхнего лимита; pregnancy 30+ без человеческого cutoff 45; biological-age curve насыщается, но не выключает фертильность.
+- Elves: marriage 18+ без верхнего лимита; pregnancy 18+ без человеческого cutoff 45.
+- Vampires: социальный брак разрешён; обычная беременность запрещрещена; размножение остаётся через Blood Kiss.
+- Greenskins: обычные браки/беременность выключены; размножение остаётся через spores.
+- Ordinary undead: conventional marriage/pregnancy выключены.
+- NPC auto-marriage: same culture + same FaceGen race; player-arranged marriage сохраняет более широкие social rules, но pregnancy по-прежнему требует same race + opposite sex.
+- Удалён fallback, который при недоступном vampire helper блокировал беременность всем mortal жителям vampire cultures; actual vampire race по-прежнему блокируется.
+- Dawi automatic women population включена: bounded shortage fill, максимум 3 generated women на AI-клан, 336 дней cooldown на клан.
+- Vampire automatic population = ON; Greenskin spore population = ON.
+- Добавлена команда `kaitor_diplomacy.family_rules` для проверки реальной активной матрицы правил.
