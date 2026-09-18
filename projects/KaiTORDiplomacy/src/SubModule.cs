@@ -14,7 +14,7 @@ public sealed class SubModule : MBSubModuleBase
     private const bool EnableLifecycleRestore = true;
     private const bool EnableLoreOldAgeMortality = true;
     private const bool EnableMarriageWarnings = true;
-    private const bool EnableDawiWomenLiveTest = true;
+    private const bool EnableDawiWomenPopulation = true;
 
     private Harmony _harmony;
 
@@ -50,7 +50,7 @@ public sealed class SubModule : MBSubModuleBase
             InstallHeroDeathWrapper(campaignStarter);
         if (EnableMarriageWarnings)
             campaignStarter.AddBehavior(new KaiMarriageWarningBehavior());
-        if (EnableDawiWomenLiveTest)
+        if (EnableDawiWomenPopulation)
             campaignStarter.AddBehavior(new KaiDawiWomenBehavior());
 
         // Safe additive diplomacy permission layer. It delegates every TOR rule and only vetoes
