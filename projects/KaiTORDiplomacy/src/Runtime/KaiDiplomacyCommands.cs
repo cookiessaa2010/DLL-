@@ -87,13 +87,39 @@ public static class KaiDiplomacyCommands
 
         var vampire = Campaign.Current.GetCampaignBehavior<KaiVampirePopulationBehavior>();
         var greenskin = Campaign.Current.GetCampaignBehavior<KaiGreenskinPopulationBehavior>();
-        if (vampire == null && greenskin == null)
-            return "KaiTOR split racial population behaviors are not loaded.";
+        var dawi = Campaign.Current.GetCampaignBehavior<KaiDawiWomenBehavior>();
+        if (vampire == null && greenskin == null && dawi == null)
+            return "Системы расового населения KaiTOR не загружены.";
 
         var lines = new List<string>();
         if (vampire != null) lines.AddRange(vampire.DescribeStatus());
         if (greenskin != null) lines.AddRange(greenskin.DescribeStatus());
-        return "KaiTOR racial population status:\n" + string.Join("\n", lines);
+        if (dawi != null) lines.AddRange(dawi.DescribeStatus());
+        return "Состояние расового населения KaiTOR:\n" + string.Join("\n", lines);
+    }
+
+    [CommandLineFunctionality.CommandLineArgumentFunction("dawi_status", "kaitor_diplomacy")]
+    public static string DawiStatus(List<string> arguments)
+    {
+        if (arguments.Count != 0) return "Использование: kaitor_diplomacy.dawi_status";
+        if (Campaign.Current == null) return "Кампания не запущена.";
+
+        var behavior = Campaign.Current.GetCampaignBehavior<KaiDawiWomenBehavior>();
+        return behavior == null
+            ? "Система женщин-гномов не загружена."
+            : string.Join("\n", behavior.DescribeStatus());
+    }
+
+    [CommandLineFunctionality.CommandLineArgumentFunction("dawi_spawn_test", "kaitor_diplomacy")]
+    public static string DawiSpawnTest(List<string> arguments)
+    {
+        if (arguments.Count != 0) return "Использование: kaitor_diplomacy.dawi_spawn_test";
+        if (Campaign.Current == null) return "Кампания не запущена.";
+
+        var behavior = Campaign.Current.GetCampaignBehavior<KaiDawiWomenBehavior>();
+        return behavior == null
+            ? "Система женщин-гномов не загружена."
+            : behavior.SpawnOneForLiveTest();
     }
 
     [CommandLineFunctionality.CommandLineArgumentFunction("save_status", "kaitor_diplomacy")]
