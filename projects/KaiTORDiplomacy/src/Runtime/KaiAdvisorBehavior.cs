@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using KaiTOR.Diplomacy.UI;
 using TaleWorlds.CampaignSystem;
 
 namespace KaiTOR.Diplomacy.Runtime;
@@ -20,7 +21,7 @@ public sealed class KaiAdvisorBehavior : CampaignBehaviorBase
         var kingdom = playerClan?.Kingdom;
         if (playerClan == null || kingdom == null)
         {
-            yield return "Your clan does not currently belong to a kingdom.";
+            yield return KaiTORDiplomacyUiText.Get("kaitor_diplomacy_council_no_kingdom", "Your clan does not currently belong to a kingdom.");
             yield break;
         }
 
@@ -34,9 +35,18 @@ public sealed class KaiAdvisorBehavior : CampaignBehaviorBase
                 var ours = war.GetExhaustion(kingdom, enemy);
                 var theirs = war.GetExhaustion(enemy, kingdom);
                 if (ours >= 65f)
-                    yield return $"War with {enemy.Name}: our exhaustion is high ({ours:0}%). Peace should be considered.";
+                    yield return KaiTORDiplomacyUiText.Format(
+                        "kaitor_diplomacy_council_war_high_exhaustion",
+                        "War with {REALM}: our exhaustion is high ({OURS}%). Peace should be considered.",
+                        ("REALM", enemy.Name),
+                        ("OURS", ours.ToString("0")));
                 else if (theirs - ours >= 25f)
-                    yield return $"War with {enemy.Name}: their exhaustion ({theirs:0}%) substantially exceeds ours ({ours:0}%).";
+                    yield return KaiTORDiplomacyUiText.Format(
+                        "kaitor_diplomacy_council_enemy_exhaustion",
+                        "War with {REALM}: their exhaustion ({THEIRS}%) substantially exceeds ours ({OURS}%).",
+                        ("REALM", enemy.Name),
+                        ("THEIRS", theirs.ToString("0")),
+                        ("OURS", ours.ToString("0")));
             }
         }
 
@@ -50,7 +60,11 @@ public sealed class KaiAdvisorBehavior : CampaignBehaviorBase
             {
                 var score = diplomacy.GetNapAcceptanceScore(kingdom, target);
                 if (score >= 35 && !diplomacy.IsNonAggressionPactActive(kingdom, target))
-                    yield return $"{target.Name} appears receptive to a non-aggression pact (assessment {score}).";
+                    yield return KaiTORDiplomacyUiText.Format(
+                        "kaitor_diplomacy_council_nap_receptive",
+                        "{REALM} appears receptive to a non-aggression pact (assessment {SCORE}).",
+                        ("REALM", target.Name),
+                        ("SCORE", score));
             }
 
             foreach (var target in Kingdom.All
@@ -58,7 +72,11 @@ public sealed class KaiAdvisorBehavior : CampaignBehaviorBase
             {
                 var trust = diplomacy.GetTrust(kingdom, target);
                 if (trust >= 40)
-                    yield return $"The pact with {target.Name} rests on strong accumulated trust ({trust}).";
+                    yield return KaiTORDiplomacyUiText.Format(
+                        "kaitor_diplomacy_council_pact_trust",
+                        "The pact with {REALM} rests on strong accumulated trust ({TRUST}).",
+                        ("REALM", target.Name),
+                        ("TRUST", trust));
             }
         }
 
@@ -72,7 +90,12 @@ public sealed class KaiAdvisorBehavior : CampaignBehaviorBase
                          .OrderByDescending(x => x.Strength)
                          .Take(3))
             {
-                yield return $"The ruling houses of {kingdom.Name} and {other.Kingdom.Name} have significant dynastic ties ({other.Strength:0}/100).";
+                yield return KaiTORDiplomacyUiText.Format(
+                    "kaitor_diplomacy_council_dynastic",
+                    "The ruling houses of {FIRST} and {SECOND} have significant dynastic ties ({STRENGTH}/100).",
+                    ("FIRST", kingdom.Name),
+                    ("SECOND", other.Kingdom.Name),
+                    ("STRENGTH", other.Strength.ToString("0")));
             }
         }
 
@@ -87,7 +110,10 @@ public sealed class KaiAdvisorBehavior : CampaignBehaviorBase
                 h != clan.Leader);
 
             if (clan.Leader != null && adultHeirs == 0)
-                yield return $"House {clan.Name} has no other living adult noble and may face a succession problem.";
+                yield return KaiTORDiplomacyUiText.Format(
+                    "kaitor_diplomacy_council_succession",
+                    "House {CLAN} has no other living adult noble and may face a succession problem.",
+                    ("CLAN", clan.Name));
         }
 
 
@@ -97,12 +123,17 @@ public sealed class KaiAdvisorBehavior : CampaignBehaviorBase
         {
             var ownThreat = threat.GetThreat(kingdom);
             if (ownThreat >= 60f)
-                yield return $"Other realms are likely to view our expansion as a major threat ({ownThreat:0}/100).";
+                yield return KaiTORDiplomacyUiText.Format(
+                    "kaitor_diplomacy_council_threat",
+                    "Other realms are likely to view our expansion as a major threat ({THREAT}/100).",
+                    ("THREAT", ownThreat.ToString("0")));
         }
 
         if (!GetBasicAdvicePresence(kingdom, war, diplomacy, dynasty) &&
             (threat == null || threat.GetThreat(kingdom) < 60f))
-            yield return "The council sees no immediate strategic warning.";
+            yield return KaiTORDiplomacyUiText.Get(
+                "kaitor_diplomacy_ui_council_clear",
+                "The council sees no immediate strategic warning.");
     }
 
     private static bool GetBasicAdvicePresence(
