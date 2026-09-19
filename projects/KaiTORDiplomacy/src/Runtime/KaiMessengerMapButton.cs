@@ -1,5 +1,4 @@
 using System;
-using System.Linq;
 using HarmonyLib;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.ViewModelCollection.Encyclopedia.Pages;
@@ -66,8 +65,15 @@ internal static class KaiMessengerMapButton
             try
             {
                 var heroId = link.Substring(LinkPrefix.Length);
-                var target = Hero.AllAliveHeroes.FirstOrDefault(h =>
-                    h != null && string.Equals(h.StringId, heroId, StringComparison.Ordinal));
+                Hero target = null;
+                foreach (var hero in Hero.AllAliveHeroes)
+                {
+                    if (hero != null && string.Equals(hero.StringId, heroId, StringComparison.Ordinal))
+                    {
+                        target = hero;
+                        break;
+                    }
+                }
 
                 var behavior = Campaign.Current?.GetCampaignBehavior<KaiMessengerBehavior>();
                 if (behavior == null || target == null)
