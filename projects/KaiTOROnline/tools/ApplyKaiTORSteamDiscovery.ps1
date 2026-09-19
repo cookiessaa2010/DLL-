@@ -120,8 +120,45 @@ $newAdvertisedName = @'
 '@
 Replace-Required -Path $advertiser -Old $oldAdvertisedName -New $newAdvertisedName -Label 'KaiTOR server name advertised through Steam lobby metadata'
 
+$gameServerBoot = Join-Path $root 'source/Coop.Steam/SteamGameServerBoot.cs'
+$oldSteamIdentityGate = @'
+        string runtimeAppId = GetClientRuntimeAppId();
+        string version = ModInformation.Version.ToString();
+'@
+$newSteamIdentityGate = @'
+        string runtimeAppId = GetClientRuntimeAppId();
+        if (!string.Equals(runtimeAppId, AppId, StringComparison.Ordinal))
+        {
+            Logger.Error(
+                "Steam runtime App ID mismatch: expected {ExpectedAppId}, got {RuntimeAppId}; disabling Steam lobby/tunnel integration",
+                AppId, runtimeAppId);
+            return false;
+        }
+
+        try
+        {
+            var localUserId = SteamUser.GetSteamID();
+            if (!localUserId.IsValid())
+            {
+                Logger.Error("Steam user session is invalid; disabling Steam lobby/tunnel integration");
+                return false;
+            }
+
+            Logger.Information("Steam user session validated for lobby owner {SteamId}", localUserId.m_SteamID.ToString());
+        }
+        catch (Exception ex)
+        {
+            Logger.Error(ex, "Steam user session validation failed; disabling Steam lobby/tunnel integration");
+            return false;
+        }
+
+        string version = ModInformation.Version.ToString();
+'@
+Replace-Required -Path $gameServerBoot -Old $oldSteamIdentityGate -New $newSteamIdentityGate -Label 'fail-closed Steam AppID and user-session validation'
+
 Write-Host 'KaiTOR Steam discovery patch: PASS.'
 Write-Host '  Default join surface: Steam Lobbies'
 Write-Host '  Server name source: KAITOR_SERVER_NAME (Steam persona fallback)'
 Write-Host '  Player display: x / 4'
 Write-Host '  Status display: compact mod version + compatibility'
+Write-Host '  Steam identity gate: AppID 261550 + valid local Steam user session'
