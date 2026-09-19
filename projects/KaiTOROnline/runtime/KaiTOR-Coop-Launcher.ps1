@@ -48,7 +48,7 @@ $EN = @{
     save_required='Enter the campaign save name.'
     status='Status'
     unknown_players='- / 4'
-    footer='KaiTOR Co-op v1.3.15.10 | Bannerlord/TOR 1.3.15 | UDP 4200'
+    footer='KaiTOR Co-op v1.3.15.11 | Bannerlord/TOR 1.3.15 | UDP 4200'
 }
 $RU = @{
     title='KaiTOR Co-op — Панель сервера'
@@ -85,7 +85,7 @@ $RU = @{
     save_required='Укажите имя сохранения кампании.'
     status='Статус'
     unknown_players='— / 4'
-    footer='KaiTOR Co-op v1.3.15.10 | Bannerlord/TOR 1.3.15 | UDP 4200'
+    footer='KaiTOR Co-op v1.3.15.11 | Bannerlord/TOR 1.3.15 | UDP 4200'
 }
 
 $script:Text = $RU
