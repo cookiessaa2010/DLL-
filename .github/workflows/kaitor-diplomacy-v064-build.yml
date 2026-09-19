@@ -59,6 +59,11 @@ jobs:
             'KaiDiplomacyHubBehavior.cs',
             'KaiLiveTestBehavior.cs',
             'KaiLiveTestLog.cs',
+            'KaiFamilyLog.cs',
+            'KaiFamilyDiagnosticsBehavior.cs',
+            'KaiWorldMarriageBehavior.cs',
+            'KaiMessengerBehavior.cs',
+            'KaiMessengerMapButton.cs',
             'KaiConsoleText.cs'
           )
           foreach ($name in $required) {
@@ -80,8 +85,21 @@ jobs:
           }
 
           $subModuleCs = Get-Content (Join-Path $src 'SubModule.cs') -Raw
-          foreach ($token in @('new KaiDynastyAiBehavior()', 'new KaiDiplomacyOfficeBehavior()', 'new KaiRacialPopulationBehavior()')) {
-            if ($subModuleCs.Contains($token)) { throw "Forbidden legacy registration: $token" }
+          foreach ($token in @(
+            'new KaiDynastyAiBehavior()',
+            'new KaiDiplomacyOfficeBehavior()',
+            'new KaiRacialPopulationBehavior()',
+            'new KaiDiplomacyHubBehavior()',
+            'new KaiIncomingMarriageProposalBehavior()'
+          )) {
+            if ($subModuleCs.Contains($token)) { throw "Forbidden legacy/broken registration: $token" }
+          }
+          foreach ($token in @(
+            'new KaiMessengerBehavior()',
+            'new KaiFamilyDiagnosticsBehavior()',
+            'new KaiWorldMarriageBehavior()'
+          )) {
+            if (-not $subModuleCs.Contains($token)) { throw "Required rebuilt behavior registration missing: $token" }
           }
 
           $realm = Get-Content (Join-Path $runtime 'KaiRealmHouseGrowthBehavior.cs') -Raw
@@ -89,6 +107,10 @@ jobs:
           if ($realm -match 'Clan\.CreateClan\s*\(') { throw 'Direct Clan.CreateClan found in Realm House.' }
           if ($realm -match 'founder\.Clan\s*=') { throw 'Direct founder.Clan assignment found in Realm House.' }
           if ($realm -match 'newClan\.Kingdom\s*=') { throw 'Direct newClan.Kingdom assignment found in Realm House.' }
+          if ($realm -notmatch 'PerKingdomCooldownDays\s*=\s*3') { throw 'Realm House per-kingdom cooldown is not the rebuilt 3-day value.' }
+          if ($realm -notmatch 'FailureCooldownDays\s*=\s*1') { throw 'Realm House failure cooldown is not the rebuilt 1-day value.' }
+          if ($realm -notmatch 'MaxSuccessfulCommitsPerDay\s*=\s*4') { throw 'Realm House daily throughput cap missing.' }
+          if (-not $realm.Contains('REALM_REQUEUE')) { throw 'Realm House transient founder requeue missing.' }
 
           $dawi = Get-Content (Join-Path $runtime 'KaiDawiWomenBehavior.cs') -Raw
           if ($dawi -notmatch 'AutomaticPopulationEnabled\s*=\s*true') {
@@ -134,6 +156,41 @@ jobs:
             throw 'family_rules diagnostic command missing.'
           }
 
+          $familyAffairs = Get-Content (Join-Path $runtime 'KaiFamilyAffairsBehavior.cs') -Raw
+          $familyLog = Get-Content (Join-Path $runtime 'KaiFamilyLog.cs') -Raw
+          $familyDiag = Get-Content (Join-Path $runtime 'KaiFamilyDiagnosticsBehavior.cs') -Raw
+          $worldMarriage = Get-Content (Join-Path $runtime 'KaiWorldMarriageBehavior.cs') -Raw
+          $messengerBehavior = Get-Content (Join-Path $runtime 'KaiMessengerBehavior.cs') -Raw
+          $messengerUi = Get-Content (Join-Path $runtime 'KaiMessengerMapButton.cs') -Raw
+          $cultureBehavior = Get-Content (Join-Path $runtime 'KaiCultureAssimilationBehavior.cs') -Raw
+
+          if (-not $familyAffairs.Contains('"town_tavern"')) { throw 'Adoption tavern entry missing.' }
+          if (-not $familyAffairs.Contains('"kaitor_family_adoption_tavern"')) { throw 'Direct tavern adoption action missing.' }
+          if ($subModuleCs.Contains('new KaiDiplomacyHubBehavior()')) { throw 'Removed city diplomacy hub was re-registered.' }
+          if ($subModuleCs.Contains('new KaiIncomingMarriageProposalBehavior()')) { throw 'Broken out-of-conversation marriage proposal behavior was re-registered.' }
+
+          if (-not $familyLog.Contains('KaiTOR-Family.log')) { throw 'Dedicated automatic family log missing.' }
+          foreach ($token in @('BeforeHeroesMarried','OnChildConceivedEvent','OnGivenBirthEvent','WEEKLY_KINGDOM','WEEKLY_EVENTS')) {
+            if (-not $familyDiag.Contains($token)) { throw "Family diagnostics contract missing: $token" }
+          }
+
+          if ($worldMarriage -notmatch 'MaxWorldMarriagesPerWeek\s*=\s*12') { throw 'World marriage weekly cap missing.' }
+          if (-not $worldMarriage.Contains('MarriageAction.Apply')) { throw 'World marriage native MarriageAction path missing.' }
+          if (-not $worldMarriage.Contains('fertilityBonus')) { throw 'World marriage fertile-pair preference missing.' }
+
+          if (-not $messengerUi.Contains('EncyclopediaHeroPageVM')) { throw 'Messenger is not attached to hero encyclopedia flow.' }
+          if ($messengerUi.Contains('MapNavigationVM')) { throw 'Obsolete map-bar messenger patch returned.' }
+          if (-not $messengerBehavior.Contains('CampaignMapConversation.OpenConversation')) { throw 'Messenger does not open a real lord conversation on arrival.' }
+          if (-not $messengerBehavior.Contains('MESSENGER_SENT') -or -not $messengerBehavior.Contains('MESSENGER_ARRIVED')) {
+            throw 'Messenger travel lifecycle logging missing.'
+          }
+
+          if (-not $cultureBehavior.Contains('if (settlement.Culture == targetCulture)') -or
+              -not $cultureBehavior.Contains('return false;')) {
+            throw 'Redundant same-culture settlement action is not hidden.'
+          }
+
+          Write-Host "KaiTOR rebuilt family/messenger/realm contracts: PASS"
           Write-Host "KaiTOR lore family lifecycle contracts: PASS"
 
           $moduleData = Join-Path $root 'module/ModuleData'
