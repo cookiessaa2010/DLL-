@@ -67,7 +67,7 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
         {
             _runtimeEnabled = false;
             InformationManager.DisplayMessage(new InformationMessage(
-                "Дополнительные дипломатические действия отключены: сохранение создано более новой версией системы договоров."));
+                "Дипломатические действия недоступны в этом сохранении."));
             return;
         }
 
@@ -81,7 +81,7 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
         else
         {
             InformationManager.DisplayMessage(new InformationMessage(
-                "Дополнительные дипломатические действия сейчас недоступны."));
+                "Дипломатические действия сейчас недоступны."));
         }
     }
 
@@ -120,7 +120,7 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
         reason = string.Empty;
         if (!_runtimeEnabled)
         {
-            reason = "Дополнительные дипломатические действия сейчас недоступны.";
+            reason = "Дипломатические действия сейчас недоступны.";
             return false;
         }
         if (first == null || second == null)
@@ -396,7 +396,7 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
         var permissionModel = Campaign.Current?.Models?.KingdomDecisionPermissionModel;
         if (permissionModel == null)
         {
-            reason = "Дипломатические правила мира сейчас недоступны.";
+            reason = "Сейчас невозможно заключить договор между этими державами.";
             return false;
         }
 
