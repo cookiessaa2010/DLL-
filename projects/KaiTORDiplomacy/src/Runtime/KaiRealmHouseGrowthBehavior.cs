@@ -595,6 +595,67 @@ public sealed class KaiRealmHouseGrowthBehavior : CampaignBehaviorBase
         }
     }
 
+    public void OpenPlayerElevationDialog()
+    {
+        var candidates = GetPlayerElevationCandidates().ToArray();
+        if (candidates.Length == 0)
+        {
+            TaleWorlds.Core.MBInformationManager.AddQuickInformation(
+                new TaleWorlds.Localization.TextObject("No eligible companion can found a new noble house."),
+                3500,
+                null,
+                null,
+                string.Empty);
+            return;
+        }
+
+        var elements = candidates
+            .Select(hero => new TaleWorlds.Core.InquiryElement(
+                hero,
+                hero.Name.ToString(),
+                null,
+                true,
+                $"Relation: {Hero.MainHero.GetRelation(hero)} | Level: {hero.Level}"))
+            .ToList();
+
+        TaleWorlds.Core.MBInformationManager.ShowMultiSelectionInquiry(
+            new TaleWorlds.Core.MultiSelectionInquiryData(
+                "Elevate to nobility",
+                "Choose a companion who will found a new Realm House.",
+                elements,
+                true,
+                1,
+                1,
+                "Elevate",
+                "Cancel",
+                selected =>
+                {
+                    if (selected.Count == 0 || selected[0].Identifier is not Hero hero)
+                        return;
+
+                    if (!TryElevateByPlayer(hero, out var clan, out var reason))
+                    {
+                        TaleWorlds.Core.MBInformationManager.AddQuickInformation(
+                            new TaleWorlds.Localization.TextObject(reason),
+                            3500,
+                            hero.CharacterObject,
+                            null,
+                            string.Empty);
+                        return;
+                    }
+
+                    TaleWorlds.Core.MBInformationManager.AddQuickInformation(
+                        new TaleWorlds.Localization.TextObject($"{hero.Name} has founded {clan.Name}."),
+                        4000,
+                        hero.CharacterObject,
+                        null,
+                        string.Empty);
+                },
+                null),
+            true,
+            true);
+    }
+
     public IEnumerable<Hero> GetPlayerElevationCandidates()
     {
         return Clan.PlayerClan?.Heroes
