@@ -46,7 +46,7 @@ public sealed class KaiCultureAssimilationBehavior : CampaignBehaviorBase
         starter.AddGameMenuOption(
             menuId,
             optionId,
-            "Сменить народность поселения",
+            "Сменить культуру поселения",
             CultureMenuCondition,
             CultureMenuConsequence,
             false,
