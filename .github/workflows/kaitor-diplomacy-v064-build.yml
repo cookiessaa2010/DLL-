@@ -279,6 +279,7 @@ jobs:
           $dialogueSource = Get-Content (Join-Path $runtime 'KaiDiplomacyConversationBehavior.cs') -Raw
           $bloodKissSource = Get-Content (Join-Path $runtime 'KaiBloodKissBehavior.cs') -Raw
           $marriageWarningSource = Get-Content (Join-Path $runtime 'KaiMarriageWarningBehavior.cs') -Raw
+          $educationSource = Get-Content (Join-Path $runtime 'KaiLoreEducationBehavior.cs') -Raw
 
           $movieCommands = [regex]::Matches($movieRaw, 'Command\.Click="([^"]+)"') |
             ForEach-Object { $_.Groups[1].Value } |
@@ -336,6 +337,25 @@ jobs:
             '"close_window"'
           )) {
             if (-not $marriageWarningSource.Contains($token)) { throw "Marriage warning route missing: $token" }
+          }
+
+          foreach ($token in @(
+            'private bool CommitStageChoice',
+            'if (CommitStageChoice(child, stage, option, false))',
+            'Не удалось применить выбор',
+            'Не удалось применить специализацию',
+            'CHILD_SPECIALIZATION'
+          )) {
+            if (-not $educationSource.Contains($token)) { throw "Education terminal feedback path missing: $token" }
+          }
+
+          foreach ($token in @('CULTURE_CHANGE_SUCCESS','CULTURE_CHANGE_FAILED')) {
+            if (-not $cultureBehavior.Contains($token)) { throw "Culture result logging missing: $token" }
+          }
+
+          if (-not $messengerBehavior.Contains('MESSENGER_DEFERRED') -or
+              -not $messengerBehavior.Contains('Разговор отложен')) {
+            throw 'Messenger defer action has no visible terminal feedback.'
           }
 
           Write-Host "KaiTOR interaction/menu terminal-path audit: PASS"
