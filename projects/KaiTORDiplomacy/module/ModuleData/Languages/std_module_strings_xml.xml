@@ -142,5 +142,7 @@
   <string id="kaitor_diplomacy_messenger_unknown_id" text="Unknown hero id."/>
   <string id="kaitor_diplomacy_messenger_unknown_msg" text="Unknown messenger id."/>
   <string id="kaitor_diplomacy_messenger_conversation_wait" text="The conversation cannot open right now. The messenger will keep waiting."/>
+  <string id="kaitor_diplomacy_messenger_prisoner" text="A messenger cannot arrange a formal audience with a prisoner."/>
+  <string id="kaitor_diplomacy_messenger_same_party" text="This hero is already travelling with you."/>
 </strings>
 </base>
