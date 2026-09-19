@@ -16,11 +16,9 @@
     <string id="kaitor_diplomacy_ui_propose_nap" text="Предложить пакт о ненападении"/>
     <string id="kaitor_diplomacy_ui_break_nap" text="Предложить разрыв пакта"/>
     <string id="kaitor_diplomacy_ui_duration" text="Срок: {DAYS} дней"/>
-    <string id="kaitor_diplomacy_ui_open_culture" text="Сменить культуру поселения"/>
     <string id="kaitor_diplomacy_ui_selected_realm" text="Выбранная держава"/>
     <string id="kaitor_diplomacy_ui_family_header" text="Дом и династия"/>
     <string id="kaitor_diplomacy_ui_population_header" text="Держава"/>
-    <string id="kaitor_diplomacy_ui_culture_header" text="Поселение"/>
     <string id="kaitor_diplomacy_ui_no_campaign" text="Данные кампании недоступны."/>
     <string id="kaitor_diplomacy_ui_no_realm" text="Ваш клан не входит в состав державы."/>
     <string id="kaitor_diplomacy_ui_overview_format" text="Дом: {CLAN}&#10;Держава: {REALM}&#10;Влияние: {INFLUENCE}&#10;Средства: {GOLD}&#10;Активные пакты о ненападении: {PACTS}"/>
@@ -31,8 +29,6 @@
     <string id="kaitor_diplomacy_ui_none" text="Нет"/>
     <string id="kaitor_diplomacy_ui_family_format" text="Супруг: {SPOUSE}&#10;Живые дети и принятые наследники: {CHILDREN}&#10;Наследники в браке: {MARRIED}"/>
     <string id="kaitor_diplomacy_ui_population_format" text="Знатные дома: {CLANS}&#10;Владения: {SETTLEMENTS}&#10;Живые лорды: {LORDS}&#10;Супружеские пары: {MARRIED}&#10;Беременности: {PREGNANT}"/>
-    <string id="kaitor_diplomacy_ui_no_settlement" text="Сейчас не открыто ни одно поселение."/>
-    <string id="kaitor_diplomacy_ui_culture_format" text="Поселение: {SETTLEMENT}&#10;Владелец: {OWNER}&#10;Текущая культура: {CULTURE}"/>
     <string id="kaitor_diplomacy_ui_refreshed" text="Сведения обновлены."/>
     <string id="kaitor_diplomacy_ui_already_considering" text="Совет уже рассматривает пакт с {REALM}."/>
     <string id="kaitor_diplomacy_ui_nap_submitted" text="Пакт о ненападении с {REALM} на {DAYS} дней вынесен на совет."/>
