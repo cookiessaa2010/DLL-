@@ -301,7 +301,7 @@ public sealed class KaiBloodKissBehavior : CampaignBehaviorBase
         if (!TorProfessionEffectBridge.ApplyBloodKissConversion(target, out var error))
         {
             KaiRuntimeLog.Write("BLOOD_KISS_BLOCKED", $"target={target.StringId}; reason=conversion_failed; error={error}");
-            ShowResult("Обращение не завершилось. Причина записана в KaiTOR.log.");
+            ShowResult("Обращение не удалось.");
             return;
         }
 
@@ -336,7 +336,7 @@ public sealed class KaiBloodKissBehavior : CampaignBehaviorBase
             KaiRuntimeLog.Write(
                 "BLOOD_KISS_BLOCKED",
                 $"target={targetHero?.StringId ?? targetCharacter?.StringId ?? "null"}; reason=troll_template_or_party_missing");
-            ShowResult("Вербовка тролля не выполнена. Причина записана в KaiTOR.log.");
+            ShowResult("Тролль не подчинился.");
             return;
         }
 
