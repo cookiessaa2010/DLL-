@@ -80,7 +80,7 @@ public sealed class KaiAdvisorBehavior : CampaignBehaviorBase
                      .Where(c => c != null && !c.IsEliminated && !c.IsUnderMercenaryService && c.IsNoble)
                      .OrderBy(c => c.StringId, StringComparer.Ordinal))
         {
-            var adultHeirs = clan.Lords.Count(h =>
+            var adultHeirs = clan.Heroes.Count(h =>
                 h != null &&
                 h.IsAlive &&
                 !h.IsChild &&
