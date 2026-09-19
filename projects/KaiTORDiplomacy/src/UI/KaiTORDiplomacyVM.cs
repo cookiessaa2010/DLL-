@@ -44,7 +44,7 @@ public sealed class KaiTORDiplomacyVM : ViewModel, IDisposable
         "Duration: {DAYS} days",
         ("DAYS", _selectedDurationDays));
     [DataSourceProperty] public string OpenFamilyText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_open_family", "Open family affairs");
-    [DataSourceProperty] public string OpenCultureText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_open_culture", "Change settlement nationality");
+    [DataSourceProperty] public string OpenCultureText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_open_culture", "Change settlement culture");
     [DataSourceProperty] public string DawiTestText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_dawi_test", "Spawn one Dawi woman for live test");
     [DataSourceProperty] public string FallbackHubText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_fallback", "Open classic KaiTOR menu");
     [DataSourceProperty] public string SelectedRealmHeaderText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_selected_realm", "Selected realm");
