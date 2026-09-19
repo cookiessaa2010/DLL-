@@ -93,7 +93,7 @@ function Assert-ModuleMetadata {
         }
 
         $bin = Join-Path $Root 'Modules\Coop\bin\Win64_Shipping_Client'
-        foreach ($name in @('Coop.dll', 'Coop.Core.dll', 'GameInterface.dll', 'Missions.dll')) {
+        foreach ($name in @('Common.dll', 'Coop.dll', 'Coop.Core.dll', 'Coop.Steam.dll', 'GameInterface.dll', 'Missions.dll')) {
             $managed = Join-Path $bin $name
             if (-not (Test-Path -LiteralPath $managed -PathType Leaf)) {
                 throw "Coop runtime assembly missing: $managed"
@@ -150,6 +150,6 @@ Write-Output 'KaiTOR Online runtime preflight: PASS'
 Write-Output "  Bannerlord root: $root"
 Write-Output "  Target version:  $ExpectedVersion"
 Write-Output "  Modules:         $($ModuleIds -join ', ')"
-Write-Output '  Coop assemblies: Coop.dll, Coop.Core.dll, GameInterface.dll, Missions.dll'
+Write-Output '  Coop assemblies: Common.dll, Coop.dll, Coop.Core.dll, Coop.Steam.dll, GameInterface.dll, Missions.dll'
 Write-Output "  Metadata files:  $($validatedMetadata.Count)"
 Write-Output 'Next gate: launch the authoritative campaign process and execute the four-controller persistence/movement matrix.'
