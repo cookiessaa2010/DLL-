@@ -105,6 +105,11 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
         ChangeRulerRelation(first, second, -WarBreachRelationPenalty);
         _napCooldownExpiryDays[key] = CampaignTime.Now.ToDays + WarBreachCooldownDays;
 
+        Campaign.Current?.GetCampaignBehavior<KaiThreatBehavior>()
+            ?.RecordTreatyBreach(first, second, detail.ToString());
+        Campaign.Current?.GetCampaignBehavior<KaiGrievanceBehavior>()
+            ?.AddNapBreach(first, second);
+
         InformationManager.DisplayMessage(new InformationMessage(
             $"Пакт о ненападении между {first.Name} и {second.Name} нарушен объявлением войны. " +
             $"Отношения правящих домов серьёзно ухудшились. Новый пакт будет недоступен {WarBreachCooldownDays} дней."));
@@ -198,6 +203,10 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
         var dynastic = Campaign.Current?.GetCampaignBehavior<KaiDynasticMarriageBehavior>();
         if (dynastic != null)
             score += (int)Math.Round(dynastic.GetDynasticStrength(proposer, target) * 0.50f);
+
+        var threat = Campaign.Current?.GetCampaignBehavior<KaiThreatBehavior>();
+        if (threat != null)
+            score -= (int)Math.Round(threat.GetNapPenalty(proposer));
 
         var commonEnemies = proposer.FactionsAtWarWith
             .OfType<Kingdom>()
