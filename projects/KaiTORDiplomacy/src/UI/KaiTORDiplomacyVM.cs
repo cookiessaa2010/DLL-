@@ -18,15 +18,14 @@ public sealed class KaiTORDiplomacyVM : ViewModel, IDisposable
     private string _actionResultText = string.Empty;
     private bool _disposed;
 
-    public KaiTORDiplomacyVM()
+    public KaiTORDiplomacyVM(Kingdom initialKingdom = null)
     {
+        _selectedKingdom = initialKingdom;
         Refresh();
     }
 
     public event Action CloseRequested;
-    public event Action FamilyRequested;
     public event Action CultureRequested;
-    public event Action FallbackHubRequested;
 
     [DataSourceProperty] public string TitleText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_title", "KaiTOR Diplomacy");
     [DataSourceProperty] public string SubtitleText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_subtitle", "Houses, treaties and the fate of your realm.");
@@ -388,22 +387,10 @@ public sealed class KaiTORDiplomacyVM : ViewModel, IDisposable
         Refresh();
     }
 
-    public void ActionOpenFamily()
-    {
-        if (_disposed) return;
-        FamilyRequested?.Invoke();
-    }
-
     public void ActionOpenCulture()
     {
         if (_disposed) return;
         CultureRequested?.Invoke();
-    }
-
-    public void ActionOpenFallbackHub()
-    {
-        if (_disposed) return;
-        FallbackHubRequested?.Invoke();
     }
 
     public void ActionDawiTest()
