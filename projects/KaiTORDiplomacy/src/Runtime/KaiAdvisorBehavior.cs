@@ -100,7 +100,8 @@ public sealed class KaiAdvisorBehavior : CampaignBehaviorBase
                 yield return $"Other realms are likely to view our expansion as a major threat ({ownThreat:0}/100).";
         }
 
-        if (!GetBasicAdvicePresence(kingdom, war, diplomacy, dynasty))
+        if (!GetBasicAdvicePresence(kingdom, war, diplomacy, dynasty) &&
+            (threat == null || threat.GetThreat(kingdom) < 60f))
             yield return "The council sees no immediate strategic warning.";
     }
 
