@@ -119,7 +119,13 @@ public sealed class KaiCultureAssimilationBehavior : CampaignBehaviorBase
     {
         var settlement = Settlement.CurrentSettlement;
         var targetCulture = GetPlayerClanCulture();
-        if (settlement == null || targetCulture == null) return;
+        if (settlement == null || targetCulture == null)
+        {
+            const string reason = "Смена культуры сейчас недоступна: поселение или культура рода больше не определены.";
+            KaiRuntimeLog.Write("CULTURE_CHANGE_BLOCKED", $"settlement={settlement?.StringId ?? "none"}; reason={reason}");
+            InformationManager.DisplayMessage(new InformationMessage(reason));
+            return;
+        }
 
         var body = $"Начать переселение и утвердить в {settlement.Name} народность {targetCulture.Name}?\n\n" +
                    $"Расходы: {CultureChangeCost:N0} динаров\n\n" +
