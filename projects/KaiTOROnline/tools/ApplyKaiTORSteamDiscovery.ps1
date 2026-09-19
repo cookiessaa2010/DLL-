@@ -21,15 +21,21 @@ function Replace-Required {
     }
 
     $text = [IO.File]::ReadAllText($Path)
-    if (-not $text.Contains($Old)) {
-        if ($text.Contains($New)) {
+    # Normalize line endings before matching so the patch is stable on Windows runners
+    # regardless of checkout autocrlf behavior.
+    $text = $text.Replace("`r`n", "`n")
+    $oldNormalized = $Old.Replace("`r`n", "`n")
+    $newNormalized = $New.Replace("`r`n", "`n")
+
+    if (-not $text.Contains($oldNormalized)) {
+        if ($text.Contains($newNormalized)) {
             Write-Host "KaiTOR Steam discovery: $Label already applied."
             return
         }
         throw "KaiTOR Steam discovery anchor missing: $Label"
     }
 
-    $text = $text.Replace($Old, $New)
+    $text = $text.Replace($oldNormalized, $newNormalized)
     [IO.File]::WriteAllText($Path, $text, [Text.UTF8Encoding]::new($true))
     Write-Host "KaiTOR Steam discovery: $Label"
 }
