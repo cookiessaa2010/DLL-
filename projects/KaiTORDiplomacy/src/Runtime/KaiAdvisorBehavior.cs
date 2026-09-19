@@ -90,13 +90,7 @@ public sealed class KaiAdvisorBehavior : CampaignBehaviorBase
                 yield return $"House {clan.Name} has no other living adult noble and may face a succession problem.";
         }
 
-        var threat = Campaign.Current?.GetCampaignBehavior<KaiThreatBehavior>();
-        if (threat != null)
-        {
-            var ownThreat = threat.GetThreat(kingdom);
-            if (ownThreat >= 60f)
-                yield return $"Other realms are likely to view our expansion as a major threat ({ownThreat:0}/100).";
-        }
+
 
         if (!GetBasicAdvicePresence(kingdom, war, diplomacy, dynasty))
             yield return "The council sees no immediate strategic warning.";
