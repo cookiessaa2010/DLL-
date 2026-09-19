@@ -9,7 +9,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 $ExpectedModuleId = 'KaiCleave'
-$ExpectedVersion = 'v0.3.1'
+$ExpectedVersion = 'v1.3.15.31'
 $ExpectedGameVersion = 'v1.3.15'
 $ExpectedHarmonyVersion = 'v2.4.2.248'
 
