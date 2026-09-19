@@ -19,7 +19,7 @@
     <string id="kaitor_diplomacy_ui_selected_realm" text="Выбранная держава"/>
     <string id="kaitor_diplomacy_ui_family_header" text="Дом и династия"/>
     <string id="kaitor_diplomacy_ui_population_header" text="Держава"/>
-    <string id="kaitor_diplomacy_ui_no_campaign" text="Данные кампании недоступны."/>
+    <string id="kaitor_diplomacy_ui_no_campaign" text="Сведения недоступны."/>
     <string id="kaitor_diplomacy_ui_no_realm" text="Ваш клан не входит в состав державы."/>
     <string id="kaitor_diplomacy_ui_overview_format" text="Дом: {CLAN}&#10;Держава: {REALM}&#10;Влияние: {INFLUENCE}&#10;Средства: {GOLD}&#10;Активные пакты о ненападении: {PACTS}"/>
     <string id="kaitor_diplomacy_ui_no_kingdom_selected" text="Держава не выбрана."/>
