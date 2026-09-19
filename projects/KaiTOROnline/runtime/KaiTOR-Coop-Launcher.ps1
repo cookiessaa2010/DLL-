@@ -18,6 +18,7 @@ $EN = @{
     bannerlord='Bannerlord root'
     browse='Browse'
     save='Campaign save'
+    servername='Server name'
     password='Password'
     visibility='Visibility'
     private='Private'
@@ -55,6 +56,7 @@ $RU = @{
     bannerlord='Путь к Bannerlord'
     browse='Обзор'
     save='Сохранение кампании'
+    servername='Имя сервера'
     password='Пароль'
     visibility='Доступ'
     private='Приватный'
@@ -169,7 +171,7 @@ function Set-Status([string]$Key, [string]$Suffix = '') {
 }
 
 $form = [Windows.Forms.Form]::new()
-$form.ClientSize = [Drawing.Size]::new(820,570)
+$form.ClientSize = [Drawing.Size]::new(820,615)
 $form.StartPosition = 'CenterScreen'
 $form.FormBorderStyle = 'FixedSingle'
 $form.MaximizeBox = $false
@@ -211,18 +213,26 @@ $txtSave.SetBounds(210,132,300,30)
 $txtSave.Text = 'KaiTOR-Live-Test'
 $form.Controls.Add($txtSave)
 
-$lblPassword = New-Label 30 180 180 28
+$lblServerName = New-Label 30 180 180 28
+$form.Controls.Add($lblServerName)
+$txtServerName = [Windows.Forms.TextBox]::new()
+$txtServerName.SetBounds(210,177,300,30)
+$txtServerName.Text = 'KaiTOR Co-op | TOR RU Test'
+$txtServerName.MaxLength = 64
+$form.Controls.Add($txtServerName)
+
+$lblPassword = New-Label 30 225 180 28
 $form.Controls.Add($lblPassword)
 $txtPassword = [Windows.Forms.TextBox]::new()
-$txtPassword.SetBounds(210,177,300,30)
+$txtPassword.SetBounds(210,222,300,30)
 $txtPassword.UseSystemPasswordChar = $true
 $txtPassword.MaxLength = 128
 $form.Controls.Add($txtPassword)
 
-$lblVisibility = New-Label 30 225 180 28
+$lblVisibility = New-Label 30 270 180 28
 $form.Controls.Add($lblVisibility)
 $cmbVisibility = [Windows.Forms.ComboBox]::new()
-$cmbVisibility.SetBounds(210,222,300,30)
+$cmbVisibility.SetBounds(210,267,300,30)
 $cmbVisibility.DropDownStyle = 'DropDownList'
 $form.Controls.Add($cmbVisibility)
 
@@ -247,30 +257,30 @@ $lblServer.Font = [Drawing.Font]::new('Segoe UI Semibold',11,[Drawing.FontStyle]
 $form.Controls.Add($lblServer)
 
 $panel = [Windows.Forms.Panel]::new()
-$panel.SetBounds(25,280,765,2)
+$panel.SetBounds(25,325,765,2)
 $panel.BackColor = [Drawing.Color]::FromArgb(115,54,38)
 $form.Controls.Add($panel)
 
-$btnPreflight = New-Button 30 305 175 42
+$btnPreflight = New-Button 30 350 175 42
 $form.Controls.Add($btnPreflight)
-$btnStart = New-Button 220 305 175 42
+$btnStart = New-Button 220 350 175 42
 $btnStart.BackColor = [Drawing.Color]::FromArgb(94,24,18)
 $form.Controls.Add($btnStart)
-$btnStop = New-Button 410 305 175 42
+$btnStop = New-Button 410 350 175 42
 $form.Controls.Add($btnStop)
-$btnLog = New-Button 600 305 190 42
+$btnLog = New-Button 600 350 190 42
 $form.Controls.Add($btnLog)
 
-$btnFolder = New-Button 600 360 190 38
+$btnFolder = New-Button 600 405 190 38
 $form.Controls.Add($btnFolder)
 
-$lblStatusCaption = New-Label 30 365 100 28
+$lblStatusCaption = New-Label 30 410 100 28
 $form.Controls.Add($lblStatusCaption)
-$lblMessage = New-Label 130 362 450 75
+$lblMessage = New-Label 130 407 450 75
 $lblMessage.ForeColor = [Drawing.Color]::FromArgb(205,184,145)
 $form.Controls.Add($lblMessage)
 
-$footer = New-Label 30 520 760 30
+$footer = New-Label 30 565 760 30
 $footer.TextAlign = [Drawing.ContentAlignment]::MiddleCenter
 $footer.ForeColor = [Drawing.Color]::FromArgb(150,127,100)
 $form.Controls.Add($footer)
@@ -283,6 +293,7 @@ function Refresh-Texts {
     $lblRoot.Text = $script:Text.bannerlord
     $btnBrowse.Text = $script:Text.browse
     $lblSave.Text = $script:Text.save
+    $lblServerName.Text = $script:Text.servername
     $lblPassword.Text = $script:Text.password
     $lblVisibility.Text = $script:Text.visibility
     $lblPort.Text = $script:Text.port
@@ -364,6 +375,11 @@ $btnStart.Add_Click({
         return
     }
 
+    $serverName = $txtServerName.Text.Trim()
+    if ([string]::IsNullOrWhiteSpace($serverName)) {
+        $serverName = "KaiTOR Co-op | $save"
+    }
+
     $visibility = @('none','friends_only','public')[$cmbVisibility.SelectedIndex]
     $args = @(
         '-NoProfile',
@@ -371,7 +387,7 @@ $btnStart.Add_Click({
         '-File',('"' + $TorLauncher + '"'),
         '-BannerlordRoot',('"' + $root + '"'),
         '-SaveName',('"' + $save.Replace('"','') + '"'),
-        '-ServerName',('"' + ('KaiTOR Co-op | ' + $save).Replace('"','') + '"'),
+        '-ServerName',('"' + $serverName.Replace('"','') + '"'),
         '-Visibility',$visibility
     )
     if ($txtPassword.Text.Length -gt 0) {
