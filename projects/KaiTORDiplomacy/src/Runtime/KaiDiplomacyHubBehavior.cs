@@ -127,12 +127,21 @@ public sealed class KaiDiplomacyHubBehavior : CampaignBehaviorBase
 
         starter.AddGameMenuOption(
             HubMenuId,
+            "kaitor_hub_council",
+            "{=kaitor_diplomacy_ui_council}Council",
+            BasicCondition,
+            _ => ShowCouncil(),
+            false,
+            12);
+
+        starter.AddGameMenuOption(
+            HubMenuId,
             "kaitor_hub_systems",
             "Состояние систем KaiTOR",
             BasicCondition,
             _ => ShowSystemStatus(),
             false,
-            12);
+            13);
 
         starter.AddGameMenuOption(
             HubMenuId,
@@ -589,6 +598,25 @@ public sealed class KaiDiplomacyHubBehavior : CampaignBehaviorBase
         }
 
         behavior.OpenCultureChangeDialog();
+    }
+
+    private static void ShowCouncil()
+    {
+        var advisor = Campaign.Current?.GetCampaignBehavior<KaiAdvisorBehavior>();
+        if (advisor == null)
+        {
+            ShowText(
+                new TextObject("{=kaitor_diplomacy_ui_council}Council").ToString(),
+                new TextObject("{=kaitor_diplomacy_ui_council_unavailable}The council is currently unavailable.").ToString());
+            return;
+        }
+
+        var lines = advisor.GetAdvice().Take(10).ToArray();
+        ShowText(
+            new TextObject("{=kaitor_diplomacy_ui_council}Council").ToString(),
+            lines.Length == 0
+                ? new TextObject("{=kaitor_diplomacy_ui_council_clear}The council sees no immediate strategic warning.").ToString()
+                : string.Join("\n\n", lines.Select(x => "• " + x)));
     }
 
     private static void ShowSystemStatus()
