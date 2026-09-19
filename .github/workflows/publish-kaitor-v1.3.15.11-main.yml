@@ -32,6 +32,23 @@ jobs:
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Checkout target commit
+        if: steps.existing.outputs.exists != 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_SHA }}
+          fetch-depth: 0
+
+      - name: Ensure release tag exists
+        if: steps.existing.outputs.exists != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -f "$TAG" "$TARGET_SHA"
+          git push origin "refs/tags/$TAG"
+
       - name: Download verified Actions artifact
         if: steps.existing.outputs.exists != 'true'
         shell: bash
@@ -107,4 +124,5 @@ jobs:
             --target "$TARGET_SHA" \
             --title "KaiTOR Co-op v1.3.15.11 — Test Build" \
             --notes-file RELEASE_NOTES.md \
-            --prerelease
+            --prerelease \
+            --verify-tag
