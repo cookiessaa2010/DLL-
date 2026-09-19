@@ -177,10 +177,11 @@ public sealed class KaiConquestClaimBehavior : CampaignBehaviorBase
                 $"settlement={settlement.StringId}; claimant={claimant.StringId}; " +
                 $"capturer={capturer?.StringId ?? "none"}; result=denied; chosen={outcome.Clan?.StringId ?? "none"}");
 
-            KaiRuntimeLog.Write(
-                "GRIEVANCE_DEFERRED",
-                $"type=conquest_claim_denied; source={claimant.StringId}; " +
-                $"target={claimantDecision.Kingdom?.RulingClan?.StringId ?? "none"}; settlement={settlement.StringId}");
+            var grievances = Campaign.Current?.GetCampaignBehavior<KaiGrievanceBehavior>();
+            grievances?.AddConquestClaimDenied(
+                claimant,
+                claimantDecision.Kingdom?.RulingClan,
+                settlement);
         }
 
         Clear(settlement.StringId);
