@@ -116,7 +116,7 @@ public sealed class KaiTORDiplomacyVM : ViewModel, IDisposable
                     ("DAYS", diplomacy.GetRemainingDays(source, _selectedKingdom)))
                 : KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_pact_none", "No active pact");
 
-            return KaiTORDiplomacyUiText.Format(
+            var text = KaiTORDiplomacyUiText.Format(
                 "kaitor_diplomacy_ui_selected_kingdom_format",
                 "{REALM}\n{PACT}\nTrust: {TRUST}\nBreaches: {BREACHES}\nCooldown: {COOLDOWN} days",
                 ("REALM", _selectedKingdom.Name),
@@ -124,6 +124,37 @@ public sealed class KaiTORDiplomacyVM : ViewModel, IDisposable
                 ("TRUST", diplomacy.GetTrust(source, _selectedKingdom)),
                 ("BREACHES", diplomacy.GetBreachCount(source, _selectedKingdom)),
                 ("COOLDOWN", diplomacy.GetNapCooldownRemainingDays(source, _selectedKingdom)));
+
+            var war = Campaign.Current?.GetCampaignBehavior<KaiWarExhaustionBehavior>();
+            if (war != null && source.IsAtWarWith(_selectedKingdom))
+            {
+                text += "\n" + KaiTORDiplomacyUiText.Format(
+                    "kaitor_diplomacy_ui_war_exhaustion_line",
+                    "War exhaustion: us {OURS}% / them {THEIRS}%",
+                    ("OURS", war.GetExhaustion(source, _selectedKingdom).ToString("0")),
+                    ("THEIRS", war.GetExhaustion(_selectedKingdom, source).ToString("0")));
+            }
+
+            var threat = Campaign.Current?.GetCampaignBehavior<KaiThreatBehavior>();
+            if (threat != null)
+            {
+                text += "\n" + KaiTORDiplomacyUiText.Format(
+                    "kaitor_diplomacy_ui_threat_line",
+                    "Threat: {THREAT}/100",
+                    ("THREAT", threat.GetThreat(_selectedKingdom).ToString("0")));
+            }
+
+            var dynasty = Campaign.Current?.GetCampaignBehavior<KaiDynasticMarriageBehavior>();
+            var dynasticStrength = dynasty?.GetDynasticStrength(source, _selectedKingdom) ?? 0f;
+            if (dynasticStrength > 0.1f)
+            {
+                text += "\n" + KaiTORDiplomacyUiText.Format(
+                    "kaitor_diplomacy_ui_dynastic_line",
+                    "Dynastic ties: {STRENGTH}/100",
+                    ("STRENGTH", dynasticStrength.ToString("0")));
+            }
+
+            return text;
         }
     }
 
