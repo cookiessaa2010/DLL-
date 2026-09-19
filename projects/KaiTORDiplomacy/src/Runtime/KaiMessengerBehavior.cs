@@ -314,12 +314,14 @@ public sealed class KaiMessengerBehavior : CampaignBehaviorBase
                 "later",
                 KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_messenger_later", "Later"),
                 null,
-                true),
+                true,
+                null),
             new(
                 "recall",
                 KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_messenger_recall", "Recall messenger"),
                 null,
-                true)
+                true,
+                null)
         };
 
         MBInformationManager.ShowMultiSelectionInquiry(
@@ -364,7 +366,7 @@ public sealed class KaiMessengerBehavior : CampaignBehaviorBase
                         "MESSENGER_WAIT",
                         $"id={id}; target={target.StringId}");
                 },
-                () =>
+                _ =>
                 {
                     _arrivalInquiryOpen = false;
                     KaiRuntimeLog.Write(
