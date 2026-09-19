@@ -83,7 +83,7 @@ if ([string]$moduleXml.Module.Id.value -ne 'Coop') {
 if ([string]$moduleXml.Module.Name.value -ne 'KaiTOR Co-op') {
     throw "Unexpected module display name: $([string]$moduleXml.Module.Name.value)"
 }
-if ([string]$moduleXml.Module.Version.value -ne 'v1.3.15.10') {
+if ([string]$moduleXml.Module.Version.value -ne 'v1.3.15.11') {
     throw "Unexpected KaiTOR module version: $([string]$moduleXml.Module.Version.value)"
 }
 $moduleDeps = @($moduleXml.Module.DependedModules.DependedModule | ForEach-Object { [string]$_.Id })
