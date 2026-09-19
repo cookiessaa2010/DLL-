@@ -128,5 +128,19 @@
   <string id="kaitor_diplomacy_realm_factory_failed" text="Native clan factory returned no clan."/>
   <string id="kaitor_diplomacy_realm_postcondition_failed" text="Native elevation postcondition failed."/>
   <string id="kaitor_diplomacy_realm_success" text="House elevated successfully."/>
+  <string id="kaitor_diplomacy_messenger_no_route" text="Messenger route cannot be calculated."/>
+  <string id="kaitor_diplomacy_messenger_not_enough_gold" text="Not enough gold. Required: {GOLD}."/>
+  <string id="kaitor_diplomacy_messenger_sent" text="Messenger sent to {HERO}. Estimated travel time: {HOURS} h. Cost: {GOLD}."/>
+  <string id="kaitor_diplomacy_messenger_no_campaign" text="No active campaign."/>
+  <string id="kaitor_diplomacy_messenger_no_target" text="No target hero."/>
+  <string id="kaitor_diplomacy_messenger_self" text="You cannot send a messenger to yourself."/>
+  <string id="kaitor_diplomacy_messenger_unreachable" text="The target is not currently reachable."/>
+  <string id="kaitor_diplomacy_messenger_child" text="The target is too young for formal correspondence."/>
+  <string id="kaitor_diplomacy_messenger_invalid_character" text="The target has no valid campaign character."/>
+  <string id="kaitor_diplomacy_messenger_unknown_hero" text="You do not know this character well enough to identify them for a messenger."/>
+  <string id="kaitor_diplomacy_messenger_duplicate" text="A messenger is already assigned to this hero."/>
+  <string id="kaitor_diplomacy_messenger_unknown_id" text="Unknown hero id."/>
+  <string id="kaitor_diplomacy_messenger_unknown_msg" text="Unknown messenger id."/>
+  <string id="kaitor_diplomacy_messenger_conversation_wait" text="The conversation cannot open right now. The messenger will keep waiting."/>
 </strings>
 </base>
