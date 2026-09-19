@@ -128,5 +128,19 @@
   <string id="kaitor_diplomacy_realm_factory_failed" text="Нативная фабрика кланов не смогла создать новый дом."/>
   <string id="kaitor_diplomacy_realm_postcondition_failed" text="Проверка нового дворянского дома после создания не пройдена."/>
   <string id="kaitor_diplomacy_realm_success" text="Новый дворянский дом успешно учреждён."/>
+  <string id="kaitor_diplomacy_messenger_no_route" text="Не удалось рассчитать маршрут гонца."/>
+  <string id="kaitor_diplomacy_messenger_not_enough_gold" text="Недостаточно золота. Требуется: {GOLD}."/>
+  <string id="kaitor_diplomacy_messenger_sent" text="Гонец отправлен к {HERO}. Примерное время пути: {HOURS} ч. Стоимость: {GOLD}."/>
+  <string id="kaitor_diplomacy_messenger_no_campaign" text="Кампания не запущена."/>
+  <string id="kaitor_diplomacy_messenger_no_target" text="Не выбран адресат."/>
+  <string id="kaitor_diplomacy_messenger_self" text="Нельзя отправить гонца самому себе."/>
+  <string id="kaitor_diplomacy_messenger_unreachable" text="Сейчас адресат недоступен."/>
+  <string id="kaitor_diplomacy_messenger_child" text="Адресат слишком молод для официальной переписки."/>
+  <string id="kaitor_diplomacy_messenger_invalid_character" text="У адресата нет корректного персонажа кампании."/>
+  <string id="kaitor_diplomacy_messenger_unknown_hero" text="Вы недостаточно знаете этого персонажа, чтобы гонец смог его разыскать."/>
+  <string id="kaitor_diplomacy_messenger_duplicate" text="К этому герою уже отправлен гонец."/>
+  <string id="kaitor_diplomacy_messenger_unknown_id" text="Неизвестный идентификатор героя."/>
+  <string id="kaitor_diplomacy_messenger_unknown_msg" text="Неизвестный идентификатор гонца."/>
+  <string id="kaitor_diplomacy_messenger_conversation_wait" text="Сейчас разговор открыть нельзя. Гонец продолжит ждать подходящего момента."/>
 </strings>
 </base>
