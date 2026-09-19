@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using KaiTOR.Diplomacy.UI;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.Core;
@@ -56,13 +57,13 @@ public sealed class KaiIncomingMarriageProposalBehavior : CampaignBehaviorBase
         reason = string.Empty;
         if (Campaign.Current == null || playerClanMember == null || target == null || targetClan == null)
         {
-            reason = "Invalid marriage-offer data.";
+            reason = Ui("kaitor_diplomacy_special_marriage_invalid", "Invalid marriage-offer data.");
             return false;
         }
 
         if (HasPendingSpecialOffer)
         {
-            reason = "Another special marriage offer is already pending.";
+            reason = Ui("kaitor_diplomacy_special_marriage_pending", "Another special marriage offer is already pending.");
             return false;
         }
 
@@ -77,7 +78,7 @@ public sealed class KaiIncomingMarriageProposalBehavior : CampaignBehaviorBase
             model == null ||
             !model.IsCoupleSuitableForMarriage(playerClanMember, target))
         {
-            reason = "The proposed pair is no longer eligible.";
+            reason = Ui("kaitor_diplomacy_special_marriage_ineligible", "The proposed pair is no longer eligible.");
             return false;
         }
 
@@ -114,18 +115,26 @@ public sealed class KaiIncomingMarriageProposalBehavior : CampaignBehaviorBase
 
         var childlessWarning = Models.TorFamilySafety.CanUseVanillaPregnancy(member, target)
             ? string.Empty
-            : " This social marriage will not produce biological children.";
+            : " " + Ui(
+                "kaitor_diplomacy_special_marriage_childless",
+                "This social marriage will not produce biological children.");
+
+        var kindText = GetKindText(kind);
 
         InformationManager.ShowInquiry(
             new InquiryData(
-                "KaiTOR: Special marriage proposal",
-                $"{targetClan.Name} proposes a {kind} marriage between {member.Name} and {target.Name}. " +
-                "Accepting opens the normal Bannerlord marriage barter; the marriage is not forced." +
-                childlessWarning,
+                Ui("kaitor_diplomacy_special_marriage_title", "KaiTOR: Special marriage proposal"),
+                UiFormat(
+                    "kaitor_diplomacy_special_marriage_body",
+                    "{CLAN} proposes a {KIND} marriage between {MEMBER} and {TARGET}. Accepting opens the normal Bannerlord marriage barter; the marriage is not forced.",
+                    ("CLAN", targetClan.Name),
+                    ("KIND", kindText),
+                    ("MEMBER", member.Name),
+                    ("TARGET", target.Name)) + childlessWarning,
                 true,
                 true,
-                "Review proposal",
-                "Decline",
+                Ui("kaitor_diplomacy_special_marriage_review", "Review proposal"),
+                Ui("kaitor_diplomacy_special_marriage_decline", "Decline"),
                 () =>
                 {
                     _inquiryOpen = false;
@@ -171,6 +180,22 @@ public sealed class KaiIncomingMarriageProposalBehavior : CampaignBehaviorBase
         KaiRuntimeLog.Write(
             "SPECIAL_MARRIAGE_PROPOSAL_ACCEPTED",
             $"kind={kind}; clan={targetClan.StringId}; member={member.StringId}; target={target.StringId}");
+    }
+
+    private static string Ui(string id, string fallback)
+        => KaiTORDiplomacyUiText.Get(id, fallback);
+
+    private static string UiFormat(string id, string fallback, params (string Key, object Value)[] values)
+        => KaiTORDiplomacyUiText.Format(id, fallback, values);
+
+    private static string GetKindText(string kind)
+    {
+        if (string.Equals(kind, "dynastic", StringComparison.OrdinalIgnoreCase))
+            return Ui("kaitor_diplomacy_special_marriage_kind_dynastic", "dynastic");
+        if (string.Equals(kind, "treaty", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(kind, "treaty_package", StringComparison.OrdinalIgnoreCase))
+            return Ui("kaitor_diplomacy_special_marriage_kind_treaty", "treaty-linked");
+        return Ui("kaitor_diplomacy_special_marriage_kind_special", "special");
     }
 
     private static bool IsPairStillValid(Hero member, Hero target, Clan targetClan)
