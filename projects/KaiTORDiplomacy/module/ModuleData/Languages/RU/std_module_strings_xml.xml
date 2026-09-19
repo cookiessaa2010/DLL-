@@ -79,5 +79,13 @@
   <string id="kaitor_diplomacy_ui_messenger_arrived" text="Гонец прибыл"/>
   <string id="kaitor_diplomacy_ui_messenger_reached" text="Гонец достиг {HERO}."/>
   <string id="kaitor_diplomacy_ui_messenger_choose" text="Выбрать"/>
+  <string id="kaitor_diplomacy_council_no_kingdom" text="Ваш клан сейчас не входит ни в одну державу."/>
+  <string id="kaitor_diplomacy_council_war_high_exhaustion" text="Война с {REALM}: наша военная усталость высока ({OURS}%). Стоит рассмотреть мир."/>
+  <string id="kaitor_diplomacy_council_enemy_exhaustion" text="Война с {REALM}: их усталость ({THEIRS}%) заметно выше нашей ({OURS}%)."/>
+  <string id="kaitor_diplomacy_council_nap_receptive" text="{REALM} выглядит готовой рассмотреть пакт о ненападении (оценка {SCORE})."/>
+  <string id="kaitor_diplomacy_council_pact_trust" text="Пакт с {REALM} опирается на высокий накопленный уровень доверия ({TRUST})."/>
+  <string id="kaitor_diplomacy_council_dynastic" text="Правящие дома {FIRST} и {SECOND} имеют значимые династические связи ({STRENGTH}/100)."/>
+  <string id="kaitor_diplomacy_council_succession" text="У дома {CLAN} нет другого живого взрослого дворянина; возможен кризис наследования."/>
+  <string id="kaitor_diplomacy_council_threat" text="Другие державы, вероятно, считают нашу экспансию серьёзной угрозой ({THREAT}/100)."/>
 </strings>
 </base>
