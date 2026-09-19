@@ -65,7 +65,7 @@ function Initialize-BaseRoot {
 '@
 
     Write-Module -Root $Root -Id 'Coop' -Dlls @('Coop.dll','Coop.Core.dll','GameInterface.dll','Missions.dll') -Xml @'
-<Module><Id value="Coop"/><Version value="v1.3.15.12"/><DependedModules><DependedModule Id="Native" DependentVersion="v1.3.15"/><DependedModule Id="SandBoxCore" DependentVersion="v1.3.15"/><DependedModule Id="Sandbox" DependentVersion="v1.3.15"/><DependedModule Id="CustomBattle" DependentVersion="v1.3.15"/><DependedModule Id="StoryMode" DependentVersion="v1.3.15"/></DependedModules></Module>
+<Module><Id value="Coop"/><Version value="v1.3.15.13"/><DependedModules><DependedModule Id="Native" DependentVersion="v1.3.15"/><DependedModule Id="SandBoxCore" DependentVersion="v1.3.15"/><DependedModule Id="Sandbox" DependentVersion="v1.3.15"/><DependedModule Id="CustomBattle" DependentVersion="v1.3.15"/><DependedModule Id="StoryMode" DependentVersion="v1.3.15"/></DependedModules></Module>
 '@
 }
 
