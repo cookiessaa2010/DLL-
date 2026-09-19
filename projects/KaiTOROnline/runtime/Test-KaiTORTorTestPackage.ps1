@@ -54,6 +54,9 @@ $requiredFiles = @(
     'Runtime/KaiTORTorWorkshopRuntime.ps1',
     'Runtime/Prepare-KaiTORTorWorkshopLinks.ps1',
     'Runtime/Test-KaiTORTorLiveReadiness.ps1',
+    'Runtime/Test-KaiTORCleaveCompatibility.ps1',
+    'Runtime/Test-KaiTORStabilityCompatibility.ps1',
+    'Runtime/Test-KaiTORPortraitFixCompatibility.ps1',
     'Runtime/Capture-KaiTORTorPostBattleLiveSession.ps1',
     'Runtime/Invoke-KaiTORTorPostBattleLiveAcceptance.ps1',
     'Runtime/Test-KaiTORTorPostBattleRuntime.ps1',
@@ -209,8 +212,9 @@ $contractChecks = @(
     'TOR_Armory -> TOR_Environment -> TOR_Core -> Coop',
     'Admission limit: 4 simultaneous players',
     'Bannerlord.exe /singleplayer /server',
-    'KaiCleave v0.3.1',
-    'KaiTOR_Stability v0.5.0'
+    'KaiCleave v1.3.15.31',
+    'KaiTOR_Stability v1.3.15.50',
+    'KaiTOR_PortraitFix v1.3.15.60'
 )
 foreach ($needle in $contractChecks) {
     if ($contract -notlike "*$needle*") {
@@ -219,12 +223,17 @@ foreach ($needle in $contractChecks) {
 }
 
 $cleaveCompatibility = Get-Content -LiteralPath (Join-Path $root 'Runtime/Test-KaiTORCleaveCompatibility.ps1') -Raw
-if ($cleaveCompatibility -notmatch [regex]::Escape('$ExpectedVersion = ''v0.3.1''')) {
-    throw 'KaiCleave compatibility gate is not pinned to the current validated v0.3.1 build.'
+if ($cleaveCompatibility -notmatch [regex]::Escape('$ExpectedVersion = ''v1.3.15.31''')) {
+    throw 'KaiCleave compatibility gate is not pinned to the current Steam-compatible v1.3.15.31 build.'
 }
 $stabilityCompatibility = Get-Content -LiteralPath (Join-Path $root 'Runtime/Test-KaiTORStabilityCompatibility.ps1') -Raw
-if ($stabilityCompatibility -notmatch [regex]::Escape('$ExpectedVersion = ''v0.5.0''')) {
-    throw 'KaiTOR Stability compatibility gate is not pinned to the current validated v0.5.0 build.'
+if ($stabilityCompatibility -notmatch [regex]::Escape('$ExpectedVersion = ''v1.3.15.50''')) {
+    throw 'KaiTOR Stability compatibility gate is not pinned to the current Steam-compatible v1.3.15.50 build.'
+}
+
+$portraitCompatibility = Get-Content -LiteralPath (Join-Path $root 'Runtime/Test-KaiTORPortraitFixCompatibility.ps1') -Raw
+if ($portraitCompatibility -notmatch [regex]::Escape('$ExpectedVersion = ''v1.3.15.60''')) {
+    throw 'KaiTOR Portrait Fix compatibility gate is not pinned to the current Steam-compatible v1.3.15.60 build.'
 }
 
 # Keep this validator source ASCII-only so it parses correctly in Windows PowerShell 5.1.
