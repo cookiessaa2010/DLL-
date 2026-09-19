@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using KaiTOR.Diplomacy.UI;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Conversation;
 using TaleWorlds.CampaignSystem.Actions;
@@ -35,6 +36,7 @@ public sealed class KaiMessengerBehavior : CampaignBehaviorBase
     private const string YSaveKey = "kaitor_messenger_v1_y";
     private const string SpeedSaveKey = "kaitor_messenger_v1_speed";
     private const string SequenceSaveKey = "kaitor_messenger_v1_sequence";
+    private const string LastFailureSaveKey = "kaitor_messenger_v1_last_failure";
 
     private Dictionary<string, string> _targets = new();
     private Dictionary<string, string> _senders = new();
@@ -46,6 +48,7 @@ public sealed class KaiMessengerBehavior : CampaignBehaviorBase
     private Dictionary<string, double> _y = new();
     private Dictionary<string, double> _speed = new();
     private int _sequence;
+    private string _lastFailure = "none";
     private bool _arrivalInquiryOpen;
 
     private const string Traveling = "traveling";
@@ -71,6 +74,7 @@ public sealed class KaiMessengerBehavior : CampaignBehaviorBase
         dataStore.SyncData(YSaveKey, ref _y);
         dataStore.SyncData(SpeedSaveKey, ref _speed);
         dataStore.SyncData(SequenceSaveKey, ref _sequence);
+        dataStore.SyncData(LastFailureSaveKey, ref _lastFailure);
 
         _targets ??= new Dictionary<string, string>();
         _senders ??= new Dictionary<string, string>();
@@ -81,6 +85,7 @@ public sealed class KaiMessengerBehavior : CampaignBehaviorBase
         _x ??= new Dictionary<string, double>();
         _y ??= new Dictionary<string, double>();
         _speed ??= new Dictionary<string, double>();
+        _lastFailure ??= "none";
     }
 
     public bool TrySend(Hero target, out string reason)
@@ -181,7 +186,7 @@ public sealed class KaiMessengerBehavior : CampaignBehaviorBase
     {
         if (_targets.Count == 0)
         {
-            yield return "Messenger: no active messengers.";
+            yield return $"Messenger: no active messengers; lastFailure={_lastFailure ?? "none"}.";
             yield break;
         }
 
@@ -296,23 +301,67 @@ public sealed class KaiMessengerBehavior : CampaignBehaviorBase
         }
 
         _arrivalInquiryOpen = true;
-        InformationManager.ShowInquiry(
-            new InquiryData(
-                "Messenger arrived",
-                $"Your messenger has reached {target.Name}.",
+
+        var options = new List<InquiryElement>
+        {
+            new(
+                "start",
+                KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_messenger_start", "Start conversation"),
+                null,
+                true),
+            new(
+                "later",
+                KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_messenger_later", "Later"),
+                null,
+                true),
+            new(
+                "recall",
+                KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_messenger_recall", "Recall messenger"),
+                null,
+                true)
+        };
+
+        MBInformationManager.ShowMultiSelectionInquiry(
+            new MultiSelectionInquiryData(
+                KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_messenger_arrived", "Messenger arrived"),
+                KaiTORDiplomacyUiText.Format(
+                    "kaitor_diplomacy_ui_messenger_reached",
+                    "Your messenger has reached {HERO}.",
+                    ("HERO", target.Name)),
+                options,
                 true,
-                true,
-                "Start conversation",
-                "Later",
-                () =>
+                1,
+                1,
+                KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_messenger_choose", "Choose"),
+                KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_messenger_later", "Later"),
+                selected =>
                 {
                     _arrivalInquiryOpen = false;
-                    if (!TryOpenConversation(id, target, out var reason))
+                    if (selected.Count == 0)
+                        return;
+
+                    var action = selected[0].Identifier as string;
+                    if (string.Equals(action, "start", StringComparison.Ordinal))
                     {
-                        KaiRuntimeLog.Write(
-                            "MESSENGER_FAILED",
-                            $"id={id}; target={target.StringId}; reason=conversation_open:{reason}");
+                        if (!TryOpenConversation(id, target, out var reason))
+                        {
+                            _lastFailure = $"id={id}; target={target.StringId}; conversation={reason}";
+                            KaiRuntimeLog.Write(
+                                "MESSENGER_FAILED",
+                                $"id={id}; target={target.StringId}; reason=conversation_open:{reason}");
+                        }
+                        return;
                     }
+
+                    if (string.Equals(action, "recall", StringComparison.Ordinal))
+                    {
+                        TryCancel(id, out _);
+                        return;
+                    }
+
+                    KaiRuntimeLog.Write(
+                        "MESSENGER_WAIT",
+                        $"id={id}; target={target.StringId}");
                 },
                 () =>
                 {
@@ -321,8 +370,8 @@ public sealed class KaiMessengerBehavior : CampaignBehaviorBase
                         "MESSENGER_WAIT",
                         $"id={id}; target={target.StringId}");
                 }),
-            false,
-            false);
+            true,
+            true);
     }
 
     public bool TryCancel(string id, out string reason)
@@ -335,8 +384,9 @@ public sealed class KaiMessengerBehavior : CampaignBehaviorBase
         }
 
         var targetId = _targets[id];
+        _lastFailure = $"id={id}; target={targetId}; reason=cancelled";
         Remove(id);
-        KaiRuntimeLog.Write("MESSENGER_FAILED", $"id={id}; target={targetId}; reason=cancelled");
+        KaiRuntimeLog.Write("MESSENGER_FAILED", _lastFailure);
         return true;
     }
 
@@ -432,7 +482,8 @@ public sealed class KaiMessengerBehavior : CampaignBehaviorBase
     {
         var target = _targets.TryGetValue(id, out var targetId) ? targetId : "unknown";
         _statuses[id] = Failed;
-        KaiRuntimeLog.Write("MESSENGER_FAILED", $"id={id}; target={target}; reason={reason}");
+        _lastFailure = $"id={id}; target={target}; reason={reason}";
+        KaiRuntimeLog.Write("MESSENGER_FAILED", _lastFailure);
         Remove(id);
     }
 
@@ -460,6 +511,7 @@ public sealed class KaiMessengerBehavior : CampaignBehaviorBase
         _x ??= new Dictionary<string, double>();
         _y ??= new Dictionary<string, double>();
         _speed ??= new Dictionary<string, double>();
+        _lastFailure ??= "none";
 
         foreach (var id in _targets.Keys.ToArray())
         {
