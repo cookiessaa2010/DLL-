@@ -220,7 +220,7 @@ public sealed class KaiFiefGrantBehavior : CampaignBehaviorBase
     }
 
     private static IEnumerable<Settlement> GetGrantableSettlements()
-        => Clan.PlayerClan?.Fiefs
+        => Clan.PlayerClan?.Settlements
             .Where(s =>
                 s != null &&
                 s.IsFortification &&
