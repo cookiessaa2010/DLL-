@@ -13,18 +13,24 @@ public sealed class KaiTORDiplomacyScreen : ScreenBase
 
     private static bool _isOpen;
 
+    private readonly Kingdom _initialKingdom;
     private KaiTORDiplomacyVM _dataSource;
     private GauntletLayer _gauntletLayer;
     private GauntletMovieIdentifier _gauntletMovie;
 
-    public static bool TryOpen()
+    private KaiTORDiplomacyScreen(Kingdom initialKingdom)
+    {
+        _initialKingdom = initialKingdom;
+    }
+
+    public static bool TryOpen(Kingdom initialKingdom = null)
     {
         if (_isOpen)
             return false;
 
         try
         {
-            ScreenManager.PushScreen(new KaiTORDiplomacyScreen());
+            ScreenManager.PushScreen(new KaiTORDiplomacyScreen(initialKingdom));
             return true;
         }
         catch (System.Exception ex)
@@ -40,11 +46,9 @@ public sealed class KaiTORDiplomacyScreen : ScreenBase
         base.OnInitialize();
         _isOpen = true;
 
-        _dataSource = new KaiTORDiplomacyVM();
+        _dataSource = new KaiTORDiplomacyVM(_initialKingdom);
         _dataSource.CloseRequested += HandleClose;
-        _dataSource.FamilyRequested += HandleFamily;
         _dataSource.CultureRequested += HandleCulture;
-        _dataSource.FallbackHubRequested += HandleFallbackHub;
 
         _gauntletLayer = new GauntletLayer(LayerName, 100)
         {
@@ -82,9 +86,7 @@ public sealed class KaiTORDiplomacyScreen : ScreenBase
         if (_dataSource != null)
         {
             _dataSource.CloseRequested -= HandleClose;
-            _dataSource.FamilyRequested -= HandleFamily;
             _dataSource.CultureRequested -= HandleCulture;
-            _dataSource.FallbackHubRequested -= HandleFallbackHub;
             _dataSource.Dispose();
         }
 
@@ -114,13 +116,6 @@ public sealed class KaiTORDiplomacyScreen : ScreenBase
         ScreenManager.PopScreen();
     }
 
-    private static void HandleFamily()
-    {
-        ScreenManager.PopScreen();
-        var result = KaiFamilyAffairsBehavior.OpenFamilyMenuFromConsole();
-        KaiRuntimeLog.Write("GAUNTLET_UI_ROUTE", $"target=family; result={result}");
-    }
-
     private static void HandleCulture()
     {
         ScreenManager.PopScreen();
@@ -136,10 +131,4 @@ public sealed class KaiTORDiplomacyScreen : ScreenBase
         KaiRuntimeLog.Write("GAUNTLET_UI_ROUTE", "target=culture");
     }
 
-    private static void HandleFallbackHub()
-    {
-        ScreenManager.PopScreen();
-        var result = KaiDiplomacyHubBehavior.OpenHubFromExternalUi();
-        KaiRuntimeLog.Write("GAUNTLET_UI_ROUTE", $"target=fallback_hub; result={result}");
-    }
 }
