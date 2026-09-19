@@ -99,7 +99,7 @@ public sealed class KaiMessengerBehavior : CampaignBehaviorBase
         var targetPoint = target?.GetMapPoint();
         if (sourcePoint == null || targetPoint == null)
         {
-            reason = "Messenger route cannot be calculated.";
+            reason = KaiTORDiplomacyUiText.Get("kaitor_diplomacy_messenger_no_route", "Messenger route cannot be calculated.");
             return false;
         }
 
@@ -108,7 +108,7 @@ public sealed class KaiMessengerBehavior : CampaignBehaviorBase
         var cost = BaseGoldCost + travelHours * HourlyGoldCost;
         if (Hero.MainHero.Gold < cost)
         {
-            reason = $"Not enough gold. Required: {cost}.";
+            reason = KaiTORDiplomacyUiText.Format("kaitor_diplomacy_messenger_not_enough_gold", "Not enough gold. Required: {GOLD}.", ("GOLD", cost));
             return false;
         }
 
@@ -130,7 +130,10 @@ public sealed class KaiMessengerBehavior : CampaignBehaviorBase
             $"id={id}; target={target.StringId}; hours={travelHours}; cost={cost}; distance={distance:0.00}");
 
         InformationManager.DisplayMessage(new InformationMessage(
-            $"Messenger sent to {target.Name}. Estimated travel time: {travelHours} h. Cost: {cost}."));
+            KaiTORDiplomacyUiText.Format(
+                "kaitor_diplomacy_messenger_sent",
+                "Messenger sent to {HERO}. Estimated travel time: {HOURS} h. Cost: {GOLD}.",
+                ("HERO", target.Name), ("HOURS", travelHours), ("GOLD", cost))));
 
         return true;
     }
@@ -140,43 +143,43 @@ public sealed class KaiMessengerBehavior : CampaignBehaviorBase
         reason = string.Empty;
         if (Campaign.Current == null || Hero.MainHero == null)
         {
-            reason = "No active campaign.";
+            reason = KaiTORDiplomacyUiText.Get("kaitor_diplomacy_messenger_no_campaign", "No active campaign.");
             return false;
         }
         if (target == null)
         {
-            reason = "No target hero.";
+            reason = KaiTORDiplomacyUiText.Get("kaitor_diplomacy_messenger_no_target", "No target hero.");
             return false;
         }
         if (target == Hero.MainHero || target.IsHumanPlayerCharacter)
         {
-            reason = "You cannot send a messenger to yourself.";
+            reason = KaiTORDiplomacyUiText.Get("kaitor_diplomacy_messenger_self", "You cannot send a messenger to yourself.");
             return false;
         }
         if (!target.IsAlive || !target.IsActive)
         {
-            reason = "The target is not currently reachable.";
+            reason = KaiTORDiplomacyUiText.Get("kaitor_diplomacy_messenger_unreachable", "The target is not currently reachable.");
             return false;
         }
         if (target.IsChild)
         {
-            reason = "The target is too young for formal correspondence.";
+            reason = KaiTORDiplomacyUiText.Get("kaitor_diplomacy_messenger_child", "The target is too young for formal correspondence.");
             return false;
         }
         if (target.CharacterObject == null)
         {
-            reason = "The target has no valid campaign character.";
+            reason = KaiTORDiplomacyUiText.Get("kaitor_diplomacy_messenger_invalid_character", "The target has no valid campaign character.");
             return false;
         }
         if (Campaign.Current.Models.InformationRestrictionModel != null &&
             !Campaign.Current.Models.InformationRestrictionModel.DoesPlayerKnowDetailsOf(target))
         {
-            reason = "You do not know this character well enough to identify them for a messenger.";
+            reason = KaiTORDiplomacyUiText.Get("kaitor_diplomacy_messenger_unknown_hero", "You do not know this character well enough to identify them for a messenger.");
             return false;
         }
         if (_targets.Values.Any(id => string.Equals(id, target.StringId, StringComparison.Ordinal)))
         {
-            reason = "A messenger is already assigned to this hero.";
+            reason = KaiTORDiplomacyUiText.Get("kaitor_diplomacy_messenger_duplicate", "A messenger is already assigned to this hero.");
             return false;
         }
         return true;
@@ -206,7 +209,7 @@ public sealed class KaiMessengerBehavior : CampaignBehaviorBase
             h != null && string.Equals(h.StringId, heroId, StringComparison.OrdinalIgnoreCase));
         if (hero == null)
         {
-            reason = "Unknown hero id.";
+            reason = KaiTORDiplomacyUiText.Get("kaitor_diplomacy_messenger_unknown_id", "Unknown hero id.");
             return false;
         }
         return TrySend(hero, out reason);
@@ -352,6 +355,10 @@ public sealed class KaiMessengerBehavior : CampaignBehaviorBase
                             KaiRuntimeLog.Write(
                                 "MESSENGER_FAILED",
                                 $"id={id}; target={target.StringId}; reason=conversation_open:{reason}");
+                            InformationManager.DisplayMessage(new InformationMessage(
+                                KaiTORDiplomacyUiText.Get(
+                                    "kaitor_diplomacy_messenger_conversation_wait",
+                                    "The conversation cannot open right now. The messenger will keep waiting.")));
                         }
                         return;
                     }
@@ -382,7 +389,7 @@ public sealed class KaiMessengerBehavior : CampaignBehaviorBase
         reason = string.Empty;
         if (string.IsNullOrWhiteSpace(id) || !_targets.ContainsKey(id))
         {
-            reason = "Unknown messenger id.";
+            reason = KaiTORDiplomacyUiText.Get("kaitor_diplomacy_messenger_unknown_msg", "Unknown messenger id.");
             return false;
         }
 
