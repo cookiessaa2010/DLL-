@@ -24,7 +24,9 @@
     <string id="kaitor_hosted_steam_servers" text="Hosted Steam Servers ({SERVER_COUNT} servers; {PLAYER_COUNT} players)"/>
     <string id="kaitor_page_of" text="Page {CURRENT_PAGE} of {PAGE_COUNT}"/>
     <string id="kaitor_host_name" text="Host Name"/>
+    <string id="kaitor_server_name" text="Server Name"/>
     <string id="kaitor_host_search_placeholder" text="Type a host name..."/>
+    <string id="kaitor_server_search_placeholder" text="Type a server name..."/>
     <string id="kaitor_password" text="Password"/>
     <string id="kaitor_minimum_players" text="Minimum Players"/>
     <string id="kaitor_connected_players" text="Connected Players"/>
