@@ -186,6 +186,34 @@ jobs:
             throw 'Diplomacy movie/source collides with KaiTOR Co-op UI identifiers.'
           }
 
+          # DiplomacyFinish: keep the main movie on the conservative DIAG-A
+          # Gauntlet contract while routing complex choices through native UI.
+          foreach ($forbiddenUi in @(
+            'ScrollablePanel',
+            'NavigatableListPanel',
+            'ItemTemplate',
+            'ScrollbarWidget',
+            'IsVisible="@',
+            'IsDisabled="@'
+          )) {
+            if ($movieRaw.Contains($forbiddenUi)) {
+              throw "Crash-risk Gauntlet token found in Diplomacy movie: $forbiddenUi"
+            }
+          }
+          foreach ($requiredCommand in @(
+            'Command.Click="ActionChooseRealm"',
+            'Command.Click="ActionProposeNap"',
+            'Command.Click="ActionBreakNap"',
+            'Command.Click="ActionOpenFamily"',
+            'Command.Click="ActionOpenCulture"',
+            'Command.Click="ActionRefresh"',
+            'Command.Click="ActionClose"'
+          )) {
+            if (-not $movieRaw.Contains($requiredCommand)) {
+              throw "Safe functional Diplomacy command missing: $requiredCommand"
+            }
+          }
+
           $allDiplomacyUiText = @(
             Get-ChildItem $uiRoot -File -Filter '*.cs'
             Get-Item (Join-Path $runtime 'KaiDiplomacyHubBehavior.cs')
