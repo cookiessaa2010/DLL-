@@ -146,27 +146,6 @@
                           </Children>
                         </ListPanel>
 
-                        <TextWidget WidthSizePolicy="StretchToParent"
-                                    HeightSizePolicy="Fixed" SuggestedHeight="34"
-                                    MarginTop="12"
-                                    Brush="Clan.TabControl.Text"
-                                    Brush.FontSize="23"
-                                    Brush.FontColor="#D5B275FF"
-                                    Text="@CultureHeaderText"/>
-
-                        <TextWidget WidthSizePolicy="StretchToParent"
-                                    HeightSizePolicy="Fixed" SuggestedHeight="92"
-                                    MarginTop="4"
-                                    Brush="Clan.TabControl.Text"
-                                    Brush.FontSize="20"
-                                    Brush.TextVerticalAlignment="Top"
-                                    Text="@CultureSummaryText"/>
-
-                        <Standard.Button WidthSizePolicy="Fixed" SuggestedWidth="360"
-                                         HeightSizePolicy="Fixed" SuggestedHeight="52"
-                                         MarginTop="6"
-                                         Command.Click="ActionOpenCulture"
-                                         Parameter.Text="@OpenCultureText"/>
                       </Children>
                     </ListPanel>
                   </Children>
