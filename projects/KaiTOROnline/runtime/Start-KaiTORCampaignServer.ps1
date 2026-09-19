@@ -8,6 +8,9 @@ param(
     [ValidateNotNullOrEmpty()]
     [string]$SaveName,
 
+    [ValidateLength(0, 64)]
+    [string]$ServerName = '',
+
     [string[]]$ModuleIds,
 
     [string]$ModuleListPath,
@@ -31,6 +34,14 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+
+if ([string]::IsNullOrWhiteSpace($ServerName)) {
+    $ServerName = "KaiTOR Co-op | $SaveName"
+}
+$ServerName = $ServerName.Trim()
+if ($ServerName.Length -gt 64) {
+    $ServerName = $ServerName.Substring(0, 64)
+}
 
 $ExpectedVersion = '1.3.15.110062'
 $DefaultModuleList = Join-Path $PSScriptRoot 'modules.vanilla-1.3.15.txt'
@@ -217,6 +228,7 @@ Write-Output 'KaiTOR Online campaign-server launch contract'
 Write-Output "  Bannerlord: $exe"
 Write-Output "  Target:     $ExpectedVersion"
 Write-Output "  Save:       $SaveName"
+Write-Output "  Server:     $ServerName"
 Write-Output "  Visibility: $Visibility"
 Write-Output "  Modules:    $($ModuleIds -join ', ')"
 Write-Output "  Command:    Bannerlord.exe $safeArguments"
@@ -227,8 +239,18 @@ if ($DryRun) {
     return
 }
 
-$process = Start-Process -FilePath $exe -ArgumentList $arguments -WorkingDirectory $workingDirectory -PassThru
+$previousServerName = [Environment]::GetEnvironmentVariable('KAITOR_SERVER_NAME', 'Process')
+[Environment]::SetEnvironmentVariable('KAITOR_SERVER_NAME', $ServerName, 'Process')
+try {
+    # Bannerlord inherits the process-scoped server name. Steam advertisement uses it only as
+    # display metadata; network protocol, module validation and direct-IP fallback are unchanged.
+    $process = Start-Process -FilePath $exe -ArgumentList $arguments -WorkingDirectory $workingDirectory -PassThru
+}
+finally {
+    [Environment]::SetEnvironmentVariable('KAITOR_SERVER_NAME', $previousServerName, 'Process')
+}
 Write-Output "Started Bannerlord campaign-server process PID $($process.Id)."
+Write-Output "Steam lobby name: $ServerName"
 Write-Output 'The /coopsave path auto-starts Coop when Bannerlord reaches InitialState and then loads the named save.'
 
 if ($Wait) {
