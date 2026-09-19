@@ -58,5 +58,15 @@
     <string id="kaitor_diplomacy_ui_yes" text="Да"/>
     <string id="kaitor_diplomacy_ui_no" text="Нет"/>
     <string id="kaitor_diplomacy_ui_send_messenger" text="Отправить гонца"/>
+  <string id="kaitor_diplomacy_ui_peace_open" text="Я хочу обсудить условия окончания этой войны."/>
+  <string id="kaitor_diplomacy_ui_peace_reply" text="Излагайте условия. Я решу, стоит ли мир такой цены."/>
+  <string id="kaitor_diplomacy_ui_peace_status_quo" text="Мир без дополнительных требований."/>
+  <string id="kaitor_diplomacy_ui_peace_demand_reparations" text="Вы выплатите репарации за эту войну."/>
+  <string id="kaitor_diplomacy_ui_peace_offer_reparations" text="Мы выплатим репарации ради заключения мира."/>
+  <string id="kaitor_diplomacy_ui_peace_return_fief" text="Верните одно из владений, захваченных у нашей державы."/>
+  <string id="kaitor_diplomacy_ui_peace_nap" text="Мир с последующим пактом о ненападении на девяносто дней."/>
+  <string id="kaitor_diplomacy_ui_peace_back" text="Не сейчас."/>
+  <string id="kaitor_diplomacy_ui_peace_rejected" text="Правитель противника отверг эти условия."/>
+  <string id="kaitor_diplomacy_ui_peace_accepted" text="Условия мира приняты."/>
 </strings>
 </base>
