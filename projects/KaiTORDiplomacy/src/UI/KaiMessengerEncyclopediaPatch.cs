@@ -56,7 +56,7 @@ internal static class KaiMessengerEncyclopediaPatch
             label);
 
         var current = __instance.InformationText ?? string.Empty;
-        if (!current.Contains(LinkPrefix, StringComparison.Ordinal))
+        if (current.IndexOf(LinkPrefix, StringComparison.Ordinal) < 0)
             __instance.InformationText = string.IsNullOrWhiteSpace(current)
                 ? link
                 : current + Environment.NewLine + Environment.NewLine + link;
