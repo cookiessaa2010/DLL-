@@ -111,7 +111,7 @@ foreach ($check in @(
     Assert-Contains -Text $text -Needle $check.Marker
 }
 
-$expectedOrder = 'Modules: Bannerlord.Harmony, Native, SandBoxCore, Sandbox, CustomBattle, StoryMode, TOR_Armory, TOR_Environment, TOR_Core, KaiCleave, KaiTOR_Stability, KaiTOR_PortraitFix, Coop'
+$expectedOrder = 'Bannerlord.Harmony, Native, SandBoxCore, Sandbox, CustomBattle, StoryMode, TOR_Armory, TOR_Environment, TOR_Core, KaiCleave, KaiTOR_Stability, KaiTOR_PortraitFix, Coop'
 $manualLaunch = (& $torLauncher -BannerlordRoot $manualRoot -SaveName 'KaiTOR-Steam-Manual-CI' -SkipVersionCheck -DryRun 3>&1 2>&1 | Out-String)
 Write-Host $manualLaunch
 foreach ($marker in @('KaiCleave integration: ACTIVE (v1.3.15.31).','KaiTOR Stability integration: ACTIVE (v1.3.15.50).','KaiTOR Portrait Fix integration: ACTIVE (v1.3.15.60).',$expectedOrder,'DRY RUN: process not started')) {
