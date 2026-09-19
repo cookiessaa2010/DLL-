@@ -5,17 +5,7 @@
         <Standard.Background/>
         <Standard.TopPanel Parameter.Title="@TitleText"/>
 
-        <!--
-          DiplomacyFinish SAFE-FUNCTIONAL dashboard.
-          The previous full-screen implementation used dynamic visibility/disabled
-          bindings across several overlapping panels. The static DIAG-A shell was
-          live-tested without the native 0xC0000005 crash, so this production-shaped
-          screen deliberately keeps the same conservative Gauntlet contract:
-          no ScrollablePanel, no NavigatableListPanel, no ItemTemplate, no custom
-          scrollbar, no IsVisible binding and no IsDisabled binding.
-          Actions remain fully functional and route complex selection flows through
-          Bannerlord's native inquiry/game-menu UI.
-        -->
+        <!-- DiplomacyFinish safe functional static dashboard. -->
         <Widget Id="KaiTORDiplomacyRoot"
                 WidthSizePolicy="Fixed" SuggestedWidth="1220"
                 HeightSizePolicy="Fixed" SuggestedHeight="790"
