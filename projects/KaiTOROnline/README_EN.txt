@@ -1,4 +1,4 @@
-KaiTOR Co-op v1.3.15.11
+KaiTOR Co-op v1.3.15.12
 TEST CANDIDATE — Bannerlord 1.3.15.110062 + The Old Realms 1.3.15
 Languages: English / Russian
 Maximum simultaneous players: 4
@@ -16,7 +16,8 @@ START THE AUTHORITATIVE CAMPAIGN SERVER
 1. Run START_KAITOR_COOP.bat from the package root.
 2. Select the Bannerlord root folder.
 3. Enter the exact campaign save name.
-4. Choose visibility and an optional password.
+4. Choose visibility and an optional password. Use Public to appear in the global Steam list (the server panel now defaults to Public).
+   The lobby name is generated automatically as KaiTOR Co-op | <save name>.
 5. Click Preflight. Do not start the server unless Preflight reports PASS.
 6. Click Start Server.
 7. The panel should show ONLINE after Bannerlord.exe /singleplayer /server starts.
@@ -25,8 +26,14 @@ JOIN FROM A CLIENT
 1. Start Bannerlord 1.3.15.110062 with TOR 1.3.15 and KaiTOR Co-op enabled.
 2. Required order: TOR_Armory -> TOR_Environment -> TOR_Core -> Coop.
 3. In the main menu choose "Join KaiTOR Co-op".
-4. Use Direct Connection (server IP/host, optional :port) or Steam Lobbies.
-5. Default port is 4200.
+4. Steam Lobbies is the default tab. Refresh the list, find the server by name, and join it.
+5. Each row shows the server name, players x/4, KaiTOR version, and compatibility status. Incompatible builds cannot be joined.
+6. Direct Connection remains available as a fallback; its default port is 4200.
+
+STEAM / VPN
+- Normal Steam Lobby joining uses the Steam P2P/relay tunnel, so players do not need to type the host's public IP.
+- This is the preferred path for a host using a VPN or sitting behind NAT/CGNAT, provided Steam and Steam Networking work through that VPN.
+- UDP 4200-4201 forwarding is only needed for direct-IP/fallback connectivity. The Steam tunnel does not require manual IP entry.
 
 FIRST LIVE ACCEPTANCE
 A. Connect player 1 and verify the campaign loads.
