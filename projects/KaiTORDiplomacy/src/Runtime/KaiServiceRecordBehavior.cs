@@ -23,6 +23,7 @@ public sealed class KaiServiceRecordBehavior : CampaignBehaviorBase
     private const string ResultSaveKey = "kaitor_service_v1_result";
     private const string CurrentSaveKey = "kaitor_service_v1_current";
     private const string SequenceSaveKey = "kaitor_service_v1_sequence";
+    private const string PendingDesertionSaveKey = "kaitor_service_v1_pending_desertion";
 
     private const float TorMinimumHonourableServiceDays = 25f;
 
@@ -39,6 +40,7 @@ public sealed class KaiServiceRecordBehavior : CampaignBehaviorBase
     private string _currentId;
     private int _sequence;
     private bool _lastEnlisted;
+    private bool _pendingDesertion;
 
     public override void RegisterEvents()
     {
@@ -61,6 +63,7 @@ public sealed class KaiServiceRecordBehavior : CampaignBehaviorBase
         dataStore.SyncData(ResultSaveKey, ref _result);
         dataStore.SyncData(CurrentSaveKey, ref _currentId);
         dataStore.SyncData(SequenceSaveKey, ref _sequence);
+        dataStore.SyncData(PendingDesertionSaveKey, ref _pendingDesertion);
 
         _lord ??= new Dictionary<string, string>();
         _faction ??= new Dictionary<string, string>();
@@ -89,6 +92,19 @@ public sealed class KaiServiceRecordBehavior : CampaignBehaviorBase
                      .OrderByDescending(id => _end.TryGetValue(id, out var value) ? value : 0d)
                      .Take(10))
             yield return Format(id, false);
+    }
+
+    public void MarkLeavingService(bool desertion)
+    {
+        if (string.IsNullOrWhiteSpace(_currentId))
+            return;
+
+        RefreshCurrent();
+        _pendingDesertion = desertion;
+
+        KaiRuntimeLog.Write(
+            "SERVICE_RECORD_LEAVE_MARK",
+            $"id={_currentId}; desertion={desertion}; duration={Get(_duration, _currentId):0.0}");
     }
 
     public float GetTotalHonourableServiceDays()
@@ -154,6 +170,7 @@ public sealed class KaiServiceRecordBehavior : CampaignBehaviorBase
         _victories[id] = Math.Max(0, TorHirelingBridge.GetTorCountedVictories());
         _career[id] = TorHirelingBridge.GetCareerId();
         _result[id] = "active";
+        _pendingDesertion = false;
 
         KaiRuntimeLog.Write(
             "SERVICE_RECORD_START",
@@ -188,13 +205,14 @@ public sealed class KaiServiceRecordBehavior : CampaignBehaviorBase
 
         var id = _currentId;
         var duration = Math.Max(0f, Get(_duration, id));
-        var result = duration >= TorMinimumHonourableServiceDays
-            ? "honourable"
-            : "early_end";
+        var result = _pendingDesertion
+            ? "desertion"
+            : (duration >= TorMinimumHonourableServiceDays ? "honourable" : "forced_or_early_end");
 
         _end[id] = CampaignTime.Now.ToDays;
         _result[id] = result;
         _currentId = null;
+        _pendingDesertion = false;
 
         KaiRuntimeLog.Write(
             "SERVICE_RECORD_END",
