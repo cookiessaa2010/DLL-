@@ -73,6 +73,7 @@ public sealed class KaiTORDiplomacyScreen : ScreenBase
         if (_gauntletLayer == null) return;
 
         _gauntletLayer.IsFocusLayer = false;
+        _gauntletLayer.InputRestrictions.ResetInputRestrictions();
         ScreenManager.TryLoseFocus(_gauntletLayer);
     }
 
@@ -88,7 +89,16 @@ public sealed class KaiTORDiplomacyScreen : ScreenBase
         }
 
         if (_gauntletLayer != null)
+        {
+            _gauntletLayer.IsFocusLayer = false;
+            _gauntletLayer.InputRestrictions.ResetInputRestrictions();
+            ScreenManager.TryLoseFocus(_gauntletLayer);
+
+            if (_gauntletMovie != null)
+                _gauntletLayer.ReleaseMovie(_gauntletMovie);
+
             RemoveLayer(_gauntletLayer);
+        }
 
         _gauntletMovie = null;
         _gauntletLayer = null;
