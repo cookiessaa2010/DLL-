@@ -785,7 +785,7 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
         _returnMenuId = "town_tavern";
         return SafeSwitchToMenu(AdoptionMenuId, "console_adoption")
             ? "Adoption menu opened. Normal entry point: town tavern."
-            : "Could not open adoption menu. Check KaiTOR.log.";
+            : "Could not open adoption menu.";
     }
 
     private static IEnumerable<Hero> GetMarriageHouseMembers()
