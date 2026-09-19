@@ -104,5 +104,29 @@
   <string id="kaitor_diplomacy_fief_stale_fief" text="Выбранное владение больше нельзя безопасно передать."/>
   <string id="kaitor_diplomacy_fief_stale_house" text="Выбранный дом больше не подходит для получения владения."/>
   <string id="kaitor_diplomacy_fief_granted" text="Владение {FIEF} передано дому {CLAN}."/>
+  <string id="kaitor_diplomacy_realm_no_candidate" text="Нет подходящего компаньона для основания нового дворянского дома."/>
+  <string id="kaitor_diplomacy_realm_candidate_hint" text="Отношения: {RELATION} | Уровень: {LEVEL}"/>
+  <string id="kaitor_diplomacy_realm_elevate_title" text="Возвести в дворянство"/>
+  <string id="kaitor_diplomacy_realm_elevate_prompt" text="Выберите компаньона, который основает новый дворянский дом."/>
+  <string id="kaitor_diplomacy_realm_elevate" text="Возвести"/>
+  <string id="kaitor_diplomacy_realm_founded" text="{HERO} основывает дом {CLAN}."/>
+  <string id="kaitor_diplomacy_realm_no_kingdom" text="Держава игрока недоступна."/>
+  <string id="kaitor_diplomacy_realm_ruler_only" text="Только правитель может учредить новый дворянский дом."/>
+  <string id="kaitor_diplomacy_realm_candidate_clan" text="Кандидат должен состоять в клане правителя."/>
+  <string id="kaitor_diplomacy_realm_candidate_inactive" text="Кандидат сейчас не является активным героем."/>
+  <string id="kaitor_diplomacy_realm_candidate_child" text="Кандидат ещё не достиг совершеннолетия."/>
+  <string id="kaitor_diplomacy_realm_candidate_prisoner" text="Кандидат находится в плену."/>
+  <string id="kaitor_diplomacy_realm_candidate_governor" text="Действующий губернатор не может основать новый дом."/>
+  <string id="kaitor_diplomacy_realm_candidate_leader" text="Глава существующего клана не может основать ещё один дом."/>
+  <string id="kaitor_diplomacy_realm_candidate_family" text="Сначала урегулируйте семейное положение кандидата."/>
+  <string id="kaitor_diplomacy_realm_candidate_not_companion" text="Кандидат не подходит для возведения из числа компаньонов."/>
+  <string id="kaitor_diplomacy_realm_candidate_party_leader" text="Кандидат сейчас командует отдельным отрядом."/>
+  <string id="kaitor_diplomacy_realm_candidate_unsafe" text="Кандидат сейчас находится в небезопасном состоянии кампании."/>
+  <string id="kaitor_diplomacy_realm_candidate_not_removable" text="Кандидата нельзя безопасно вывести из текущего отряда."/>
+  <string id="kaitor_diplomacy_realm_no_home" text="Нет безопасного укреплённого владения для дома нового клана."/>
+  <string id="kaitor_diplomacy_realm_detach_failed" text="Не удалось безопасно вывести кандидата из текущего отряда."/>
+  <string id="kaitor_diplomacy_realm_factory_failed" text="Нативная фабрика кланов не смогла создать новый дом."/>
+  <string id="kaitor_diplomacy_realm_postcondition_failed" text="Проверка нового дворянского дома после создания не пройдена."/>
+  <string id="kaitor_diplomacy_realm_success" text="Новый дворянский дом успешно учреждён."/>
 </strings>
 </base>
