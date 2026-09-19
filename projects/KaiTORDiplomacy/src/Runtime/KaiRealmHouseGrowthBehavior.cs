@@ -595,6 +595,205 @@ public sealed class KaiRealmHouseGrowthBehavior : CampaignBehaviorBase
         }
     }
 
+    public IEnumerable<Hero> GetPlayerElevationCandidates()
+    {
+        return Clan.PlayerClan?.Heroes
+            .Where(hero => CanElevateByPlayer(hero, out _))
+            .OrderByDescending(hero => Hero.MainHero?.GetRelation(hero) ?? 0)
+            .ThenByDescending(hero => hero.Level)
+            .ThenBy(hero => hero.StringId, StringComparer.Ordinal)
+            .ToArray()
+            ?? Array.Empty<Hero>();
+    }
+
+    public bool CanElevateByPlayer(Hero candidate, out string reason)
+    {
+        reason = string.Empty;
+        var playerClan = Clan.PlayerClan;
+        var kingdom = playerClan?.Kingdom;
+
+        if (Campaign.Current == null || Hero.MainHero == null || playerClan == null || kingdom == null)
+        {
+            reason = "Player kingdom is unavailable.";
+            return false;
+        }
+        if (kingdom.RulingClan != playerClan || playerClan.Leader != Hero.MainHero)
+        {
+            reason = "Only the ruler may elevate a new noble house.";
+            return false;
+        }
+        if (candidate == null || candidate == Hero.MainHero || candidate.Clan != playerClan)
+        {
+            reason = "Candidate must belong to the ruler's clan.";
+            return false;
+        }
+        if (!candidate.IsAlive || !candidate.IsActive || candidate.IsTemplate || candidate.IsMinorFactionHero)
+        {
+            reason = "Candidate is not an active hero.";
+            return false;
+        }
+        if (candidate.Age < Campaign.Current.Models.AgeModel.HeroComesOfAge)
+        {
+            reason = "Candidate is not an adult.";
+            return false;
+        }
+        if (candidate.IsPrisoner || candidate.PartyBelongedToAsPrisoner != null)
+        {
+            reason = "Candidate is a prisoner.";
+            return false;
+        }
+        if (candidate.GovernorOf != null)
+        {
+            reason = "A serving governor cannot found a new house.";
+            return false;
+        }
+        if (candidate == playerClan.Leader || candidate.IsClanLeader)
+        {
+            reason = "An existing clan leader cannot found another house.";
+            return false;
+        }
+        if (candidate.Spouse != null || candidate.Children.Count > 0)
+        {
+            reason = "Move the candidate's family arrangements before founding a new house.";
+            return false;
+        }
+
+        var companionLike =
+            candidate.CompanionOf == playerClan ||
+            TorFamilySafety.IsAiCompanion(candidate) ||
+            candidate.Occupation == Occupation.Wanderer;
+
+        if (!companionLike)
+        {
+            reason = "Candidate is not a companion suitable for elevation.";
+            return false;
+        }
+
+        var party = candidate.PartyBelongedTo;
+        if (party != null)
+        {
+            if (party.LeaderHero == candidate)
+            {
+                reason = "Candidate currently leads a party.";
+                return false;
+            }
+            if (party.MapEvent != null || party.BesiegedSettlement != null || party.Army != null)
+            {
+                reason = "Candidate is currently in an unsafe campaign state.";
+                return false;
+            }
+            if (candidate.CharacterObject == null || party.MemberRoster.GetTroopCount(candidate.CharacterObject) <= 0)
+            {
+                reason = "Candidate is not a removable member of the current party.";
+                return false;
+            }
+        }
+
+        var home = FindPlayerHouseHome(kingdom);
+        if (home == null)
+        {
+            reason = "No safe fortification is available as the new house's home.";
+            return false;
+        }
+
+        return true;
+    }
+
+    public bool TryElevateByPlayer(Hero candidate, out Clan newClan, out string reason)
+    {
+        newClan = null;
+        if (!CanElevateByPlayer(candidate, out reason))
+            return false;
+
+        var kingdom = Clan.PlayerClan.Kingdom;
+        var home = FindPlayerHouseHome(kingdom);
+        var sourceClan = candidate.Clan;
+        var sourceParty = candidate.PartyBelongedTo;
+        var detached = false;
+
+        try
+        {
+            if (sourceParty != null)
+            {
+                if (!TryDetachFounderFromOrdinaryParty(candidate, sourceParty))
+                {
+                    reason = "Could not safely detach the candidate from the current party.";
+                    return false;
+                }
+                detached = true;
+            }
+
+            var companionClan = candidate.CompanionOf;
+            if (companionClan != null)
+                RemoveCompanionAction.ApplyByByTurningToLord(companionClan, candidate);
+
+            var culture = candidate.Culture ?? sourceClan.Culture ?? kingdom.Culture;
+            var clanName = NameGenerator.Current.GenerateClanName(culture, home) ?? candidate.Name;
+            newClan = Clan.CreateCompanionToLordClan(candidate, home, clanName, -1);
+
+            if (newClan == null)
+            {
+                reason = "Native clan factory returned no clan.";
+                RestoreFounderPartyIfSafe(candidate, sourceClan, sourceParty, detached);
+                return false;
+            }
+
+            if (!candidate.IsLord)
+                candidate.SetNewOccupation(Occupation.Lord);
+
+            if (newClan.Kingdom != kingdom)
+                ChangeKingdomAction.ApplyByJoinToKingdom(newClan, kingdom, CampaignTime.DaysFromNow(365f), true);
+
+            var stillInOldRoster = sourceParty != null &&
+                                   candidate.CharacterObject != null &&
+                                   sourceParty.MemberRoster.GetTroopCount(candidate.CharacterObject) > 0;
+
+            if (newClan.Kingdom != kingdom ||
+                newClan.Leader != candidate ||
+                candidate.Clan != newClan ||
+                !candidate.IsLord ||
+                !newClan.IsNoble ||
+                stillInOldRoster)
+            {
+                reason = "Native elevation postcondition failed.";
+                KaiRuntimeLog.Write(
+                    "REALM_HOUSE_ELEVATION_FAIL",
+                    $"candidate={candidate.StringId}; clan={newClan.StringId}; kingdom={newClan.Kingdom?.StringId ?? "none"}; isLord={candidate.IsLord}; isNoble={newClan.IsNoble}; oldRoster={stillInOldRoster}");
+                return false;
+            }
+
+            _lastCreatedClanId = newClan.StringId;
+            KaiRuntimeLog.Write(
+                "REALM_HOUSE_ELEVATED",
+                $"founder={candidate.StringId}; clan={newClan.StringId}; kingdom={kingdom.StringId}; home={home.StringId}; sourceClan={sourceClan.StringId}");
+
+            reason = "House elevated successfully.";
+            return true;
+        }
+        catch (Exception ex)
+        {
+            RestoreFounderPartyIfSafe(candidate, sourceClan, sourceParty, detached);
+            KaiRuntimeLog.Exception(
+                "REALM_HOUSE_ELEVATION_FAIL",
+                ex,
+                $"candidate={candidate?.StringId ?? "none"}; kingdom={kingdom?.StringId ?? "none"}");
+            reason = ex.GetType().Name;
+            return false;
+        }
+    }
+
+    private static Settlement FindPlayerHouseHome(Kingdom kingdom)
+        => kingdom?.Settlements
+            .Where(settlement =>
+                settlement != null &&
+                settlement.IsFortification &&
+                !settlement.IsUnderSiege &&
+                !string.Equals(settlement.StringId, TorSpecialSettlementId, StringComparison.Ordinal))
+            .OrderByDescending(settlement => settlement.OwnerClan == Clan.PlayerClan)
+            .ThenByDescending(settlement => settlement.IsTown)
+            .ThenBy(settlement => settlement.StringId, StringComparer.Ordinal)
+            .FirstOrDefault();
+
     public IEnumerable<string> DescribeStatus()
     {
         var now = CampaignTime.Now.ToDays;
