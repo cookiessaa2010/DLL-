@@ -8,6 +8,7 @@ using TaleWorlds.CampaignSystem.Encounters;
 using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.Core;
 using TaleWorlds.Localization;
+using TaleWorlds.Library;
 using TaleWorlds.ScreenSystem;
 
 namespace KaiTOR.Diplomacy.Runtime;
