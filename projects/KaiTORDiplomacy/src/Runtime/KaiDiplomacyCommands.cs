@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using KaiTOR.Diplomacy.Models;
-using KaiTOR.Diplomacy.UI;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.Library;
 
@@ -29,6 +28,7 @@ public static class KaiDiplomacyCommands
             "kaitor_diplomacy.live_test_start",
             "kaitor_diplomacy.live_test_snapshot",
             "kaitor_diplomacy.live_test_path",
+            "kaitor_diplomacy.family_log_path",
             "kaitor_diplomacy.live_test_mark <text>",
             "kaitor_diplomacy.save_status",
             "kaitor_diplomacy.culture_support",
@@ -178,18 +178,23 @@ public static class KaiDiplomacyCommands
         var diplomacy = GetBehavior();
         var culture = Campaign.Current.GetCampaignBehavior<KaiCultureAssimilationBehavior>();
         var dynastic = Campaign.Current.GetCampaignBehavior<KaiDynasticMarriageBehavior>();
-        var incoming = Campaign.Current.GetCampaignBehavior<KaiIncomingMarriageProposalBehavior>();
+        var messenger = Campaign.Current.GetCampaignBehavior<KaiMessengerBehavior>();
+        var familyDiagnostics = Campaign.Current.GetCampaignBehavior<KaiFamilyDiagnosticsBehavior>();
+        var worldMarriage = Campaign.Current.GetCampaignBehavior<KaiWorldMarriageBehavior>();
 
         return C(string.Join("\n", new[]
         {
             KaiFamilyAffairsBehavior.DescribeUiStatus(),
-            $"GauntletMovie={KaiTORDiplomacyScreen.MovieName}",
-            $"GauntletLayer={KaiTORDiplomacyScreen.LayerName}",
+            "Family settlement entry=town_tavern/adoption",
+            "Marriage entry=native lord dialogue",
+            "Messenger entry=hero encyclopedia",
             $"FamilyAffairsBehavior={(family != null ? "OK" : "MISSING")}",
             $"DiplomacyBehavior={(diplomacy != null ? (diplomacy.RuntimeEnabled ? "OK" : "BLOCKED") : "MISSING")}",
             $"CultureAssimilationBehavior={(culture != null ? "OK" : "MISSING")}",
             $"DynasticMarriageBehavior={(dynastic != null ? "OK" : "MISSING")}",
-            $"IncomingMarriageProposalBehavior={(incoming != null ? "OK" : "MISSING")}"
+            $"MessengerBehavior={(messenger != null ? "OK" : "MISSING")}",
+            $"FamilyDiagnosticsBehavior={(familyDiagnostics != null ? "OK" : "MISSING")}",
+            $"WorldMarriageBehavior={(worldMarriage != null ? "OK" : "MISSING")}"
         }));
     }
 
@@ -223,6 +228,13 @@ public static class KaiDiplomacyCommands
     {
         if (arguments.Count != 0) return "Usage: kaitor_diplomacy.live_test_path";
         return "%LOCALAPPDATA%\\KaiTORDiplomacy\\KaiTOR-LiveTest.log";
+    }
+
+    [CommandLineFunctionality.CommandLineArgumentFunction("family_log_path", "kaitor_diplomacy")]
+    public static string FamilyLogPath(List<string> arguments)
+    {
+        if (arguments.Count != 0) return "Usage: kaitor_diplomacy.family_log_path";
+        return "%LOCALAPPDATA%\\KaiTORDiplomacy\\KaiTOR-Family.log";
     }
 
     [CommandLineFunctionality.CommandLineArgumentFunction("live_test_mark", "kaitor_diplomacy")]
