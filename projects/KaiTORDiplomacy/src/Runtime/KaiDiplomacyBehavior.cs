@@ -67,7 +67,7 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
         {
             _runtimeEnabled = false;
             InformationManager.DisplayMessage(new InformationMessage(
-                "Дипломатические действия недоступны в этом сохранении."));
+                "Дипломатические действия сейчас недоступны."));
             return;
         }
 
