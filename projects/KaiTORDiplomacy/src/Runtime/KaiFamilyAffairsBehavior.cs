@@ -409,7 +409,7 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
         catch (Exception ex)
         {
             KaiRuntimeLog.Exception("UI_NAV_FAILED", ex, $"stage={stage}; to={menuId}");
-            ShowQuick("Не удалось открыть раздел KaiTOR. Ошибка записана в журнал.");
+            ShowQuick("Не удалось открыть этот раздел.");
             return false;
         }
     }
@@ -464,7 +464,7 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
         catch (Exception ex)
         {
             KaiRuntimeLog.Exception("HOUSE_OPEN_FAILED", ex);
-            ShowQuick("Не удалось открыть сведения о роде. Причина записана в журнал.");
+            ShowQuick("Не удалось открыть сведения о роде.");
         }
     }
 
@@ -521,7 +521,7 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
         catch (Exception ex)
         {
             KaiRuntimeLog.Exception("MARRIAGE_FAILED", ex, "stage=select_member");
-            ShowQuick("Не удалось открыть список членов рода. Причина записана в журнал.");
+            ShowQuick("Не удалось открыть список членов рода.");
         }
     }
 
@@ -584,7 +584,7 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
         catch (Exception ex)
         {
             KaiRuntimeLog.Exception("MARRIAGE_FAILED", ex, "stage=select_clan");
-            ShowQuick("Не удалось открыть список домов. Причина записана в журнал.");
+            ShowQuick("Не удалось открыть список домов.");
         }
     }
 
@@ -646,7 +646,7 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
         catch (Exception ex)
         {
             KaiRuntimeLog.Exception("MARRIAGE_FAILED", ex, "stage=select_target");
-            ShowQuick("Не удалось открыть список кандидатов. Причина записана в журнал.");
+            ShowQuick("Не удалось открыть список кандидатов.");
         }
     }
 
@@ -960,7 +960,7 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
         catch (Exception ex)
         {
             KaiRuntimeLog.Exception("ADOPTION_FAILED", ex, "stage=open_candidates");
-            ShowQuick("Не удалось открыть список кандидатов. Причина записана в журнал.");
+            ShowQuick("Не удалось открыть список кандидатов.");
         }
     }
 
@@ -1001,7 +1001,7 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
         catch (Exception ex)
         {
             KaiRuntimeLog.Exception("ADOPTION_FAILED", ex, $"candidate={candidate?.StringId ?? "null"}; stage=apply");
-            ShowQuick("Принятие в род не завершилось. Причина записана в журнал.", candidate);
+            ShowQuick("Принятие в род не удалось.", candidate);
         }
     }
 
