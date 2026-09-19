@@ -156,7 +156,7 @@ jobs:
           )) {
             if (-not $peace.Contains($token)) { throw "Peace Terms contract missing: $token" }
           }
-          if ($peace.Contains('OwnerClan =')) { throw 'Peace Terms must not assign settlement ownership directly.' }
+          if ($peace -match 'OwnerClan\s*=(?!=)') { throw 'Peace Terms must not assign settlement ownership directly.' }
 
           $dynasty = Get-Content (Join-Path $runtime 'KaiDynasticMarriageBehavior.cs') -Raw
           $dynastyMods = Get-Content (Join-Path $runtime 'KaiDynasticTorModifiers.cs') -Raw
@@ -199,7 +199,7 @@ jobs:
 
           $fief = Get-Content (Join-Path $runtime 'KaiFiefGrantBehavior.cs') -Raw
           if (-not $fief.Contains('KingdomManager.GiftSettlementOwnership')) { throw 'Fief grant must use native KingdomManager.' }
-          if ($fief.Contains('OwnerClan =')) { throw 'Fief grant must not assign OwnerClan directly.' }
+          if ($fief -match 'OwnerClan\s*=(?!=)') { throw 'Fief grant must not assign OwnerClan directly.' }
           if (-not $fief.Contains('FIEF_GRANTED')) { throw 'Fief grant log missing.' }
 
           $claim = Get-Content (Join-Path $runtime 'KaiConquestClaimBehavior.cs') -Raw
