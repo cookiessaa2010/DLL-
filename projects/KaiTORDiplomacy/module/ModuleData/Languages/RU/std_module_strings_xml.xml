@@ -21,7 +21,7 @@
     <string id="kaitor_diplomacy_ui_break_nap" text="Предложить разрыв пакта"/>
     <string id="kaitor_diplomacy_ui_duration" text="Срок: {DAYS} дней"/>
     <string id="kaitor_diplomacy_ui_open_family" text="Открыть семейные дела"/>
-    <string id="kaitor_diplomacy_ui_open_culture" text="Сменить народность поселения"/>
+    <string id="kaitor_diplomacy_ui_open_culture" text="Сменить культуру поселения"/>
     <string id="kaitor_diplomacy_ui_dawi_test" text="Создать одну женщину-гнома для live-test"/>
     <string id="kaitor_diplomacy_ui_fallback" text="Открыть классическое меню KaiTOR"/>
     <string id="kaitor_diplomacy_ui_selected_realm" text="Выбранная держава"/>
@@ -40,7 +40,7 @@
     <string id="kaitor_diplomacy_ui_family_format" text="Супруг: {SPOUSE}&#10;Живые дети и принятые наследники: {CHILDREN}&#10;Наследники в браке: {MARRIED}"/>
     <string id="kaitor_diplomacy_ui_population_format" text="Модуль женщин-гномов: {DAWI}&#10;Автопопуляция Dawi: {DAWI_AUTO}&#10;Население вампиров: {VAMPIRE}&#10;Население зеленокожих: {GREEN}&#10;Рост домов AI: {HOUSES}"/>
     <string id="kaitor_diplomacy_ui_no_settlement" text="Сейчас не открыто ни одно поселение."/>
-    <string id="kaitor_diplomacy_ui_culture_format" text="Поселение: {SETTLEMENT}&#10;Владелец: {OWNER}&#10;Текущая народность: {CULTURE}"/>
+    <string id="kaitor_diplomacy_ui_culture_format" text="Поселение: {SETTLEMENT}&#10;Владелец: {OWNER}&#10;Текущая культура: {CULTURE}"/>
     <string id="kaitor_diplomacy_ui_refreshed" text="Состояние KaiTOR обновлено."/>
     <string id="kaitor_diplomacy_ui_already_considering" text="Совет уже рассматривает пакт с {REALM}."/>
     <string id="kaitor_diplomacy_ui_nap_submitted" text="Пакт о ненападении с {REALM} на {DAYS} дней вынесен на совет."/>
