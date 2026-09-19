@@ -118,26 +118,29 @@ public sealed class KaiWorldMarriageBehavior : CampaignBehaviorBase
                 if (first.Clan == second.Clan)
                     continue;
 
+                Pair pair = null;
                 try
                 {
-                    if (!model.ShouldNpcMarriageBetweenClansBeAllowed(first.Clan, second.Clan))
-                        continue;
-                    if (!model.IsCoupleSuitableForMarriage(first, second))
-                        continue;
-
-                    var chance = model.NpcCoupleMarriageChance(first, second);
-                    if (chance <= 0f)
-                        continue;
-
-                    var sameKingdom = first.Clan.Kingdom != null && first.Clan.Kingdom == second.Clan.Kingdom;
-                    var relation = first.Clan.GetRelationWithClan(second.Clan);
-                    var score = chance * 1000f + (sameKingdom ? 10f : 0f) + Math.Max(-50, relation) / 100f;
-                    yield return new Pair(first, second, score);
+                    if (model.ShouldNpcMarriageBetweenClansBeAllowed(first.Clan, second.Clan) &&
+                        model.IsCoupleSuitableForMarriage(first, second))
+                    {
+                        var chance = model.NpcCoupleMarriageChance(first, second);
+                        if (chance > 0f)
+                        {
+                            var sameKingdom = first.Clan.Kingdom != null && first.Clan.Kingdom == second.Clan.Kingdom;
+                            var relation = first.Clan.GetRelationWithClan(second.Clan);
+                            var score = chance * 1000f + (sameKingdom ? 10f : 0f) + Math.Max(-50, relation) / 100f;
+                            pair = new Pair(first, second, score);
+                        }
+                    }
                 }
                 catch
                 {
                     // Ignore malformed TOR heroes/pairs and continue the weekly scan.
                 }
+
+                if (pair != null)
+                    yield return pair;
             }
         }
     }
