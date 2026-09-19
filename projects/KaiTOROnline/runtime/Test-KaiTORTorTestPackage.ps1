@@ -35,6 +35,7 @@ function Get-RelativePathCompat {
 
 $requiredFiles = @(
     'Modules/Coop/SubModule.xml',
+    'Modules/Coop/bin/Win64_Shipping_Client/Common.dll',
     'Modules/Coop/bin/Win64_Shipping_Client/Coop.dll',
     'Modules/Coop/bin/Win64_Shipping_Client/Coop.Core.dll',
     'Modules/Coop/bin/Win64_Shipping_Client/Coop.Steam.dll',
@@ -198,7 +199,9 @@ foreach ($needle in @(
     'Test-KaiTORTorLiveReadiness.ps1',
     '4200 UDP',
     'KaiTOR Co-op | TOR RU Test',
-    'Steam Lobby / UDP 4200'
+    'Steam Lobby / UDP 4200',
+    'RequireSteamHost',
+    'steam_ready'
 )) {
     if ($launcherText -notlike "*$needle*") {
         throw "KaiTOR server panel missing required RU/EN/runtime marker: $needle"
