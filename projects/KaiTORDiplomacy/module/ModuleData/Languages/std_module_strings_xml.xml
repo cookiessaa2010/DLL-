@@ -21,7 +21,7 @@
     <string id="kaitor_diplomacy_ui_break_nap" text="Propose ending pact"/>
     <string id="kaitor_diplomacy_ui_duration" text="Duration: {DAYS} days"/>
     <string id="kaitor_diplomacy_ui_open_family" text="Open family affairs"/>
-    <string id="kaitor_diplomacy_ui_open_culture" text="Change settlement nationality"/>
+    <string id="kaitor_diplomacy_ui_open_culture" text="Change settlement culture"/>
     <string id="kaitor_diplomacy_ui_dawi_test" text="Spawn one Dawi woman for live test"/>
     <string id="kaitor_diplomacy_ui_fallback" text="Open classic KaiTOR menu"/>
     <string id="kaitor_diplomacy_ui_selected_realm" text="Selected realm"/>
@@ -40,7 +40,7 @@
     <string id="kaitor_diplomacy_ui_family_format" text="Spouse: {SPOUSE}&#10;Living children and adopted heirs: {CHILDREN}&#10;Married heirs: {MARRIED}"/>
     <string id="kaitor_diplomacy_ui_population_format" text="Dawi women module: {DAWI}&#10;Dawi automatic population: {DAWI_AUTO}&#10;Vampire population: {VAMPIRE}&#10;Greenskin population: {GREEN}&#10;AI realm-house growth: {HOUSES}"/>
     <string id="kaitor_diplomacy_ui_no_settlement" text="No settlement is currently open."/>
-    <string id="kaitor_diplomacy_ui_culture_format" text="Settlement: {SETTLEMENT}&#10;Owner: {OWNER}&#10;Current nationality: {CULTURE}"/>
+    <string id="kaitor_diplomacy_ui_culture_format" text="Settlement: {SETTLEMENT}&#10;Owner: {OWNER}&#10;Current culture: {CULTURE}"/>
     <string id="kaitor_diplomacy_ui_refreshed" text="KaiTOR status refreshed."/>
     <string id="kaitor_diplomacy_ui_already_considering" text="The council is already considering a pact with {REALM}."/>
     <string id="kaitor_diplomacy_ui_nap_submitted" text="A {DAYS}-day non-aggression pact with {REALM} was submitted to the council."/>
