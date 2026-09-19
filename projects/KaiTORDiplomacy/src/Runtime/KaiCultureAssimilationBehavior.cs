@@ -215,18 +215,25 @@ public sealed class KaiCultureAssimilationBehavior : CampaignBehaviorBase
             return false;
         }
 
+        var previousCultureId = settlement.Culture?.StringId ?? "none";
         var affected = GetAffectedSettlements(settlement).ToArray();
         foreach (var affectedSettlement in affected) ApplyCultureToSettlementAndNotables(affectedSettlement, targetCulture);
 
-        if (!TorSettlementCultureBridge.RefreshAfterCultureChange(settlement, targetCulture, out _))
+        if (!TorSettlementCultureBridge.RefreshAfterCultureChange(settlement, targetCulture, out var refreshReason))
         {
             reason = "Переселение началось, но часть городских служб не успела перестроиться. Не продолжайте игру с этого сохранения и сообщите об ошибке.";
+            KaiRuntimeLog.Write(
+                "CULTURE_CHANGE_FAILED",
+                $"settlement={settlement.StringId}; from={previousCultureId}; to={targetCulture.StringId}; affected={affected.Length}; reason={refreshReason}");
             return false;
         }
 
         GiveGoldAction.ApplyBetweenCharacters(Hero.MainHero, null, CultureChangeCost, false);
 
-        reason = $"В {settlement.Name} утверждена народность {targetCulture.Name}. На переселение и перестройку управления потрачено {CultureChangeCost:N0} динаров.";
+        reason = $"В {settlement.Name} утверждена культура {targetCulture.Name}. На переселение и перестройку управления потрачено {CultureChangeCost:N0} динаров.";
+        KaiRuntimeLog.Write(
+            "CULTURE_CHANGE_SUCCESS",
+            $"settlement={settlement.StringId}; from={previousCultureId}; to={targetCulture.StringId}; affected={affected.Length}; cost={CultureChangeCost}");
         return true;
     }
 
