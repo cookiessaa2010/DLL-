@@ -68,5 +68,8 @@
   <string id="kaitor_diplomacy_ui_peace_back" text="Не сейчас."/>
   <string id="kaitor_diplomacy_ui_peace_rejected" text="Правитель противника отверг эти условия."/>
   <string id="kaitor_diplomacy_ui_peace_accepted" text="Условия мира приняты."/>
+  <string id="kaitor_diplomacy_ui_council" text="Совет"/>
+  <string id="kaitor_diplomacy_ui_council_unavailable" text="Совет сейчас недоступен."/>
+  <string id="kaitor_diplomacy_ui_council_clear" text="Совет не видит немедленных стратегических угроз."/>
 </strings>
 </base>
