@@ -68,5 +68,8 @@
   <string id="kaitor_diplomacy_ui_peace_back" text="Not now."/>
   <string id="kaitor_diplomacy_ui_peace_rejected" text="The opposing ruler rejects these terms."/>
   <string id="kaitor_diplomacy_ui_peace_accepted" text="Peace terms have been accepted."/>
+  <string id="kaitor_diplomacy_ui_council" text="Council"/>
+  <string id="kaitor_diplomacy_ui_council_unavailable" text="The council is currently unavailable."/>
+  <string id="kaitor_diplomacy_ui_council_clear" text="The council sees no immediate strategic warning."/>
 </strings>
 </base>
