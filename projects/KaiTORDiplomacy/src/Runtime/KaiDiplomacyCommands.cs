@@ -22,6 +22,9 @@ public static class KaiDiplomacyCommands
             "kaitor_diplomacy.marriages",
             "kaitor_diplomacy.racial_status",
             "kaitor_diplomacy.family_rules",
+            "kaitor_diplomacy.messenger_status",
+            "kaitor_diplomacy.nap_guard_status",
+            "kaitor_diplomacy.war_status",
             "kaitor_diplomacy.dawi_status",
             "kaitor_diplomacy.dawi_spawn_test",
             "kaitor_diplomacy.ui_status",
@@ -123,6 +126,33 @@ public static class KaiDiplomacyCommands
         lines.Add("NPC marriage: same culture + same FaceGen race; no upper marriage-age cap.");
         lines.Add("Pregnancy: opposite sex + same FaceGen race + lore biology gate.");
         return C(string.Join("\n", lines));
+    }
+
+    [CommandLineFunctionality.CommandLineArgumentFunction("messenger_status", "kaitor_diplomacy")]
+    public static string MessengerStatus(List<string> arguments)
+    {
+        if (arguments.Count != 0) return "Usage: kaitor_diplomacy.messenger_status";
+        var behavior = Campaign.Current?.GetCampaignBehavior<KaiMessengerBehavior>();
+        return behavior == null
+            ? "KaiTOR Messenger is not loaded."
+            : C(string.Join("\n", behavior.DescribeStatus()));
+    }
+
+    [CommandLineFunctionality.CommandLineArgumentFunction("nap_guard_status", "kaitor_diplomacy")]
+    public static string NapGuardStatus(List<string> arguments)
+    {
+        if (arguments.Count != 0) return "Usage: kaitor_diplomacy.nap_guard_status";
+        return C(KaiNapWarGuard.Describe());
+    }
+
+    [CommandLineFunctionality.CommandLineArgumentFunction("war_status", "kaitor_diplomacy")]
+    public static string WarStatus(List<string> arguments)
+    {
+        if (arguments.Count != 0) return "Usage: kaitor_diplomacy.war_status";
+        var behavior = Campaign.Current?.GetCampaignBehavior<KaiWarExhaustionBehavior>();
+        return behavior == null
+            ? "KaiTOR War Exhaustion is not loaded."
+            : C(string.Join("\n", behavior.DescribeWars()));
     }
 
     [CommandLineFunctionality.CommandLineArgumentFunction("racial_status", "kaitor_diplomacy")]
