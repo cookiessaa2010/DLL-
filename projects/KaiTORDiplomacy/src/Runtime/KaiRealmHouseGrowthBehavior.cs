@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using KaiTOR.Diplomacy.UI;
 using KaiTOR.Diplomacy.Models;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
@@ -601,7 +602,7 @@ public sealed class KaiRealmHouseGrowthBehavior : CampaignBehaviorBase
         if (candidates.Length == 0)
         {
             TaleWorlds.Core.MBInformationManager.AddQuickInformation(
-                new TaleWorlds.Localization.TextObject("No eligible companion can found a new noble house."),
+                new TaleWorlds.Localization.TextObject(Ui("kaitor_diplomacy_realm_no_candidate", "No eligible companion can found a new noble house.")),
                 3500,
                 null,
                 null,
@@ -615,19 +616,19 @@ public sealed class KaiRealmHouseGrowthBehavior : CampaignBehaviorBase
                 hero.Name.ToString(),
                 null,
                 true,
-                $"Relation: {Hero.MainHero.GetRelation(hero)} | Level: {hero.Level}"))
+                UiFormat("kaitor_diplomacy_realm_candidate_hint", "Relation: {RELATION} | Level: {LEVEL}", ("RELATION", Hero.MainHero.GetRelation(hero)), ("LEVEL", hero.Level))))
             .ToList();
 
         TaleWorlds.Core.MBInformationManager.ShowMultiSelectionInquiry(
             new TaleWorlds.Core.MultiSelectionInquiryData(
-                "Elevate to nobility",
-                "Choose a companion who will found a new Realm House.",
+                Ui("kaitor_diplomacy_realm_elevate_title", "Elevate to nobility"),
+                Ui("kaitor_diplomacy_realm_elevate_prompt", "Choose a companion who will found a new Realm House."),
                 elements,
                 true,
                 1,
                 1,
-                "Elevate",
-                "Cancel",
+                Ui("kaitor_diplomacy_realm_elevate", "Elevate"),
+                Ui("kaitor_diplomacy_ui_cancel", "Cancel"),
                 selected =>
                 {
                     if (selected.Count == 0 || selected[0].Identifier is not Hero hero)
@@ -645,7 +646,7 @@ public sealed class KaiRealmHouseGrowthBehavior : CampaignBehaviorBase
                     }
 
                     TaleWorlds.Core.MBInformationManager.AddQuickInformation(
-                        new TaleWorlds.Localization.TextObject($"{hero.Name} has founded {clan.Name}."),
+                        new TaleWorlds.Localization.TextObject(UiFormat("kaitor_diplomacy_realm_founded", "{HERO} has founded {CLAN}.", ("HERO", hero.Name), ("CLAN", clan.Name))),
                         4000,
                         hero.CharacterObject,
                         null,
@@ -675,47 +676,47 @@ public sealed class KaiRealmHouseGrowthBehavior : CampaignBehaviorBase
 
         if (Campaign.Current == null || Hero.MainHero == null || playerClan == null || kingdom == null)
         {
-            reason = "Player kingdom is unavailable.";
+            reason = Ui("kaitor_diplomacy_realm_no_kingdom", "Player kingdom is unavailable.");
             return false;
         }
         if (kingdom.RulingClan != playerClan || playerClan.Leader != Hero.MainHero)
         {
-            reason = "Only the ruler may elevate a new noble house.";
+            reason = Ui("kaitor_diplomacy_realm_ruler_only", "Only the ruler may elevate a new noble house.");
             return false;
         }
         if (candidate == null || candidate == Hero.MainHero || candidate.Clan != playerClan)
         {
-            reason = "Candidate must belong to the ruler's clan.";
+            reason = Ui("kaitor_diplomacy_realm_candidate_clan", "Candidate must belong to the ruler's clan.");
             return false;
         }
         if (!candidate.IsAlive || !candidate.IsActive || candidate.IsTemplate || candidate.IsMinorFactionHero)
         {
-            reason = "Candidate is not an active hero.";
+            reason = Ui("kaitor_diplomacy_realm_candidate_inactive", "Candidate is not an active hero.");
             return false;
         }
         if (candidate.Age < Campaign.Current.Models.AgeModel.HeroComesOfAge)
         {
-            reason = "Candidate is not an adult.";
+            reason = Ui("kaitor_diplomacy_realm_candidate_child", "Candidate is not an adult.");
             return false;
         }
         if (candidate.IsPrisoner || candidate.PartyBelongedToAsPrisoner != null)
         {
-            reason = "Candidate is a prisoner.";
+            reason = Ui("kaitor_diplomacy_realm_candidate_prisoner", "Candidate is a prisoner.");
             return false;
         }
         if (candidate.GovernorOf != null)
         {
-            reason = "A serving governor cannot found a new house.";
+            reason = Ui("kaitor_diplomacy_realm_candidate_governor", "A serving governor cannot found a new house.");
             return false;
         }
         if (candidate == playerClan.Leader || candidate.IsClanLeader)
         {
-            reason = "An existing clan leader cannot found another house.";
+            reason = Ui("kaitor_diplomacy_realm_candidate_leader", "An existing clan leader cannot found another house.");
             return false;
         }
         if (candidate.Spouse != null || candidate.Children.Count > 0)
         {
-            reason = "Move the candidate's family arrangements before founding a new house.";
+            reason = Ui("kaitor_diplomacy_realm_candidate_family", "Move the candidate's family arrangements before founding a new house.");
             return false;
         }
 
@@ -726,7 +727,7 @@ public sealed class KaiRealmHouseGrowthBehavior : CampaignBehaviorBase
 
         if (!companionLike)
         {
-            reason = "Candidate is not a companion suitable for elevation.";
+            reason = Ui("kaitor_diplomacy_realm_candidate_not_companion", "Candidate is not a companion suitable for elevation.");
             return false;
         }
 
@@ -735,17 +736,17 @@ public sealed class KaiRealmHouseGrowthBehavior : CampaignBehaviorBase
         {
             if (party.LeaderHero == candidate)
             {
-                reason = "Candidate currently leads a party.";
+                reason = Ui("kaitor_diplomacy_realm_candidate_party_leader", "Candidate currently leads a party.");
                 return false;
             }
             if (party.MapEvent != null || party.BesiegedSettlement != null || party.Army != null)
             {
-                reason = "Candidate is currently in an unsafe campaign state.";
+                reason = Ui("kaitor_diplomacy_realm_candidate_unsafe", "Candidate is currently in an unsafe campaign state.");
                 return false;
             }
             if (candidate.CharacterObject == null || party.MemberRoster.GetTroopCount(candidate.CharacterObject) <= 0)
             {
-                reason = "Candidate is not a removable member of the current party.";
+                reason = Ui("kaitor_diplomacy_realm_candidate_not_removable", "Candidate is not a removable member of the current party.");
                 return false;
             }
         }
@@ -753,7 +754,7 @@ public sealed class KaiRealmHouseGrowthBehavior : CampaignBehaviorBase
         var home = FindPlayerHouseHome(kingdom);
         if (home == null)
         {
-            reason = "No safe fortification is available as the new house's home.";
+            reason = Ui("kaitor_diplomacy_realm_no_home", "No safe fortification is available as the new house's home.");
             return false;
         }
 
@@ -778,7 +779,7 @@ public sealed class KaiRealmHouseGrowthBehavior : CampaignBehaviorBase
             {
                 if (!TryDetachFounderFromOrdinaryParty(candidate, sourceParty))
                 {
-                    reason = "Could not safely detach the candidate from the current party.";
+                    reason = Ui("kaitor_diplomacy_realm_detach_failed", "Could not safely detach the candidate from the current party.");
                     return false;
                 }
                 detached = true;
@@ -794,7 +795,7 @@ public sealed class KaiRealmHouseGrowthBehavior : CampaignBehaviorBase
 
             if (newClan == null)
             {
-                reason = "Native clan factory returned no clan.";
+                reason = Ui("kaitor_diplomacy_realm_factory_failed", "Native clan factory returned no clan.");
                 RestoreFounderPartyIfSafe(candidate, sourceClan, sourceParty, detached);
                 return false;
             }
@@ -816,7 +817,7 @@ public sealed class KaiRealmHouseGrowthBehavior : CampaignBehaviorBase
                 !newClan.IsNoble ||
                 stillInOldRoster)
             {
-                reason = "Native elevation postcondition failed.";
+                reason = Ui("kaitor_diplomacy_realm_postcondition_failed", "Native elevation postcondition failed.");
                 KaiRuntimeLog.Write(
                     "REALM_HOUSE_ELEVATION_FAIL",
                     $"candidate={candidate.StringId}; clan={newClan.StringId}; kingdom={newClan.Kingdom?.StringId ?? "none"}; isLord={candidate.IsLord}; isNoble={newClan.IsNoble}; oldRoster={stillInOldRoster}");
@@ -828,7 +829,7 @@ public sealed class KaiRealmHouseGrowthBehavior : CampaignBehaviorBase
                 "REALM_HOUSE_ELEVATED",
                 $"founder={candidate.StringId}; clan={newClan.StringId}; kingdom={kingdom.StringId}; home={home.StringId}; sourceClan={sourceClan.StringId}");
 
-            reason = "House elevated successfully.";
+            reason = Ui("kaitor_diplomacy_realm_success", "House elevated successfully.");
             return true;
         }
         catch (Exception ex)
@@ -842,6 +843,12 @@ public sealed class KaiRealmHouseGrowthBehavior : CampaignBehaviorBase
             return false;
         }
     }
+
+    private static string Ui(string id, string fallback)
+        => KaiTORDiplomacyUiText.Get(id, fallback);
+
+    private static string UiFormat(string id, string fallback, params (string Key, object Value)[] values)
+        => KaiTORDiplomacyUiText.Format(id, fallback, values);
 
     private static Settlement FindPlayerHouseHome(Kingdom kingdom)
         => kingdom?.Settlements
