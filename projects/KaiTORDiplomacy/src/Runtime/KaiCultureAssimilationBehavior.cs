@@ -90,12 +90,10 @@ public sealed class KaiCultureAssimilationBehavior : CampaignBehaviorBase
             return true;
         }
 
+        // Do not offer a redundant action at all. The live test showed this
+        // option was noise when the settlement already had the player's culture.
         if (settlement.Culture == targetCulture)
-        {
-            args.IsEnabled = false;
-            args.Tooltip = new TextObject("Большинство жителей уже принадлежит к народности вашего рода.");
-            return true;
-        }
+            return false;
 
         if (!TorSettlementCultureBridge.ValidateFullConversion(targetCulture, settlement, out _))
         {
