@@ -26,7 +26,7 @@ public static class KaiMarriageCommands
             .Where(h => h != null && h != Hero.MainHero && h.IsAlive && h.CanMarry())
             .ToArray() ?? System.Array.Empty<Hero>();
 
-        return "Marriage runtime status:\n" +
+        return KaiConsoleText.Safe("Marriage runtime status:\n" +
                $"model={model?.GetType().FullName ?? "<null>"}\n" +
                $"TOR wrapper={(wrapper != null ? "ACTIVE" : "NO")}" +
                (wrapper != null ? $" (base={wrapper.UnderlyingModelTypeName})" : string.Empty) + "\n" +
@@ -36,6 +36,6 @@ public static class KaiMarriageCommands
                (familyCandidates.Length > 0 ? $" ({string.Join(", ", familyCandidates.Take(8).Select(h => h.Name.ToString()))})" : string.Empty) + "\n" +
                "native map marriage offers=" + (offers && wrapper != null ? "READY" : "BLOCKED") + "\n" +
                $"lifeDeathCycleDisabled={CampaignOptions.IsLifeDeathCycleDisabled}\n" +
-               $"Dawi women assets={(DawiWomenAssetBridge.IsAvailable ? "READY" : "SAFE-OFF")}.";
+               $"Dawi women assets={(DawiWomenAssetBridge.IsAvailable ? "READY" : "SAFE-OFF")}.");
     }
 }
