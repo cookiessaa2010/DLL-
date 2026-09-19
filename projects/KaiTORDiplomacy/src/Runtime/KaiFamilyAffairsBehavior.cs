@@ -28,7 +28,7 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
     private const string MarriageMenuId = "kaitor_family_marriage";
     private const string AdoptionMenuId = "kaitor_family_adoption";
 
-    private static string _returnMenuId = "town";
+    private static string _returnMenuId = "town_tavern";
     private static Hero _selectedHouseMember;
     private static Clan _selectedTargetClan;
     private static Hero _selectedTargetHero;
@@ -46,15 +46,24 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
 
     private void OnSessionLaunched(CampaignGameStarter starter)
     {
+        // Current UX: no family/diplomacy submenus in towns or castles.
+        // Adoption is the only settlement family action and lives directly in the tavern.
+        // Marriage is handled by Bannerlord's native lord dialogue.
         ResetMarriageSelection();
-        RegisterRootMenu(starter);
-        RegisterHouseMenu(starter);
-        RegisterMarriageMenu(starter);
         RegisterAdoptionMenu(starter);
 
-        AddFamilyMenuOption(starter, "town", "kaitor_family_affairs_town", 9);
-        AddFamilyMenuOption(starter, "town_outside", "kaitor_family_affairs_town_outside", 9);
-        AddFamilyMenuOption(starter, "castle", "kaitor_family_affairs_castle", 9);
+        starter.AddGameMenuOption(
+            "town_tavern",
+            "kaitor_family_adoption_tavern",
+            "Принять в род",
+            FamilyEntryCondition,
+            _ =>
+            {
+                _returnMenuId = "town_tavern";
+                SafeSwitchToMenu(AdoptionMenuId, "tavern_adoption");
+            },
+            false,
+            8);
     }
 
     private static void RegisterRootMenu(CampaignGameStarter starter)
@@ -245,7 +254,7 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
             "kaitor_family_adoption_back",
             "Назад",
             BackOptionCondition,
-            _ => SafeSwitchToMenu(FamilyMenuId, "back_family"),
+            _ => SafeSwitchToMenu(string.IsNullOrWhiteSpace(_returnMenuId) ? "town_tavern" : _returnMenuId, "adoption_back"),
             true,
             99);
     }
@@ -769,17 +778,14 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
     public static string OpenFamilyMenuFromConsole()
     {
         if (Campaign.Current == null)
-            return "Кампания не запущена.";
+            return "No campaign is active.";
         if (Hero.MainHero == null || Clan.PlayerClan == null)
-            return "Главный герой или клан игрока недоступен.";
+            return "Main hero or player clan is unavailable.";
 
-        var current = Campaign.Current.CurrentMenuContext?.GameMenu?.StringId;
-        if (!string.IsNullOrWhiteSpace(current) && !IsFamilyMenu(current))
-            _returnMenuId = current;
-
-        return SafeSwitchToMenu(FamilyMenuId, "console_entry")
-            ? "Меню «Семейные дела» открыто."
-            : "Не удалось открыть меню «Семейные дела». Проверьте KaiTOR runtime log.";
+        _returnMenuId = "town_tavern";
+        return SafeSwitchToMenu(AdoptionMenuId, "console_adoption")
+            ? "Adoption menu opened. Normal entry point: town tavern."
+            : "Could not open adoption menu. Check KaiTOR.log.";
     }
 
     private static IEnumerable<Hero> GetMarriageHouseMembers()
