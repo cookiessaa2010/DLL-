@@ -58,5 +58,15 @@
     <string id="kaitor_diplomacy_ui_yes" text="Yes"/>
     <string id="kaitor_diplomacy_ui_no" text="No"/>
     <string id="kaitor_diplomacy_ui_send_messenger" text="Send Messenger"/>
+  <string id="kaitor_diplomacy_ui_peace_open" text="I want to discuss terms for ending this war."/>
+  <string id="kaitor_diplomacy_ui_peace_reply" text="State your terms. I will judge whether peace is worth the price."/>
+  <string id="kaitor_diplomacy_ui_peace_status_quo" text="Peace without additional demands."/>
+  <string id="kaitor_diplomacy_ui_peace_demand_reparations" text="You will pay reparations for this war."/>
+  <string id="kaitor_diplomacy_ui_peace_offer_reparations" text="We will pay reparations to secure peace."/>
+  <string id="kaitor_diplomacy_ui_peace_return_fief" text="Return one of the holdings taken from our realm."/>
+  <string id="kaitor_diplomacy_ui_peace_nap" text="Peace, followed by a ninety-day non-aggression pact."/>
+  <string id="kaitor_diplomacy_ui_peace_back" text="Not now."/>
+  <string id="kaitor_diplomacy_ui_peace_rejected" text="The opposing ruler rejects these terms."/>
+  <string id="kaitor_diplomacy_ui_peace_accepted" text="Peace terms have been accepted."/>
 </strings>
 </base>
