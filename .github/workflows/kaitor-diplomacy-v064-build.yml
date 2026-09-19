@@ -259,9 +259,9 @@ jobs:
           }
           foreach ($requiredCommand in @(
             'Command.Click="ActionChooseRealm"',
+            'Command.Click="ActionCycleDuration"',
             'Command.Click="ActionProposeNap"',
             'Command.Click="ActionBreakNap"',
-            'Command.Click="ActionOpenFamily"',
             'Command.Click="ActionOpenCulture"',
             'Command.Click="ActionRefresh"',
             'Command.Click="ActionClose"'
@@ -270,6 +270,75 @@ jobs:
               throw "Safe functional Diplomacy command missing: $requiredCommand"
             }
           }
+
+          # Interaction audit: every visible custom button must bind to a VM method,
+          # and every route that closes a screen/dialog must leave a visible or persistent result.
+          $vmSource = Get-Content (Join-Path $uiRoot 'KaiTORDiplomacyVM.cs') -Raw
+          $screenSource = Get-Content (Join-Path $uiRoot 'KaiTORDiplomacyScreen.cs') -Raw
+          $uiPatchSource = Get-Content (Join-Path $runtime 'KaiDiplomacyUiPatch.cs') -Raw
+          $dialogueSource = Get-Content (Join-Path $runtime 'KaiDiplomacyConversationBehavior.cs') -Raw
+          $bloodKissSource = Get-Content (Join-Path $runtime 'KaiBloodKissBehavior.cs') -Raw
+          $marriageWarningSource = Get-Content (Join-Path $runtime 'KaiMarriageWarningBehavior.cs') -Raw
+
+          $movieCommands = [regex]::Matches($movieRaw, 'Command\.Click="([^"]+)"') |
+            ForEach-Object { $_.Groups[1].Value } |
+            Sort-Object -Unique
+          foreach ($command in $movieCommands) {
+            if ($vmSource -notmatch ('public\s+void\s+' + [regex]::Escape($command) + '\s*\(')) {
+              throw "Visible movie command has no VM endpoint: $command"
+            }
+          }
+
+          foreach ($deadCommand in @('ActionOpenFamily','ActionOpenFallbackHub')) {
+            if ($movieCommands -contains $deadCommand) {
+              throw "Dead/obsolete dashboard command is still visible: $deadCommand"
+            }
+          }
+          foreach ($deadRoute in @('FamilyRequested','FallbackHubRequested','OpenHubFromExternalUi')) {
+            if ($screenSource.Contains($deadRoute)) {
+              throw "Dead dashboard route remains in screen: $deadRoute"
+            }
+          }
+
+          foreach ($token in @('AddDashboardAction','KaiTORDiplomacyScreen.TryOpen(target)','DIPLOMACY_DASHBOARD_OPEN','DIPLOMACY_DASHBOARD_FAILED')) {
+            if (-not $uiPatchSource.Contains($token)) { throw "Native diplomacy dashboard endpoint missing: $token" }
+          }
+
+          foreach ($oldFamilyCall in @('RegisterRootMenu(starter);','RegisterHouseMenu(starter);','RegisterMarriageMenu(starter);')) {
+            if ($familyAffairs.Contains($oldFamilyCall)) {
+              throw "Obsolete family menu is still registered: $oldFamilyCall"
+            }
+          }
+          foreach ($token in @('kaitor_family_adoption_tavern','RegisterAdoptionMenu(starter);','AdoptHeroAction.Apply','adoption_back')) {
+            if (-not $familyAffairs.Contains($token)) { throw "Adoption terminal path missing: $token" }
+          }
+
+          foreach ($token in @('CultureMenuConsequence','TryChangeCultureImmediately','CULTURE_CHANGE_BLOCKED')) {
+            if (-not $cultureBehavior.Contains($token)) { throw "Culture terminal path missing: $token" }
+          }
+
+          foreach ($token in @('RequestSend','Dispatch(target, cost, travelDays)','MESSENGER_SENT','MESSENGER_ARRIVED','CampaignMapConversation.OpenConversation')) {
+            if (-not $messengerBehavior.Contains($token)) { throw "Messenger terminal path missing: $token" }
+          }
+
+          foreach ($token in @('QueueDecision(days)','ShowQuick(','DIPLOMACY_DIALOGUE_NAP','DIPLOMACY_DIALOGUE_FAILED')) {
+            if (-not $dialogueSource.Contains($token)) { throw "Diplomacy dialogue feedback path missing: $token" }
+          }
+
+          foreach ($token in @('ApplyBloodKissToTarget','TryRecruitTrollWarrior','ShowResult(','BLOOD_KISS_SUCCESS','TROLL_RECRUIT')) {
+            if (-not $bloodKissSource.Contains($token)) { throw "Blood Kiss terminal feedback path missing: $token" }
+          }
+
+          foreach ($token in @(
+            '"kaitor_childless_marriage_continue"',
+            '"hero_courtship_final_barter"',
+            '"kaitor_childless_marriage_cancel"',
+            '"close_window"'
+          )) {
+            if (-not $marriageWarningSource.Contains($token)) { throw "Marriage warning route missing: $token" }
+          }
+
+          Write-Host "KaiTOR interaction/menu terminal-path audit: PASS"
 
           $allDiplomacyUiText = @(
             Get-ChildItem $uiRoot -File -Filter '*.cs'
