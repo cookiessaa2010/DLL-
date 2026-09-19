@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Linq;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Conversation;
+using TaleWorlds.CampaignSystem.Actions;
 using TaleWorlds.CampaignSystem.Encounters;
 using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.Core;
@@ -244,7 +245,7 @@ public sealed class KaiMessengerBehavior : CampaignBehaviorBase
             return;
         }
 
-        var current = new CampaignVec2((float)x, (float)y);
+        var current = new Vec2((float)x, (float)y);
         var delta = targetPoint.Position - current;
         var distance = delta.Length;
 
@@ -265,7 +266,9 @@ public sealed class KaiMessengerBehavior : CampaignBehaviorBase
             return;
         }
 
-        var step = CampaignVec2.Normalized(delta) * (float)speed;
+        var step = distance > 0.001f
+            ? delta * ((float)speed / distance)
+            : Vec2.Zero;
         var next = current + step;
         _x[id] = next.X;
         _y[id] = next.Y;
