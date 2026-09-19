@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using KaiTOR.Diplomacy.Models;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
 using TaleWorlds.CampaignSystem.ComponentInterfaces;
@@ -79,7 +80,9 @@ public sealed class KaiWorldMarriageBehavior : CampaignBehaviorBase
                 IncrementKingdom(pair.Second, kingdomCounts);
                 created++;
 
-                KaiRuntimeLog.Write("WORLD_MARRIAGE_SUCCESS", $"first={pair.First.StringId}; second={pair.Second.StringId}; score={pair.Score:0.000000}");
+                var fertile = CanProduceBiologicalChildren(pair.First, pair.Second);
+                KaiRuntimeLog.Write("WORLD_MARRIAGE_SUCCESS", $"first={pair.First.StringId}; second={pair.Second.StringId}; score={pair.Score:0.000000}; fertile={fertile}");
+                KaiFamilyLog.Write("WORLD_MARRIAGE_SUCCESS", $"first={pair.First.StringId}; second={pair.Second.StringId}; firstKingdom={pair.First.Clan?.Kingdom?.StringId ?? "none"}; secondKingdom={pair.Second.Clan?.Kingdom?.StringId ?? "none"}; fertile={fertile}; score={pair.Score:0.000000}");
             }
             catch (Exception ex)
             {
@@ -143,6 +146,15 @@ public sealed class KaiWorldMarriageBehavior : CampaignBehaviorBase
                     yield return pair;
             }
         }
+    }
+
+    private static bool CanProduceBiologicalChildren(Hero first, Hero second)
+    {
+        if (!TorFamilySafety.CanUseVanillaPregnancy(first, second))
+            return false;
+
+        var female = first?.IsFemale == true ? first : second?.IsFemale == true ? second : null;
+        return female != null && KaiRaceLifecycle.IsWithinLoreFertilityWindow(female);
     }
 
     private static bool WithinKingdomCap(Hero hero, Dictionary<string, int> counts)
