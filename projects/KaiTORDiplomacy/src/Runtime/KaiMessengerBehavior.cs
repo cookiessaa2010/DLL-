@@ -204,6 +204,7 @@ public sealed class KaiMessengerBehavior : CampaignBehaviorBase
                     _inquiryOpen = false;
                     _arrivalDayByHeroId[target.StringId] = CampaignTime.Now.ToDays + 0.25d;
                     KaiRuntimeLog.Write("MESSENGER_DEFERRED", $"target={target.StringId}; retry=6h");
+                    ShowQuick("Разговор отложен. Гонец вернётся с ответом примерно через 6 часов.");
                 }),
             false,
             false);
