@@ -193,6 +193,8 @@ public sealed class KaiFiefGrantBehavior : CampaignBehaviorBase
             ChangeClanInfluenceAction.Apply(playerClan, -GrantInfluenceCost);
             Campaign.Current.KingdomManager.GiftSettlementOwnership(settlement, recipient);
             ChangeClanInfluenceAction.Apply(recipient, RecipientInfluenceBonus);
+            Campaign.Current?.GetCampaignBehavior<KaiGrievanceBehavior>()
+                ?.ResolveLandless(recipient);
 
             KaiRuntimeLog.Write(
                 "FIEF_GRANTED",
