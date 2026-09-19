@@ -55,10 +55,37 @@ internal static class KaiDeclareWarActionGuardPatch
         IFaction faction1,
         IFaction faction2,
         DeclareWarAction.DeclareWarDetail declareWarDetail)
-        => !KaiNapWarGuard.ShouldBlock(
+    {
+        if (faction1 is Kingdom first &&
+            faction2 is Kingdom second &&
+            IsMandatoryWorldWar(declareWarDetail))
+        {
+            var diplomacy = Campaign.Current?.GetCampaignBehavior<KaiDiplomacyBehavior>();
+            if (diplomacy?.IsNonAggressionPactActive(first, second) == true)
+            {
+                diplomacy.ForceBreakNonAggressionPactForWar(
+                    first,
+                    second,
+                    "mandatory:" + declareWarDetail);
+
+                KaiRuntimeLog.Write(
+                    "NAP_FORCED_BREACH",
+                    $"source={first.StringId}; target={second.StringId}; path=DeclareWarAction.ApplyInternal; detail={declareWarDetail}");
+
+                return true;
+            }
+        }
+
+        return !KaiNapWarGuard.ShouldBlock(
             faction1,
             faction2,
             "DeclareWarAction.ApplyInternal:" + declareWarDetail);
+    }
+
+    private static bool IsMandatoryWorldWar(DeclareWarAction.DeclareWarDetail detail)
+        => detail == DeclareWarAction.DeclareWarDetail.CausedByKingdomCreation ||
+           detail == DeclareWarAction.DeclareWarDetail.CausedByRebellion ||
+           detail == DeclareWarAction.DeclareWarDetail.CausedByClaimOnThrone;
 }
 
 [HarmonyPatch(typeof(FactionManager), nameof(FactionManager.DeclareWar))]
