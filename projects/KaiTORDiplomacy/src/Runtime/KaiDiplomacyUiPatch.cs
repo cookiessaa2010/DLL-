@@ -3,6 +3,7 @@ using System.Linq;
 using System.Reflection;
 using HarmonyLib;
 using KaiTOR.Diplomacy.Decisions;
+using KaiTOR.Diplomacy.UI;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Election;
 using TaleWorlds.CampaignSystem.ViewModelCollection.KingdomManagement.Diplomacy;
@@ -38,12 +39,44 @@ internal static class KaiDiplomacyUiPatch
                 AddActivePactAction(__instance, diplomacy, source, target);
             else
                 AddProposalAction(__instance, diplomacy, source, target);
+
+            AddDashboardAction(__instance, target);
         }
         catch (Exception ex)
         {
             // Native diplomacy remains usable even when the optional action cannot be inserted.
             KaiRuntimeLog.Exception("DIPLOMACY_UI_FAILED", ex, "stage=OnSetPeaceItem_postfix");
         }
+    }
+
+    private static void AddDashboardAction(KingdomDiplomacyVM vm, Kingdom target)
+    {
+        if (vm?.Actions == null)
+            return;
+
+        const string actionName = "Открыть панель KaiTOR";
+        if (vm.Actions.Any(x => string.Equals(x?.Name, actionName, StringComparison.Ordinal)))
+            return;
+
+        vm.Actions.Add(new KingdomDiplomacyProposalActionItemVM(
+            new TextObject(actionName),
+            new TextObject("Открыть сводную панель договоров, династии и состояния владений KaiTOR."),
+            0,
+            true,
+            TextObject.GetEmpty(),
+            () =>
+            {
+                if (KaiTORDiplomacyScreen.TryOpen(target))
+                {
+                    KaiRuntimeLog.Write("DIPLOMACY_DASHBOARD_OPEN", $"target={target?.StringId ?? "none"}");
+                    return;
+                }
+
+                ShowMessage(
+                    "Панель KaiTOR",
+                    "Панель уже открыта или не удалось открыть её сейчас. Событие записано в KaiTOR.log.");
+                KaiRuntimeLog.Write("DIPLOMACY_DASHBOARD_FAILED", $"target={target?.StringId ?? "none"}");
+            }));
     }
 
     private static void AddProposalAction(KingdomDiplomacyVM vm, KaiDiplomacyBehavior diplomacy, Kingdom source, Kingdom target)
@@ -249,6 +282,9 @@ internal static class KaiDiplomacyUiPatch
         catch (Exception ex)
         {
             KaiRuntimeLog.Exception("DIPLOMACY_UI_FAILED", ex, "stage=force_decision");
+            ShowMessage(
+                "Решение не открылось",
+                "Предложение сохранено в журнале ошибок. Откройте раздел решений королевства и проверьте, было ли оно добавлено.");
         }
     }
 
