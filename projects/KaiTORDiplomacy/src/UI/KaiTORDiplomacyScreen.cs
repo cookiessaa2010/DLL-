@@ -114,19 +114,5 @@ public sealed class KaiTORDiplomacyScreen : ScreenBase
         ScreenManager.PopScreen();
     }
 
-    private static void HandleCulture()
-    {
-        var behavior = Campaign.Current?.GetCampaignBehavior<KaiCultureAssimilationBehavior>();
-        if (behavior == null)
-        {
-            KaiRuntimeLog.Write("GAUNTLET_UI_ROUTE_FAILED", "target=culture; reason=behavior_missing");
-            InformationManager.DisplayMessage(new InformationMessage("Смена культуры сейчас недоступна."));
-            return;
-        }
-
-        ScreenManager.PopScreen();
-        behavior.OpenCultureChangeDialog();
-        KaiRuntimeLog.Write("GAUNTLET_UI_ROUTE", "target=culture");
-    }
-
 }
+
