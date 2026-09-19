@@ -264,6 +264,12 @@ public sealed class KaiDynasticMarriageBehavior : CampaignBehaviorBase
                 diplomacy?.AdjustTrust(k1, k2, -DynasticTrustBonus);
                 AdjustDynasticStrength(firstClan, secondClan, -25f, "war_between_dynasties");
 
+                var grievance = Campaign.Current?.GetCampaignBehavior<KaiGrievanceBehavior>();
+                if (first == k1 && second == k2)
+                    grievance?.AddDynasticBreach(first, second);
+                else if (first == k2 && second == k1)
+                    grievance?.AddDynasticBreach(first, second);
+
                 KaiRuntimeLog.Write(
                     "DYNASTIC_BOND_BROKEN",
                     $"clans={key}; reason=war; kingdoms={first.StringId}/{second.StringId}; dynasticTrustPenalty=-{DynasticTrustBonus}");
