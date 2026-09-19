@@ -36,6 +36,8 @@ KaiTOR Online — первый реальный TOR live-test
 
 TOR Workshop staging выполняется только Start-KaiTORTorCampaignServer.ps1: перед server/preflight он временно создаёт нужные junction для TOR_Armory, TOR_Environment и TOR_Core, а в finally удаляет их. Поэтому обычный Steam-запуск Bannerlord остаётся с чистой папкой Modules. При Workshop staging серверный launcher держит PowerShell открытым до завершения Bannerlord, чтобы гарантировать cleanup.
 
+Тот же launcher теперь автоматически ищет наши Steam-модули по Module.Id и временно подключает их из Workshop: KaiCleave v1.3.15.31, KaiTOR_Stability v1.3.15.50 и KaiTOR_PortraitFix v1.3.15.60. Для Cleave/Portrait Fix также требуется Bannerlord.Harmony v2.4.2.248; если он установлен только через Workshop, launcher временно подключит и его. На сервере и всех клиентах должен быть одинаковый активный набор и точные версии.
+
 Если PowerShell был аварийно завершён и в Bannerlord\Modules остались TOR_* reparse-point, KaiTOR откажется запускаться. Удалите только эти ссылки командой cmd /c rmdir и повторите запуск; оригинальные файлы Workshop при этом не удаляются.
 
 2. Обязательный preflight
