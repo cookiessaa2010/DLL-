@@ -94,19 +94,60 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
 
     private void OnWarDeclared(IFaction firstFaction, IFaction secondFaction, DeclareWarAction.DeclareWarDetail detail)
     {
-        if (!_runtimeEnabled || firstFaction is not Kingdom first || secondFaction is not Kingdom second) return;
-        var key = TreatyKey.For(first, second);
-        if (!IsNonAggressionPactActive(first, second)) return;
+        if (!_runtimeEnabled || firstFaction is not Kingdom first || secondFaction is not Kingdom second)
+            return;
 
+        ApplyWarBreach(first, second, detail.ToString(), forced: false);
+    }
+
+    public bool ForceBreakNonAggressionPactForWar(
+        Kingdom aggressor,
+        Kingdom target,
+        string reason)
+    {
+        if (!_runtimeEnabled ||
+            aggressor == null ||
+            target == null ||
+            !IsNonAggressionPactActive(aggressor, target))
+            return false;
+
+        ApplyWarBreach(
+            aggressor,
+            target,
+            string.IsNullOrWhiteSpace(reason) ? "forced" : reason,
+            forced: true);
+        return true;
+    }
+
+    private void ApplyWarBreach(
+        Kingdom aggressor,
+        Kingdom target,
+        string reason,
+        bool forced)
+    {
+        if (aggressor == null || target == null || !IsNonAggressionPactActive(aggressor, target))
+            return;
+
+        var key = TreatyKey.For(aggressor, target);
         _nonAggressionExpiryDays.Remove(key);
         _breachCounts.TryGetValue(key, out var current);
         _breachCounts[key] = current + 1;
         ChangeTrust(key, -WarBreachTrustPenalty);
-        ChangeRulerRelation(first, second, -WarBreachRelationPenalty);
+        ChangeRulerRelation(aggressor, target, -WarBreachRelationPenalty);
         _napCooldownExpiryDays[key] = CampaignTime.Now.ToDays + WarBreachCooldownDays;
 
+        Campaign.Current?.GetCampaignBehavior<KaiThreatBehavior>()
+            ?.RecordTreatyBreach(aggressor, target, reason);
+        Campaign.Current?.GetCampaignBehavior<KaiGrievanceBehavior>()
+            ?.AddNapBreach(aggressor, target);
+
+        KaiRuntimeLog.Write(
+            forced ? "NAP_FORCED_BREACH" : "NAP_WAR_BREACH",
+            $"source={aggressor.StringId}; target={target.StringId}; reason={reason}; " +
+            $"trust=-{WarBreachTrustPenalty}; relation=-{WarBreachRelationPenalty}; cooldown={WarBreachCooldownDays}");
+
         InformationManager.DisplayMessage(new InformationMessage(
-            $"Пакт о ненападении между {first.Name} и {second.Name} нарушен объявлением войны. " +
+            $"Пакт о ненападении между {aggressor.Name} и {target.Name} нарушен объявлением войны. " +
             $"Отношения правящих домов серьёзно ухудшились. Новый пакт будет недоступен {WarBreachCooldownDays} дней."));
     }
 
@@ -194,6 +235,14 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
             score += target.RulingClan.GetRelationWithClan(proposer.RulingClan);
 
         if (proposer.Culture == target.Culture) score += 10;
+
+        var dynastic = Campaign.Current?.GetCampaignBehavior<KaiDynasticMarriageBehavior>();
+        if (dynastic != null)
+            score += (int)Math.Round(dynastic.GetDynasticStrength(proposer, target) * 0.50f);
+
+        var threat = Campaign.Current?.GetCampaignBehavior<KaiThreatBehavior>();
+        if (threat != null)
+            score -= (int)Math.Round(threat.GetNapPenalty(proposer));
 
         var commonEnemies = proposer.FactionsAtWarWith
             .OfType<Kingdom>()
@@ -429,9 +478,18 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
     private void ExpirePactNaturally(string key)
     {
         if (!_nonAggressionExpiryDays.Remove(key)) return;
-        ChangeTrust(key, NaturalExpiryTrustBonus);
+
+        var trustBonus = NaturalExpiryTrustBonus;
         if (TryResolveKingdomPair(key, out var first, out var second))
+        {
+            var dynastic = Campaign.Current?.GetCampaignBehavior<KaiDynasticMarriageBehavior>();
+            if (dynastic != null)
+                trustBonus += Math.Min(4, (int)Math.Round(dynastic.GetDynasticStrength(first, second) / 25f));
+
             ChangeRulerRelation(first, second, NaturalExpiryRelationBonus);
+        }
+
+        ChangeTrust(key, trustBonus);
     }
 
     private void CleanupExpiredCooldowns()

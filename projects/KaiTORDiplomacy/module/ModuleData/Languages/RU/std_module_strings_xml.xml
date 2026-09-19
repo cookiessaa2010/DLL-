@@ -57,5 +57,103 @@
     <string id="kaitor_diplomacy_ui_no_active_pact" text="С выбранной державой нет действующего пакта о ненападении."/>
     <string id="kaitor_diplomacy_ui_yes" text="Да"/>
     <string id="kaitor_diplomacy_ui_no" text="Нет"/>
-  </strings>
+    <string id="kaitor_diplomacy_ui_send_messenger" text="Отправить гонца"/>
+  <string id="kaitor_diplomacy_ui_peace_open" text="Я хочу обсудить условия окончания этой войны."/>
+  <string id="kaitor_diplomacy_ui_peace_reply" text="Излагайте условия. Я решу, стоит ли мир такой цены."/>
+  <string id="kaitor_diplomacy_ui_peace_status_quo" text="Мир без дополнительных требований."/>
+  <string id="kaitor_diplomacy_ui_peace_demand_reparations" text="Вы выплатите репарации за эту войну."/>
+  <string id="kaitor_diplomacy_ui_peace_offer_reparations" text="Мы выплатим репарации ради заключения мира."/>
+  <string id="kaitor_diplomacy_ui_peace_return_fief" text="Верните одно из владений, захваченных у нашей державы."/>
+  <string id="kaitor_diplomacy_ui_peace_nap" text="Мир с последующим пактом о ненападении на девяносто дней."/>
+  <string id="kaitor_diplomacy_ui_peace_back" text="Не сейчас."/>
+  <string id="kaitor_diplomacy_ui_peace_rejected" text="Правитель противника отверг эти условия."/>
+  <string id="kaitor_diplomacy_ui_peace_accepted" text="Условия мира приняты."/>
+  <string id="kaitor_diplomacy_ui_council" text="Совет"/>
+  <string id="kaitor_diplomacy_ui_council_unavailable" text="Совет сейчас недоступен."/>
+  <string id="kaitor_diplomacy_ui_council_clear" text="Совет не видит немедленных стратегических угроз."/>
+  <string id="kaitor_diplomacy_ui_elevate_house" text="Возвести героя в дворянство"/>
+  <string id="kaitor_diplomacy_ui_grant_fief" text="Даровать владение"/>
+  <string id="kaitor_diplomacy_ui_war_exhaustion_line" text="Военная усталость: мы {OURS}% / они {THEIRS}%"/>\n  <string id="kaitor_diplomacy_ui_threat_line" text="Угроза: {THREAT}/100"/>\n  <string id="kaitor_diplomacy_ui_dynastic_line" text="Династические связи: {STRENGTH}/100"/>\n  <string id="kaitor_diplomacy_ui_messenger_start" text="Начать разговор"/>
+  <string id="kaitor_diplomacy_ui_messenger_later" text="Позже"/>
+  <string id="kaitor_diplomacy_ui_messenger_recall" text="Отозвать гонца"/>
+  <string id="kaitor_diplomacy_ui_messenger_arrived" text="Гонец прибыл"/>
+  <string id="kaitor_diplomacy_ui_messenger_reached" text="Гонец достиг {HERO}."/>
+  <string id="kaitor_diplomacy_ui_messenger_choose" text="Выбрать"/>
+  <string id="kaitor_diplomacy_council_no_kingdom" text="Ваш клан сейчас не входит ни в одну державу."/>
+  <string id="kaitor_diplomacy_council_war_high_exhaustion" text="Война с {REALM}: наша военная усталость высока ({OURS}%). Стоит рассмотреть мир."/>
+  <string id="kaitor_diplomacy_council_enemy_exhaustion" text="Война с {REALM}: их усталость ({THEIRS}%) заметно выше нашей ({OURS}%)."/>
+  <string id="kaitor_diplomacy_council_nap_receptive" text="{REALM} выглядит готовой рассмотреть пакт о ненападении (оценка {SCORE})."/>
+  <string id="kaitor_diplomacy_council_pact_trust" text="Пакт с {REALM} опирается на высокий накопленный уровень доверия ({TRUST})."/>
+  <string id="kaitor_diplomacy_council_dynastic" text="Правящие дома {FIRST} и {SECOND} имеют значимые династические связи ({STRENGTH}/100)."/>
+  <string id="kaitor_diplomacy_council_succession" text="У дома {CLAN} нет другого живого взрослого дворянина; возможен кризис наследования."/>
+  <string id="kaitor_diplomacy_council_threat" text="Другие державы, вероятно, считают нашу экспансию серьёзной угрозой ({THREAT}/100)."/>
+  <string id="kaitor_diplomacy_fief_no_kingdom" text="Держава игрока недоступна."/>
+  <string id="kaitor_diplomacy_fief_ruler_only" text="Только правитель может даровать владение."/>
+  <string id="kaitor_diplomacy_fief_influence_required" text="Требуется не менее {INFLUENCE} влияния."/>
+  <string id="kaitor_diplomacy_fief_no_safe_fief" text="Нет безопасного укреплённого владения вашего клана для передачи."/>
+  <string id="kaitor_diplomacy_fief_no_recipient" text="Нет подходящего клана-получателя."/>
+  <string id="kaitor_diplomacy_fief_entry_hint" text="{TYPE} | владелец: {OWNER}"/>
+  <string id="kaitor_diplomacy_fief_town" text="Город"/>
+  <string id="kaitor_diplomacy_fief_castle" text="Замок"/>
+  <string id="kaitor_diplomacy_fief_title" text="Даровать владение"/>
+  <string id="kaitor_diplomacy_fief_choose_fief" text="Выберите безопасное укреплённое владение вашего клана."/>
+  <string id="kaitor_diplomacy_ui_choose" text="Выбрать"/>
+  <string id="kaitor_diplomacy_fief_recipient_hint" text="Глава: {LEADER} | владений: {FIEFS}"/>
+  <string id="kaitor_diplomacy_fief_choose_house" text="Выберите дом, которому будет передано владение {FIEF}."/>
+  <string id="kaitor_diplomacy_fief_grant" text="Даровать"/>
+  <string id="kaitor_diplomacy_fief_stale_fief" text="Выбранное владение больше нельзя безопасно передать."/>
+  <string id="kaitor_diplomacy_fief_stale_house" text="Выбранный дом больше не подходит для получения владения."/>
+  <string id="kaitor_diplomacy_fief_granted" text="Владение {FIEF} передано дому {CLAN}."/>
+  <string id="kaitor_diplomacy_realm_no_candidate" text="Нет подходящего компаньона для основания нового дворянского дома."/>
+  <string id="kaitor_diplomacy_realm_candidate_hint" text="Отношения: {RELATION} | Уровень: {LEVEL}"/>
+  <string id="kaitor_diplomacy_realm_elevate_title" text="Возвести в дворянство"/>
+  <string id="kaitor_diplomacy_realm_elevate_prompt" text="Выберите компаньона, который основает новый дворянский дом."/>
+  <string id="kaitor_diplomacy_realm_elevate" text="Возвести"/>
+  <string id="kaitor_diplomacy_realm_founded" text="{HERO} основывает дом {CLAN}."/>
+  <string id="kaitor_diplomacy_realm_no_kingdom" text="Держава игрока недоступна."/>
+  <string id="kaitor_diplomacy_realm_ruler_only" text="Только правитель может учредить новый дворянский дом."/>
+  <string id="kaitor_diplomacy_realm_candidate_clan" text="Кандидат должен состоять в клане правителя."/>
+  <string id="kaitor_diplomacy_realm_candidate_inactive" text="Кандидат сейчас не является активным героем."/>
+  <string id="kaitor_diplomacy_realm_candidate_child" text="Кандидат ещё не достиг совершеннолетия."/>
+  <string id="kaitor_diplomacy_realm_candidate_prisoner" text="Кандидат находится в плену."/>
+  <string id="kaitor_diplomacy_realm_candidate_governor" text="Действующий губернатор не может основать новый дом."/>
+  <string id="kaitor_diplomacy_realm_candidate_leader" text="Глава существующего клана не может основать ещё один дом."/>
+  <string id="kaitor_diplomacy_realm_candidate_family" text="Сначала урегулируйте семейное положение кандидата."/>
+  <string id="kaitor_diplomacy_realm_candidate_not_companion" text="Кандидат не подходит для возведения из числа компаньонов."/>
+  <string id="kaitor_diplomacy_realm_candidate_party_leader" text="Кандидат сейчас командует отдельным отрядом."/>
+  <string id="kaitor_diplomacy_realm_candidate_unsafe" text="Кандидат сейчас находится в небезопасном состоянии кампании."/>
+  <string id="kaitor_diplomacy_realm_candidate_not_removable" text="Кандидата нельзя безопасно вывести из текущего отряда."/>
+  <string id="kaitor_diplomacy_realm_no_home" text="Нет безопасного укреплённого владения для дома нового клана."/>
+  <string id="kaitor_diplomacy_realm_detach_failed" text="Не удалось безопасно вывести кандидата из текущего отряда."/>
+  <string id="kaitor_diplomacy_realm_factory_failed" text="Нативная фабрика кланов не смогла создать новый дом."/>
+  <string id="kaitor_diplomacy_realm_postcondition_failed" text="Проверка нового дворянского дома после создания не пройдена."/>
+  <string id="kaitor_diplomacy_realm_success" text="Новый дворянский дом успешно учреждён."/>
+  <string id="kaitor_diplomacy_messenger_no_route" text="Не удалось рассчитать маршрут гонца."/>
+  <string id="kaitor_diplomacy_messenger_not_enough_gold" text="Недостаточно золота. Требуется: {GOLD}."/>
+  <string id="kaitor_diplomacy_messenger_sent" text="Гонец отправлен к {HERO}. Примерное время пути: {HOURS} ч. Стоимость: {GOLD}."/>
+  <string id="kaitor_diplomacy_messenger_no_campaign" text="Кампания не запущена."/>
+  <string id="kaitor_diplomacy_messenger_no_target" text="Не выбран адресат."/>
+  <string id="kaitor_diplomacy_messenger_self" text="Нельзя отправить гонца самому себе."/>
+  <string id="kaitor_diplomacy_messenger_unreachable" text="Сейчас адресат недоступен."/>
+  <string id="kaitor_diplomacy_messenger_child" text="Адресат слишком молод для официальной переписки."/>
+  <string id="kaitor_diplomacy_messenger_invalid_character" text="У адресата нет корректного персонажа кампании."/>
+  <string id="kaitor_diplomacy_messenger_unknown_hero" text="Вы недостаточно знаете этого персонажа, чтобы гонец смог его разыскать."/>
+  <string id="kaitor_diplomacy_messenger_duplicate" text="К этому герою уже отправлен гонец."/>
+  <string id="kaitor_diplomacy_messenger_unknown_id" text="Неизвестный идентификатор героя."/>
+  <string id="kaitor_diplomacy_messenger_unknown_msg" text="Неизвестный идентификатор гонца."/>
+  <string id="kaitor_diplomacy_messenger_conversation_wait" text="Сейчас разговор открыть нельзя. Гонец продолжит ждать подходящего момента."/>
+  <string id="kaitor_diplomacy_messenger_prisoner" text="Гонец не может организовать официальную встречу с пленником."/>
+  <string id="kaitor_diplomacy_messenger_same_party" text="Этот герой уже путешествует вместе с вами."/>
+  <string id="kaitor_diplomacy_special_marriage_invalid" text="Некорректные данные брачного предложения."/>
+  <string id="kaitor_diplomacy_special_marriage_pending" text="Уже ожидает рассмотрения другое особое брачное предложение."/>
+  <string id="kaitor_diplomacy_special_marriage_ineligible" text="Эта пара больше не подходит для брака."/>
+  <string id="kaitor_diplomacy_special_marriage_childless" text="Этот социальный брак не даст биологических детей."/>
+  <string id="kaitor_diplomacy_special_marriage_title" text="KaiTOR: Особое брачное предложение"/>
+  <string id="kaitor_diplomacy_special_marriage_body" text="Дом {CLAN} предлагает {KIND} брак между {MEMBER} и {TARGET}. Принятие откроет обычные брачные переговоры Bannerlord; свадьба не будет навязана автоматически."/>
+  <string id="kaitor_diplomacy_special_marriage_review" text="Рассмотреть предложение"/>
+  <string id="kaitor_diplomacy_special_marriage_decline" text="Отказать"/>
+  <string id="kaitor_diplomacy_special_marriage_kind_dynastic" text="династический"/>
+  <string id="kaitor_diplomacy_special_marriage_kind_treaty" text="связанный с договором"/>
+  <string id="kaitor_diplomacy_special_marriage_kind_special" text="особый"/>
+</strings>
 </base>

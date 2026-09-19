@@ -57,5 +57,103 @@
     <string id="kaitor_diplomacy_ui_no_active_pact" text="There is no active non-aggression pact with the selected realm."/>
     <string id="kaitor_diplomacy_ui_yes" text="Yes"/>
     <string id="kaitor_diplomacy_ui_no" text="No"/>
-  </strings>
+    <string id="kaitor_diplomacy_ui_send_messenger" text="Send Messenger"/>
+  <string id="kaitor_diplomacy_ui_peace_open" text="I want to discuss terms for ending this war."/>
+  <string id="kaitor_diplomacy_ui_peace_reply" text="State your terms. I will judge whether peace is worth the price."/>
+  <string id="kaitor_diplomacy_ui_peace_status_quo" text="Peace without additional demands."/>
+  <string id="kaitor_diplomacy_ui_peace_demand_reparations" text="You will pay reparations for this war."/>
+  <string id="kaitor_diplomacy_ui_peace_offer_reparations" text="We will pay reparations to secure peace."/>
+  <string id="kaitor_diplomacy_ui_peace_return_fief" text="Return one of the holdings taken from our realm."/>
+  <string id="kaitor_diplomacy_ui_peace_nap" text="Peace, followed by a ninety-day non-aggression pact."/>
+  <string id="kaitor_diplomacy_ui_peace_back" text="Not now."/>
+  <string id="kaitor_diplomacy_ui_peace_rejected" text="The opposing ruler rejects these terms."/>
+  <string id="kaitor_diplomacy_ui_peace_accepted" text="Peace terms have been accepted."/>
+  <string id="kaitor_diplomacy_ui_council" text="Council"/>
+  <string id="kaitor_diplomacy_ui_council_unavailable" text="The council is currently unavailable."/>
+  <string id="kaitor_diplomacy_ui_council_clear" text="The council sees no immediate strategic warning."/>
+  <string id="kaitor_diplomacy_ui_elevate_house" text="Elevate hero to nobility"/>
+  <string id="kaitor_diplomacy_ui_grant_fief" text="Grant a fief"/>
+  <string id="kaitor_diplomacy_ui_war_exhaustion_line" text="War exhaustion: us {OURS}% / them {THEIRS}%"/>\n  <string id="kaitor_diplomacy_ui_threat_line" text="Threat: {THREAT}/100"/>\n  <string id="kaitor_diplomacy_ui_dynastic_line" text="Dynastic ties: {STRENGTH}/100"/>\n  <string id="kaitor_diplomacy_ui_messenger_start" text="Start conversation"/>
+  <string id="kaitor_diplomacy_ui_messenger_later" text="Later"/>
+  <string id="kaitor_diplomacy_ui_messenger_recall" text="Recall messenger"/>
+  <string id="kaitor_diplomacy_ui_messenger_arrived" text="Messenger arrived"/>
+  <string id="kaitor_diplomacy_ui_messenger_reached" text="Your messenger has reached {HERO}."/>
+  <string id="kaitor_diplomacy_ui_messenger_choose" text="Choose"/>
+  <string id="kaitor_diplomacy_council_no_kingdom" text="Your clan does not currently belong to a kingdom."/>
+  <string id="kaitor_diplomacy_council_war_high_exhaustion" text="War with {REALM}: our exhaustion is high ({OURS}%). Peace should be considered."/>
+  <string id="kaitor_diplomacy_council_enemy_exhaustion" text="War with {REALM}: their exhaustion ({THEIRS}%) substantially exceeds ours ({OURS}%)."/>
+  <string id="kaitor_diplomacy_council_nap_receptive" text="{REALM} appears receptive to a non-aggression pact (assessment {SCORE})."/>
+  <string id="kaitor_diplomacy_council_pact_trust" text="The pact with {REALM} rests on strong accumulated trust ({TRUST})."/>
+  <string id="kaitor_diplomacy_council_dynastic" text="The ruling houses of {FIRST} and {SECOND} have significant dynastic ties ({STRENGTH}/100)."/>
+  <string id="kaitor_diplomacy_council_succession" text="House {CLAN} has no other living adult noble and may face a succession problem."/>
+  <string id="kaitor_diplomacy_council_threat" text="Other realms are likely to view our expansion as a major threat ({THREAT}/100)."/>
+  <string id="kaitor_diplomacy_fief_no_kingdom" text="Player kingdom is unavailable."/>
+  <string id="kaitor_diplomacy_fief_ruler_only" text="Only the ruler may grant a fief."/>
+  <string id="kaitor_diplomacy_fief_influence_required" text="At least {INFLUENCE} influence is required."/>
+  <string id="kaitor_diplomacy_fief_no_safe_fief" text="No safe player-clan fortification is available."/>
+  <string id="kaitor_diplomacy_fief_no_recipient" text="No eligible recipient clan is available."/>
+  <string id="kaitor_diplomacy_fief_entry_hint" text="{TYPE} | owner: {OWNER}"/>
+  <string id="kaitor_diplomacy_fief_town" text="Town"/>
+  <string id="kaitor_diplomacy_fief_castle" text="Castle"/>
+  <string id="kaitor_diplomacy_fief_title" text="Grant a fief"/>
+  <string id="kaitor_diplomacy_fief_choose_fief" text="Choose one of your clan's safe fortifications."/>
+  <string id="kaitor_diplomacy_ui_choose" text="Choose"/>
+  <string id="kaitor_diplomacy_fief_recipient_hint" text="Leader: {LEADER} | fiefs: {FIEFS}"/>
+  <string id="kaitor_diplomacy_fief_choose_house" text="Choose the house that will receive {FIEF}."/>
+  <string id="kaitor_diplomacy_fief_grant" text="Grant"/>
+  <string id="kaitor_diplomacy_fief_stale_fief" text="The selected fief is no longer safe to grant."/>
+  <string id="kaitor_diplomacy_fief_stale_house" text="The selected house is not eligible."/>
+  <string id="kaitor_diplomacy_fief_granted" text="{FIEF} has been granted to {CLAN}."/>
+  <string id="kaitor_diplomacy_realm_no_candidate" text="No eligible companion can found a new noble house."/>
+  <string id="kaitor_diplomacy_realm_candidate_hint" text="Relation: {RELATION} | Level: {LEVEL}"/>
+  <string id="kaitor_diplomacy_realm_elevate_title" text="Elevate to nobility"/>
+  <string id="kaitor_diplomacy_realm_elevate_prompt" text="Choose a companion who will found a new Realm House."/>
+  <string id="kaitor_diplomacy_realm_elevate" text="Elevate"/>
+  <string id="kaitor_diplomacy_realm_founded" text="{HERO} has founded {CLAN}."/>
+  <string id="kaitor_diplomacy_realm_no_kingdom" text="Player kingdom is unavailable."/>
+  <string id="kaitor_diplomacy_realm_ruler_only" text="Only the ruler may elevate a new noble house."/>
+  <string id="kaitor_diplomacy_realm_candidate_clan" text="Candidate must belong to the ruler's clan."/>
+  <string id="kaitor_diplomacy_realm_candidate_inactive" text="Candidate is not an active hero."/>
+  <string id="kaitor_diplomacy_realm_candidate_child" text="Candidate is not an adult."/>
+  <string id="kaitor_diplomacy_realm_candidate_prisoner" text="Candidate is a prisoner."/>
+  <string id="kaitor_diplomacy_realm_candidate_governor" text="A serving governor cannot found a new house."/>
+  <string id="kaitor_diplomacy_realm_candidate_leader" text="An existing clan leader cannot found another house."/>
+  <string id="kaitor_diplomacy_realm_candidate_family" text="Move the candidate's family arrangements before founding a new house."/>
+  <string id="kaitor_diplomacy_realm_candidate_not_companion" text="Candidate is not a companion suitable for elevation."/>
+  <string id="kaitor_diplomacy_realm_candidate_party_leader" text="Candidate currently leads a party."/>
+  <string id="kaitor_diplomacy_realm_candidate_unsafe" text="Candidate is currently in an unsafe campaign state."/>
+  <string id="kaitor_diplomacy_realm_candidate_not_removable" text="Candidate is not a removable member of the current party."/>
+  <string id="kaitor_diplomacy_realm_no_home" text="No safe fortification is available as the new house's home."/>
+  <string id="kaitor_diplomacy_realm_detach_failed" text="Could not safely detach the candidate from the current party."/>
+  <string id="kaitor_diplomacy_realm_factory_failed" text="Native clan factory returned no clan."/>
+  <string id="kaitor_diplomacy_realm_postcondition_failed" text="Native elevation postcondition failed."/>
+  <string id="kaitor_diplomacy_realm_success" text="House elevated successfully."/>
+  <string id="kaitor_diplomacy_messenger_no_route" text="Messenger route cannot be calculated."/>
+  <string id="kaitor_diplomacy_messenger_not_enough_gold" text="Not enough gold. Required: {GOLD}."/>
+  <string id="kaitor_diplomacy_messenger_sent" text="Messenger sent to {HERO}. Estimated travel time: {HOURS} h. Cost: {GOLD}."/>
+  <string id="kaitor_diplomacy_messenger_no_campaign" text="No active campaign."/>
+  <string id="kaitor_diplomacy_messenger_no_target" text="No target hero."/>
+  <string id="kaitor_diplomacy_messenger_self" text="You cannot send a messenger to yourself."/>
+  <string id="kaitor_diplomacy_messenger_unreachable" text="The target is not currently reachable."/>
+  <string id="kaitor_diplomacy_messenger_child" text="The target is too young for formal correspondence."/>
+  <string id="kaitor_diplomacy_messenger_invalid_character" text="The target has no valid campaign character."/>
+  <string id="kaitor_diplomacy_messenger_unknown_hero" text="You do not know this character well enough to identify them for a messenger."/>
+  <string id="kaitor_diplomacy_messenger_duplicate" text="A messenger is already assigned to this hero."/>
+  <string id="kaitor_diplomacy_messenger_unknown_id" text="Unknown hero id."/>
+  <string id="kaitor_diplomacy_messenger_unknown_msg" text="Unknown messenger id."/>
+  <string id="kaitor_diplomacy_messenger_conversation_wait" text="The conversation cannot open right now. The messenger will keep waiting."/>
+  <string id="kaitor_diplomacy_messenger_prisoner" text="A messenger cannot arrange a formal audience with a prisoner."/>
+  <string id="kaitor_diplomacy_messenger_same_party" text="This hero is already travelling with you."/>
+  <string id="kaitor_diplomacy_special_marriage_invalid" text="Invalid marriage-offer data."/>
+  <string id="kaitor_diplomacy_special_marriage_pending" text="Another special marriage offer is already pending."/>
+  <string id="kaitor_diplomacy_special_marriage_ineligible" text="The proposed pair is no longer eligible."/>
+  <string id="kaitor_diplomacy_special_marriage_childless" text="This social marriage will not produce biological children."/>
+  <string id="kaitor_diplomacy_special_marriage_title" text="KaiTOR: Special marriage proposal"/>
+  <string id="kaitor_diplomacy_special_marriage_body" text="{CLAN} proposes a {KIND} marriage between {MEMBER} and {TARGET}. Accepting opens the normal Bannerlord marriage barter; the marriage is not forced."/>
+  <string id="kaitor_diplomacy_special_marriage_review" text="Review proposal"/>
+  <string id="kaitor_diplomacy_special_marriage_decline" text="Decline"/>
+  <string id="kaitor_diplomacy_special_marriage_kind_dynastic" text="dynastic"/>
+  <string id="kaitor_diplomacy_special_marriage_kind_treaty" text="treaty-linked"/>
+  <string id="kaitor_diplomacy_special_marriage_kind_special" text="special"/>
+</strings>
 </base>

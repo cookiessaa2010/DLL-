@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using KaiTOR.Diplomacy.UI;
 using KaiTOR.Diplomacy.Models;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
@@ -594,6 +595,272 @@ public sealed class KaiRealmHouseGrowthBehavior : CampaignBehaviorBase
             }
         }
     }
+
+    public void OpenPlayerElevationDialog()
+    {
+        var candidates = GetPlayerElevationCandidates().ToArray();
+        if (candidates.Length == 0)
+        {
+            TaleWorlds.Core.MBInformationManager.AddQuickInformation(
+                new TaleWorlds.Localization.TextObject(Ui("kaitor_diplomacy_realm_no_candidate", "No eligible companion can found a new noble house.")),
+                3500,
+                null,
+                null,
+                string.Empty);
+            return;
+        }
+
+        var elements = candidates
+            .Select(hero => new TaleWorlds.Core.InquiryElement(
+                hero,
+                hero.Name.ToString(),
+                null,
+                true,
+                UiFormat("kaitor_diplomacy_realm_candidate_hint", "Relation: {RELATION} | Level: {LEVEL}", ("RELATION", Hero.MainHero.GetRelation(hero)), ("LEVEL", hero.Level))))
+            .ToList();
+
+        TaleWorlds.Core.MBInformationManager.ShowMultiSelectionInquiry(
+            new TaleWorlds.Core.MultiSelectionInquiryData(
+                Ui("kaitor_diplomacy_realm_elevate_title", "Elevate to nobility"),
+                Ui("kaitor_diplomacy_realm_elevate_prompt", "Choose a companion who will found a new Realm House."),
+                elements,
+                true,
+                1,
+                1,
+                Ui("kaitor_diplomacy_realm_elevate", "Elevate"),
+                Ui("kaitor_diplomacy_ui_cancel", "Cancel"),
+                selected =>
+                {
+                    if (selected.Count == 0 || selected[0].Identifier is not Hero hero)
+                        return;
+
+                    if (!TryElevateByPlayer(hero, out var clan, out var reason))
+                    {
+                        TaleWorlds.Core.MBInformationManager.AddQuickInformation(
+                            new TaleWorlds.Localization.TextObject(reason),
+                            3500,
+                            hero.CharacterObject,
+                            null,
+                            string.Empty);
+                        return;
+                    }
+
+                    TaleWorlds.Core.MBInformationManager.AddQuickInformation(
+                        new TaleWorlds.Localization.TextObject(UiFormat("kaitor_diplomacy_realm_founded", "{HERO} has founded {CLAN}.", ("HERO", hero.Name), ("CLAN", clan.Name))),
+                        4000,
+                        hero.CharacterObject,
+                        null,
+                        string.Empty);
+                },
+                null),
+            true,
+            true);
+    }
+
+    public IEnumerable<Hero> GetPlayerElevationCandidates()
+    {
+        return Clan.PlayerClan?.Heroes
+            .Where(hero => CanElevateByPlayer(hero, out _))
+            .OrderByDescending(hero => Hero.MainHero?.GetRelation(hero) ?? 0)
+            .ThenByDescending(hero => hero.Level)
+            .ThenBy(hero => hero.StringId, StringComparer.Ordinal)
+            .ToArray()
+            ?? Array.Empty<Hero>();
+    }
+
+    public bool CanElevateByPlayer(Hero candidate, out string reason)
+    {
+        reason = string.Empty;
+        var playerClan = Clan.PlayerClan;
+        var kingdom = playerClan?.Kingdom;
+
+        if (Campaign.Current == null || Hero.MainHero == null || playerClan == null || kingdom == null)
+        {
+            reason = Ui("kaitor_diplomacy_realm_no_kingdom", "Player kingdom is unavailable.");
+            return false;
+        }
+        if (kingdom.RulingClan != playerClan || playerClan.Leader != Hero.MainHero)
+        {
+            reason = Ui("kaitor_diplomacy_realm_ruler_only", "Only the ruler may elevate a new noble house.");
+            return false;
+        }
+        if (candidate == null || candidate == Hero.MainHero || candidate.Clan != playerClan)
+        {
+            reason = Ui("kaitor_diplomacy_realm_candidate_clan", "Candidate must belong to the ruler's clan.");
+            return false;
+        }
+        if (!candidate.IsAlive || !candidate.IsActive || candidate.IsTemplate || candidate.IsMinorFactionHero)
+        {
+            reason = Ui("kaitor_diplomacy_realm_candidate_inactive", "Candidate is not an active hero.");
+            return false;
+        }
+        if (candidate.Age < Campaign.Current.Models.AgeModel.HeroComesOfAge)
+        {
+            reason = Ui("kaitor_diplomacy_realm_candidate_child", "Candidate is not an adult.");
+            return false;
+        }
+        if (candidate.IsPrisoner || candidate.PartyBelongedToAsPrisoner != null)
+        {
+            reason = Ui("kaitor_diplomacy_realm_candidate_prisoner", "Candidate is a prisoner.");
+            return false;
+        }
+        if (candidate.GovernorOf != null)
+        {
+            reason = Ui("kaitor_diplomacy_realm_candidate_governor", "A serving governor cannot found a new house.");
+            return false;
+        }
+        if (candidate == playerClan.Leader || candidate.IsClanLeader)
+        {
+            reason = Ui("kaitor_diplomacy_realm_candidate_leader", "An existing clan leader cannot found another house.");
+            return false;
+        }
+        if (candidate.Spouse != null || candidate.Children.Count > 0)
+        {
+            reason = Ui("kaitor_diplomacy_realm_candidate_family", "Move the candidate's family arrangements before founding a new house.");
+            return false;
+        }
+
+        var companionLike =
+            candidate.CompanionOf == playerClan ||
+            TorFamilySafety.IsAiCompanion(candidate) ||
+            candidate.Occupation == Occupation.Wanderer;
+
+        if (!companionLike)
+        {
+            reason = Ui("kaitor_diplomacy_realm_candidate_not_companion", "Candidate is not a companion suitable for elevation.");
+            return false;
+        }
+
+        var party = candidate.PartyBelongedTo;
+        if (party != null)
+        {
+            if (party.LeaderHero == candidate)
+            {
+                reason = Ui("kaitor_diplomacy_realm_candidate_party_leader", "Candidate currently leads a party.");
+                return false;
+            }
+            if (party.MapEvent != null || party.BesiegedSettlement != null || party.Army != null)
+            {
+                reason = Ui("kaitor_diplomacy_realm_candidate_unsafe", "Candidate is currently in an unsafe campaign state.");
+                return false;
+            }
+            if (candidate.CharacterObject == null || party.MemberRoster.GetTroopCount(candidate.CharacterObject) <= 0)
+            {
+                reason = Ui("kaitor_diplomacy_realm_candidate_not_removable", "Candidate is not a removable member of the current party.");
+                return false;
+            }
+        }
+
+        var home = FindPlayerHouseHome(kingdom);
+        if (home == null)
+        {
+            reason = Ui("kaitor_diplomacy_realm_no_home", "No safe fortification is available as the new house's home.");
+            return false;
+        }
+
+        return true;
+    }
+
+    public bool TryElevateByPlayer(Hero candidate, out Clan newClan, out string reason)
+    {
+        newClan = null;
+        if (!CanElevateByPlayer(candidate, out reason))
+            return false;
+
+        var kingdom = Clan.PlayerClan.Kingdom;
+        var home = FindPlayerHouseHome(kingdom);
+        var sourceClan = candidate.Clan;
+        var sourceParty = candidate.PartyBelongedTo;
+        var detached = false;
+
+        try
+        {
+            if (sourceParty != null)
+            {
+                if (!TryDetachFounderFromOrdinaryParty(candidate, sourceParty))
+                {
+                    reason = Ui("kaitor_diplomacy_realm_detach_failed", "Could not safely detach the candidate from the current party.");
+                    return false;
+                }
+                detached = true;
+            }
+
+            var companionClan = candidate.CompanionOf;
+            if (companionClan != null)
+                RemoveCompanionAction.ApplyByByTurningToLord(companionClan, candidate);
+
+            var culture = candidate.Culture ?? sourceClan.Culture ?? kingdom.Culture;
+            var clanName = NameGenerator.Current.GenerateClanName(culture, home) ?? candidate.Name;
+            newClan = Clan.CreateCompanionToLordClan(candidate, home, clanName, -1);
+
+            if (newClan == null)
+            {
+                reason = Ui("kaitor_diplomacy_realm_factory_failed", "Native clan factory returned no clan.");
+                RestoreFounderPartyIfSafe(candidate, sourceClan, sourceParty, detached);
+                return false;
+            }
+
+            if (!candidate.IsLord)
+                candidate.SetNewOccupation(Occupation.Lord);
+
+            if (newClan.Kingdom != kingdom)
+                ChangeKingdomAction.ApplyByJoinToKingdom(newClan, kingdom, CampaignTime.DaysFromNow(365f), true);
+
+            var stillInOldRoster = sourceParty != null &&
+                                   candidate.CharacterObject != null &&
+                                   sourceParty.MemberRoster.GetTroopCount(candidate.CharacterObject) > 0;
+
+            if (newClan.Kingdom != kingdom ||
+                newClan.Leader != candidate ||
+                candidate.Clan != newClan ||
+                !candidate.IsLord ||
+                !newClan.IsNoble ||
+                stillInOldRoster)
+            {
+                reason = Ui("kaitor_diplomacy_realm_postcondition_failed", "Native elevation postcondition failed.");
+                KaiRuntimeLog.Write(
+                    "REALM_HOUSE_ELEVATION_FAIL",
+                    $"candidate={candidate.StringId}; clan={newClan.StringId}; kingdom={newClan.Kingdom?.StringId ?? "none"}; isLord={candidate.IsLord}; isNoble={newClan.IsNoble}; oldRoster={stillInOldRoster}");
+                return false;
+            }
+
+            _lastCreatedClanId = newClan.StringId;
+            KaiRuntimeLog.Write(
+                "REALM_HOUSE_ELEVATED",
+                $"founder={candidate.StringId}; clan={newClan.StringId}; kingdom={kingdom.StringId}; home={home.StringId}; sourceClan={sourceClan.StringId}");
+
+            reason = Ui("kaitor_diplomacy_realm_success", "House elevated successfully.");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            RestoreFounderPartyIfSafe(candidate, sourceClan, sourceParty, detached);
+            KaiRuntimeLog.Exception(
+                "REALM_HOUSE_ELEVATION_FAIL",
+                ex,
+                $"candidate={candidate?.StringId ?? "none"}; kingdom={kingdom?.StringId ?? "none"}");
+            reason = ex.GetType().Name;
+            return false;
+        }
+    }
+
+    private static string Ui(string id, string fallback)
+        => KaiTORDiplomacyUiText.Get(id, fallback);
+
+    private static string UiFormat(string id, string fallback, params (string Key, object Value)[] values)
+        => KaiTORDiplomacyUiText.Format(id, fallback, values);
+
+    private static Settlement FindPlayerHouseHome(Kingdom kingdom)
+        => kingdom?.Settlements
+            .Where(settlement =>
+                settlement != null &&
+                settlement.IsFortification &&
+                !settlement.IsUnderSiege &&
+                !string.Equals(settlement.StringId, TorSpecialSettlementId, StringComparison.Ordinal))
+            .OrderByDescending(settlement => settlement.OwnerClan == Clan.PlayerClan)
+            .ThenByDescending(settlement => settlement.IsTown)
+            .ThenBy(settlement => settlement.StringId, StringComparer.Ordinal)
+            .FirstOrDefault();
 
     public IEnumerable<string> DescribeStatus()
     {

@@ -28,8 +28,14 @@ public sealed class KaiDynasticMarriageBehavior : CampaignBehaviorBase
     private const string PendingTargetSaveKey = "kaitor_dynastic_pending_target_v1";
     private const string PendingTargetClanSaveKey = "kaitor_dynastic_pending_target_clan_v1";
     private const string EscrowSaveKey = "kaitor_dynastic_escrow_v1";
+    private const string DynasticStrengthSaveKey = "kaitor_dynastic_strength_v2";
+    private const string DynasticTouchedSaveKey = "kaitor_dynastic_touched_v2";
+
+    private const float DynasticDailyDecay = 0.02f;
 
     private Dictionary<string, double> _bondExpiryDays = new();
+    private Dictionary<string, float> _dynasticStrength = new();
+    private Dictionary<string, double> _dynasticTouchedDay = new();
     private string _pendingMemberId;
     private string _pendingTargetId;
     private string _pendingTargetClanId;
@@ -38,7 +44,7 @@ public sealed class KaiDynasticMarriageBehavior : CampaignBehaviorBase
     public override void RegisterEvents()
     {
         CampaignEvents.OnSessionLaunchedEvent.AddNonSerializedListener(this, OnSessionLaunched);
-        CampaignEvents.DailyTickEvent.AddNonSerializedListener(this, CleanupExpiredBonds);
+        CampaignEvents.DailyTickEvent.AddNonSerializedListener(this, OnDailyTick);
         CampaignEvents.BeforeHeroesMarried.AddNonSerializedListener(this, OnBeforeHeroesMarried);
         CampaignEvents.OnBarterCanceledEvent.AddNonSerializedListener(this, OnBarterCanceled);
         CampaignEvents.OnBarterAcceptedEvent.AddNonSerializedListener(this, OnBarterAccepted);
@@ -52,8 +58,12 @@ public sealed class KaiDynasticMarriageBehavior : CampaignBehaviorBase
         dataStore.SyncData(PendingTargetSaveKey, ref _pendingTargetId);
         dataStore.SyncData(PendingTargetClanSaveKey, ref _pendingTargetClanId);
         dataStore.SyncData(EscrowSaveKey, ref _escrowGold);
+        dataStore.SyncData(DynasticStrengthSaveKey, ref _dynasticStrength);
+        dataStore.SyncData(DynasticTouchedSaveKey, ref _dynasticTouchedDay);
 
         _bondExpiryDays ??= new Dictionary<string, double>();
+        _dynasticStrength ??= new Dictionary<string, float>();
+        _dynasticTouchedDay ??= new Dictionary<string, double>();
         if (_escrowGold < 0 || _escrowGold > PoliticalMarriageCost)
             _escrowGold = 0;
     }
@@ -143,6 +153,8 @@ public sealed class KaiDynasticMarriageBehavior : CampaignBehaviorBase
 
     private void OnBeforeHeroesMarried(Hero firstHero, Hero secondHero, bool showNotification)
     {
+        RecordDynasticMarriage(firstHero, secondHero);
+
         if (!MatchesPendingPair(firstHero, secondHero))
             return;
 
@@ -172,6 +184,7 @@ public sealed class KaiDynasticMarriageBehavior : CampaignBehaviorBase
 
         var bondKey = ClanPairKey(playerClan, targetClan);
         _bondExpiryDays[bondKey] = CampaignTime.Now.ToDays + DynasticBondDays;
+        SetDynasticStrengthAtLeast(playerClan, targetClan, 100f, "political_marriage");
 
         if (playerClan.Leader != null && targetClan.Leader != null)
             ChangeRelationAction.ApplyRelationChangeBetweenHeroes(playerClan.Leader, targetClan.Leader, DynasticRelationBonus, true);
@@ -249,6 +262,13 @@ public sealed class KaiDynasticMarriageBehavior : CampaignBehaviorBase
                 // ordering has already removed it). Revoke the bond's +30 trust.
                 var diplomacy = Campaign.Current?.GetCampaignBehavior<KaiDiplomacyBehavior>();
                 diplomacy?.AdjustTrust(k1, k2, -DynasticTrustBonus);
+                AdjustDynasticStrength(firstClan, secondClan, -25f, "war_between_dynasties");
+
+                var grievance = Campaign.Current?.GetCampaignBehavior<KaiGrievanceBehavior>();
+                if (first == k1 && second == k2)
+                    grievance?.AddDynasticBreach(first, second);
+                else if (first == k2 && second == k1)
+                    grievance?.AddDynasticBreach(first, second);
 
                 KaiRuntimeLog.Write(
                     "DYNASTIC_BOND_BROKEN",
@@ -257,16 +277,158 @@ public sealed class KaiDynasticMarriageBehavior : CampaignBehaviorBase
         }
     }
 
+    private void OnDailyTick()
+    {
+        CleanupExpiredBonds();
+        DecayDynasticMemory();
+    }
+
     private void CleanupExpiredBonds()
     {
-        if (_bondExpiryDays == null || _bondExpiryDays.Count == 0)
-            return;
+        _bondExpiryDays ??= new Dictionary<string, double>();
         var now = CampaignTime.Now.ToDays;
-        foreach (var key in _bondExpiryDays.Where(x => x.Value <= now || double.IsNaN(x.Value) || double.IsInfinity(x.Value)).Select(x => x.Key).ToArray())
+        foreach (var key in _bondExpiryDays
+                     .Where(x => x.Value <= now || double.IsNaN(x.Value) || double.IsInfinity(x.Value))
+                     .Select(x => x.Key)
+                     .ToArray())
         {
             _bondExpiryDays.Remove(key);
             KaiRuntimeLog.Write("DYNASTIC_BOND_EXPIRED", $"clans={key}");
         }
+    }
+
+    private void DecayDynasticMemory()
+    {
+        _dynasticStrength ??= new Dictionary<string, float>();
+        _dynasticTouchedDay ??= new Dictionary<string, double>();
+
+        foreach (var key in _dynasticStrength.Keys.ToArray())
+        {
+            var value = _dynasticStrength[key];
+            if (value <= 0f || float.IsNaN(value) || float.IsInfinity(value))
+            {
+                _dynasticStrength.Remove(key);
+                _dynasticTouchedDay.Remove(key);
+                continue;
+            }
+
+            value = Math.Max(0f, value - DynasticDailyDecay);
+            if (value <= 0.01f)
+            {
+                _dynasticStrength.Remove(key);
+                _dynasticTouchedDay.Remove(key);
+            }
+            else
+            {
+                _dynasticStrength[key] = value;
+            }
+        }
+    }
+
+    public float GetDynasticStrength(Kingdom first, Kingdom second)
+    {
+        if (first?.RulingClan == null || second?.RulingClan == null || first == second)
+            return 0f;
+
+        var key = ClanPairKey(first.RulingClan, second.RulingClan);
+        return _dynasticStrength.TryGetValue(key, out var value)
+            ? Math.Max(0f, Math.Min(100f, value))
+            : 0f;
+    }
+
+    public IEnumerable<string> DescribeDynasticBonds()
+    {
+        var now = CampaignTime.Now.ToDays;
+        var keys = new HashSet<string>(_dynasticStrength.Keys, StringComparer.Ordinal);
+        foreach (var key in _bondExpiryDays.Keys)
+            keys.Add(key);
+
+        if (keys.Count == 0)
+        {
+            yield return "Dynastic diplomacy: no recorded bonds.";
+            yield break;
+        }
+
+        foreach (var key in keys.OrderBy(x => x, StringComparer.Ordinal))
+        {
+            _dynasticStrength.TryGetValue(key, out var strength);
+            _bondExpiryDays.TryGetValue(key, out var expiry);
+            var activeDays = expiry > now ? Math.Ceiling(expiry - now) : 0d;
+            yield return $"{key}: strength={strength:0.0}; activeContractDays={activeDays:0}";
+        }
+    }
+
+    private void RecordDynasticMarriage(Hero firstHero, Hero secondHero)
+    {
+        var firstClan = firstHero?.Clan;
+        var secondClan = secondHero?.Clan;
+        if (firstClan == null || secondClan == null || firstClan == secondClan ||
+            firstClan.IsEliminated || secondClan.IsEliminated ||
+            firstClan.Kingdom == null || secondClan.Kingdom == null)
+            return;
+
+        var firstWeight = GetKinWeight(firstHero, firstClan);
+        var secondWeight = GetKinWeight(secondHero, secondClan);
+        var strength = Math.Max(35f, Math.Min(100f, (firstWeight + secondWeight) * 0.5f));
+
+        SetDynasticStrengthAtLeast(firstClan, secondClan, strength, "marriage");
+    }
+
+    private static float GetKinWeight(Hero hero, Clan clan)
+    {
+        var leader = clan?.Leader;
+        if (hero == null || leader == null)
+            return 35f;
+        if (hero == leader)
+            return 100f;
+        if (hero.Father == leader || hero.Mother == leader ||
+            leader.Father == hero || leader.Mother == hero)
+            return 90f;
+        if ((hero.Father != null && hero.Father == leader.Father) ||
+            (hero.Mother != null && hero.Mother == leader.Mother))
+            return 70f;
+        return 50f;
+    }
+
+    private void SetDynasticStrengthAtLeast(Clan first, Clan second, float value, string reason)
+    {
+        if (first == null || second == null || first == second)
+            return;
+
+        var key = ClanPairKey(first, second);
+        var before = _dynasticStrength.TryGetValue(key, out var current) ? current : 0f;
+        var after = Math.Max(before, Math.Max(0f, Math.Min(100f, value)));
+        _dynasticStrength[key] = after;
+        _dynasticTouchedDay[key] = CampaignTime.Now.ToDays;
+
+        if (after > before + 0.01f)
+            KaiRuntimeLog.Write(
+                "DYNASTIC_MODIFIER",
+                $"clans={key}; reason={reason}; before={before:0.0}; after={after:0.0}");
+    }
+
+    private void AdjustDynasticStrength(Clan first, Clan second, float delta, string reason)
+    {
+        if (first == null || second == null || first == second || delta == 0f)
+            return;
+
+        var key = ClanPairKey(first, second);
+        var before = _dynasticStrength.TryGetValue(key, out var current) ? current : 0f;
+        var after = Math.Max(0f, Math.Min(100f, before + delta));
+        if (after <= 0.01f)
+        {
+            _dynasticStrength.Remove(key);
+            _dynasticTouchedDay.Remove(key);
+        }
+        else
+        {
+            _dynasticStrength[key] = after;
+            _dynasticTouchedDay[key] = CampaignTime.Now.ToDays;
+        }
+
+        KaiRuntimeLog.Write(
+            "DYNASTIC_MODIFIER",
+            $"clans={key}; reason={reason}; before={before:0.0}; after={after:0.0}");
     }
 
     private bool ContainsPendingMarriage(IEnumerable<Barterable> barters)

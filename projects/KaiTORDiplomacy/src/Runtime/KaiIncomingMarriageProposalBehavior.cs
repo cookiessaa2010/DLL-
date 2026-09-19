@@ -1,9 +1,7 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using KaiTOR.Diplomacy.Models;
+using KaiTOR.Diplomacy.UI;
 using TaleWorlds.CampaignSystem;
-using TaleWorlds.CampaignSystem.Encounters;
 using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.Core;
 using TaleWorlds.Library;
@@ -12,168 +10,131 @@ using TaleWorlds.Localization;
 namespace KaiTOR.Diplomacy.Runtime;
 
 /// <summary>
-/// Incoming AI marriage offers for the player's house. AI only proposes; the player
-/// explicitly accepts or declines, and acceptance opens the same native marriage barter
-/// used by the Family Affairs menu. AI same-sex proposals are intentionally disabled.
+/// Special KaiTOR marriage-offer transport only.
+/// Ordinary AI -> player-clan offers are owned by Bannerlord's native
+/// MarriageOfferCampaignBehavior, which now works through KaiPlayerMarriageModel.
+/// This behavior deliberately performs no periodic matchmaking, preventing duplicate offers.
 /// </summary>
 public sealed class KaiIncomingMarriageProposalBehavior : CampaignBehaviorBase
 {
-    private const int ProposalCooldownDays = 45;
-    private const string CooldownSaveKey = "kaitor_ai_marriage_offer_cooldown_v1";
-    private const string PendingMemberSaveKey = "kaitor_ai_marriage_pending_member_v1";
-    private const string PendingTargetSaveKey = "kaitor_ai_marriage_pending_target_v1";
-    private const string PendingClanSaveKey = "kaitor_ai_marriage_pending_clan_v1";
+    private const string PendingMemberSaveKey = "kaitor_special_marriage_pending_member_v2";
+    private const string PendingTargetSaveKey = "kaitor_special_marriage_pending_target_v2";
+    private const string PendingClanSaveKey = "kaitor_special_marriage_pending_clan_v2";
+    private const string PendingKindSaveKey = "kaitor_special_marriage_pending_kind_v2";
 
-    private Dictionary<string, double> _cooldownUntilDays = new();
     private string _pendingMemberId;
     private string _pendingTargetId;
     private string _pendingClanId;
+    private string _pendingKind;
     private bool _inquiryOpen;
 
     public override void RegisterEvents()
     {
-        CampaignEvents.WeeklyTickEvent.AddNonSerializedListener(this, OnWeeklyTick);
-        CampaignEvents.DailyTickEvent.AddNonSerializedListener(this, TryPresentPendingOffer);
+        // No weekly/daily matcher exists here. Native MarriageOfferCampaignBehavior owns
+        // ordinary marriage proposals. We only present an explicitly queued special offer.
+        CampaignEvents.HourlyTickEvent.AddNonSerializedListener(this, TryPresentPendingOffer);
     }
 
     public override void SyncData(IDataStore dataStore)
     {
-        dataStore.SyncData(CooldownSaveKey, ref _cooldownUntilDays);
         dataStore.SyncData(PendingMemberSaveKey, ref _pendingMemberId);
         dataStore.SyncData(PendingTargetSaveKey, ref _pendingTargetId);
         dataStore.SyncData(PendingClanSaveKey, ref _pendingClanId);
-        _cooldownUntilDays ??= new Dictionary<string, double>();
+        dataStore.SyncData(PendingKindSaveKey, ref _pendingKind);
     }
 
-    private void OnWeeklyTick()
+    public bool HasPendingSpecialOffer =>
+        !string.IsNullOrWhiteSpace(_pendingMemberId) &&
+        !string.IsNullOrWhiteSpace(_pendingTargetId) &&
+        !string.IsNullOrWhiteSpace(_pendingClanId);
+
+    /// <summary>
+    /// Queue only a KaiTOR-specific offer (dynastic/treaty package/etc.).
+    /// Ordinary marriage proposals must never call this method.
+    /// </summary>
+    public bool TryQueueSpecialOffer(Hero playerClanMember, Hero target, Clan targetClan, string kind, out string reason)
     {
-        if (Campaign.Current == null || Clan.PlayerClan == null || HasPendingOffer)
-            return;
-
-        CleanupCooldowns();
-        var proposal = FindBestProposal();
-        if (proposal == null)
-            return;
-
-        _pendingMemberId = proposal.Member.StringId;
-        _pendingTargetId = proposal.Target.StringId;
-        _pendingClanId = proposal.TargetClan.StringId;
-        _cooldownUntilDays[proposal.TargetClan.StringId] = CampaignTime.Now.ToDays + ProposalCooldownDays;
-
-        KaiRuntimeLog.Write(
-            "AI_MARRIAGE_PROPOSAL_QUEUED",
-            $"clan={proposal.TargetClan.StringId}; member={proposal.Member.StringId}; target={proposal.Target.StringId}; score={proposal.Score}; cooldown={ProposalCooldownDays}d");
-
-        TryPresentPendingOffer();
-    }
-
-    private Proposal FindBestProposal()
-    {
-        var playerClan = Clan.PlayerClan;
-        var model = Campaign.Current?.Models?.MarriageModel;
-        if (playerClan == null || model == null)
-            return null;
-
-        var members = playerClan.Heroes
-            .Where(h => h != null &&
-                        h.IsAlive &&
-                        h.IsActive &&
-                        !h.IsTemplate &&
-                        !h.IsMinorFactionHero &&
-                        h.Spouse == null &&
-                        (h == Hero.MainHero || h.IsLord) &&
-                        h.CanMarry() &&
-                        model.IsSuitableForMarriage(h))
-            .OrderBy(h => h.StringId, StringComparer.Ordinal)
-            .ToArray();
-
-        Proposal best = null;
-        foreach (var clan in Clan.All
-                     .Where(IsEligibleOfferingClan)
-                     .OrderBy(c => c.StringId, StringComparer.Ordinal))
+        reason = string.Empty;
+        if (Campaign.Current == null || playerClanMember == null || target == null || targetClan == null)
         {
-            if (GetCooldown(clan.StringId) > CampaignTime.Now.ToDays)
-                continue;
-            if (FactionManager.IsAtWarAgainstFaction(playerClan.MapFaction, clan.MapFaction))
-                continue;
-
-            foreach (var target in clan.AliveLords
-                         .Where(h => h != null &&
-                                     h.IsAlive &&
-                                     h.IsActive &&
-                                     !h.IsPrisoner &&
-                                     h.Spouse == null &&
-                                     h.CanMarry() &&
-                                     model.IsSuitableForMarriage(h))
-                         .OrderBy(h => h.StringId, StringComparer.Ordinal))
-            {
-                foreach (var member in members)
-                {
-                    // User requirement: AI female+female marriages stay off.
-                    if (member.IsFemale == target.IsFemale)
-                        continue;
-                    if (!model.IsCoupleSuitableForMarriage(member, target))
-                        continue;
-
-                    var score = Score(member, target, clan, playerClan);
-                    if (score < 0)
-                        continue;
-
-                    if (best == null || score > best.Score ||
-                        (score == best.Score && string.CompareOrdinal(clan.StringId + target.StringId, best.TargetClan.StringId + best.Target.StringId) < 0))
-                        best = new Proposal(member, target, clan, score);
-                }
-            }
+            reason = Ui("kaitor_diplomacy_special_marriage_invalid", "Invalid marriage-offer data.");
+            return false;
         }
 
-        return best;
-    }
+        if (HasPendingSpecialOffer)
+        {
+            reason = Ui("kaitor_diplomacy_special_marriage_pending", "Another special marriage offer is already pending.");
+            return false;
+        }
 
-    private static int Score(Hero member, Hero target, Clan targetClan, Clan playerClan)
-    {
-        var score = targetClan.GetRelationWithClan(playerClan);
-        score += Math.Min(30, targetClan.Tier * 5);
-        score += Math.Min(20, target.Level / 3);
-        if (targetClan.Kingdom != null && targetClan.Kingdom == playerClan.Kingdom)
-            score += 15;
+        var model = Campaign.Current.Models.MarriageModel;
+        if (playerClanMember.Clan != Clan.PlayerClan ||
+            target.Clan != targetClan ||
+            !playerClanMember.IsAlive ||
+            !target.IsAlive ||
+            playerClanMember.Spouse != null ||
+            target.Spouse != null ||
+            target.IsPrisoner ||
+            model == null ||
+            !model.IsCoupleSuitableForMarriage(playerClanMember, target))
+        {
+            reason = Ui("kaitor_diplomacy_special_marriage_ineligible", "The proposed pair is no longer eligible.");
+            return false;
+        }
 
-        // Long-lived races use the same normalized social age as the marriage
-        // model, so a century-scale Dawi/elf calendar gap is not treated as a human gap.
-        var memberAge = KaiRaceLifecycle.GetSocialMarriageAge(member);
-        var targetAge = KaiRaceLifecycle.GetSocialMarriageAge(target);
-        var ageGap = Math.Abs(memberAge - targetAge);
-        score -= (int)Math.Min(25f, ageGap / 4f);
-        return score;
+        _pendingMemberId = playerClanMember.StringId;
+        _pendingTargetId = target.StringId;
+        _pendingClanId = targetClan.StringId;
+        _pendingKind = string.IsNullOrWhiteSpace(kind) ? "special" : kind.Trim();
+
+        KaiRuntimeLog.Write(
+            "SPECIAL_MARRIAGE_PROPOSAL_QUEUED",
+            $"kind={_pendingKind}; clan={targetClan.StringId}; member={playerClanMember.StringId}; target={target.StringId}");
+
+        TryPresentPendingOffer();
+        return true;
     }
 
     private void TryPresentPendingOffer()
     {
-        if (_inquiryOpen || !HasPendingOffer || !CanPresentNow())
+        if (_inquiryOpen || !HasPendingSpecialOffer || !CanPresentNow())
             return;
 
         if (!TryResolvePending(out var member, out var target, out var targetClan) ||
             !IsPairStillValid(member, target, targetClan))
         {
-            KaiRuntimeLog.Write("AI_MARRIAGE_PROPOSAL_DROPPED", $"member={_pendingMemberId}; target={_pendingTargetId}; clan={_pendingClanId}; reason=stale");
+            KaiRuntimeLog.Write(
+                "SPECIAL_MARRIAGE_PROPOSAL_DROPPED",
+                $"kind={_pendingKind}; member={_pendingMemberId}; target={_pendingTargetId}; clan={_pendingClanId}; reason=stale");
             ClearPending();
             return;
         }
 
+        var kind = _pendingKind ?? "special";
         _inquiryOpen = true;
-        var childlessWarning = TorFamilySafety.CanUseVanillaPregnancy(member, target)
+
+        var childlessWarning = Models.TorFamilySafety.CanUseVanillaPregnancy(member, target)
             ? string.Empty
-            : " У этой пары не будет биологических детей.";
+            : " " + Ui(
+                "kaitor_diplomacy_special_marriage_childless",
+                "This social marriage will not produce biological children.");
+
+        var kindText = GetKindText(kind);
 
         InformationManager.ShowInquiry(
             new InquiryData(
-                "Брачное предложение",
-                $"Дом {targetClan.Name} направил к вам предложение: заключить брак между {member.Name} и {target.Name}. " +
-                "Принятие не заключит брак автоматически — после него откроются обычные брачные переговоры." +
-                childlessWarning,
+                Ui("kaitor_diplomacy_special_marriage_title", "KaiTOR: Special marriage proposal"),
+                UiFormat(
+                    "kaitor_diplomacy_special_marriage_body",
+                    "{CLAN} proposes a {KIND} marriage between {MEMBER} and {TARGET}. Accepting opens the normal Bannerlord marriage barter; the marriage is not forced.",
+                    ("CLAN", targetClan.Name),
+                    ("KIND", kindText),
+                    ("MEMBER", member.Name),
+                    ("TARGET", target.Name)) + childlessWarning,
                 true,
                 true,
-                "Рассмотреть предложение",
-                "Отказать",
+                Ui("kaitor_diplomacy_special_marriage_review", "Review proposal"),
+                Ui("kaitor_diplomacy_special_marriage_decline", "Decline"),
                 () =>
                 {
                     _inquiryOpen = false;
@@ -182,13 +143,17 @@ public sealed class KaiIncomingMarriageProposalBehavior : CampaignBehaviorBase
                 () =>
                 {
                     _inquiryOpen = false;
-                    KaiRuntimeLog.Write("AI_MARRIAGE_PROPOSAL_DECLINED", $"clan={targetClan.StringId}; member={member.StringId}; target={target.StringId}");
+                    KaiRuntimeLog.Write(
+                        "SPECIAL_MARRIAGE_PROPOSAL_DECLINED",
+                        $"kind={kind}; clan={targetClan.StringId}; member={member.StringId}; target={target.StringId}");
                     ClearPending();
                 }),
             false,
             false);
 
-        KaiRuntimeLog.Write("AI_MARRIAGE_PROPOSAL_OPEN", $"clan={targetClan.StringId}; member={member.StringId}; target={target.StringId}");
+        KaiRuntimeLog.Write(
+            "SPECIAL_MARRIAGE_PROPOSAL_OPEN",
+            $"kind={kind}; clan={targetClan.StringId}; member={member.StringId}; target={target.StringId}");
     }
 
     private void AcceptPendingOffer()
@@ -200,57 +165,69 @@ public sealed class KaiIncomingMarriageProposalBehavior : CampaignBehaviorBase
             return;
         }
 
+        var kind = _pendingKind ?? "special";
         ClearPending();
+
         if (!KaiMarriageBarterBridge.TryStart(member, target, targetClan, out var reason))
         {
-            KaiRuntimeLog.Write("AI_MARRIAGE_PROPOSAL_FAILED", $"clan={targetClan.StringId}; member={member.StringId}; target={target.StringId}; reason={reason}");
+            KaiRuntimeLog.Write(
+                "SPECIAL_MARRIAGE_PROPOSAL_FAILED",
+                $"kind={kind}; clan={targetClan.StringId}; member={member.StringId}; target={target.StringId}; reason={reason}");
             MBInformationManager.AddQuickInformation(new TextObject(reason), 3500, target.CharacterObject, null, string.Empty);
             return;
         }
 
-        KaiRuntimeLog.Write("AI_MARRIAGE_PROPOSAL_ACCEPTED", $"clan={targetClan.StringId}; member={member.StringId}; target={target.StringId}");
+        KaiRuntimeLog.Write(
+            "SPECIAL_MARRIAGE_PROPOSAL_ACCEPTED",
+            $"kind={kind}; clan={targetClan.StringId}; member={member.StringId}; target={target.StringId}");
+    }
+
+    private static string Ui(string id, string fallback)
+        => KaiTORDiplomacyUiText.Get(id, fallback);
+
+    private static string UiFormat(string id, string fallback, params (string Key, object Value)[] values)
+        => KaiTORDiplomacyUiText.Format(id, fallback, values);
+
+    private static string GetKindText(string kind)
+    {
+        if (string.Equals(kind, "dynastic", StringComparison.OrdinalIgnoreCase))
+            return Ui("kaitor_diplomacy_special_marriage_kind_dynastic", "dynastic");
+        if (string.Equals(kind, "treaty", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(kind, "treaty_package", StringComparison.OrdinalIgnoreCase))
+            return Ui("kaitor_diplomacy_special_marriage_kind_treaty", "treaty-linked");
+        return Ui("kaitor_diplomacy_special_marriage_kind_special", "special");
     }
 
     private static bool IsPairStillValid(Hero member, Hero target, Clan targetClan)
     {
         var model = Campaign.Current?.Models?.MarriageModel;
-        if (model == null || member == null || target == null || targetClan == null)
-            return false;
-        if (member.Clan != Clan.PlayerClan || target.Clan != targetClan)
-            return false;
-        if (!member.IsAlive || !target.IsAlive || member.Spouse != null || target.Spouse != null || target.IsPrisoner)
-            return false;
-        if (member.IsFemale == target.IsFemale)
-            return false;
-        return member.CanMarry() && target.CanMarry() &&
+        return model != null &&
+               member != null &&
+               target != null &&
+               targetClan != null &&
+               member.Clan == Clan.PlayerClan &&
+               target.Clan == targetClan &&
+               member.IsAlive &&
+               target.IsAlive &&
+               member.Spouse == null &&
+               target.Spouse == null &&
+               !target.IsPrisoner &&
                model.IsSuitableForMarriage(member) &&
                model.IsSuitableForMarriage(target) &&
                model.IsCoupleSuitableForMarriage(member, target);
     }
 
-    private static bool IsEligibleOfferingClan(Clan clan)
-        => clan != null &&
-           clan != Clan.PlayerClan &&
-           !clan.IsEliminated &&
-           !clan.IsBanditFaction &&
-           !clan.IsRebelClan &&
-           !clan.IsMinorFaction &&
-           !clan.IsClanTypeMercenary &&
-           clan.Leader != null &&
-           clan.Leader.IsAlive &&
-           !clan.Leader.IsPrisoner;
-
     private static bool CanPresentNow()
     {
         var campaign = Campaign.Current;
         var mainParty = MobileParty.MainParty;
-        if (campaign == null || mainParty == null)
+        if (campaign == null || mainParty == null || Hero.MainHero == null)
             return false;
         if (campaign.ConversationManager?.IsConversationInProgress == true)
             return false;
         if (mainParty.MapEvent != null || mainParty.BesiegedSettlement != null)
             return false;
-        if (PlayerEncounter.Current != null || Hero.MainHero?.IsPrisoner == true)
+        if (TaleWorlds.CampaignSystem.Encounters.PlayerEncounter.Current != null || Hero.MainHero.IsPrisoner)
             return false;
         return true;
     }
@@ -263,47 +240,11 @@ public sealed class KaiIncomingMarriageProposalBehavior : CampaignBehaviorBase
         return member != null && target != null && clan != null;
     }
 
-    private bool HasPendingOffer
-        => !string.IsNullOrWhiteSpace(_pendingMemberId) &&
-           !string.IsNullOrWhiteSpace(_pendingTargetId) &&
-           !string.IsNullOrWhiteSpace(_pendingClanId);
-
     private void ClearPending()
     {
         _pendingMemberId = null;
         _pendingTargetId = null;
         _pendingClanId = null;
-    }
-
-    private double GetCooldown(string clanId)
-        => _cooldownUntilDays != null &&
-           clanId != null &&
-           _cooldownUntilDays.TryGetValue(clanId, out var value) &&
-           !double.IsNaN(value) &&
-           !double.IsInfinity(value)
-            ? value
-            : 0d;
-
-    private void CleanupCooldowns()
-    {
-        var now = CampaignTime.Now.ToDays;
-        foreach (var key in _cooldownUntilDays.Where(x => x.Value <= now || double.IsNaN(x.Value) || double.IsInfinity(x.Value)).Select(x => x.Key).ToArray())
-            _cooldownUntilDays.Remove(key);
-    }
-
-    private sealed class Proposal
-    {
-        public Proposal(Hero member, Hero target, Clan targetClan, int score)
-        {
-            Member = member;
-            Target = target;
-            TargetClan = targetClan;
-            Score = score;
-        }
-
-        public Hero Member { get; }
-        public Hero Target { get; }
-        public Clan TargetClan { get; }
-        public int Score { get; }
+        _pendingKind = null;
     }
 }

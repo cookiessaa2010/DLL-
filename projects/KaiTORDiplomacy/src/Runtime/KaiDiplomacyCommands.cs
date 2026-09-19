@@ -22,6 +22,14 @@ public static class KaiDiplomacyCommands
             "kaitor_diplomacy.marriages",
             "kaitor_diplomacy.racial_status",
             "kaitor_diplomacy.family_rules",
+            "kaitor_diplomacy.messenger_status",
+            "kaitor_diplomacy.nap_guard_status",
+            "kaitor_diplomacy.war_status",
+            "kaitor_diplomacy.dynasty_status",
+            "kaitor_diplomacy.service_status",
+            "kaitor_diplomacy.realm_status",
+            "kaitor_diplomacy.threat_status",
+            "kaitor_diplomacy.grievance_status",
             "kaitor_diplomacy.dawi_status",
             "kaitor_diplomacy.dawi_spawn_test",
             "kaitor_diplomacy.ui_status",
@@ -123,6 +131,97 @@ public static class KaiDiplomacyCommands
         lines.Add("NPC marriage: same culture + same FaceGen race; no upper marriage-age cap.");
         lines.Add("Pregnancy: opposite sex + same FaceGen race + lore biology gate.");
         return C(string.Join("\n", lines));
+    }
+
+    [CommandLineFunctionality.CommandLineArgumentFunction("messenger_status", "kaitor_diplomacy")]
+    public static string MessengerStatus(List<string> arguments)
+    {
+        if (arguments.Count != 0) return "Usage: kaitor_diplomacy.messenger_status";
+        var behavior = Campaign.Current?.GetCampaignBehavior<KaiMessengerBehavior>();
+        return behavior == null
+            ? "KaiTOR Messenger is not loaded."
+            : C(string.Join("\n", behavior.DescribeStatus()));
+    }
+
+    [CommandLineFunctionality.CommandLineArgumentFunction("nap_guard_status", "kaitor_diplomacy")]
+    public static string NapGuardStatus(List<string> arguments)
+    {
+        if (arguments.Count != 0) return "Usage: kaitor_diplomacy.nap_guard_status";
+        return C(KaiNapWarGuard.Describe());
+    }
+
+    [CommandLineFunctionality.CommandLineArgumentFunction("war_status", "kaitor_diplomacy")]
+    public static string WarStatus(List<string> arguments)
+    {
+        if (arguments.Count != 0) return "Usage: kaitor_diplomacy.war_status";
+        var behavior = Campaign.Current?.GetCampaignBehavior<KaiWarExhaustionBehavior>();
+        var peace = Campaign.Current?.GetCampaignBehavior<KaiPeaceTermsBehavior>();
+        if (behavior == null && peace == null)
+            return "KaiTOR war systems are not loaded.";
+
+        var lines = new List<string>();
+        if (behavior != null) lines.AddRange(behavior.DescribeWars());
+        if (peace != null) lines.AddRange(peace.DescribeStatus());
+        return C(string.Join("\n", lines));
+    }
+
+    [CommandLineFunctionality.CommandLineArgumentFunction("dynasty_status", "kaitor_diplomacy")]
+    public static string DynastyStatus(List<string> arguments)
+    {
+        if (arguments.Count != 0) return "Usage: kaitor_diplomacy.dynasty_status";
+        var behavior = Campaign.Current?.GetCampaignBehavior<KaiDynasticMarriageBehavior>();
+        return behavior == null
+            ? "KaiTOR Dynastic Diplomacy is not loaded."
+            : C(string.Join("\n", behavior.DescribeDynasticBonds()));
+    }
+
+    [CommandLineFunctionality.CommandLineArgumentFunction("service_status", "kaitor_diplomacy")]
+    public static string ServiceStatus(List<string> arguments)
+    {
+        if (arguments.Count != 0) return "Usage: kaitor_diplomacy.service_status";
+        var behavior = Campaign.Current?.GetCampaignBehavior<KaiServiceRecordBehavior>();
+        return behavior == null
+            ? "KaiTOR Service Record is not loaded."
+            : C(string.Join("\n", behavior.DescribeStatus()));
+    }
+
+    [CommandLineFunctionality.CommandLineArgumentFunction("realm_status", "kaitor_diplomacy")]
+    public static string RealmStatus(List<string> arguments)
+    {
+        if (arguments.Count != 0) return "Usage: kaitor_diplomacy.realm_status";
+
+        var realm = Campaign.Current?.GetCampaignBehavior<KaiRealmHouseGrowthBehavior>();
+        var fiefs = Campaign.Current?.GetCampaignBehavior<KaiFiefGrantBehavior>();
+        var claims = Campaign.Current?.GetCampaignBehavior<KaiConquestClaimBehavior>();
+
+        var lines = new List<string>();
+        if (realm != null) lines.AddRange(realm.DescribeStatus());
+        if (fiefs != null) lines.AddRange(fiefs.DescribeStatus());
+        if (claims != null) lines.AddRange(claims.DescribeStatus());
+
+        return lines.Count == 0
+            ? "KaiTOR Realm systems are not loaded."
+            : C(string.Join("\n", lines));
+    }
+
+    [CommandLineFunctionality.CommandLineArgumentFunction("threat_status", "kaitor_diplomacy")]
+    public static string ThreatStatus(List<string> arguments)
+    {
+        if (arguments.Count != 0) return "Usage: kaitor_diplomacy.threat_status";
+        var behavior = Campaign.Current?.GetCampaignBehavior<KaiThreatBehavior>();
+        return behavior == null
+            ? "KaiTOR Threat system is not loaded."
+            : C(string.Join("\n", behavior.DescribeStatus()));
+    }
+
+    [CommandLineFunctionality.CommandLineArgumentFunction("grievance_status", "kaitor_diplomacy")]
+    public static string GrievanceStatus(List<string> arguments)
+    {
+        if (arguments.Count != 0) return "Usage: kaitor_diplomacy.grievance_status";
+        var behavior = Campaign.Current?.GetCampaignBehavior<KaiGrievanceBehavior>();
+        return behavior == null
+            ? "KaiTOR Grievance system is not loaded."
+            : C(string.Join("\n", behavior.DescribeStatus()));
     }
 
     [CommandLineFunctionality.CommandLineArgumentFunction("racial_status", "kaitor_diplomacy")]

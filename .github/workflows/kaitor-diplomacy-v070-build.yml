@@ -1,0 +1,334 @@
+name: KaiTOR Diplomacy v0.7.0 Strategic Build
+
+on:
+  push:
+    branches:
+      - 'kaitor-v0.7.0-*'
+    paths:
+      - 'projects/KaiTORDiplomacy/**'
+      - '.github/workflows/kaitor-diplomacy-v070-build.yml'
+  pull_request:
+    branches:
+      - 'kaitor-v0.6.4-master'
+    paths:
+      - 'projects/KaiTORDiplomacy/**'
+      - '.github/workflows/kaitor-diplomacy-v070-build.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Compile Bannerlord 1.3.15
+        shell: pwsh
+        run: |
+          dotnet build projects/KaiTORDiplomacy/src/KaiTOR_Diplomacy.csproj `
+            -c Release `
+            -p:UseBannerlordReferenceAssemblies=true `
+            --nologo
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Verify Strategic Expansion contracts
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = 'projects/KaiTORDiplomacy'
+          $src = Join-Path $root 'src'
+          $runtime = Join-Path $src 'Runtime'
+          $ui = Join-Path $src 'UI'
+          $models = Join-Path $src 'Models'
+          $dll = Join-Path $root 'build/bin/Win64_Shipping_Client/KaiTOR_Diplomacy.dll'
+          if (-not (Test-Path $dll)) { throw "Missing compiled DLL: $dll" }
+
+          $module = Get-Content (Join-Path $root 'module/SubModule.xml') -Raw
+          if ($module -notmatch '<Version value="v1\.3\.15\.70"') {
+            throw 'Launcher version must be v1.3.15.70.'
+          }
+
+          $sub = Get-Content (Join-Path $src 'SubModule.cs') -Raw
+          foreach ($forbidden in @(
+            'AddModel<AllianceModel>',
+            'AddModel<TradeAgreementModel>',
+            'new ServeAsAHirelingCampaignBehavior',
+            'new DuelBehavior',
+            'new PostBattleCampaignBehavior'
+          )) {
+            if ($sub.Contains($forbidden)) { throw "Forbidden TOR duplication/replacement: $forbidden" }
+          }
+
+          foreach ($required in @(
+            'KaiDiplomacyBehavior.cs',
+            'KaiIncomingMarriageProposalBehavior.cs',
+            'KaiNapWarGuard.cs',
+            'KaiMessengerBehavior.cs',
+            'TorHirelingBridge.cs',
+            'KaiWarExhaustionBehavior.cs',
+            'KaiTorDiplomacyModifiers.cs',
+            'KaiPeaceTermsBehavior.cs',
+            'KaiDynasticTorModifiers.cs',
+            'KaiAdvisorBehavior.cs',
+            'KaiServiceRecordBehavior.cs',
+            'KaiTorHirelingLeaveObserverPatch.cs',
+            'KaiFiefGrantBehavior.cs',
+            'KaiConquestClaimBehavior.cs',
+            'KaiThreatBehavior.cs',
+            'KaiThreatTorModifiers.cs',
+            'KaiGrievanceBehavior.cs',
+            'KaiConsoleText.cs'
+          )) {
+            if (-not (Test-Path (Join-Path $runtime $required))) {
+              throw "Missing strategic runtime: $required"
+            }
+          }
+
+          $incoming = Get-Content (Join-Path $runtime 'KaiIncomingMarriageProposalBehavior.cs') -Raw
+          if ($incoming.Contains('WeeklyTickEvent') -or $incoming.Contains('DailyTickEvent')) {
+            throw 'KaiIncomingMarriageProposalBehavior must not duplicate native periodic matchmaking.'
+          }
+          if (-not $incoming.Contains('TryQueueSpecialOffer')) {
+            throw 'Special-only KaiTOR marriage proposal entry point missing.'
+          }
+
+          $napGuard = Get-Content (Join-Path $runtime 'KaiNapWarGuard.cs') -Raw
+          foreach ($token in @(
+            'DeclareWarAction), "ApplyInternal"',
+            'FactionManager), nameof(FactionManager.DeclareWar)',
+            'NAP_WAR_GUARD_BLOCK',
+            'CausedByKingdomCreation',
+            'CausedByRebellion',
+            'CausedByClaimOnThrone'
+          )) {
+            if (-not $napGuard.Contains($token)) { throw "NAP guard contract missing: $token" }
+          }
+
+          $messenger = Get-Content (Join-Path $runtime 'KaiMessengerBehavior.cs') -Raw
+          foreach ($token in @(
+            'kaitor_messenger_v1_targets',
+            'MinimumTravelHours = 6',
+            'MaximumTravelHours = 72',
+            'MESSENGER_SENT',
+            'MESSENGER_ARRIVED',
+            'MESSENGER_CONVERSATION_OPEN',
+            'TorHirelingBridge.IsEnlisted'
+          )) {
+            if (-not $messenger.Contains($token)) { throw "Messenger contract missing: $token" }
+          }
+
+          $enc = Get-Content (Join-Path $ui 'KaiMessengerEncyclopediaPatch.cs') -Raw
+          if (-not $enc.Contains('kaitor-messenger:')) { throw 'Encyclopedia messenger hyperlink missing.' }
+          if ($enc.Contains('ScrollablePanel') -or $enc.Contains('NavigatableListPanel')) {
+            throw 'Messenger UI introduced forbidden dynamic Gauntlet widgets.'
+          }
+
+          $war = Get-Content (Join-Path $runtime 'KaiWarExhaustionBehavior.cs') -Raw
+          foreach ($token in @(
+            'kaitor_war_exhaustion_v1',
+            'GetCasualties',
+            'GetSuccessfulRaids',
+            'GetSuccessfulSieges',
+            'GetSuccessfulTownSieges',
+            'WAR_EXHAUSTION_CHANGE'
+          )) {
+            if (-not $war.Contains($token)) { throw "War Exhaustion contract missing: $token" }
+          }
+
+          $torMods = Get-Content (Join-Path $runtime 'KaiTorDiplomacyModifiers.cs') -Raw
+          if (-not $torMods.Contains('TOR_Core.Models.TORDiplomacyModel')) {
+            throw 'TOR diplomacy additive modifier target missing.'
+          }
+          if ($torMods.Contains('new TORDiplomacyModel')) {
+            throw 'TOR diplomacy model must never be replaced.'
+          }
+
+          $peace = Get-Content (Join-Path $runtime 'KaiPeaceTermsBehavior.cs') -Raw
+          foreach ($token in @(
+            'kaitor_peace_terms_v1_start_owner_clan',
+            'MakePeaceAction.Apply',
+            'GiveGoldAction.ApplyBetweenCharacters',
+            'ChangeOwnerOfSettlementAction.ApplyByBarter',
+            'PEACE_TERMS_PROPOSED',
+            'PEACE_TERMS_ACCEPTED'
+          )) {
+            if (-not $peace.Contains($token)) { throw "Peace Terms contract missing: $token" }
+          }
+          if ($peace -match '\.OwnerClan\s*=\s*[^=]') { throw 'Peace Terms must not assign settlement ownership directly.' }
+
+          $dynasty = Get-Content (Join-Path $runtime 'KaiDynasticMarriageBehavior.cs') -Raw
+          $dynastyMods = Get-Content (Join-Path $runtime 'KaiDynasticTorModifiers.cs') -Raw
+          foreach ($token in @(
+            'kaitor_dynastic_strength_v2',
+            'GetDynasticStrength',
+            'DYNASTIC_MODIFIER'
+          )) {
+            if (-not $dynasty.Contains($token)) { throw "Dynastic memory contract missing: $token" }
+          }
+          foreach ($torType in @(
+            'TOR_Core.Models.TORDiplomacyModel',
+            'TOR_Core.Models.TORAllianceModel',
+            'TOR_Core.Models.TORTradeAgreementModel'
+          )) {
+            if (-not $dynastyMods.Contains($torType)) { throw "Dynastic TOR modifier target missing: $torType" }
+          }
+          if ($dynastyMods.Contains('new TORDiplomacyModel') -or
+              $dynastyMods.Contains('new TORAllianceModel') -or
+              $dynastyMods.Contains('new TORTradeAgreementModel')) {
+            throw 'Dynastic system must not replace TOR diplomatic models.'
+          }
+
+          $advisor = Get-Content (Join-Path $runtime 'KaiAdvisorBehavior.cs') -Raw
+          if (-not $advisor.Contains('GetAdvice')) { throw 'Council analysis entry point missing.' }
+
+          $hireling = Get-Content (Join-Path $runtime 'TorHirelingBridge.cs') -Raw
+          $service = Get-Content (Join-Path $runtime 'KaiServiceRecordBehavior.cs') -Raw
+          foreach ($token in @('GetEnlistingLord','GetDurationDays','GetCareerId')) {
+            if (-not $hireling.Contains($token)) { throw "TOR Hireling bridge missing: $token" }
+          }
+          foreach ($token in @(
+            'kaitor_service_v1_lord',
+            'kaitor_service_v1_pending_desertion',
+            'SERVICE_RECORD_START',
+            'SERVICE_RECORD_END',
+            'desertion'
+          )) {
+            if (-not $service.Contains($token)) { throw "Service Record contract missing: $token" }
+          }
+          $hirelingObserver = Get-Content (Join-Path $runtime 'KaiTorHirelingLeaveObserverPatch.cs') -Raw
+          if (-not $hirelingObserver.Contains('LeaveEnlistingParty') -or
+              -not $hirelingObserver.Contains('MarkLeavingService')) {
+            throw 'TOR hireling desertion observer contract missing.'
+          }
+
+          $realm = Get-Content (Join-Path $runtime 'KaiRealmHouseGrowthBehavior.cs') -Raw
+          if (-not $realm.Contains('TryElevateByPlayer')) { throw 'Realm House elevation entry point missing.' }
+          if (-not $realm.Contains('Clan.CreateCompanionToLordClan')) { throw 'Realm House elevation must use native clan factory.' }
+          if (-not $realm.Contains('REALM_HOUSE_ELEVATED')) { throw 'Realm House elevation log missing.' }
+
+          $fief = Get-Content (Join-Path $runtime 'KaiFiefGrantBehavior.cs') -Raw
+          if (-not $fief.Contains('KingdomManager.GiftSettlementOwnership')) { throw 'Fief grant must use native KingdomManager.' }
+          if ($fief -match '\.OwnerClan\s*=\s*[^=]') { throw 'Fief grant must not assign OwnerClan directly.' }
+          if (-not $fief.Contains('FIEF_GRANTED')) { throw 'Fief grant log missing.' }
+
+          $claim = Get-Content (Join-Path $runtime 'KaiConquestClaimBehavior.cs') -Raw
+          foreach ($token in @(
+            'kaitor_conquest_claim_v1_clan',
+            'SettlementClaimantDecision',
+            'CalculateMeritOfOutcome',
+            'CONQUEST_CLAIM_CREATED'
+          )) {
+            if (-not $claim.Contains($token)) { throw "Conquest Claim contract missing: $token" }
+          }
+          if ($claim.Contains('ChangeOwnerOfSettlementAction.Apply')) {
+            throw 'Conquest Claim must not grant settlement ownership directly.'
+          }
+
+          $threat = Get-Content (Join-Path $runtime 'KaiThreatBehavior.cs') -Raw
+          $threatMods = Get-Content (Join-Path $runtime 'KaiThreatTorModifiers.cs') -Raw
+          foreach ($token in @(
+            'kaitor_threat_v1_base',
+            'CurrentTotalStrength',
+            'KingdomDestroyedEvent',
+            'THREAT_CHANGE',
+            'RecordTreatyBreach'
+          )) {
+            if (-not $threat.Contains($token)) { throw "Threat contract missing: $token" }
+          }
+          if (-not $threatMods.Contains('TOR_Core.Models.TORDiplomacyModel')) {
+            throw 'Threat TOR diplomacy modifier target missing.'
+          }
+
+          $grievance = Get-Content (Join-Path $runtime 'KaiGrievanceBehavior.cs') -Raw
+          foreach ($token in @(
+            'kaitor_grievance_v1_type',
+            'conquest_claim_denied',
+            'nap_breach',
+            'dynastic_promise_breach',
+            'relative_executed',
+            'landless_strong_house',
+            'GRIEVANCE_CREATED',
+            'GRIEVANCE_RESOLVED'
+          )) {
+            if (-not $grievance.Contains($token)) { throw "Grievance contract missing: $token" }
+          }
+          if ($grievance.Contains('CreateKingdom') -or $grievance.Contains('ChangeKingdomAction.Apply')) {
+            throw 'Grievance phase must not create factions, secession or civil war.'
+          }
+
+          $commands = Get-Content (Join-Path $runtime 'KaiDiplomacyCommands.cs') -Raw
+          foreach ($command in @(
+            'messenger_status','nap_guard_status','war_status','dynasty_status',
+            'service_status','realm_status','threat_status','grievance_status'
+          )) {
+            if (-not $commands.Contains('CommandLineArgumentFunction("' + $command + '"')) {
+              throw "Strategic diagnostic command missing: $command"
+            }
+          }
+
+          $live = Get-Content (Join-Path $runtime 'KaiLiveTestBehavior.cs') -Raw
+          foreach ($section in @(
+            'section=messenger','section=war_exhaustion','section=peace_terms',
+            'section=dynastic','section=service','section=fief_grant',
+            'section=conquest_claim','section=threat','section=grievance'
+          )) {
+            if (-not $live.Contains($section)) { throw "Live snapshot section missing: $section" }
+          }
+
+          # Preserve family lifecycle/population from the prior release.
+          $dawi = Get-Content (Join-Path $runtime 'KaiDawiWomenBehavior.cs') -Raw
+          $vamp = Get-Content (Join-Path $runtime 'KaiVampirePopulationBehavior.cs') -Raw
+          $green = Get-Content (Join-Path $runtime 'KaiGreenskinPopulationBehavior.cs') -Raw
+          if ($dawi -notmatch 'AutomaticPopulationEnabled\s*=\s*true') { throw 'Dawi auto population regressed.' }
+          if ($vamp -notmatch 'AutomaticPopulationEnabled\s*=\s*true') { throw 'Vampire auto population regressed.' }
+          if ($green -notmatch 'AutomaticPopulationEnabled\s*=\s*true') { throw 'Greenskin auto population regressed.' }
+
+          $movie = Get-Content (Join-Path $root 'module/GUI/Prefabs/KaiTORDiplomacyHubUIMovie.xml') -Raw
+          foreach ($bad in @('ScrollablePanel','NavigatableListPanel','ItemTemplate','ScrollbarWidget')) {
+            if ($movie.Contains("<$bad")) { throw "Crash-prone Diplomacy widget returned: $bad" }
+          }
+
+          # RU/ENG parity.
+          $enPath = Join-Path $root 'module/ModuleData/Languages/std_module_strings_xml.xml'
+          $ruPath = Join-Path $root 'module/ModuleData/Languages/RU/std_module_strings_xml.xml'
+          [xml]$en = Get-Content $enPath -Raw
+          [xml]$ru = Get-Content $ruPath -Raw
+          $enIds = @($en.base.strings.string | ForEach-Object { [string]$_.id })
+          $ruIds = @($ru.base.strings.string | ForEach-Object { [string]$_.id })
+          foreach ($id in $enIds) {
+            if ($ruIds -notcontains $id) { throw "RU localization missing: $id" }
+          }
+          foreach ($id in $ruIds) {
+            if ($enIds -notcontains $id) { throw "ENG localization missing: $id" }
+          }
+
+          if (-not $commands.Contains('KaiConsoleText.Safe')) { throw 'ASCII-safe console regression.' }
+
+          Write-Host 'KaiTOR Strategic Expansion contracts: PASS'
+
+      - name: Assemble test module
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = 'projects/KaiTORDiplomacy'
+          $package = 'artifact/KaiTOR_Diplomacy'
+          $bin = Join-Path $package 'bin/Win64_Shipping_Client'
+          New-Item -ItemType Directory -Path $bin -Force | Out-Null
+          Copy-Item (Join-Path $root 'module/*') $package -Recurse -Force
+          Copy-Item (Join-Path $root 'build/bin/Win64_Shipping_Client/KaiTOR_Diplomacy.dll') (Join-Path $bin 'KaiTOR_Diplomacy.dll') -Force
+          $pdb = Join-Path $root 'build/bin/Win64_Shipping_Client/KaiTOR_Diplomacy.pdb'
+          if (Test-Path $pdb) { Copy-Item $pdb (Join-Path $bin 'KaiTOR_Diplomacy.pdb') -Force }
+
+      - name: Upload test module
+        uses: actions/upload-artifact@v4
+        with:
+          name: KaiTOR-Diplomacy-v1.3.15.70-Strategic
+          path: artifact/KaiTOR_Diplomacy
+          if-no-files-found: error
+          retention-days: 30
