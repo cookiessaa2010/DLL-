@@ -7,6 +7,10 @@ namespace KaiTOR.Diplomacy.Runtime;
 
 public sealed class KaiFamilyDiagnosticsBehavior : CampaignBehaviorBase
 {
+    private int _marriagesThisWeek;
+    private int _conceptionsThisWeek;
+    private int _birthsThisWeek;
+    private int _stillbornThisWeek;
     public override void RegisterEvents()
     {
         CampaignEvents.OnSessionLaunchedEvent.AddNonSerializedListener(this, OnSessionLaunched);
@@ -28,11 +32,12 @@ public sealed class KaiFamilyDiagnosticsBehavior : CampaignBehaviorBase
         WriteGlobalSummary("SESSION_SUMMARY");
     }
 
-    private static void OnBeforeHeroesMarried(Hero first, Hero second, bool showNotification)
+    private void OnBeforeHeroesMarried(Hero first, Hero second, bool showNotification)
     {
         if (first == null || second == null)
             return;
 
+        _marriagesThisWeek++;
         KaiFamilyLog.Write(
             "MARRIAGE_SUCCESS",
             $"first={Id(first)}; firstName={Name(first)}; firstClan={ClanId(first)}; firstKingdom={KingdomId(first)}; firstCulture={CultureId(first)}; firstRace={Race(first)}; " +
@@ -40,18 +45,21 @@ public sealed class KaiFamilyDiagnosticsBehavior : CampaignBehaviorBase
             $"biologicalChildren={(Models.TorFamilySafety.CanUseVanillaPregnancy(first, second) ? "allowed" : "blocked")}");
     }
 
-    private static void OnChildConceived(Hero mother)
+    private void OnChildConceived(Hero mother)
     {
         var father = mother?.Spouse;
+        _conceptionsThisWeek++;
         KaiFamilyLog.Write(
             "PREGNANCY_CONCEIVED",
             $"mother={Id(mother)}; motherName={Name(mother)}; motherClan={ClanId(mother)}; motherKingdom={KingdomId(mother)}; motherCulture={CultureId(mother)}; motherRace={Race(mother)}; " +
             $"father={Id(father)}; fatherName={Name(father)}; fatherClan={ClanId(father)}; fatherKingdom={KingdomId(father)}; fatherCulture={CultureId(father)}; fatherRace={Race(father)}");
     }
 
-    private static void OnGivenBirth(Hero mother, List<Hero> aliveChildren, int stillbornCount)
+    private void OnGivenBirth(Hero mother, List<Hero> aliveChildren, int stillbornCount)
     {
         var father = mother?.Spouse;
+        _birthsThisWeek += aliveChildren?.Count(x => x != null) ?? 0;
+        _stillbornThisWeek += Math.Max(0, stillbornCount);
         if (aliveChildren != null)
         {
             foreach (var child in aliveChildren.Where(x => x != null))
@@ -73,7 +81,7 @@ public sealed class KaiFamilyDiagnosticsBehavior : CampaignBehaviorBase
     private static void OnDailyTick()
         => WriteGlobalSummary("DAILY_SUMMARY");
 
-    private static void OnWeeklyTick()
+    private void OnWeeklyTick()
     {
         if (Campaign.Current == null)
             return;
@@ -102,7 +110,16 @@ public sealed class KaiFamilyDiagnosticsBehavior : CampaignBehaviorBase
                 $"kingdom={kingdom.StringId}; name={kingdom.Name}; clans={kingdom.Clans.Count}; aliveHeroes={heroes.Length}; marriedPairs={marriedPairs}; pregnant={pregnant}; children={children}; eligibleSingles={eligibleSingles}");
         }
 
+        KaiFamilyLog.Write(
+            "WEEKLY_EVENTS",
+            $"newMarriages={_marriagesThisWeek}; conceptions={_conceptionsThisWeek}; births={_birthsThisWeek}; stillborn={_stillbornThisWeek}");
+
         WriteGlobalSummary("WEEKLY_SUMMARY");
+
+        _marriagesThisWeek = 0;
+        _conceptionsThisWeek = 0;
+        _birthsThisWeek = 0;
+        _stillbornThisWeek = 0;
     }
 
     private static void WriteGlobalSummary(string stage)
