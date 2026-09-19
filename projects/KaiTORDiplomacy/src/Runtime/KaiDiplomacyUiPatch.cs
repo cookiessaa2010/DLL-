@@ -54,13 +54,13 @@ internal static class KaiDiplomacyUiPatch
         if (vm?.Actions == null)
             return;
 
-        const string actionName = "Открыть панель KaiTOR";
+        const string actionName = "Дипломатия и династия";
         if (vm.Actions.Any(x => string.Equals(x?.Name, actionName, StringComparison.Ordinal)))
             return;
 
         vm.Actions.Add(new KingdomDiplomacyProposalActionItemVM(
             new TextObject(actionName),
-            new TextObject("Открыть сводную панель договоров, династии и состояния владений KaiTOR."),
+            new TextObject("Просмотреть договоры, состояние дома и владений."),
             0,
             true,
             TextObject.GetEmpty(),
@@ -73,8 +73,8 @@ internal static class KaiDiplomacyUiPatch
                 }
 
                 ShowMessage(
-                    "Панель KaiTOR",
-                    "Панель уже открыта или не удалось открыть её сейчас. Событие записано в KaiTOR.log.");
+                    "Дипломатия и династия",
+                    "Этот раздел сейчас недоступен.");
                 KaiRuntimeLog.Write("DIPLOMACY_DASHBOARD_FAILED", $"target={target?.StringId ?? "none"}");
             }));
     }
@@ -288,7 +288,7 @@ internal static class KaiDiplomacyUiPatch
             KaiRuntimeLog.Exception("DIPLOMACY_UI_FAILED", ex, "stage=force_decision");
             ShowMessage(
                 "Решение не открылось",
-                "Предложение сохранено в журнале ошибок. Откройте раздел решений королевства и проверьте, было ли оно добавлено.");
+                "Не удалось открыть решение автоматически. Проверьте раздел решений королевства.");
         }
     }
 
