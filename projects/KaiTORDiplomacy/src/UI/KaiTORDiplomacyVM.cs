@@ -24,7 +24,6 @@ public sealed class KaiTORDiplomacyVM : ViewModel, IDisposable
     }
 
     public event Action CloseRequested;
-    public event Action CultureRequested;
 
     [DataSourceProperty] public string TitleText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_title", "Diplomacy and Dynasty");
     [DataSourceProperty] public string SubtitleText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_subtitle", "Houses, treaties and the fate of your realm.");
@@ -38,11 +37,9 @@ public sealed class KaiTORDiplomacyVM : ViewModel, IDisposable
         "kaitor_diplomacy_ui_duration",
         "Duration: {DAYS} days",
         ("DAYS", _selectedDurationDays));
-    [DataSourceProperty] public string OpenCultureText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_open_culture", "Change settlement culture");
     [DataSourceProperty] public string SelectedRealmHeaderText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_selected_realm", "Selected realm");
     [DataSourceProperty] public string FamilyHeaderText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_family_header", "House and dynasty");
     [DataSourceProperty] public string PopulationHeaderText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_population_header", "Realm");
-    [DataSourceProperty] public string CultureHeaderText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_culture_header", "Settlement");
 
     [DataSourceProperty]
     public string OverviewText
@@ -161,27 +158,6 @@ public sealed class KaiTORDiplomacyVM : ViewModel, IDisposable
                 ("LORDS", lords),
                 ("MARRIED", marriedPairs),
                 ("PREGNANT", pregnant));
-        }
-    }
-
-    [DataSourceProperty]
-    public string CultureSummaryText
-    {
-        get
-        {
-            var settlement = TaleWorlds.CampaignSystem.Settlements.Settlement.CurrentSettlement;
-            if (settlement == null)
-                return KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_no_settlement", "No settlement is currently open.");
-
-            var owner = settlement.OwnerClan?.Name?.ToString() ?? KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_none", "None");
-            var culture = settlement.Culture?.Name?.ToString() ?? KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_none", "None");
-
-            return KaiTORDiplomacyUiText.Format(
-                "kaitor_diplomacy_ui_culture_format",
-                "Settlement: {SETTLEMENT}\nOwner: {OWNER}\nCurrent nationality: {CULTURE}",
-                ("SETTLEMENT", settlement.Name),
-                ("OWNER", owner),
-                ("CULTURE", culture));
         }
     }
 
@@ -375,12 +351,6 @@ public sealed class KaiTORDiplomacyVM : ViewModel, IDisposable
         Refresh();
     }
 
-    public void ActionOpenCulture()
-    {
-        if (_disposed) return;
-        CultureRequested?.Invoke();
-    }
-
     public void ActionClose()
     {
         if (_disposed) return;
@@ -479,7 +449,6 @@ public sealed class KaiTORDiplomacyVM : ViewModel, IDisposable
         OnPropertyChanged(nameof(SelectedKingdomText));
         OnPropertyChanged(nameof(FamilySummaryText));
         OnPropertyChanged(nameof(PopulationSummaryText));
-        OnPropertyChanged(nameof(CultureSummaryText));
     }
 
     private void NotifyActionAvailability()
