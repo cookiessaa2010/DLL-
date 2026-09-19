@@ -210,7 +210,11 @@ internal static class KaiDiplomacyUiPatch
                 () =>
                 {
                     var source = Clan.PlayerClan?.Kingdom;
-                    if (source == null) return;
+                    if (source == null)
+                    {
+                        ShowMessage("Разрыв пакта недоступен", "Ваш клан больше не входит в состав державы.");
+                        return;
+                    }
                     if (Clan.PlayerClan.Influence < KaiDiplomacyBehavior.NapBreakInfluenceCost)
                     {
                         ShowMessage("Недостаточно влияния", $"Требуется {KaiDiplomacyBehavior.NapBreakInfluenceCost} влияния.");
