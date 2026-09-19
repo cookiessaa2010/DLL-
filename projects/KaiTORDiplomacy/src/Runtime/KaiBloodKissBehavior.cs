@@ -3,6 +3,7 @@ using KaiTOR.Diplomacy.Models;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.Core;
+using TaleWorlds.Library;
 using TaleWorlds.ObjectSystem;
 
 namespace KaiTOR.Diplomacy.Runtime;
@@ -291,6 +292,7 @@ public sealed class KaiBloodKissBehavior : CampaignBehaviorBase
         if (!CanShowBloodKissOption() || target == null || !IsTargetMortalHuman())
         {
             KaiRuntimeLog.Write("BLOOD_KISS_BLOCKED", $"target={target?.StringId ?? "null"}; reason=stale_or_ineligible");
+            ShowResult("Поцелуй крови не применён: цель больше недоступна.");
             return;
         }
 
@@ -299,6 +301,7 @@ public sealed class KaiBloodKissBehavior : CampaignBehaviorBase
         if (!TorProfessionEffectBridge.ApplyBloodKissConversion(target, out var error))
         {
             KaiRuntimeLog.Write("BLOOD_KISS_BLOCKED", $"target={target.StringId}; reason=conversion_failed; error={error}");
+            ShowResult("Обращение не завершилось. Причина записана в KaiTOR.log.");
             return;
         }
 
@@ -306,6 +309,8 @@ public sealed class KaiBloodKissBehavior : CampaignBehaviorBase
         KaiRuntimeLog.Write(
             "BLOOD_KISS_SUCCESS",
             $"source={Hero.MainHero.StringId}; target={target.StringId}; race={target.CharacterObject?.Race}; career={TorProfessionEffectBridge.GetCurrentCareerId(target) ?? "none"}; cooldown={BloodKissCooldownDays}d");
+
+        ShowResult($"{target.Name} получил{(target.IsFemale ? "а" : string.Empty)} поцелуй крови.");
     }
 
     private void TryRecruitTrollWarrior()
@@ -319,6 +324,7 @@ public sealed class KaiBloodKissBehavior : CampaignBehaviorBase
             KaiRuntimeLog.Write(
                 "BLOOD_KISS_BLOCKED",
                 $"target={targetHero?.StringId ?? targetCharacter?.StringId ?? "null"}; reason=troll_stale_or_ineligible");
+            ShowResult("Вербовка тролля не выполнена: цель больше недоступна.");
             return;
         }
 
@@ -330,6 +336,7 @@ public sealed class KaiBloodKissBehavior : CampaignBehaviorBase
             KaiRuntimeLog.Write(
                 "BLOOD_KISS_BLOCKED",
                 $"target={targetHero?.StringId ?? targetCharacter?.StringId ?? "null"}; reason=troll_template_or_party_missing");
+            ShowResult("Вербовка тролля не выполнена. Причина записана в KaiTOR.log.");
             return;
         }
 
@@ -341,7 +348,12 @@ public sealed class KaiBloodKissBehavior : CampaignBehaviorBase
         KaiRuntimeLog.Write(
             "TROLL_RECRUIT",
             $"source={Hero.MainHero.StringId}; conversationTarget={targetHero?.StringId ?? targetCharacter?.StringId ?? "troop"}; troop={TrollWarriorTemplateId}; cooldown={BloodKissCooldownDays}d");
+
+        ShowResult("Тролль подчинился и добавлен в ваш отряд.");
     }
+
+    private static void ShowResult(string text)
+        => InformationManager.DisplayMessage(new InformationMessage(text ?? string.Empty));
 
     private static void LogBlocked(string reason)
     {
