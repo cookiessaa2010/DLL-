@@ -45,14 +45,23 @@ public sealed class KaiPregnancyModel : PregnancyModel
 
         // Biology and social marriage are intentionally separate. A pair can be a valid
         // family while still being excluded from Bannerlord's offspring generator.
-        if (!TorFamilySafety.CanUseVanillaPregnancy(hero, spouse))
+        var blockReason = TorFamilySafety.GetVanillaPregnancyBlockReason(hero, spouse);
+        if (blockReason != null)
         {
-            LogOncePerDay("PREGNANCY_BLOCKED", hero, spouse, "biological_safety_gate");
+            LogOncePerDay("PREGNANCY_BLOCKED", hero, spouse, $"reason={blockReason}");
             return 0f;
         }
 
         if (!KaiRaceLifecycle.UsesCustomFertility(hero))
-            return _baseModel.GetDailyChanceOfPregnancyForHero(hero);
+        {
+            var baseChance = Math.Max(0f, _baseModel.GetDailyChanceOfPregnancyForHero(hero));
+            LogOncePerDay(
+                baseChance > 0f ? "PREGNANCY_ALLOWED" : "PREGNANCY_BLOCKED",
+                hero,
+                spouse,
+                $"base_model={UnderlyingModelTypeName}; chance={baseChance:0.000000}");
+            return baseChance;
+        }
 
         var chance = GetRaceAwareDailyChance(hero);
         LogOncePerDay(
@@ -109,9 +118,11 @@ public sealed class KaiPregnancyModel : PregnancyModel
             if (!_loggedThisDay.Add(key))
                 return;
 
-            KaiRuntimeLog.Write(
-                stage,
-                $"hero={hero?.StringId ?? "null"}; spouse={spouse?.StringId ?? "null"}; {details}");
+            var line = $"hero={hero?.StringId ?? "null"}; spouse={spouse?.StringId ?? "null"}; " +
+                       $"heroClan={hero?.Clan?.StringId ?? "none"}; spouseClan={spouse?.Clan?.StringId ?? "none"}; " +
+                       $"heroCulture={hero?.Culture?.StringId ?? "none"}; spouseCulture={spouse?.Culture?.StringId ?? "none"}; {details}";
+            KaiRuntimeLog.Write(stage, line);
+            KaiFamilyLog.Write(stage, line);
         }
         catch
         {
