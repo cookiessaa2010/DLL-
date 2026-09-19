@@ -119,13 +119,22 @@ public sealed class KaiLiveTestBehavior : CampaignBehaviorBase
         var messenger = Campaign.Current.GetCampaignBehavior<KaiMessengerBehavior>();
         var warExhaustion = Campaign.Current.GetCampaignBehavior<KaiWarExhaustionBehavior>();
         var peaceTerms = Campaign.Current.GetCampaignBehavior<KaiPeaceTermsBehavior>();
+        var advisor = Campaign.Current.GetCampaignBehavior<KaiAdvisorBehavior>();
+        var service = Campaign.Current.GetCampaignBehavior<KaiServiceRecordBehavior>();
+        var fiefGrant = Campaign.Current.GetCampaignBehavior<KaiFiefGrantBehavior>();
+        var claims = Campaign.Current.GetCampaignBehavior<KaiConquestClaimBehavior>();
+        var threat = Campaign.Current.GetCampaignBehavior<KaiThreatBehavior>();
+        var grievances = Campaign.Current.GetCampaignBehavior<KaiGrievanceBehavior>();
 
         yield return
             $"section=behaviors; diplomacy={State(diplomacy != null, diplomacy?.RuntimeEnabled == true)}; " +
             $"family={Present(family)}; culture={Present(culture)}; dynastic={Present(dynastic)}; " +
             $"incomingMarriage={Present(incoming)}; education={Present(education)}; bloodKiss={Present(bloodKiss)}; " +
             $"mercy={Present(mercy)}; dawi={Present(dawi)}; vampire={Present(vampire)}; " +
-            $"greenskin={Present(greenskin)}; realmHouse={Present(realmHouse)}; messenger={Present(messenger)}; warExhaustion={Present(warExhaustion)}; peaceTerms={Present(peaceTerms)}";
+            $"greenskin={Present(greenskin)}; realmHouse={Present(realmHouse)}; messenger={Present(messenger)}; " +
+            $"warExhaustion={Present(warExhaustion)}; peaceTerms={Present(peaceTerms)}; advisor={Present(advisor)}; " +
+            $"service={Present(service)}; fiefGrant={Present(fiefGrant)}; claims={Present(claims)}; " +
+            $"threat={Present(threat)}; grievances={Present(grievances)}";
 
         yield return
             $"section=ui; movie={KaiTORDiplomacyScreen.MovieName}; layer={KaiTORDiplomacyScreen.LayerName}; " +
@@ -149,6 +158,48 @@ public sealed class KaiLiveTestBehavior : CampaignBehaviorBase
         {
             foreach (var line in peaceTerms.DescribeStatus())
                 yield return "section=peace_terms; " + line;
+        }
+
+        if (dynastic != null)
+        {
+            foreach (var line in dynastic.DescribeDynasticBonds())
+                yield return "section=dynastic; " + line;
+        }
+
+        if (advisor != null)
+        {
+            foreach (var line in advisor.GetAdvice().Take(12))
+                yield return "section=council; " + line;
+        }
+
+        if (service != null)
+        {
+            foreach (var line in service.DescribeStatus())
+                yield return "section=service; " + line;
+        }
+
+        if (fiefGrant != null)
+        {
+            foreach (var line in fiefGrant.DescribeStatus())
+                yield return "section=fief_grant; " + line;
+        }
+
+        if (claims != null)
+        {
+            foreach (var line in claims.DescribeStatus())
+                yield return "section=conquest_claim; " + line;
+        }
+
+        if (threat != null)
+        {
+            foreach (var line in threat.DescribeStatus())
+                yield return "section=threat; " + line;
+        }
+
+        if (grievances != null)
+        {
+            foreach (var line in grievances.DescribeStatus())
+                yield return "section=grievance; " + line;
         }
 
         if (diplomacy != null)
