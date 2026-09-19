@@ -1,4 +1,4 @@
-KaiTOR Co-op v1.3.15.10
+KaiTOR Co-op v1.3.15.11
 ТЕСТОВАЯ СБОРКА — Bannerlord 1.3.15.110062 + The Old Realms 1.3.15
 Языки: Русский / English
 Максимум одновременно: 4 игрока
