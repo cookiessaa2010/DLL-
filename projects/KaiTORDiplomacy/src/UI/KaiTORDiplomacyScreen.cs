@@ -1,6 +1,7 @@
 using KaiTOR.Diplomacy.Runtime;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.Engine.GauntletUI;
+using TaleWorlds.Library;
 using TaleWorlds.ScreenSystem;
 
 namespace KaiTOR.Diplomacy.UI;
@@ -118,15 +119,15 @@ public sealed class KaiTORDiplomacyScreen : ScreenBase
 
     private static void HandleCulture()
     {
-        ScreenManager.PopScreen();
-
         var behavior = Campaign.Current?.GetCampaignBehavior<KaiCultureAssimilationBehavior>();
         if (behavior == null)
         {
             KaiRuntimeLog.Write("GAUNTLET_UI_ROUTE_FAILED", "target=culture; reason=behavior_missing");
+            InformationManager.DisplayMessage(new InformationMessage("Смена культуры сейчас недоступна. Причина записана в KaiTOR.log."));
             return;
         }
 
+        ScreenManager.PopScreen();
         behavior.OpenCultureChangeDialog();
         KaiRuntimeLog.Write("GAUNTLET_UI_ROUTE", "target=culture");
     }
