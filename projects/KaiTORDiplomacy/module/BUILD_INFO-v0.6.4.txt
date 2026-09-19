@@ -36,3 +36,12 @@ Marriage: lore-capable peoples restored; no upper marriage-age cap
 Pregnancy: mortal humans human-like; Dawi/Elves race-aware; Vampire=Blood Kiss; Greenskin=spores; Undead=OFF
 Dawi automatic women population: ON, bounded quota/cooldown
 LiveFix1 UI/console fixes carried forward
+
+
+DiplomacyFinish hardening:
+- Safe functional Gauntlet dashboard replaces the crash-prone dynamic tab visibility/disabled binding layout.
+- No ScrollablePanel, NavigatableListPanel, ItemTemplate, custom scrollbar, IsVisible binding or IsDisabled binding in the main movie.
+- Realm selection remains native MultiSelectionInquiry; family/culture route into stable native GameMenu workflows.
+- Realm House immediate Lord promotion before postcondition is retained from current master.
+- KaiTOR Co-op UI identifiers/services remain isolated.
+- Requires final in-game live acceptance before release promotion.
