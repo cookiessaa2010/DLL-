@@ -308,7 +308,8 @@ public sealed class KaiMessengerBehavior : CampaignBehaviorBase
                 "start",
                 KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_messenger_start", "Start conversation"),
                 null,
-                true),
+                true,
+                null),
             new(
                 "later",
                 KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_messenger_later", "Later"),
