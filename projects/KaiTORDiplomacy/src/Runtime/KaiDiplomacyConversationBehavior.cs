@@ -2,6 +2,8 @@ using System;
 using System.Linq;
 using KaiTOR.Diplomacy.Decisions;
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.Core;
+using TaleWorlds.Library;
 using TaleWorlds.Localization;
 
 namespace KaiTOR.Diplomacy.Runtime;
@@ -124,7 +126,11 @@ public sealed class KaiDiplomacyConversationBehavior : CampaignBehaviorBase
         if (!diplomacy.CanCreateNonAggressionPact(source, target, days, out var reason) ||
             Clan.PlayerClan.Influence < KaiDiplomacyBehavior.NapProposalInfluenceCost)
         {
+            if (string.IsNullOrWhiteSpace(reason) && Clan.PlayerClan.Influence < KaiDiplomacyBehavior.NapProposalInfluenceCost)
+                reason = $"Недостаточно влияния: требуется {KaiDiplomacyBehavior.NapProposalInfluenceCost}.";
+
             KaiRuntimeLog.Write("DIPLOMACY_DIALOGUE_FAILED", $"target={target.StringId}; days={days}; reason={reason}");
+            ShowQuick(string.IsNullOrWhiteSpace(reason) ? "Предложение сейчас недоступно." : reason);
             return;
         }
 
@@ -134,5 +140,17 @@ public sealed class KaiDiplomacyConversationBehavior : CampaignBehaviorBase
         KaiRuntimeLog.Write(
             "DIPLOMACY_DIALOGUE_NAP",
             $"source={source.StringId}; target={target.StringId}; days={days}; cost={KaiDiplomacyBehavior.NapProposalInfluenceCost}");
+
+        ShowQuick($"Предложение пакта с {target.Name} на {days} дней вынесено на совет.");
+    }
+
+    private static void ShowQuick(string text)
+    {
+        MBInformationManager.AddQuickInformation(
+            new TextObject(text ?? string.Empty),
+            3500,
+            null,
+            null,
+            string.Empty);
     }
 }
