@@ -150,9 +150,14 @@ public static class KaiDiplomacyCommands
     {
         if (arguments.Count != 0) return "Usage: kaitor_diplomacy.war_status";
         var behavior = Campaign.Current?.GetCampaignBehavior<KaiWarExhaustionBehavior>();
-        return behavior == null
-            ? "KaiTOR War Exhaustion is not loaded."
-            : C(string.Join("\n", behavior.DescribeWars()));
+        var peace = Campaign.Current?.GetCampaignBehavior<KaiPeaceTermsBehavior>();
+        if (behavior == null && peace == null)
+            return "KaiTOR war systems are not loaded.";
+
+        var lines = new List<string>();
+        if (behavior != null) lines.AddRange(behavior.DescribeWars());
+        if (peace != null) lines.AddRange(peace.DescribeStatus());
+        return C(string.Join("\n", lines));
     }
 
     [CommandLineFunctionality.CommandLineArgumentFunction("racial_status", "kaitor_diplomacy")]
