@@ -1,11 +1,11 @@
-# KaiTOR Diplomacy & Dawi — v0.6.4 FULL-Test
+# KaiTOR Diplomacy — v1.3.15.70 Strategic FULL-Test
 
 Target:
 - Mount & Blade II: Bannerlord 1.3.15.110062
 - The Old Realms 1.3.15
 - Module id: `KaiTOR_Diplomacy`
 
-This module is additive around The Old Realms. TOR keeps ownership of its war/peace/alliance/trade rules and lore restrictions; KaiTOR adds non-aggression pacts, family and dynastic workflows, race-aware family simulation, settlement nationality conversion, bounded racial population systems and safe realm-house growth.
+This module is additive around The Old Realms. TOR keeps ownership of war/peace/alliance/trade, ServeAsAHireling, races, religions, duels, books, post-battle systems and assimilation. KaiTOR adds non-aggression pacts, family/dynastic simulation, messenger diplomacy, war exhaustion, negotiated peace terms, political memory, Council analysis, Service Record, Realm House elevation, fief grants, conquest claims, Threat and Grievances.
 
 ## RU — что входит
 
@@ -103,6 +103,20 @@ Diplomacy и Co-op технически разделены:
 - Settlement nationality conversion.
 - Mercy relation reward on deliberate lord release.
 
+### Strategic Diplomacy Expansion
+- NAP hard guard covers direct TOR/vanilla war paths; mandatory kingdom-creation/rebellion/claim wars use a logged forced-breach path.
+- Messenger: known-hero encyclopedia action, 6–72h travel, moving-target tracking, persisted queue, Later/Recall and real ConversationMission.
+- War Exhaustion: 0–100 per side from native war statistics and campaign events; additive TOR peace modifier only.
+- Peace Terms: status quo, reparations, return of a captured fief, peace + 90-day NAP through native actions.
+- Dynastic Diplomacy 2.0: persisted ruling-house political memory modifying TOR alliance/trade/war/peace scores without replacing TOR models.
+- Council: read-only strategic analysis.
+- TOR Service Record: observes existing ServeAsAHireling, including TOR desertion semantics.
+- Realm House Promotion: ruler can elevate an eligible companion through the existing native clan factory.
+- Grant Fief: native KingdomManager gifting frontend.
+- Right of Conquest: temporary claimant merit bonus inside native SettlementClaimantDecision.
+- Threat: expansion reputation modifying TOR diplomatic scores; no coalition or second war AI.
+- Grievances: persisted political memory only; no civil-war engine in this version.
+
 ## Diagnostics
 
 ```text
@@ -121,6 +135,17 @@ kaitor_diplomacy.settlement
 kaitor_diplomacy.kingdoms
 kaitor_diplomacy.ledger
 kaitor_diplomacy.inspect <kingdomA> <kingdomB>
+kaitor_diplomacy.messenger_status
+kaitor_diplomacy.nap_guard_status
+kaitor_diplomacy.war_status
+kaitor_diplomacy.dynasty_status
+kaitor_diplomacy.service_status
+kaitor_diplomacy.realm_status
+kaitor_diplomacy.threat_status
+kaitor_diplomacy.grievance_status
+kaitor_diplomacy.live_test_start
+kaitor_diplomacy.live_test_snapshot
+kaitor_diplomacy.live_test_path
 ```
 
 ## Release status
@@ -130,4 +155,4 @@ kaitor_diplomacy.inspect <kingdomA> <kingdomB>
 - LIVE TEST: still required in the real TOR campaign
 - Dawi automatic population: ON, bounded by per-clan quota/cooldown; still requires live observation for balance/save integrity
 
-See `module/TEST-v0.6.4-RU.md` for the live-test checklist.
+See `module/TEST-v0.7.0-RU.md` for the Strategic Expansion live-test checklist.
