@@ -171,6 +171,16 @@ public sealed class KaiMessengerBehavior : CampaignBehaviorBase
             reason = KaiTORDiplomacyUiText.Get("kaitor_diplomacy_messenger_invalid_character", "The target has no valid campaign character.");
             return false;
         }
+        if (target.IsPrisoner)
+        {
+            reason = KaiTORDiplomacyUiText.Get("kaitor_diplomacy_messenger_prisoner", "A messenger cannot arrange a formal audience with a prisoner.");
+            return false;
+        }
+        if (target.PartyBelongedTo == MobileParty.MainParty)
+        {
+            reason = KaiTORDiplomacyUiText.Get("kaitor_diplomacy_messenger_same_party", "This hero is already travelling with you.");
+            return false;
+        }
         if (Campaign.Current.Models.InformationRestrictionModel != null &&
             !Campaign.Current.Models.InformationRestrictionModel.DoesPlayerKnowDetailsOf(target))
         {
@@ -426,9 +436,18 @@ public sealed class KaiMessengerBehavior : CampaignBehaviorBase
         try
         {
             Campaign.Current.CurrentConversationContext = ConversationContext.Default;
-            Campaign.Current.ConversationManager.OpenMapConversation(
-                new ConversationCharacterData(Hero.MainHero.CharacterObject, playerParty),
-                new ConversationCharacterData(target.CharacterObject, targetParty));
+            CampaignMission.OpenConversationMission(
+                new ConversationCharacterData(
+                    Hero.MainHero.CharacterObject,
+                    playerParty,
+                    noHorse: true),
+                new ConversationCharacterData(
+                    target.CharacterObject,
+                    targetParty,
+                    noHorse: true),
+                string.Empty,
+                string.Empty,
+                false);
 
             KaiRuntimeLog.Write(
                 "MESSENGER_CONVERSATION_OPEN",
