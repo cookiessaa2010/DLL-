@@ -246,7 +246,7 @@ public sealed class KaiMessengerBehavior : CampaignBehaviorBase
         }
 
         var current = new Vec2((float)x, (float)y);
-        var delta = targetPoint.Position - current;
+        var delta = targetPoint.Position.ToVec2() - current;
         var distance = delta.Length;
 
         // Hard safety cap: if tracking a moving lord causes pathological chasing,
