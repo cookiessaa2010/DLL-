@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using KaiTOR.Diplomacy.UI;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
 using TaleWorlds.CampaignSystem.Settlements;
@@ -29,27 +30,27 @@ public sealed class KaiFiefGrantBehavior : CampaignBehaviorBase
         var kingdom = clan?.Kingdom;
         if (Campaign.Current == null || Hero.MainHero == null || clan == null || kingdom == null)
         {
-            reason = "Player kingdom is unavailable.";
+            reason = Ui("kaitor_diplomacy_fief_no_kingdom", "Player kingdom is unavailable.");
             return false;
         }
         if (kingdom.RulingClan != clan || clan.Leader != Hero.MainHero)
         {
-            reason = "Only the ruler may grant a fief.";
+            reason = Ui("kaitor_diplomacy_fief_ruler_only", "Only the ruler may grant a fief.");
             return false;
         }
         if (clan.Influence < GrantInfluenceCost)
         {
-            reason = $"At least {GrantInfluenceCost:0} influence is required.";
+            reason = UiFormat("kaitor_diplomacy_fief_influence_required", "At least {INFLUENCE} influence is required.", ("INFLUENCE", GrantInfluenceCost.ToString("0")));
             return false;
         }
         if (!GetGrantableSettlements().Any())
         {
-            reason = "No safe player-clan fortification is available.";
+            reason = Ui("kaitor_diplomacy_fief_no_safe_fief", "No safe player-clan fortification is available.");
             return false;
         }
         if (!GetEligibleRecipientClans(null).Any())
         {
-            reason = "No eligible recipient clan is available.";
+            reason = Ui("kaitor_diplomacy_fief_no_recipient", "No eligible recipient clan is available.");
             return false;
         }
         return true;
@@ -69,19 +70,19 @@ public sealed class KaiFiefGrantBehavior : CampaignBehaviorBase
                 s.Name.ToString(),
                 null,
                 true,
-                $"{(s.IsTown ? "Town" : "Castle")} | owner: {s.OwnerClan?.Name}"))
+                UiFormat("kaitor_diplomacy_fief_entry_hint", "{TYPE} | owner: {OWNER}", ("TYPE", Ui(s.IsTown ? "kaitor_diplomacy_fief_town" : "kaitor_diplomacy_fief_castle", s.IsTown ? "Town" : "Castle")), ("OWNER", s.OwnerClan?.Name ?? TextObject.GetEmpty()))))
             .ToList();
 
         MBInformationManager.ShowMultiSelectionInquiry(
             new MultiSelectionInquiryData(
-                "Grant a fief",
-                "Choose one of your clan's safe fortifications.",
+                Ui("kaitor_diplomacy_fief_title", "Grant a fief"),
+                Ui("kaitor_diplomacy_fief_choose_fief", "Choose one of your clan's safe fortifications."),
                 settlements,
                 true,
                 1,
                 1,
-                "Choose",
-                "Cancel",
+                Ui("kaitor_diplomacy_ui_choose", "Choose"),
+                Ui("kaitor_diplomacy_ui_cancel", "Cancel"),
                 selected =>
                 {
                     if (selected.Count == 0 || selected[0].Identifier is not Settlement settlement)
@@ -121,13 +122,13 @@ public sealed class KaiFiefGrantBehavior : CampaignBehaviorBase
                 clan.Name.ToString(),
                 null,
                 clan.Leader != null && clan.Leader.IsAlive,
-                $"Leader: {clan.Leader?.Name} | fiefs: {clan.Fiefs.Count()}"))
+                UiFormat("kaitor_diplomacy_fief_recipient_hint", "Leader: {LEADER} | fiefs: {FIEFS}", ("LEADER", clan.Leader?.Name ?? TextObject.GetEmpty()), ("FIEFS", clan.Fiefs.Count()))))
             .ToList();
 
         if (recipients.Count == 0)
         {
             MBInformationManager.AddQuickInformation(
-                new TextObject("No eligible recipient clan is available."),
+                new TextObject(Ui("kaitor_diplomacy_fief_no_recipient", "No eligible recipient clan is available.")),
                 3500,
                 null,
                 null,
@@ -137,14 +138,14 @@ public sealed class KaiFiefGrantBehavior : CampaignBehaviorBase
 
         MBInformationManager.ShowMultiSelectionInquiry(
             new MultiSelectionInquiryData(
-                "Grant a fief",
-                $"Choose the house that will receive {settlement.Name}.",
+                Ui("kaitor_diplomacy_fief_title", "Grant a fief"),
+                UiFormat("kaitor_diplomacy_fief_choose_house", "Choose the house that will receive {FIEF}.", ("FIEF", settlement.Name)),
                 recipients,
                 true,
                 1,
                 1,
-                "Grant",
-                "Cancel",
+                Ui("kaitor_diplomacy_fief_grant", "Grant"),
+                Ui("kaitor_diplomacy_ui_cancel", "Cancel"),
                 selected =>
                 {
                     if (selected.Count == 0 || selected[0].Identifier is not Clan recipient)
@@ -171,7 +172,7 @@ public sealed class KaiFiefGrantBehavior : CampaignBehaviorBase
             settlement.OwnerClan != playerClan ||
             settlement.MapFaction != kingdom)
         {
-            reason = "The selected fief is no longer safe to grant.";
+            reason = Ui("kaitor_diplomacy_fief_stale_fief", "The selected fief is no longer safe to grant.");
             return false;
         }
 
@@ -184,7 +185,7 @@ public sealed class KaiFiefGrantBehavior : CampaignBehaviorBase
             recipient.Leader == null ||
             !recipient.Leader.IsAlive)
         {
-            reason = "The selected house is not eligible.";
+            reason = Ui("kaitor_diplomacy_fief_stale_house", "The selected house is not eligible.");
             return false;
         }
 
@@ -202,7 +203,7 @@ public sealed class KaiFiefGrantBehavior : CampaignBehaviorBase
                 $"influenceCost={GrantInfluenceCost:0}; recipientInfluence=+{RecipientInfluenceBonus:0}");
 
             MBInformationManager.AddQuickInformation(
-                new TextObject($"{settlement.Name} has been granted to {recipient.Name}."),
+                new TextObject(UiFormat("kaitor_diplomacy_fief_granted", "{FIEF} has been granted to {CLAN}.", ("FIEF", settlement.Name), ("CLAN", recipient.Name))),
                 4000,
                 recipient.Leader.CharacterObject,
                 null,
@@ -220,6 +221,12 @@ public sealed class KaiFiefGrantBehavior : CampaignBehaviorBase
             return false;
         }
     }
+
+    private static string Ui(string id, string fallback)
+        => KaiTORDiplomacyUiText.Get(id, fallback);
+
+    private static string UiFormat(string id, string fallback, params (string Key, object Value)[] values)
+        => KaiTORDiplomacyUiText.Format(id, fallback, values);
 
     private static IEnumerable<Settlement> GetGrantableSettlements()
         => Clan.PlayerClan?.Settlements
