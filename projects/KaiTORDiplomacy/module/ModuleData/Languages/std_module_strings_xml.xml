@@ -19,7 +19,7 @@
     <string id="kaitor_diplomacy_ui_selected_realm" text="Selected realm"/>
     <string id="kaitor_diplomacy_ui_family_header" text="House and dynasty"/>
     <string id="kaitor_diplomacy_ui_population_header" text="Realm"/>
-    <string id="kaitor_diplomacy_ui_no_campaign" text="Campaign data is not available."/>
+    <string id="kaitor_diplomacy_ui_no_campaign" text="No information is available."/>
     <string id="kaitor_diplomacy_ui_no_realm" text="Your clan is not part of a realm."/>
     <string id="kaitor_diplomacy_ui_overview_format" text="House: {CLAN}&#10;Realm: {REALM}&#10;Influence: {INFLUENCE}&#10;Funds: {GOLD}&#10;Active non-aggression pacts: {PACTS}"/>
     <string id="kaitor_diplomacy_ui_no_kingdom_selected" text="No realm selected."/>
