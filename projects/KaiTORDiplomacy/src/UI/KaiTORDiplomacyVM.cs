@@ -51,7 +51,7 @@ public sealed class KaiTORDiplomacyVM : ViewModel, IDisposable
             var kingdom = clan?.Kingdom;
 
             if (hero == null || clan == null)
-                return KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_no_campaign", "Campaign data is not available.");
+                return KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_no_campaign", "No information is available.");
 
             var realm = kingdom?.Name?.ToString() ?? KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_no_realm", "No realm");
             var diplomacy = Campaign.Current?.GetCampaignBehavior<KaiDiplomacyBehavior>();
@@ -109,7 +109,7 @@ public sealed class KaiTORDiplomacyVM : ViewModel, IDisposable
         {
             var hero = Hero.MainHero;
             if (hero == null)
-                return KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_no_campaign", "Campaign data is not available.");
+                return KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_no_campaign", "No information is available.");
 
             var spouse = hero.Spouse?.IsAlive == true
                 ? hero.Spouse.Name.ToString()
