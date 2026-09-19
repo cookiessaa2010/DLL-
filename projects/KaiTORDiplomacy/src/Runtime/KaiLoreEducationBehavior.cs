@@ -200,8 +200,10 @@ public sealed class KaiLoreEducationBehavior : CampaignBehaviorBase
                     if (selected.Count == 0 || selected[0].Identifier is not string id) return;
                     var option = choices.FirstOrDefault(x => x.Id == id);
                     if (option == null) return;
-                    CommitStageChoice(child, stage, option, false);
-                    InformationManager.DisplayMessage(new InformationMessage($"Путь {child.Name}: {Localize(option.OptionText)}."));
+                    if (CommitStageChoice(child, stage, option, false))
+                        InformationManager.DisplayMessage(new InformationMessage($"Путь {child.Name}: {Localize(option.OptionText)}."));
+                    else
+                        InformationManager.DisplayMessage(new InformationMessage($"Не удалось применить выбор для {child.Name}. Причина записана в KaiTOR.log."));
                 },
                 _ => _inquiryOpen = false),
             true,
@@ -239,11 +241,20 @@ public sealed class KaiLoreEducationBehavior : CampaignBehaviorBase
                     if (selected.Count == 0 || selected[0].Identifier is not string id) return;
                     var spec = options.FirstOrDefault(x => x.Id == id);
                     if (spec == null) return;
-                    ApplySpecializationStats(child, professionId, spec);
-                    _specializationChoices[child.StringId] = spec.Id;
-                    KaiRuntimeLog.Write("CHILD_SPECIALIZATION", $"hero={child.StringId}; profession={professionId}; specialization={spec.Id}; ai=false");
-                    InformationManager.DisplayMessage(new InformationMessage(
-                        $"Для {child.Name} выбрана специализация: {Localize(spec.Name)}."));
+                    try
+                    {
+                        ApplySpecializationStats(child, professionId, spec);
+                        _specializationChoices[child.StringId] = spec.Id;
+                        KaiRuntimeLog.Write("CHILD_SPECIALIZATION", $"hero={child.StringId}; profession={professionId}; specialization={spec.Id}; ai=false");
+                        InformationManager.DisplayMessage(new InformationMessage(
+                            $"Для {child.Name} выбрана специализация: {Localize(spec.Name)}."));
+                    }
+                    catch (Exception ex)
+                    {
+                        KaiRuntimeLog.Exception("CAREER_EFFECT_FAIL", ex, $"hero={child.StringId}; specialization={spec.Id}; ai=false");
+                        InformationManager.DisplayMessage(new InformationMessage(
+                            $"Не удалось применить специализацию для {child.Name}. Причина записана в KaiTOR.log."));
+                    }
                 },
                 _ => _inquiryOpen = false),
             true,
@@ -264,7 +275,8 @@ public sealed class KaiLoreEducationBehavior : CampaignBehaviorBase
             .OrderByDescending(x => GetAiChoiceScore(child, stage, x))
             .ThenBy(x => x.Id, StringComparer.Ordinal)
             .First();
-        CommitStageChoice(child, stage, option, true);
+        if (!CommitStageChoice(child, stage, option, true))
+            return;
 
         if (stage == 3)
         {
@@ -282,7 +294,7 @@ public sealed class KaiLoreEducationBehavior : CampaignBehaviorBase
         }
     }
 
-    private void CommitStageChoice(Hero child, int stage, LoreOption option, bool ai)
+    private bool CommitStageChoice(Hero child, int stage, LoreOption option, bool ai)
     {
         try
         {
@@ -305,10 +317,12 @@ public sealed class KaiLoreEducationBehavior : CampaignBehaviorBase
 
             MarkStageDone(child, stage);
             KaiRuntimeLog.Write("CHILD_STAGE", $"hero={child.StringId}; stage={stage}; option={option.Id}; ai={ai}");
+            return true;
         }
         catch (Exception ex)
         {
             KaiRuntimeLog.Exception("CAREER_EFFECT_FAIL", ex, $"hero={child?.StringId ?? "null"}; stage={stage}; option={option?.Id ?? "null"}");
+            return false;
         }
     }
 
