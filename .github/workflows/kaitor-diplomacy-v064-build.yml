@@ -262,7 +262,6 @@ jobs:
             'Command.Click="ActionCycleDuration"',
             'Command.Click="ActionProposeNap"',
             'Command.Click="ActionBreakNap"',
-            'Command.Click="ActionOpenCulture"',
             'Command.Click="ActionRefresh"',
             'Command.Click="ActionClose"'
           )) {
@@ -295,7 +294,7 @@ jobs:
               throw "Dead/obsolete dashboard command is still visible: $deadCommand"
             }
           }
-          foreach ($deadRoute in @('FamilyRequested','FallbackHubRequested','OpenHubFromExternalUi')) {
+          foreach ($deadRoute in @('FamilyRequested','FallbackHubRequested','CultureRequested','OpenHubFromExternalUi')) {
             if ($screenSource.Contains($deadRoute)) {
               throw "Dead dashboard route remains in screen: $deadRoute"
             }
