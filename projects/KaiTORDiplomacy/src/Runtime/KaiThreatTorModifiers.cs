@@ -140,3 +140,38 @@ internal static class KaiThreatPeacePatch
         __result -= threat * 0.25f;
     }
 }
+
+
+[HarmonyPatch]
+internal static class KaiThreatPeaceForClanPatch
+{
+    private static MethodBase TargetMethod()
+    {
+        var type = AccessTools.TypeByName("TOR_Core.Models.TORDiplomacyModel");
+        return type == null ? null : AccessTools.Method(
+            type,
+            "GetScoreOfDeclaringPeaceForClan",
+            new[]
+            {
+                typeof(IFaction),
+                typeof(IFaction),
+                typeof(Clan),
+                typeof(TextObject).MakeByRefType(),
+                typeof(bool)
+            });
+    }
+
+    private static void Postfix(
+        IFaction factionDeclaresPeace,
+        IFaction factionDeclaredPeace,
+        ref float __result)
+    {
+        if (factionDeclaresPeace is not Kingdom first ||
+            factionDeclaredPeace is not Kingdom second ||
+            __result <= -50000f)
+            return;
+
+        var threat = Campaign.Current?.GetCampaignBehavior<KaiThreatBehavior>()?.GetThreat(second) ?? 0f;
+        __result -= threat * 0.25f;
+    }
+}
