@@ -16,11 +16,11 @@ START THE AUTHORITATIVE CAMPAIGN SERVER
 1. Run START_KAITOR_COOP.bat from the package root.
 2. Select the Bannerlord root folder.
 3. Enter the exact campaign save name.
-4. Choose visibility and an optional password. Use Public to appear in the global Steam list (the server panel now defaults to Public).
-   The lobby name is generated automatically as KaiTOR Co-op | <save name>.
-5. Click Preflight. Do not start the server unless Preflight reports PASS.
-6. Click Start Server.
-7. The panel should show ONLINE after Bannerlord.exe /singleplayer /server starts.
+4. Enter the server name. Default: KaiTOR Co-op | TOR RU Test.
+5. Choose visibility and an optional password. Use Public to appear in the global Steam list (the server panel now defaults to Public).
+6. Click Preflight. Do not start the server unless Preflight reports PASS.
+7. Click Start Server.
+8. The panel should show ONLINE after Bannerlord.exe /singleplayer /server starts.
 
 JOIN FROM A CLIENT
 1. Start Bannerlord 1.3.15.110062 with TOR 1.3.15 and KaiTOR Co-op enabled.
