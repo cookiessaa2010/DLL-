@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using KaiTOR.Diplomacy.Models;
-using KaiTOR.Diplomacy.UI;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Settlements;
 
@@ -108,7 +107,9 @@ public sealed class KaiLiveTestBehavior : CampaignBehaviorBase
         var family = Campaign.Current.GetCampaignBehavior<KaiFamilyAffairsBehavior>();
         var culture = Campaign.Current.GetCampaignBehavior<KaiCultureAssimilationBehavior>();
         var dynastic = Campaign.Current.GetCampaignBehavior<KaiDynasticMarriageBehavior>();
-        var incoming = Campaign.Current.GetCampaignBehavior<KaiIncomingMarriageProposalBehavior>();
+        var messenger = Campaign.Current.GetCampaignBehavior<KaiMessengerBehavior>();
+        var familyDiagnostics = Campaign.Current.GetCampaignBehavior<KaiFamilyDiagnosticsBehavior>();
+        var worldMarriage = Campaign.Current.GetCampaignBehavior<KaiWorldMarriageBehavior>();
         var education = Campaign.Current.GetCampaignBehavior<KaiLoreEducationBehavior>();
         var bloodKiss = Campaign.Current.GetCampaignBehavior<KaiBloodKissBehavior>();
         var mercy = Campaign.Current.GetCampaignBehavior<KaiMercyRelationBehavior>();
@@ -120,12 +121,12 @@ public sealed class KaiLiveTestBehavior : CampaignBehaviorBase
         yield return
             $"section=behaviors; diplomacy={State(diplomacy != null, diplomacy?.RuntimeEnabled == true)}; " +
             $"family={Present(family)}; culture={Present(culture)}; dynastic={Present(dynastic)}; " +
-            $"incomingMarriage={Present(incoming)}; education={Present(education)}; bloodKiss={Present(bloodKiss)}; " +
-            $"mercy={Present(mercy)}; dawi={Present(dawi)}; vampire={Present(vampire)}; " +
-            $"greenskin={Present(greenskin)}; realmHouse={Present(realmHouse)}";
+            $"messenger={Present(messenger)}; familyDiagnostics={Present(familyDiagnostics)}; worldMarriage={Present(worldMarriage)}; " +
+            $"education={Present(education)}; bloodKiss={Present(bloodKiss)}; mercy={Present(mercy)}; " +
+            $"dawi={Present(dawi)}; vampire={Present(vampire)}; greenskin={Present(greenskin)}; realmHouse={Present(realmHouse)}";
 
         yield return
-            $"section=ui; movie={KaiTORDiplomacyScreen.MovieName}; layer={KaiTORDiplomacyScreen.LayerName}; " +
+            $"section=ui; familyEntry=town_tavern/adoption; marriageEntry=lord_dialogue; messengerEntry=encyclopedia_hero; " +
             $"{KaiFamilyAffairsBehavior.DescribeUiStatus()}";
 
         if (diplomacy != null)
