@@ -132,7 +132,13 @@ public sealed class KaiWorldMarriageBehavior : CampaignBehaviorBase
                         {
                             var sameKingdom = first.Clan.Kingdom != null && first.Clan.Kingdom == second.Clan.Kingdom;
                             var relation = first.Clan.GetRelationWithClan(second.Clan);
-                            var score = chance * 1000f + (sameKingdom ? 10f : 0f) + Math.Max(-50, relation) / 100f;
+                            // A social marriage can be valid but childless (vampire/undead,
+                            // incompatible biology, etc.). Prefer pairs that can actually
+                            // continue a dynasty, while still allowing childless lore-valid
+                            // marriages when no fertile pair is available.
+                            var fertile = CanProduceBiologicalChildren(first, second);
+                            var fertilityBonus = fertile ? 50f : 0f;
+                            var score = chance * 1000f + fertilityBonus + (sameKingdom ? 10f : 0f) + Math.Max(-50, relation) / 100f;
                             pair = new Pair(first, second, score);
                         }
                     }
