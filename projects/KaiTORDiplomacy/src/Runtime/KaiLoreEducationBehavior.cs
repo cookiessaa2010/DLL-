@@ -203,7 +203,7 @@ public sealed class KaiLoreEducationBehavior : CampaignBehaviorBase
                     if (CommitStageChoice(child, stage, option, false))
                         InformationManager.DisplayMessage(new InformationMessage($"Путь {child.Name}: {Localize(option.OptionText)}."));
                     else
-                        InformationManager.DisplayMessage(new InformationMessage($"Не удалось применить выбор для {child.Name}. Причина записана в KaiTOR.log."));
+                        InformationManager.DisplayMessage(new InformationMessage($"Выбор для {child.Name} не удалось применить."));
                 },
                 _ => _inquiryOpen = false),
             true,
@@ -253,7 +253,7 @@ public sealed class KaiLoreEducationBehavior : CampaignBehaviorBase
                     {
                         KaiRuntimeLog.Exception("CAREER_EFFECT_FAIL", ex, $"hero={child.StringId}; specialization={spec.Id}; ai=false");
                         InformationManager.DisplayMessage(new InformationMessage(
-                            $"Не удалось применить специализацию для {child.Name}. Причина записана в KaiTOR.log."));
+                            $"Специализацию для {child.Name} не удалось применить."));
                     }
                 },
                 _ => _inquiryOpen = false),
