@@ -104,5 +104,29 @@
   <string id="kaitor_diplomacy_fief_stale_fief" text="The selected fief is no longer safe to grant."/>
   <string id="kaitor_diplomacy_fief_stale_house" text="The selected house is not eligible."/>
   <string id="kaitor_diplomacy_fief_granted" text="{FIEF} has been granted to {CLAN}."/>
+  <string id="kaitor_diplomacy_realm_no_candidate" text="No eligible companion can found a new noble house."/>
+  <string id="kaitor_diplomacy_realm_candidate_hint" text="Relation: {RELATION} | Level: {LEVEL}"/>
+  <string id="kaitor_diplomacy_realm_elevate_title" text="Elevate to nobility"/>
+  <string id="kaitor_diplomacy_realm_elevate_prompt" text="Choose a companion who will found a new Realm House."/>
+  <string id="kaitor_diplomacy_realm_elevate" text="Elevate"/>
+  <string id="kaitor_diplomacy_realm_founded" text="{HERO} has founded {CLAN}."/>
+  <string id="kaitor_diplomacy_realm_no_kingdom" text="Player kingdom is unavailable."/>
+  <string id="kaitor_diplomacy_realm_ruler_only" text="Only the ruler may elevate a new noble house."/>
+  <string id="kaitor_diplomacy_realm_candidate_clan" text="Candidate must belong to the ruler's clan."/>
+  <string id="kaitor_diplomacy_realm_candidate_inactive" text="Candidate is not an active hero."/>
+  <string id="kaitor_diplomacy_realm_candidate_child" text="Candidate is not an adult."/>
+  <string id="kaitor_diplomacy_realm_candidate_prisoner" text="Candidate is a prisoner."/>
+  <string id="kaitor_diplomacy_realm_candidate_governor" text="A serving governor cannot found a new house."/>
+  <string id="kaitor_diplomacy_realm_candidate_leader" text="An existing clan leader cannot found another house."/>
+  <string id="kaitor_diplomacy_realm_candidate_family" text="Move the candidate's family arrangements before founding a new house."/>
+  <string id="kaitor_diplomacy_realm_candidate_not_companion" text="Candidate is not a companion suitable for elevation."/>
+  <string id="kaitor_diplomacy_realm_candidate_party_leader" text="Candidate currently leads a party."/>
+  <string id="kaitor_diplomacy_realm_candidate_unsafe" text="Candidate is currently in an unsafe campaign state."/>
+  <string id="kaitor_diplomacy_realm_candidate_not_removable" text="Candidate is not a removable member of the current party."/>
+  <string id="kaitor_diplomacy_realm_no_home" text="No safe fortification is available as the new house's home."/>
+  <string id="kaitor_diplomacy_realm_detach_failed" text="Could not safely detach the candidate from the current party."/>
+  <string id="kaitor_diplomacy_realm_factory_failed" text="Native clan factory returned no clan."/>
+  <string id="kaitor_diplomacy_realm_postcondition_failed" text="Native elevation postcondition failed."/>
+  <string id="kaitor_diplomacy_realm_success" text="House elevated successfully."/>
 </strings>
 </base>
