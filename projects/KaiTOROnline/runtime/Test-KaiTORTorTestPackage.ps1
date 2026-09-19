@@ -196,7 +196,9 @@ foreach ($needle in @(
     'KaiTOR Co-op - Server Control',
     'Start-KaiTORTorCampaignServer.ps1',
     'Test-KaiTORTorLiveReadiness.ps1',
-    '4200 UDP'
+    '4200 UDP',
+    'KaiTOR Co-op | TOR RU Test',
+    'Steam Lobby / UDP 4200'
 )) {
     if ($launcherText -notlike "*$needle*") {
         throw "KaiTOR server panel missing required RU/EN/runtime marker: $needle"
