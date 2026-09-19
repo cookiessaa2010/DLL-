@@ -144,5 +144,16 @@
   <string id="kaitor_diplomacy_messenger_conversation_wait" text="The conversation cannot open right now. The messenger will keep waiting."/>
   <string id="kaitor_diplomacy_messenger_prisoner" text="A messenger cannot arrange a formal audience with a prisoner."/>
   <string id="kaitor_diplomacy_messenger_same_party" text="This hero is already travelling with you."/>
+  <string id="kaitor_diplomacy_special_marriage_invalid" text="Invalid marriage-offer data."/>
+  <string id="kaitor_diplomacy_special_marriage_pending" text="Another special marriage offer is already pending."/>
+  <string id="kaitor_diplomacy_special_marriage_ineligible" text="The proposed pair is no longer eligible."/>
+  <string id="kaitor_diplomacy_special_marriage_childless" text="This social marriage will not produce biological children."/>
+  <string id="kaitor_diplomacy_special_marriage_title" text="KaiTOR: Special marriage proposal"/>
+  <string id="kaitor_diplomacy_special_marriage_body" text="{CLAN} proposes a {KIND} marriage between {MEMBER} and {TARGET}. Accepting opens the normal Bannerlord marriage barter; the marriage is not forced."/>
+  <string id="kaitor_diplomacy_special_marriage_review" text="Review proposal"/>
+  <string id="kaitor_diplomacy_special_marriage_decline" text="Decline"/>
+  <string id="kaitor_diplomacy_special_marriage_kind_dynastic" text="dynastic"/>
+  <string id="kaitor_diplomacy_special_marriage_kind_treaty" text="treaty-linked"/>
+  <string id="kaitor_diplomacy_special_marriage_kind_special" text="special"/>
 </strings>
 </base>
