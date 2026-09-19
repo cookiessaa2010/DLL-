@@ -1,4 +1,4 @@
-KaiTOR Co-op v1.3.15.12
+KaiTOR Co-op v1.3.15.13
 TEST CANDIDATE — Bannerlord 1.3.15.110062 + The Old Realms 1.3.15
 Languages: English / Russian
 Maximum simultaneous players: 4
@@ -31,6 +31,9 @@ JOIN FROM A CLIENT
 6. Direct Connection remains available as a fallback; its default port is 4200.
 
 STEAM / VPN
+- Before a Public/Friends launch, Preflight verifies that Steam is running and local UDP 27315/27316 are free. These ports do NOT need router forwarding for the Steam P2P/Relay path; they only need to be available on the host PC.
+- "Server: ONLINE" means the Bannerlord process is alive. The separate "Steam: LOBBY READY" state means the Steam game-server logged on, the lobby was created, and the P2P tunnel is listening.
+- Compatibility is bound to the exact CI build: BuildVersion contains the commit SHA. Matching module numbers alone are not enough if the DLLs came from a different commit.
 - Normal Steam Lobby joining uses the Steam P2P/relay tunnel, so players do not need to type the host's public IP.
 - This is the preferred path for a host using a VPN or sitting behind NAT/CGNAT, provided Steam and Steam Networking work through that VPN.
 - UDP 4200-4201 forwarding is only needed for direct-IP/fallback connectivity. The Steam tunnel does not require manual IP entry.
