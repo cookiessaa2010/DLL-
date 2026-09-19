@@ -16,6 +16,7 @@ on:
       - 'projects/KaiTOROnline/tools/ApplyNetPeerIdentitySafety.ps1'
       - 'projects/KaiTOROnline/tools/ApplySharedMapDiagnostics.ps1'
       - 'projects/KaiTOROnline/tools/AuditManagedAssemblyReferences.ps1'
+      - 'projects/KaiTOROnline/tools/Test-KaiTORSteamCompanionContracts.ps1'
       - 'projects/KaiTOROnline/runtime/**'
       - 'projects/KaiTOROnline/DEDICATED_CAMPAIGN_SERVER.md'
       - 'projects/KaiTOROnline/FOUR_PLAYER_PERSISTENCE_AUDIT.md'
@@ -131,6 +132,10 @@ jobs:
           if ($managed -notmatch '/coopowner\s+\d+') { throw 'ManagedMode did not emit /coopowner.' }
           if ($managed -notmatch '/cooppassword\s+<redacted>') { throw 'Password redaction marker missing.' }
           if ($managed -match 'secret-ci-value') { throw 'Launcher leaked the password into console output.' }
+
+      - name: Validate Steam companion module contracts
+        shell: pwsh
+        run: ./kaitor/projects/KaiTOROnline/tools/Test-KaiTORSteamCompanionContracts.ps1
 
       - name: Restore Bannerlord 1.3.15 reference packages
         shell: pwsh
@@ -288,10 +293,10 @@ jobs:
             'Target mod: The Old Realms 1.3.15',
             'Admission limit: 4 simultaneous players',
             'Campaign authority: Bannerlord.exe /singleplayer /server loading the authoritative save',
-            'TOR runtime order: TOR_Armory -> TOR_Environment -> TOR_Core -> Coop',
+            'TOR runtime order: TOR_Armory -> TOR_Environment -> TOR_Core -> [KaiCleave] -> [KaiTOR_Stability] -> [KaiTOR_PortraitFix] -> Coop',
             'UI: KaiTOR dark-fantasy Gauntlet skin',
             'Languages: English + Russian',
-            'Optional integration: KaiCleave v0.3.1; KaiTOR Stability v0.5.0',
+            'Optional integration: KaiCleave v1.3.15.31; KaiTOR Stability v1.3.15.50; KaiTOR Portrait Fix v1.3.15.60; Bannerlord.Harmony v2.4.2.248 when required',
             'ServerConsole: auxiliary rendezvous/NAT/listing service; NOT the campaign world server',
             'Native no-render/headless TOR mode: NOT CLAIMED (TOR_Core metadata opts out)',
             'Purpose: first four-client TOR runtime acceptance using the user installed legal game and TOR files.',
