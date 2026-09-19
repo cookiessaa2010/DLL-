@@ -342,8 +342,8 @@ jobs:
           foreach ($token in @(
             'private bool CommitStageChoice',
             'if (CommitStageChoice(child, stage, option, false))',
-            'Не удалось применить выбор',
-            'Не удалось применить специализацию',
+            'Выбор для {child.Name} не удалось применить.',
+            'Специализацию для {child.Name} не удалось применить.',
             'CHILD_SPECIALIZATION'
           )) {
             if (-not $educationSource.Contains($token)) { throw "Education terminal feedback path missing: $token" }
@@ -416,6 +416,74 @@ jobs:
               throw "EN localization missing id: $id"
             }
           }
+
+          # Player-facing text hygiene: localization must contain game information only.
+          $forbiddenPlayerText = @(
+            'KaiTOR',
+            'live-test',
+            'live test',
+            'module',
+            'модуль',
+            ' AI',
+            'debug',
+            'diagnostic',
+            '.log',
+            'журнал',
+            'классическое меню'
+          )
+          foreach ($node in @($enXml.base.strings.string) + @($ruXml.base.strings.string)) {
+            $displayText = [string]$node.text
+            foreach ($forbiddenText in $forbiddenPlayerText) {
+              if ($displayText.IndexOf($forbiddenText, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {
+                throw "Technical/working wording leaked into player localization: '$forbiddenText' in '$displayText'"
+              }
+            }
+          }
+
+          # Keep localization exactly aligned with the active dashboard VM.
+          $vmLocalizationIds = [regex]::Matches($vmSource, '"(kaitor_diplomacy_ui_[^"]+)"') |
+            ForEach-Object { $_.Groups[1].Value } |
+            Sort-Object -Unique
+          foreach ($id in $vmLocalizationIds) {
+            if ($enIds -notcontains $id -or $ruIds -notcontains $id) {
+              throw "Active dashboard localization id is missing: $id"
+            }
+          }
+          foreach ($id in $enIds) {
+            if ($vmLocalizationIds -notcontains $id) {
+              throw "Unused/stale player localization id remains: $id"
+            }
+          }
+
+          $playerFacingSources = @(
+            $screenSource,
+            $uiPatchSource,
+            (Get-Content (Join-Path $runtime 'KaiMessengerMapButton.cs') -Raw),
+            $messengerBehavior,
+            $cultureBehavior,
+            $familyAffairs,
+            $dialogueSource,
+            $bloodKissSource,
+            $educationSource,
+            $marriageWarningSource
+          ) -join [Environment]::NewLine
+
+          foreach ($forbiddenPhrase in @(
+            'Причина записана в KaiTOR.log',
+            'Ошибка записана в журнал',
+            'Причина записана в журнал',
+            'Открыть панель KaiTOR',
+            'Открыть классическое меню KaiTOR',
+            'для live-test',
+            'для live test',
+            'Модуль женщин-гномов'
+          )) {
+            if ($playerFacingSources.Contains($forbiddenPhrase)) {
+              throw "Technical player-facing phrase remains: $forbiddenPhrase"
+            }
+          }
+
+          Write-Host "Player-facing text hygiene: PASS"
 
           $subModuleId = [regex]::Match($module, '<Id value="([^"]+)"').Groups[1].Value
           if ($subModuleId -ne 'KaiTOR_Diplomacy') {
