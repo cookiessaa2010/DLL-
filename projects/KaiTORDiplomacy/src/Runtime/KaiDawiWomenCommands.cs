@@ -31,7 +31,7 @@ public static class KaiDawiWomenCommands
         if (behavior != null)
             lines.AddRange(behavior.DescribeStatus().Skip(2));
 
-        return string.Join("\n", lines);
+        return KaiConsoleText.Safe(string.Join("\n", lines));
     }
 
     [CommandLineFunctionality.CommandLineArgumentFunction("spawn_test", "kaitor_dawi_women")]
@@ -46,6 +46,6 @@ public static class KaiDawiWomenCommands
         if (behavior == null)
             return "KaiDawiWomenBehavior is not registered.";
 
-        return behavior.SpawnOneForLiveTest();
+        return KaiConsoleText.Safe(behavior.SpawnOneForLiveTest());
     }
 }
