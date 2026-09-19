@@ -127,12 +127,30 @@ public sealed class KaiDiplomacyHubBehavior : CampaignBehaviorBase
 
         starter.AddGameMenuOption(
             HubMenuId,
+            "kaitor_hub_elevate_house",
+            "{=kaitor_diplomacy_ui_elevate_house}Elevate hero to nobility",
+            BasicCondition,
+            _ => Campaign.Current?.GetCampaignBehavior<KaiRealmHouseGrowthBehavior>()?.OpenPlayerElevationDialog(),
+            false,
+            11);
+
+        starter.AddGameMenuOption(
+            HubMenuId,
+            "kaitor_hub_grant_fief",
+            "{=kaitor_diplomacy_ui_grant_fief}Grant a fief",
+            BasicCondition,
+            _ => Campaign.Current?.GetCampaignBehavior<KaiFiefGrantBehavior>()?.OpenGrantDialog(),
+            false,
+            12);
+
+        starter.AddGameMenuOption(
+            HubMenuId,
             "kaitor_hub_council",
             "{=kaitor_diplomacy_ui_council}Council",
             BasicCondition,
             _ => ShowCouncil(),
             false,
-            12);
+            13);
 
         starter.AddGameMenuOption(
             HubMenuId,
@@ -141,7 +159,7 @@ public sealed class KaiDiplomacyHubBehavior : CampaignBehaviorBase
             BasicCondition,
             _ => ShowSystemStatus(),
             false,
-            13);
+            14);
 
         starter.AddGameMenuOption(
             HubMenuId,
