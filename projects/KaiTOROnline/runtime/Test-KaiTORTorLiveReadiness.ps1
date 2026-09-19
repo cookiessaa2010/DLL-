@@ -14,11 +14,38 @@ param(
     [ValidateNotNullOrEmpty()]
     [string]$WorkshopRoot,
 
-    [switch]$SkipVersionCheck
+    [switch]$SkipVersionCheck,
+
+    [switch]$RequireSteamHost
 )
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+
+function Assert-SteamHostPrerequisites {
+    $steam = @(Get-Process -Name 'steam' -ErrorAction SilentlyContinue)
+    if ($steam.Count -eq 0) {
+        throw 'Steam host preflight failed: Steam client is not running. Public/Friends Steam Lobby hosting requires Steam.'
+    }
+
+    try {
+        $listeners = @([Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveUdpListeners())
+    }
+    catch {
+        throw "Steam host preflight failed: could not inspect local UDP listeners: $($_.Exception.Message)"
+    }
+
+    foreach ($port in @(27315, 27316)) {
+        if (@($listeners | Where-Object { $_.Port -eq $port }).Count -gt 0) {
+            throw "Steam host preflight failed: local UDP port $port is already in use. KaiTOR needs 27315/27316 free locally for Steam GameServer.Init. Router forwarding is not required for the Steam P2P/relay path."
+        }
+    }
+
+    Write-Output 'Steam host prerequisites: PASS'
+    Write-Output '  Steam client: running'
+    Write-Output '  Local Steam game/query UDP: 27315/27316 available'
+    Write-Output '  Router forwarding: not required for the Steam P2P/relay path'
+}
 
 $package = (Resolve-Path -LiteralPath $PackageRoot).Path
 $bannerlord = (Resolve-Path -LiteralPath $BannerlordRoot).Path
@@ -32,12 +59,18 @@ foreach ($required in @($packageValidator, $torLauncher)) {
     }
 }
 
+if ($RequireSteamHost) {
+    Assert-SteamHostPrerequisites | Out-Host
+}
+
 & $packageValidator -PackageRoot $package | Out-Host
 
 $relativePayload = @(
     'Modules/Coop/SubModule.xml',
+    'Modules/Coop/bin/Win64_Shipping_Client/Common.dll',
     'Modules/Coop/bin/Win64_Shipping_Client/Coop.dll',
     'Modules/Coop/bin/Win64_Shipping_Client/Coop.Core.dll',
+    'Modules/Coop/bin/Win64_Shipping_Client/Coop.Steam.dll',
     'Modules/Coop/bin/Win64_Shipping_Client/GameInterface.dll',
     'Modules/Coop/bin/Win64_Shipping_Client/Missions.dll'
 )
@@ -96,6 +129,7 @@ Write-Output "  Bannerlord root:    $bannerlord"
 Write-Output '  Installed payload:  exact SHA-256 match to validated package'
 Write-Output '  TOR compatibility:  PASS'
 Write-Output '  Launch preflight:   PASS'
+if ($RequireSteamHost) { Write-Output '  Steam host:         PASS (Steam running; local UDP 27315/27316 available)' }
 Write-Output '  Admission contract: 4 simultaneous players'
 Write-Output '  Workshop policy:    no persistent TOR junctions in Bannerlord Modules'
 Write-Output 'Next gate: start the real authoritative campaign process, connect clients, and collect live runtime/snapshot evidence.'
