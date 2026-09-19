@@ -71,5 +71,7 @@
   <string id="kaitor_diplomacy_ui_council" text="Council"/>
   <string id="kaitor_diplomacy_ui_council_unavailable" text="The council is currently unavailable."/>
   <string id="kaitor_diplomacy_ui_council_clear" text="The council sees no immediate strategic warning."/>
+  <string id="kaitor_diplomacy_ui_elevate_house" text="Elevate hero to nobility"/>
+  <string id="kaitor_diplomacy_ui_grant_fief" text="Grant a fief"/>
 </strings>
 </base>
