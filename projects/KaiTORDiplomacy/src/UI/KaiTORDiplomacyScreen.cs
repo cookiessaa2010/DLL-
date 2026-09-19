@@ -9,7 +9,7 @@ public sealed class KaiTORDiplomacyScreen : ScreenBase
 {
     public const string LayerName = "KaiTORDiplomacyLayer";
     public const string MovieName = "KaiTORDiplomacyHubUIMovie";
-    public const string DiagnosticStage = "LIVEFIX-1-safe-static-dashboard";
+    public const string DiagnosticStage = "DIPLOMACY-FINISH-safe-functional-dashboard";
 
     private static bool _isOpen;
 
