@@ -94,24 +94,60 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
 
     private void OnWarDeclared(IFaction firstFaction, IFaction secondFaction, DeclareWarAction.DeclareWarDetail detail)
     {
-        if (!_runtimeEnabled || firstFaction is not Kingdom first || secondFaction is not Kingdom second) return;
-        var key = TreatyKey.For(first, second);
-        if (!IsNonAggressionPactActive(first, second)) return;
+        if (!_runtimeEnabled || firstFaction is not Kingdom first || secondFaction is not Kingdom second)
+            return;
 
+        ApplyWarBreach(first, second, detail.ToString(), forced: false);
+    }
+
+    public bool ForceBreakNonAggressionPactForWar(
+        Kingdom aggressor,
+        Kingdom target,
+        string reason)
+    {
+        if (!_runtimeEnabled ||
+            aggressor == null ||
+            target == null ||
+            !IsNonAggressionPactActive(aggressor, target))
+            return false;
+
+        ApplyWarBreach(
+            aggressor,
+            target,
+            string.IsNullOrWhiteSpace(reason) ? "forced" : reason,
+            forced: true);
+        return true;
+    }
+
+    private void ApplyWarBreach(
+        Kingdom aggressor,
+        Kingdom target,
+        string reason,
+        bool forced)
+    {
+        if (aggressor == null || target == null || !IsNonAggressionPactActive(aggressor, target))
+            return;
+
+        var key = TreatyKey.For(aggressor, target);
         _nonAggressionExpiryDays.Remove(key);
         _breachCounts.TryGetValue(key, out var current);
         _breachCounts[key] = current + 1;
         ChangeTrust(key, -WarBreachTrustPenalty);
-        ChangeRulerRelation(first, second, -WarBreachRelationPenalty);
+        ChangeRulerRelation(aggressor, target, -WarBreachRelationPenalty);
         _napCooldownExpiryDays[key] = CampaignTime.Now.ToDays + WarBreachCooldownDays;
 
         Campaign.Current?.GetCampaignBehavior<KaiThreatBehavior>()
-            ?.RecordTreatyBreach(first, second, detail.ToString());
+            ?.RecordTreatyBreach(aggressor, target, reason);
         Campaign.Current?.GetCampaignBehavior<KaiGrievanceBehavior>()
-            ?.AddNapBreach(first, second);
+            ?.AddNapBreach(aggressor, target);
+
+        KaiRuntimeLog.Write(
+            forced ? "NAP_FORCED_BREACH" : "NAP_WAR_BREACH",
+            $"source={aggressor.StringId}; target={target.StringId}; reason={reason}; " +
+            $"trust=-{WarBreachTrustPenalty}; relation=-{WarBreachRelationPenalty}; cooldown={WarBreachCooldownDays}");
 
         InformationManager.DisplayMessage(new InformationMessage(
-            $"Пакт о ненападении между {first.Name} и {second.Name} нарушен объявлением войны. " +
+            $"Пакт о ненападении между {aggressor.Name} и {target.Name} нарушен объявлением войны. " +
             $"Отношения правящих домов серьёзно ухудшились. Новый пакт будет недоступен {WarBreachCooldownDays} дней."));
     }
 
