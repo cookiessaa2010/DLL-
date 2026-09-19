@@ -242,6 +242,8 @@ public sealed class KaiLoreEducationBehavior : CampaignBehaviorBase
                     ApplySpecializationStats(child, professionId, spec);
                     _specializationChoices[child.StringId] = spec.Id;
                     KaiRuntimeLog.Write("CHILD_SPECIALIZATION", $"hero={child.StringId}; profession={professionId}; specialization={spec.Id}; ai=false");
+                    InformationManager.DisplayMessage(new InformationMessage(
+                        $"Для {child.Name} выбрана специализация: {Localize(spec.Name)}."));
                 },
                 _ => _inquiryOpen = false),
             true,
