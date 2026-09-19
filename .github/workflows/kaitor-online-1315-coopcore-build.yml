@@ -192,11 +192,11 @@ jobs:
         shell: pwsh
         run: dotnet restore ./upstream/source/Coop/Coop.csproj -p:KaiTORBannerlord1315=true -p:NuGetAudit=false
 
-      - name: Build Coop.Core against Bannerlord 1.3.15.120062
+      - name: Build Coop.Core against Bannerlord 1.3.15.110062
         shell: pwsh
         run: dotnet build ./upstream/source/Coop.Core/Coop.Core.csproj --configuration Release --no-restore --verbosity minimal -p:KaiTORBannerlord1315=true -p:NuGetAudit=false
 
-      - name: Build Coop against Bannerlord 1.3.15.120062
+      - name: Build Coop against Bannerlord 1.3.15.110062
         shell: pwsh
         run: dotnet build ./upstream/source/Coop/Coop.csproj --configuration Release --no-restore --verbosity minimal -p:KaiTORBannerlord1315=true -p:NuGetAudit=false
 
@@ -296,7 +296,7 @@ jobs:
 
           @(
             'KaiTOR Co-op v1.3.15.12 / TOR full-module test candidate',
-            'Target: Mount & Blade II Bannerlord 1.3.15.120062',
+            'Target: Mount & Blade II Bannerlord 1.3.15.110062',
             'Target mod: The Old Realms 1.3.15',
             'Admission limit: 4 simultaneous players',
             'Campaign authority: Bannerlord.exe /singleplayer /server loading the authoritative save',
@@ -307,7 +307,7 @@ jobs:
             'ServerConsole: auxiliary rendezvous/NAT/listing service; NOT the campaign world server',
             'Native no-render/headless TOR mode: NOT CLAIMED (TOR_Core metadata opts out)',
             'Purpose: first four-client TOR runtime acceptance using the user installed legal game and TOR files.',
-            'Game and TOR assemblies are NOT included; use an existing legal Bannerlord 1.3.15.120062 + TOR 1.3.15 installation.',
+            'Game and TOR assemblies are NOT included; use an existing legal Bannerlord 1.3.15.110062 + TOR 1.3.15 installation.',
             "Source commit: $env:GITHUB_SHA"
           ) | Set-Content -Encoding UTF8 (Join-Path $stage 'BUILD.txt')
 
@@ -332,7 +332,7 @@ jobs:
       - name: Upload KaiTOR Co-op full-module artifact
         uses: actions/upload-artifact@v4
         with:
-          name: KaiTORCoop-v1.3.15.12-Bannerlord-1.3.15.120062-TOR-1.3.15
+          name: KaiTORCoop-v1.3.15.12-Bannerlord-1.3.15.110062-TOR-1.3.15
           path: ${{ env.KAITOR_ARTIFACT }}
           if-no-files-found: error
           retention-days: 7
@@ -340,7 +340,7 @@ jobs:
       - name: Download uploaded KaiTOR full-module artifact
         uses: actions/download-artifact@v4
         with:
-          name: KaiTORCoop-v1.3.15.12-Bannerlord-1.3.15.120062-TOR-1.3.15
+          name: KaiTORCoop-v1.3.15.12-Bannerlord-1.3.15.110062-TOR-1.3.15
           path: ${{ runner.temp }}/KaiTOROnline-uploaded
 
       - name: Validate uploaded artifact boundary
