@@ -195,6 +195,10 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
 
         if (proposer.Culture == target.Culture) score += 10;
 
+        var dynastic = Campaign.Current?.GetCampaignBehavior<KaiDynasticMarriageBehavior>();
+        if (dynastic != null)
+            score += (int)Math.Round(dynastic.GetDynasticStrength(proposer, target) * 0.50f);
+
         var commonEnemies = proposer.FactionsAtWarWith
             .OfType<Kingdom>()
             .Count(enemy => target.FactionsAtWarWith.Contains(enemy));
@@ -429,9 +433,18 @@ public sealed class KaiDiplomacyBehavior : CampaignBehaviorBase
     private void ExpirePactNaturally(string key)
     {
         if (!_nonAggressionExpiryDays.Remove(key)) return;
-        ChangeTrust(key, NaturalExpiryTrustBonus);
+
+        var trustBonus = NaturalExpiryTrustBonus;
         if (TryResolveKingdomPair(key, out var first, out var second))
+        {
+            var dynastic = Campaign.Current?.GetCampaignBehavior<KaiDynasticMarriageBehavior>();
+            if (dynastic != null)
+                trustBonus += Math.Min(4, (int)Math.Round(dynastic.GetDynasticStrength(first, second) / 25f));
+
             ChangeRulerRelation(first, second, NaturalExpiryRelationBonus);
+        }
+
+        ChangeTrust(key, trustBonus);
     }
 
     private void CleanupExpiredCooldowns()
