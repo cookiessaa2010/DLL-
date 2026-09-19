@@ -73,5 +73,11 @@
   <string id="kaitor_diplomacy_ui_council_clear" text="Совет не видит немедленных стратегических угроз."/>
   <string id="kaitor_diplomacy_ui_elevate_house" text="Возвести героя в дворянство"/>
   <string id="kaitor_diplomacy_ui_grant_fief" text="Даровать владение"/>
-  <string id="kaitor_diplomacy_ui_war_exhaustion_line" text="Военная усталость: мы {OURS}% / они {THEIRS}%"/>\n  <string id="kaitor_diplomacy_ui_threat_line" text="Угроза: {THREAT}/100"/>\n  <string id="kaitor_diplomacy_ui_dynastic_line" text="Династические связи: {STRENGTH}/100"/>\n</strings>
+  <string id="kaitor_diplomacy_ui_war_exhaustion_line" text="Военная усталость: мы {OURS}% / они {THEIRS}%"/>\n  <string id="kaitor_diplomacy_ui_threat_line" text="Угроза: {THREAT}/100"/>\n  <string id="kaitor_diplomacy_ui_dynastic_line" text="Династические связи: {STRENGTH}/100"/>\n  <string id="kaitor_diplomacy_ui_messenger_start" text="Начать разговор"/>
+  <string id="kaitor_diplomacy_ui_messenger_later" text="Позже"/>
+  <string id="kaitor_diplomacy_ui_messenger_recall" text="Отозвать гонца"/>
+  <string id="kaitor_diplomacy_ui_messenger_arrived" text="Гонец прибыл"/>
+  <string id="kaitor_diplomacy_ui_messenger_reached" text="Гонец достиг {HERO}."/>
+  <string id="kaitor_diplomacy_ui_messenger_choose" text="Выбрать"/>
+</strings>
 </base>
