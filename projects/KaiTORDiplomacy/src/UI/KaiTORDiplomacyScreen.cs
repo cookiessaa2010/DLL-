@@ -1,7 +1,6 @@
 using KaiTOR.Diplomacy.Runtime;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.Engine.GauntletUI;
-using TaleWorlds.Library;
 using TaleWorlds.ScreenSystem;
 
 namespace KaiTOR.Diplomacy.UI;
@@ -49,7 +48,6 @@ public sealed class KaiTORDiplomacyScreen : ScreenBase
 
         _dataSource = new KaiTORDiplomacyVM(_initialKingdom);
         _dataSource.CloseRequested += HandleClose;
-        _dataSource.CultureRequested += HandleCulture;
 
         _gauntletLayer = new GauntletLayer(LayerName, 100)
         {
@@ -87,7 +85,6 @@ public sealed class KaiTORDiplomacyScreen : ScreenBase
         if (_dataSource != null)
         {
             _dataSource.CloseRequested -= HandleClose;
-            _dataSource.CultureRequested -= HandleCulture;
             _dataSource.Dispose();
         }
 
