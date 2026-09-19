@@ -173,3 +173,68 @@ function Remove-KaiTORTorEphemeralWorkshopLinks {
         }
     }
 }
+
+
+function Find-KaiTORWorkshopModule {
+    param(
+        [Parameter(Mandatory = $true)][string]$BannerlordRoot,
+        [Parameter(Mandatory = $true)][string]$ModuleId,
+        [string]$ExpectedVersion,
+        [string]$WorkshopRoot
+    )
+
+    $root = Resolve-KaiTORBannerlordRoot -Path $BannerlordRoot
+    $workshop = Resolve-KaiTORWorkshopRoot -ResolvedBannerlordRoot $root -ExplicitWorkshopRoot $WorkshopRoot
+    $matches = [Collections.Generic.List[object]]::new()
+
+    foreach ($directory in Get-ChildItem -LiteralPath $workshop -Directory -ErrorAction Stop) {
+        $identity = Read-KaiTORTorModuleIdentity -Directory $directory.FullName
+        if ($null -ne $identity -and $identity.Id -eq $ModuleId) {
+            $matches.Add($identity)
+        }
+    }
+
+    if ($matches.Count -eq 0) {
+        return $null
+    }
+    if ($matches.Count -gt 1) {
+        $paths = ($matches | ForEach-Object { $_.Directory }) -join '; '
+        throw "Multiple Steam Workshop modules declare Id '$ModuleId': $paths"
+    }
+
+    $match = $matches[0]
+    if (-not [string]::IsNullOrWhiteSpace($ExpectedVersion) -and $match.Version -ne $ExpectedVersion) {
+        throw "Steam Workshop module '$ModuleId' is version '$($match.Version)', expected '$ExpectedVersion'."
+    }
+
+    return $match
+}
+
+function New-KaiTOREphemeralWorkshopLinks {
+    param(
+        [Parameter(Mandatory = $true)][string]$BannerlordRoot,
+        [Parameter(Mandatory = $true)][object[]]$ResolvedModules
+    )
+
+    $root = Resolve-KaiTORBannerlordRoot -Path $BannerlordRoot
+    $modulesRoot = Join-Path $root 'Modules'
+    $created = [Collections.Generic.List[string]]::new()
+
+    foreach ($module in @($ResolvedModules)) {
+        if ($null -eq $module) { continue }
+
+        $target = Join-Path $modulesRoot $module.Id
+        if (Test-Path -LiteralPath $target) {
+            $item = Get-Item -LiteralPath $target -Force
+            if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -eq [IO.FileAttributes]::ReparsePoint) {
+                throw "Persistent reparse point already exists for '$($module.Id)': $target. Remove the stale junction before KaiTOR launch."
+            }
+            throw "Module path already exists as a real directory for '$($module.Id)': $target. Refusing to overwrite it with Workshop staging."
+        }
+
+        New-Item -ItemType Junction -Path $target -Target $module.Directory | Out-Null
+        $created.Add($target)
+    }
+
+    return $created.ToArray()
+}
