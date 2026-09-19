@@ -37,6 +37,7 @@ $requiredFiles = @(
     'Modules/Coop/SubModule.xml',
     'Modules/Coop/bin/Win64_Shipping_Client/Coop.dll',
     'Modules/Coop/bin/Win64_Shipping_Client/Coop.Core.dll',
+    'Modules/Coop/bin/Win64_Shipping_Client/Coop.Steam.dll',
     'Modules/Coop/bin/Win64_Shipping_Client/GameInterface.dll',
     'Modules/Coop/bin/Win64_Shipping_Client/Missions.dll',
     'Modules/Coop/GUI/Prefabs/CoopConnectionUIMovie.xml',
@@ -83,7 +84,7 @@ if ([string]$moduleXml.Module.Id.value -ne 'Coop') {
 if ([string]$moduleXml.Module.Name.value -ne 'KaiTOR Co-op') {
     throw "Unexpected module display name: $([string]$moduleXml.Module.Name.value)"
 }
-if ([string]$moduleXml.Module.Version.value -ne 'v1.3.15.11') {
+if ([string]$moduleXml.Module.Version.value -ne 'v1.3.15.12') {
     throw "Unexpected KaiTOR module version: $([string]$moduleXml.Module.Version.value)"
 }
 $moduleDeps = @($moduleXml.Module.DependedModules.DependedModule | ForEach-Object { [string]$_.Id })
@@ -102,6 +103,8 @@ foreach ($id in @(
     'kaitor_join_header',
     'kaitor_direct',
     'kaitor_steam_lobbies',
+    'kaitor_server_name',
+    'kaitor_server_search_placeholder',
     'kaitor_chat',
     'kaitor_options_header',
     'kaitor_server_visibility',
@@ -207,7 +210,7 @@ if ($rootBat -notmatch 'KaiTOR-Coop-Launcher\.ps1') {
 
 $contract = Get-Content -LiteralPath (Join-Path $root 'Runtime/TOR_RUNTIME_CONTRACT.txt') -Raw
 $contractChecks = @(
-    'Bannerlord 1.3.15.110062',
+    'Bannerlord 1.3.15.120062',
     'The Old Realms 1.3.15',
     'TOR_Armory -> TOR_Environment -> TOR_Core -> Coop',
     'Admission limit: 4 simultaneous players',
@@ -241,7 +244,7 @@ if ($portraitCompatibility -notmatch [regex]::Escape('$ExpectedVersion = ''v1.3.
 # ASCII markers that survive consistently across PowerShell editions and Windows locales.
 $runbook = Get-Content -LiteralPath (Join-Path $root 'Runtime/FIRST_TOR_LIVE_TEST_RU.txt') -Raw -Encoding UTF8
 $runbookChecks = @(
-    'Bannerlord: 1.3.15.110062',
+    'Bannerlord: 1.3.15.120062',
     'The Old Realms: 1.3.15',
     'activeAdmissionSlots = 4',
     'Test-KaiTORTorLiveReadiness.ps1',
@@ -271,7 +274,7 @@ for ($i = 0; $i -lt $expectedOrder.Count; $i++) {
 
 $build = Get-Content -LiteralPath (Join-Path $root 'BUILD.txt') -Raw
 if ($build -notmatch 'Bannerlord 1\.3\.15\.110062') {
-    throw 'BUILD.txt does not identify Bannerlord 1.3.15.110062.'
+    throw 'BUILD.txt does not identify Bannerlord 1.3.15.120062.'
 }
 if ($build -notmatch 'Target mod:\s*The Old Realms 1\.3\.15') {
     throw 'BUILD.txt does not identify The Old Realms 1.3.15.'
@@ -341,7 +344,7 @@ if ($listedPaths.Count -ne $actualFiles.Count) {
 
 Write-Host 'KaiTOR TOR full-module package contract PASS.'
 Write-Host "Package root: $root"
-Write-Host 'Target: Bannerlord 1.3.15.110062 + The Old Realms 1.3.15'
+Write-Host 'Target: Bannerlord 1.3.15.120062 + The Old Realms 1.3.15'
 Write-Host 'Admission limit: 4 simultaneous players'
 Write-Host "SHA-256 manifest verified for $($listedPaths.Count) file(s)."
 Write-Host 'Authoritative TOR launch: Bannerlord.exe /singleplayer /server'
