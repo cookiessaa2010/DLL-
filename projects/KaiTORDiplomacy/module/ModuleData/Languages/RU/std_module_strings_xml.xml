@@ -57,5 +57,6 @@
     <string id="kaitor_diplomacy_ui_no_active_pact" text="С выбранной державой нет действующего пакта о ненападении."/>
     <string id="kaitor_diplomacy_ui_yes" text="Да"/>
     <string id="kaitor_diplomacy_ui_no" text="Нет"/>
-  </strings>
+    <string id="kaitor_diplomacy_ui_send_messenger" text="Отправить гонца"/>
+</strings>
 </base>
