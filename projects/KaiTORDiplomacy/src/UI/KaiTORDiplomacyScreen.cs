@@ -123,7 +123,7 @@ public sealed class KaiTORDiplomacyScreen : ScreenBase
         if (behavior == null)
         {
             KaiRuntimeLog.Write("GAUNTLET_UI_ROUTE_FAILED", "target=culture; reason=behavior_missing");
-            InformationManager.DisplayMessage(new InformationMessage("Смена культуры сейчас недоступна. Причина записана в KaiTOR.log."));
+            InformationManager.DisplayMessage(new InformationMessage("Смена культуры сейчас недоступна."));
             return;
         }
 
