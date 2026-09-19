@@ -489,8 +489,4 @@ public sealed class KaiTORDiplomacyVM : ViewModel, IDisposable
         OnPropertyChanged(nameof(DurationButtonText));
     }
 
-    private static string YesNo(bool value)
-        => value
-            ? KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_yes", "Yes")
-            : KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_no", "No");
 }
