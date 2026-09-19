@@ -68,10 +68,6 @@ internal static class KaiDeclareWarActionGuardPatch
                     second,
                     "mandatory:" + declareWarDetail);
 
-                KaiRuntimeLog.Write(
-                    "NAP_FORCED_BREACH",
-                    $"source={first.StringId}; target={second.StringId}; path=DeclareWarAction.ApplyInternal; detail={declareWarDetail}");
-
                 return true;
             }
         }
