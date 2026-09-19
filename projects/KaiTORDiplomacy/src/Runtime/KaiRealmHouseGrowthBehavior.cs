@@ -24,12 +24,14 @@ public sealed class KaiRealmHouseGrowthBehavior : CampaignBehaviorBase
 {
     private const int MaximumTargetNobleClans = 12;
     private const int MinimumClanDeficitForNewHouse = 1;
-    private const int PerKingdomCooldownDays = 42;
-    private const int FailureCooldownDays = 7;
-    private const double PendingDelayDays = 0.25d;
+    // A realm with a real clan deficit should be able to recover during play rather
+    // than waiting six campaign weeks for every successful house.
+    private const int PerKingdomCooldownDays = 3;
+    private const int FailureCooldownDays = 1;
+    private const double PendingDelayDays = 1d / 24d;
+    private const int MaxSuccessfulCommitsPerDay = 4;
     private const int NewHouseMinimumRulerGold = 30000;
     private const int NewHouseSeedGold = 10000;
-    private const int CommitHour = 4;
     private const string TorSpecialSettlementId = "castle_BK1";
 
     // Preserve all existing save keys for v0.6.3.3 compatibility.
@@ -46,6 +48,8 @@ public sealed class KaiRealmHouseGrowthBehavior : CampaignBehaviorBase
     private string _lastCreatedClanId;
     private bool _commitInProgress;
     private bool _legacyRepairDone;
+    private int _successfulCommitDay = -1;
+    private int _successfulCommitsToday;
 
     public override void RegisterEvents()
     {
@@ -113,14 +117,20 @@ public sealed class KaiRealmHouseGrowthBehavior : CampaignBehaviorBase
             _legacyRepairDone = true;
         }
 
+        var now = CampaignTime.Now.ToDays;
+        var currentDay = (int)Math.Floor(now);
+        if (_successfulCommitDay != currentDay)
+        {
+            _successfulCommitDay = currentDay;
+            _successfulCommitsToday = 0;
+        }
+
         if (_commitInProgress || _pendingReadyByKingdom.Count == 0)
             return;
-        if (CampaignTime.Now.GetHourOfDay != CommitHour)
+        if (_successfulCommitsToday >= MaxSuccessfulCommitsPerDay)
             return;
         if (!IsSafeWorldMutationWindow())
             return;
-
-        var now = CampaignTime.Now.ToDays;
         var pendingKingdomId = SelectReadyPendingKingdom(now);
         if (string.IsNullOrWhiteSpace(pendingKingdomId))
             return;
@@ -141,6 +151,22 @@ public sealed class KaiRealmHouseGrowthBehavior : CampaignBehaviorBase
                 LogStage("REALM_CREATE_FAIL", $"kingdom={pendingKingdomId}; founder={founderId}; stage=validate; reason={commitReason}");
                 KaiRuntimeLog.Write("REALM_CREATE_FAIL", $"kingdom={pendingKingdomId}; founder={founderId}; reason={commitReason}");
                 ClearPending(pendingKingdomId);
+
+                // Most live-test failures were founders becoming party leaders between
+                // queue and commit. Re-scan immediately instead of wasting a full week.
+                if (kingdom != null && IsFounderRetryReason(commitReason))
+                {
+                    var current = GetCurrentNobleClanCount(kingdom);
+                    var target = GetTargetNobleClanCount(kingdom);
+                    var deficit = target - current;
+                    if (deficit >= MinimumClanDeficitForNewHouse &&
+                        TryQueueNewHouse(kingdom, now, deficit, current, target))
+                    {
+                        LogStage("REALM_REQUEUE", $"kingdom={pendingKingdomId}; oldFounder={founderId}; reason={commitReason}; retryDelay={PendingDelayDays:0.000}d");
+                        return;
+                    }
+                }
+
                 _kingdomCooldownUntilDays[pendingKingdomId] = now + FailureCooldownDays;
                 return;
             }
@@ -156,6 +182,7 @@ public sealed class KaiRealmHouseGrowthBehavior : CampaignBehaviorBase
 
             _lastCreatedClanId = newClan.StringId;
             _kingdomCooldownUntilDays[kingdom.StringId] = now + PerKingdomCooldownDays;
+            _successfulCommitsToday++;
 
             LogStage("REALM_CREATE_SUCCESS", $"clan={newClan.StringId}; kingdom={kingdom.StringId}; founder={founder.StringId}; cooldown={PerKingdomCooldownDays}d");
             KaiRuntimeLog.Write("REALM_CREATE_SUCCESS", $"clan={newClan.StringId}; kingdom={kingdom.StringId}; founder={founder.StringId}");
@@ -173,6 +200,11 @@ public sealed class KaiRealmHouseGrowthBehavior : CampaignBehaviorBase
             _commitInProgress = false;
         }
     }
+
+    private static bool IsFounderRetryReason(string reason)
+        => !string.IsNullOrWhiteSpace(reason) &&
+           (reason.StartsWith("founder_", StringComparison.Ordinal) ||
+            string.Equals(reason, "source_clan_invalid", StringComparison.Ordinal));
 
     private string SelectReadyPendingKingdom(double now)
     {
@@ -607,7 +639,7 @@ public sealed class KaiRealmHouseGrowthBehavior : CampaignBehaviorBase
         yield return
             $"Realm-house growth: pending={pending.Length} [{string.Join(",", pending)}]; commitBusy={_commitInProgress}; " +
             $"scan=daily; perKingdomCooldown={PerKingdomCooldownDays}d; failureCooldown={FailureCooldownDays}d; minimumDeficit={MinimumClanDeficitForNewHouse}; " +
-            $"founders=unattached+safe-party-member TOR AI companions/lords; commit=one-per-safe-day-largest-deficit; lastCreated={_lastCreatedClanId ?? "none"}.";
+            $"founders=unattached+safe-party-member TOR AI companions/lords; commit=up-to-{MaxSuccessfulCommitsPerDay}-per-safe-day; today={_successfulCommitsToday}; lastCreated={_lastCreatedClanId ?? "none"}.";
     }
 
     private bool HasPendingHouse(string kingdomId)
