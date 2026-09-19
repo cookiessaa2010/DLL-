@@ -78,6 +78,19 @@ public sealed class KaiGrievanceBehavior : CampaignBehaviorBase
             45f);
     }
 
+    public void AddTruceBreach(Kingdom breaker, Kingdom victim)
+    {
+        if (breaker?.RulingClan == null || victim?.RulingClan == null)
+            return;
+
+        AddOrStrengthen(
+            "truce_breach",
+            victim.RulingClan,
+            breaker.RulingClan,
+            null,
+            30f);
+    }
+
     public void AddDynasticBreach(Kingdom breaker, Kingdom victim)
     {
         if (breaker?.RulingClan == null || victim?.RulingClan == null)
@@ -89,6 +102,25 @@ public sealed class KaiGrievanceBehavior : CampaignBehaviorBase
             breaker.RulingClan,
             null,
             35f);
+    }
+
+    public int ResolveBetween(Clan first, Clan second, string reason)
+    {
+        if (first == null || second == null || first == second)
+            return 0;
+
+        var ids = _type.Keys
+            .Where(id =>
+                (string.Equals(Get(_source, id), first.StringId, StringComparison.Ordinal) &&
+                 string.Equals(Get(_target, id), second.StringId, StringComparison.Ordinal)) ||
+                (string.Equals(Get(_source, id), second.StringId, StringComparison.Ordinal) &&
+                 string.Equals(Get(_target, id), first.StringId, StringComparison.Ordinal)))
+            .ToArray();
+
+        foreach (var id in ids)
+            Resolve(id, string.IsNullOrWhiteSpace(reason) ? "mutual_settlement" : reason);
+
+        return ids.Length;
     }
 
     public void ResolveLandless(Clan clan)
