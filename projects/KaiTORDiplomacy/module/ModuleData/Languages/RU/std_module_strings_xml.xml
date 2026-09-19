@@ -144,5 +144,16 @@
   <string id="kaitor_diplomacy_messenger_conversation_wait" text="Сейчас разговор открыть нельзя. Гонец продолжит ждать подходящего момента."/>
   <string id="kaitor_diplomacy_messenger_prisoner" text="Гонец не может организовать официальную встречу с пленником."/>
   <string id="kaitor_diplomacy_messenger_same_party" text="Этот герой уже путешествует вместе с вами."/>
+  <string id="kaitor_diplomacy_special_marriage_invalid" text="Некорректные данные брачного предложения."/>
+  <string id="kaitor_diplomacy_special_marriage_pending" text="Уже ожидает рассмотрения другое особое брачное предложение."/>
+  <string id="kaitor_diplomacy_special_marriage_ineligible" text="Эта пара больше не подходит для брака."/>
+  <string id="kaitor_diplomacy_special_marriage_childless" text="Этот социальный брак не даст биологических детей."/>
+  <string id="kaitor_diplomacy_special_marriage_title" text="KaiTOR: Особое брачное предложение"/>
+  <string id="kaitor_diplomacy_special_marriage_body" text="Дом {CLAN} предлагает {KIND} брак между {MEMBER} и {TARGET}. Принятие откроет обычные брачные переговоры Bannerlord; свадьба не будет навязана автоматически."/>
+  <string id="kaitor_diplomacy_special_marriage_review" text="Рассмотреть предложение"/>
+  <string id="kaitor_diplomacy_special_marriage_decline" text="Отказать"/>
+  <string id="kaitor_diplomacy_special_marriage_kind_dynastic" text="династический"/>
+  <string id="kaitor_diplomacy_special_marriage_kind_treaty" text="связанный с договором"/>
+  <string id="kaitor_diplomacy_special_marriage_kind_special" text="особый"/>
 </strings>
 </base>
