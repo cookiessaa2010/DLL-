@@ -80,7 +80,7 @@ internal static class KaiMessengerMapButton
                 if (behavior == null || target == null)
                 {
                     KaiRuntimeLog.Write("MESSENGER_ENCYCLOPEDIA_FAILED", $"stage=link; target={heroId}; behavior={(behavior != null ? "ok" : "missing")}");
-                    InformationManager.DisplayMessage(new InformationMessage("Гонца сейчас отправить нельзя. Причина записана в KaiTOR.log."));
+                    InformationManager.DisplayMessage(new InformationMessage("Гонца сейчас отправить нельзя."));
                     return false;
                 }
 
@@ -89,7 +89,7 @@ internal static class KaiMessengerMapButton
             catch (Exception ex)
             {
                 KaiRuntimeLog.Exception("MESSENGER_ENCYCLOPEDIA_FAILED", ex, $"stage=link; link={link}");
-                InformationManager.DisplayMessage(new InformationMessage("Не удалось обработать приказ гонцу. Причина записана в KaiTOR.log."));
+                InformationManager.DisplayMessage(new InformationMessage("Не удалось отправить гонца."));
             }
 
             return false;
