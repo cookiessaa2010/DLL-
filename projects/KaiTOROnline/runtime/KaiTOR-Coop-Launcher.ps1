@@ -48,7 +48,7 @@ $EN = @{
     save_required='Enter the campaign save name.'
     status='Status'
     unknown_players='- / 4'
-    footer='KaiTOR Co-op v1.3.15.11 | Bannerlord/TOR 1.3.15 | UDP 4200'
+    footer='KaiTOR Co-op v1.3.15.12 | Bannerlord/TOR 1.3.15 | Steam Lobby / UDP 4200'
 }
 $RU = @{
     title='KaiTOR Co-op — Панель сервера'
@@ -85,7 +85,7 @@ $RU = @{
     save_required='Укажите имя сохранения кампании.'
     status='Статус'
     unknown_players='— / 4'
-    footer='KaiTOR Co-op v1.3.15.11 | Bannerlord/TOR 1.3.15 | UDP 4200'
+    footer='KaiTOR Co-op v1.3.15.12 | Bannerlord/TOR 1.3.15 | Steam Lobby / UDP 4200'
 }
 
 $script:Text = $RU
@@ -296,7 +296,9 @@ function Refresh-Texts {
     $btnFolder.Text = $script:Text.openfolder
     $footer.Text = $script:Text.footer
 
-    $currentVisibility = if ($cmbVisibility.SelectedIndex -ge 0) { $cmbVisibility.SelectedIndex } else { 0 }
+    # Public is the first-run default so the session appears in KaiTOR's in-game Steam server browser.
+    # A later language refresh preserves the user's current selection.
+    $currentVisibility = if ($cmbVisibility.SelectedIndex -ge 0) { $cmbVisibility.SelectedIndex } else { 2 }
     $cmbVisibility.Items.Clear()
     [void]$cmbVisibility.Items.Add($script:Text.private)
     [void]$cmbVisibility.Items.Add($script:Text.friends)
@@ -369,6 +371,7 @@ $btnStart.Add_Click({
         '-File',('"' + $TorLauncher + '"'),
         '-BannerlordRoot',('"' + $root + '"'),
         '-SaveName',('"' + $save.Replace('"','') + '"'),
+        '-ServerName',('"' + ('KaiTOR Co-op | ' + $save).Replace('"','') + '"'),
         '-Visibility',$visibility
     )
     if ($txtPassword.Text.Length -gt 0) {
