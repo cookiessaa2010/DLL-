@@ -51,41 +51,41 @@ internal static class TorFamilySafety
     }
 
     public static bool CanUseVanillaPregnancy(Hero firstHero, Hero secondHero)
+        => GetVanillaPregnancyBlockReason(firstHero, secondHero) == null;
+
+    public static string GetVanillaPregnancyBlockReason(Hero firstHero, Hero secondHero)
     {
         if (firstHero?.CharacterObject == null || secondHero?.CharacterObject == null)
-            return false;
+            return "missing_character";
 
-        // Social marriage and biological reproduction are separate. Same-sex couples
-        // remain valid social families where KaiTOR allows them, but Bannerlord's
-        // offspring generator requires one female and one male parent.
+        // Bannerlord's offspring generator requires one female and one male parent.
         if (firstHero.IsFemale == secondHero.IsFemale)
-            return false;
+            return "same_sex";
 
-        // Bannerlord 1.3.x DeliverOffSpring asserts that both parents use the same
-        // CharacterObject.Race. Cross-race social marriages are therefore childless.
+        // Bannerlord 1.3.x DeliverOffSpring asserts that both parents use the same race.
         if (firstHero.CharacterObject.Race != secondHero.CharacterObject.Race)
-            return false;
+            return "different_facegen_race";
 
-        // Central lore biology gate:
-        // - living humans/mortals: biological pregnancy
-        // - Dawi: biological pregnancy with the female-Dawi asset chain
-        // - elves: biological pregnancy
-        // - vampires: no pregnancy; Blood Kiss is their reproductive route
-        // - Greenskins: no pregnancy; spores are their reproductive route
-        // - ordinary undead: no biological reproduction
+        if (IsVampire(firstHero) || IsVampire(secondHero))
+            return "vampire";
+
+        if (IsUndeadNonVampire(firstHero) || IsUndeadNonVampire(secondHero))
+            return "undead";
+
+        if (KaiRaceLifecycle.IsGreenskin(firstHero) || KaiRaceLifecycle.IsGreenskin(secondHero))
+            return "greenskin";
+
         if (!KaiRaceLifecycle.CanUseBiologicalPregnancy(firstHero) ||
             !KaiRaceLifecycle.CanUseBiologicalPregnancy(secondHero))
-            return false;
+            return "lore_biology_gate";
 
-        // Dawi can only enter Bannerlord's offspring generator when both parents are
-        // actual dwarf race and the complete female-Dawi assets are registered.
         if (KaiRaceLifecycle.IsDawi(firstHero) || KaiRaceLifecycle.IsDawi(secondHero))
         {
             if (!DawiWomenAssetBridge.IsSupportedDawiPair(firstHero, secondHero))
-                return false;
+                return "dawi_assets_or_pair";
         }
 
-        return true;
+        return null;
     }
 
     /// <summary>
