@@ -57,5 +57,6 @@
     <string id="kaitor_diplomacy_ui_no_active_pact" text="There is no active non-aggression pact with the selected realm."/>
     <string id="kaitor_diplomacy_ui_yes" text="Yes"/>
     <string id="kaitor_diplomacy_ui_no" text="No"/>
-  </strings>
+    <string id="kaitor_diplomacy_ui_send_messenger" text="Send Messenger"/>
+</strings>
 </base>
