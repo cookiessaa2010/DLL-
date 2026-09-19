@@ -194,11 +194,29 @@ jobs:
 
       - name: Build Coop.Core against Bannerlord 1.3.15.110062
         shell: pwsh
-        run: dotnet build ./upstream/source/Coop.Core/Coop.Core.csproj --configuration Release --no-restore --verbosity minimal -p:KaiTORBannerlord1315=true -p:NuGetAudit=false
+        run: dotnet build ./upstream/source/Coop.Core/Coop.Core.csproj --configuration Release --no-restore --verbosity minimal -p:KaiTORBannerlord1315=true -p:NuGetAudit=false -p:InformationalVersion=1.3.15.13+$env:GITHUB_SHA -p:IncludeSourceRevisionInInformationalVersion=false
 
       - name: Build Coop against Bannerlord 1.3.15.110062
         shell: pwsh
-        run: dotnet build ./upstream/source/Coop/Coop.csproj --configuration Release --no-restore --verbosity minimal -p:KaiTORBannerlord1315=true -p:NuGetAudit=false
+        run: dotnet build ./upstream/source/Coop/Coop.csproj --configuration Release --no-restore --verbosity minimal -p:KaiTORBannerlord1315=true -p:NuGetAudit=false -p:InformationalVersion=1.3.15.13+$env:GITHUB_SHA -p:IncludeSourceRevisionInInformationalVersion=false
+
+      - name: Validate exact source-bound KaiTOR build identity
+        shell: pwsh
+        run: |
+          $commonPath = Resolve-Path ./upstream/mb2/Modules/Coop/bin/Win64_Shipping_Client/Common.dll
+          $assembly = [Reflection.Assembly]::LoadFile($commonPath)
+          $attribute = $assembly.GetCustomAttributesData() |
+            Where-Object { $_.AttributeType.FullName -eq 'System.Reflection.AssemblyInformationalVersionAttribute' } |
+            Select-Object -First 1
+          if ($null -eq $attribute -or $attribute.ConstructorArguments.Count -lt 1) {
+            throw 'Common.dll has no AssemblyInformationalVersionAttribute.'
+          }
+          $actual = [string]$attribute.ConstructorArguments[0].Value
+          $expected = "1.3.15.13+$env:GITHUB_SHA"
+          if ($actual -ne $expected) {
+            throw "KaiTOR build identity mismatch. Expected '$expected', got '$actual'."
+          }
+          Write-Host "KaiTOR exact build identity: PASS ($actual)"
 
       - name: Validate generated module metadata
         shell: pwsh
@@ -216,7 +234,7 @@ jobs:
           if ($raw -match '\$\{[^}]+\}') { throw 'Unresolved template token remains in generated SubModule.xml.' }
           if ($xml.Module.Name.value -ne 'KaiTOR Co-op') { throw "Unexpected module display name: $($xml.Module.Name.value)" }
           if ($xml.Module.Id.value -ne 'Coop') { throw "Network-compatible module Id must remain Coop, got $($xml.Module.Id.value)" }
-          if ($xml.Module.Version.value -ne 'v1.3.15.12') { throw "Unexpected module version: $($xml.Module.Version.value)" }
+          if ($xml.Module.Version.value -ne 'v1.3.15.13') { throw "Unexpected module version: $($xml.Module.Version.value)" }
           foreach ($torDep in @('TOR_Armory','TOR_Environment','TOR_Core')) {
             if (-not ($dependencies | Where-Object { $_.Id -eq $torDep })) { throw "Missing TOR dependency: $torDep" }
           }
@@ -245,10 +263,10 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "ServerConsole exited with code $LASTEXITCODE" }
           if ($output -notmatch 'Server started on port') { throw 'ServerConsole did not reach listening startup.' }
 
-      - name: Assemble KaiTOR Co-op v1.3.15.12 full module artifact
+      - name: Assemble KaiTOR Co-op v1.3.15.13 full module artifact
         shell: pwsh
         run: |
-          $stage = Join-Path $env:RUNNER_TEMP 'KaiTORCoop-v1.3.15.12'
+          $stage = Join-Path $env:RUNNER_TEMP 'KaiTORCoop-v1.3.15.13'
           New-Item -ItemType Directory -Force -Path $stage | Out-Null
           New-Item -ItemType Directory -Force -Path (Join-Path $stage 'Modules') | Out-Null
           New-Item -ItemType Directory -Force -Path (Join-Path $stage 'ServerConsole') | Out-Null
@@ -295,7 +313,7 @@ jobs:
           }
 
           @(
-            'KaiTOR Co-op v1.3.15.12 / TOR full-module test candidate',
+            'KaiTOR Co-op v1.3.15.13 / TOR full-module test candidate',
             'Target: Mount & Blade II Bannerlord 1.3.15.110062',
             'Target mod: The Old Realms 1.3.15',
             'Admission limit: 4 simultaneous players',
@@ -332,7 +350,7 @@ jobs:
       - name: Upload KaiTOR Co-op full-module artifact
         uses: actions/upload-artifact@v4
         with:
-          name: KaiTORCoop-v1.3.15.12-Bannerlord-1.3.15.110062-TOR-1.3.15
+          name: KaiTORCoop-v1.3.15.13-Bannerlord-1.3.15.110062-TOR-1.3.15
           path: ${{ env.KAITOR_ARTIFACT }}
           if-no-files-found: error
           retention-days: 7
@@ -340,7 +358,7 @@ jobs:
       - name: Download uploaded KaiTOR full-module artifact
         uses: actions/download-artifact@v4
         with:
-          name: KaiTORCoop-v1.3.15.12-Bannerlord-1.3.15.110062-TOR-1.3.15
+          name: KaiTORCoop-v1.3.15.13-Bannerlord-1.3.15.110062-TOR-1.3.15
           path: ${{ runner.temp }}/KaiTOROnline-uploaded
 
       - name: Validate uploaded artifact boundary
