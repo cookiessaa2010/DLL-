@@ -87,5 +87,22 @@
   <string id="kaitor_diplomacy_council_dynastic" text="Правящие дома {FIRST} и {SECOND} имеют значимые династические связи ({STRENGTH}/100)."/>
   <string id="kaitor_diplomacy_council_succession" text="У дома {CLAN} нет другого живого взрослого дворянина; возможен кризис наследования."/>
   <string id="kaitor_diplomacy_council_threat" text="Другие державы, вероятно, считают нашу экспансию серьёзной угрозой ({THREAT}/100)."/>
+  <string id="kaitor_diplomacy_fief_no_kingdom" text="Держава игрока недоступна."/>
+  <string id="kaitor_diplomacy_fief_ruler_only" text="Только правитель может даровать владение."/>
+  <string id="kaitor_diplomacy_fief_influence_required" text="Требуется не менее {INFLUENCE} влияния."/>
+  <string id="kaitor_diplomacy_fief_no_safe_fief" text="Нет безопасного укреплённого владения вашего клана для передачи."/>
+  <string id="kaitor_diplomacy_fief_no_recipient" text="Нет подходящего клана-получателя."/>
+  <string id="kaitor_diplomacy_fief_entry_hint" text="{TYPE} | владелец: {OWNER}"/>
+  <string id="kaitor_diplomacy_fief_town" text="Город"/>
+  <string id="kaitor_diplomacy_fief_castle" text="Замок"/>
+  <string id="kaitor_diplomacy_fief_title" text="Даровать владение"/>
+  <string id="kaitor_diplomacy_fief_choose_fief" text="Выберите безопасное укреплённое владение вашего клана."/>
+  <string id="kaitor_diplomacy_ui_choose" text="Выбрать"/>
+  <string id="kaitor_diplomacy_fief_recipient_hint" text="Глава: {LEADER} | владений: {FIEFS}"/>
+  <string id="kaitor_diplomacy_fief_choose_house" text="Выберите дом, которому будет передано владение {FIEF}."/>
+  <string id="kaitor_diplomacy_fief_grant" text="Даровать"/>
+  <string id="kaitor_diplomacy_fief_stale_fief" text="Выбранное владение больше нельзя безопасно передать."/>
+  <string id="kaitor_diplomacy_fief_stale_house" text="Выбранный дом больше не подходит для получения владения."/>
+  <string id="kaitor_diplomacy_fief_granted" text="Владение {FIEF} передано дому {CLAN}."/>
 </strings>
 </base>
