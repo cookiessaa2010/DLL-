@@ -155,7 +155,38 @@ public sealed class KaiCultureAssimilationBehavior : CampaignBehaviorBase
 
     public void OpenCultureChangeDialog()
     {
+        var settlement = Settlement.CurrentSettlement;
+        if (!CanOpenCultureChange(settlement, out var reason))
+        {
+            InformationManager.DisplayMessage(new InformationMessage(reason));
+            KaiRuntimeLog.Write("CULTURE_CHANGE_BLOCKED", $"settlement={settlement?.StringId ?? "none"}; reason={reason}");
+            return;
+        }
+
         CultureMenuConsequence(null);
+    }
+
+    private bool CanOpenCultureChange(Settlement settlement, out string reason)
+    {
+        reason = string.Empty;
+        if (!_runtimeEnabled) { reason = "Сейчас провести эту реформу невозможно."; return false; }
+        if (settlement == null || !settlement.IsFortification) { reason = "Такое решение можно принять только в городе или замке."; return false; }
+        if (settlement.OwnerClan != Clan.PlayerClan) { reason = "Вы можете менять народность только в собственных владениях."; return false; }
+        if (IsTorSpecialSettlement(settlement)) { reason = "Традиции этого особого владения нельзя изменить обычным переселением."; return false; }
+        if (settlement.IsUnderSiege) { reason = "Во время осады переселение невозможно."; return false; }
+        if (Clan.PlayerClan == null || Clan.PlayerClan.Tier < RequiredClanTier) { reason = $"Для такой реформы требуется клан не ниже {RequiredClanTier}-го уровня."; return false; }
+
+        var targetCulture = GetPlayerClanCulture();
+        if (targetCulture == null) { reason = "Сейчас невозможно определить народность вашего рода."; return false; }
+        if (settlement.Culture == targetCulture) { reason = "Поселение уже принадлежит к народности вашего рода."; return false; }
+        if (Hero.MainHero == null || Hero.MainHero.Gold < CultureChangeCost) { reason = $"Для реформы требуется {CultureChangeCost:N0} динаров."; return false; }
+        if (!TorSettlementCultureBridge.ValidateFullConversion(targetCulture, settlement, out _))
+        {
+            reason = "Для этой народности пока невозможно безопасно провести полную реформу населения здесь.";
+            return false;
+        }
+
+        return true;
     }
 
     public bool TryChangeCultureImmediately(Settlement settlement, out string reason)
