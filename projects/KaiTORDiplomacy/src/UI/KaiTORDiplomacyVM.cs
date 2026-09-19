@@ -14,7 +14,6 @@ public sealed class KaiTORDiplomacyVM : ViewModel, IDisposable
 
     private Kingdom _selectedKingdom;
     private int _selectedDurationDays = KaiDiplomacyBehavior.DefaultNapDays;
-    private int _selectedTab;
     private string _actionResultText = string.Empty;
     private bool _disposed;
 
@@ -27,12 +26,8 @@ public sealed class KaiTORDiplomacyVM : ViewModel, IDisposable
     public event Action CloseRequested;
     public event Action CultureRequested;
 
-    [DataSourceProperty] public string TitleText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_title", "KaiTOR Diplomacy");
+    [DataSourceProperty] public string TitleText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_title", "Diplomacy and Dynasty");
     [DataSourceProperty] public string SubtitleText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_subtitle", "Houses, treaties and the fate of your realm.");
-    [DataSourceProperty] public string OverviewTabText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_tab_overview", "Overview");
-    [DataSourceProperty] public string DiplomacyTabText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_tab_diplomacy", "Diplomacy");
-    [DataSourceProperty] public string FamilyTabText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_tab_family", "Family");
-    [DataSourceProperty] public string PopulationTabText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_tab_population", "Realm & Population");
     [DataSourceProperty] public string RefreshText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_refresh", "Refresh");
     [DataSourceProperty] public string CloseText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_close", "Close");
     [DataSourceProperty] public string SelectKingdomHeaderText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_select_kingdom", "Select a realm");
@@ -43,27 +38,11 @@ public sealed class KaiTORDiplomacyVM : ViewModel, IDisposable
         "kaitor_diplomacy_ui_duration",
         "Duration: {DAYS} days",
         ("DAYS", _selectedDurationDays));
-    [DataSourceProperty] public string OpenFamilyText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_open_family", "Open family affairs");
     [DataSourceProperty] public string OpenCultureText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_open_culture", "Change settlement culture");
-    [DataSourceProperty] public string DawiTestText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_dawi_test", "Spawn one Dawi woman for live test");
-    [DataSourceProperty] public string FallbackHubText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_fallback", "Open classic KaiTOR menu");
     [DataSourceProperty] public string SelectedRealmHeaderText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_selected_realm", "Selected realm");
     [DataSourceProperty] public string FamilyHeaderText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_family_header", "House and dynasty");
-    [DataSourceProperty] public string PopulationHeaderText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_population_header", "Realm systems");
+    [DataSourceProperty] public string PopulationHeaderText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_population_header", "Realm");
     [DataSourceProperty] public string CultureHeaderText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_culture_header", "Settlement");
-    [DataSourceProperty] public string ResultHeaderText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_result_header", "Latest action");
-
-    [DataSourceProperty]
-    public bool IsOverviewVisible => _selectedTab == 0;
-
-    [DataSourceProperty]
-    public bool IsDiplomacyVisible => _selectedTab == 1;
-
-    [DataSourceProperty]
-    public bool IsFamilyVisible => _selectedTab == 2;
-
-    [DataSourceProperty]
-    public bool IsPopulationVisible => _selectedTab == 3;
 
     [DataSourceProperty]
     public string OverviewText
@@ -155,19 +134,33 @@ public sealed class KaiTORDiplomacyVM : ViewModel, IDisposable
     {
         get
         {
-            var dawi = Campaign.Current?.GetCampaignBehavior<KaiDawiWomenBehavior>();
-            var vampire = Campaign.Current?.GetCampaignBehavior<KaiVampirePopulationBehavior>();
-            var greenskin = Campaign.Current?.GetCampaignBehavior<KaiGreenskinPopulationBehavior>();
-            var realm = Campaign.Current?.GetCampaignBehavior<KaiRealmHouseGrowthBehavior>();
+            var kingdom = Clan.PlayerClan?.Kingdom;
+            if (kingdom == null)
+                return KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_no_realm", "Your clan is not part of a realm.");
+
+            var heroes = Hero.AllAliveHeroes
+                .Where(h => h != null && h.Clan?.Kingdom == kingdom)
+                .ToArray();
+
+            var marriedPairs = heroes.Count(h =>
+                h.Spouse != null &&
+                h.Spouse.IsAlive &&
+                h.Spouse.Clan?.Kingdom == kingdom &&
+                string.CompareOrdinal(h.StringId, h.Spouse.StringId) < 0);
+
+            var pregnant = heroes.Count(h => h.IsPregnant);
+            var clans = kingdom.Clans.Count(c => c != null && !c.IsEliminated);
+            var lords = heroes.Count(h => h.IsLord);
+            var settlements = kingdom.Settlements.Count;
 
             return KaiTORDiplomacyUiText.Format(
                 "kaitor_diplomacy_ui_population_format",
-                "Dawi women module: {DAWI}\nDawi automatic population: {DAWI_AUTO}\nVampire population: {VAMPIRE}\nGreenskin population: {GREEN}\nAI realm-house growth: {HOUSES}",
-                ("DAWI", YesNo(dawi != null)),
-                ("DAWI_AUTO", YesNo(KaiDawiWomenBehavior.AutomaticPopulationEnabled)),
-                ("VAMPIRE", YesNo(vampire != null)),
-                ("GREEN", YesNo(greenskin != null)),
-                ("HOUSES", YesNo(realm != null)));
+                "Noble houses: {CLANS}\nSettlements: {SETTLEMENTS}\nLiving lords: {LORDS}\nMarried couples: {MARRIED}\nPregnancies: {PREGNANT}",
+                ("CLANS", clans),
+                ("SETTLEMENTS", settlements),
+                ("LORDS", lords),
+                ("MARRIED", marriedPairs),
+                ("PREGNANT", pregnant));
         }
     }
 
@@ -214,16 +207,11 @@ public sealed class KaiTORDiplomacyVM : ViewModel, IDisposable
     [DataSourceProperty]
     public bool IsBreakDisabled => !CanBreak(out _);
 
-    public void ActionSelectOverview() => SetTab(0);
-    public void ActionSelectDiplomacy() => SetTab(1);
-    public void ActionSelectFamily() => SetTab(2);
-    public void ActionSelectPopulation() => SetTab(3);
-
     public void ActionRefresh()
     {
         if (_disposed) return;
         Refresh();
-        ActionResultText = KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_refreshed", "KaiTOR status refreshed.");
+        ActionResultText = KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_refreshed", "Information refreshed.");
     }
 
     public void ActionChooseRealm()
@@ -236,7 +224,7 @@ public sealed class KaiTORDiplomacyVM : ViewModel, IDisposable
         {
             ActionResultText = KaiTORDiplomacyUiText.Get(
                 "kaitor_diplomacy_ui_diplomacy_unavailable",
-                "KaiTOR diplomacy is currently unavailable.");
+                "Diplomatic actions are currently unavailable.");
             return;
         }
 
@@ -393,18 +381,6 @@ public sealed class KaiTORDiplomacyVM : ViewModel, IDisposable
         CultureRequested?.Invoke();
     }
 
-    public void ActionDawiTest()
-    {
-        if (_disposed) return;
-
-        var behavior = Campaign.Current?.GetCampaignBehavior<KaiDawiWomenBehavior>();
-        ActionResultText = behavior == null
-            ? KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_dawi_unavailable", "The Dawi women module is not loaded.")
-            : behavior.SpawnOneForLiveTest();
-
-        Refresh();
-    }
-
     public void ActionClose()
     {
         if (_disposed) return;
@@ -437,7 +413,7 @@ public sealed class KaiTORDiplomacyVM : ViewModel, IDisposable
 
         if (diplomacy == null || !diplomacy.RuntimeEnabled || source == null || target == null)
         {
-            reason = KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_diplomacy_unavailable", "KaiTOR diplomacy is currently unavailable.");
+            reason = KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_diplomacy_unavailable", "Diplomatic actions are currently unavailable.");
             return false;
         }
 
@@ -475,7 +451,7 @@ public sealed class KaiTORDiplomacyVM : ViewModel, IDisposable
 
         if (diplomacy == null || !diplomacy.RuntimeEnabled || source == null || target == null)
         {
-            reason = KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_diplomacy_unavailable", "KaiTOR diplomacy is currently unavailable.");
+            reason = KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_diplomacy_unavailable", "Diplomatic actions are currently unavailable.");
             return false;
         }
 
@@ -495,17 +471,6 @@ public sealed class KaiTORDiplomacyVM : ViewModel, IDisposable
         }
 
         return true;
-    }
-
-    private void SetTab(int tab)
-    {
-        if (_disposed || _selectedTab == tab) return;
-
-        _selectedTab = tab;
-        OnPropertyChanged(nameof(IsOverviewVisible));
-        OnPropertyChanged(nameof(IsDiplomacyVisible));
-        OnPropertyChanged(nameof(IsFamilyVisible));
-        OnPropertyChanged(nameof(IsPopulationVisible));
     }
 
     private void NotifySummaryProperties()
