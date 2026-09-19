@@ -79,5 +79,13 @@
   <string id="kaitor_diplomacy_ui_messenger_arrived" text="Messenger arrived"/>
   <string id="kaitor_diplomacy_ui_messenger_reached" text="Your messenger has reached {HERO}."/>
   <string id="kaitor_diplomacy_ui_messenger_choose" text="Choose"/>
+  <string id="kaitor_diplomacy_council_no_kingdom" text="Your clan does not currently belong to a kingdom."/>
+  <string id="kaitor_diplomacy_council_war_high_exhaustion" text="War with {REALM}: our exhaustion is high ({OURS}%). Peace should be considered."/>
+  <string id="kaitor_diplomacy_council_enemy_exhaustion" text="War with {REALM}: their exhaustion ({THEIRS}%) substantially exceeds ours ({OURS}%)."/>
+  <string id="kaitor_diplomacy_council_nap_receptive" text="{REALM} appears receptive to a non-aggression pact (assessment {SCORE})."/>
+  <string id="kaitor_diplomacy_council_pact_trust" text="The pact with {REALM} rests on strong accumulated trust ({TRUST})."/>
+  <string id="kaitor_diplomacy_council_dynastic" text="The ruling houses of {FIRST} and {SECOND} have significant dynastic ties ({STRENGTH}/100)."/>
+  <string id="kaitor_diplomacy_council_succession" text="House {CLAN} has no other living adult noble and may face a succession problem."/>
+  <string id="kaitor_diplomacy_council_threat" text="Other realms are likely to view our expansion as a major threat ({THREAT}/100)."/>
 </strings>
 </base>
