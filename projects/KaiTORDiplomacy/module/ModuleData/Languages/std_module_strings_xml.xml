@@ -87,5 +87,22 @@
   <string id="kaitor_diplomacy_council_dynastic" text="The ruling houses of {FIRST} and {SECOND} have significant dynastic ties ({STRENGTH}/100)."/>
   <string id="kaitor_diplomacy_council_succession" text="House {CLAN} has no other living adult noble and may face a succession problem."/>
   <string id="kaitor_diplomacy_council_threat" text="Other realms are likely to view our expansion as a major threat ({THREAT}/100)."/>
+  <string id="kaitor_diplomacy_fief_no_kingdom" text="Player kingdom is unavailable."/>
+  <string id="kaitor_diplomacy_fief_ruler_only" text="Only the ruler may grant a fief."/>
+  <string id="kaitor_diplomacy_fief_influence_required" text="At least {INFLUENCE} influence is required."/>
+  <string id="kaitor_diplomacy_fief_no_safe_fief" text="No safe player-clan fortification is available."/>
+  <string id="kaitor_diplomacy_fief_no_recipient" text="No eligible recipient clan is available."/>
+  <string id="kaitor_diplomacy_fief_entry_hint" text="{TYPE} | owner: {OWNER}"/>
+  <string id="kaitor_diplomacy_fief_town" text="Town"/>
+  <string id="kaitor_diplomacy_fief_castle" text="Castle"/>
+  <string id="kaitor_diplomacy_fief_title" text="Grant a fief"/>
+  <string id="kaitor_diplomacy_fief_choose_fief" text="Choose one of your clan's safe fortifications."/>
+  <string id="kaitor_diplomacy_ui_choose" text="Choose"/>
+  <string id="kaitor_diplomacy_fief_recipient_hint" text="Leader: {LEADER} | fiefs: {FIEFS}"/>
+  <string id="kaitor_diplomacy_fief_choose_house" text="Choose the house that will receive {FIEF}."/>
+  <string id="kaitor_diplomacy_fief_grant" text="Grant"/>
+  <string id="kaitor_diplomacy_fief_stale_fief" text="The selected fief is no longer safe to grant."/>
+  <string id="kaitor_diplomacy_fief_stale_house" text="The selected house is not eligible."/>
+  <string id="kaitor_diplomacy_fief_granted" text="{FIEF} has been granted to {CLAN}."/>
 </strings>
 </base>
