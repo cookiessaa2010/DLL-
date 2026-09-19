@@ -112,6 +112,22 @@ function Quote-WindowsArgument {
     return $builder.ToString()
 }
 
+function Assert-SteamHostPrerequisites {
+    $steam = @(Get-Process -Name 'steam' -ErrorAction SilentlyContinue)
+    if ($steam.Count -eq 0) {
+        throw 'Steam Lobby launch refused: Steam client is not running.'
+    }
+
+    $listeners = @([Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveUdpListeners())
+    foreach ($port in @(27315, 27316)) {
+        if (@($listeners | Where-Object { $_.Port -eq $port }).Count -gt 0) {
+            throw "Steam Lobby launch refused: local UDP port $port is already in use. Ports 27315/27316 must be free locally for Steam GameServer.Init; router forwarding is not required for the P2P/relay path."
+        }
+    }
+
+    Write-Output 'Steam host prerequisites: PASS (Steam running; local UDP 27315/27316 available).'
+}
+
 function Build-ModuleToken {
     param([Parameter(Mandatory = $true)][string[]]$Ids)
 
@@ -237,6 +253,10 @@ Write-Output '  Coop UDP:   4200 (pinned upstream default; no CLI override in th
 if ($DryRun) {
     Write-Output 'DRY RUN: process not started.'
     return
+}
+
+if ($Visibility -ne 'none') {
+    Assert-SteamHostPrerequisites
 }
 
 $previousServerName = [Environment]::GetEnvironmentVariable('KAITOR_SERVER_NAME', 'Process')
