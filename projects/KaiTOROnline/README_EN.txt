@@ -10,7 +10,7 @@ INSTALL
    Replace the previous Coop folder when prompted.
 3. The Old Realms 1.3.15 must be installed. KaiTOR does not redistribute TOR or Bannerlord files.
 4. For the first live test, optional gameplay modules may be left disabled.
-5. If using optional modules from this project: KaiCleave v0.3.1 and KaiTOR Stability v0.5.0. Server and every client must use the same versions.
+5. Optional Steam modules supported by this build: KaiCleave v1.3.15.31, KaiTOR Stability v1.3.15.50, and KaiTOR Portrait Fix v1.3.15.60. Server and every client must use the same active module set and exact versions. Workshop copies are staged temporarily by the launcher.
 
 START THE AUTHORITATIVE CAMPAIGN SERVER
 1. Run START_KAITOR_COOP.bat from the package root.
