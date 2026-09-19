@@ -28,9 +28,9 @@ elseif (-not $project.Contains('<GameVersion>v1.3.15</GameVersion>')) {
 
 $props = [IO.File]::ReadAllText($propsPath)
 if ($props.Contains('<CoopVersion>0.1.5</CoopVersion>')) {
-    $props = $props.Replace('<CoopVersion>0.1.5</CoopVersion>', '<CoopVersion>1.3.15.10</CoopVersion>')
+    $props = $props.Replace('<CoopVersion>0.1.5</CoopVersion>', '<CoopVersion>1.3.15.11</CoopVersion>')
 }
-elseif (-not $props.Contains('<CoopVersion>1.3.15.10</CoopVersion>')) {
+elseif (-not $props.Contains('<CoopVersion>1.3.15.11</CoopVersion>')) {
     throw 'Expected CoopVersion anchor not found.'
 }
 [IO.File]::WriteAllText($propsPath, $props, [Text.UTF8Encoding]::new($false))
@@ -56,6 +56,6 @@ if (-not $template.Contains('Id="TOR_Core"')) {
 Write-Host 'KaiTOR module metadata locked:'
 Write-Host '  Display name: KaiTOR Co-op'
 Write-Host '  Module Id:    Coop'
-Write-Host '  Version:      v1.3.15.10'
+Write-Host '  Version:      v1.3.15.11'
 Write-Host '  Game/TOR:     v1.3.15'
 Write-Host '  TOR deps:     TOR_Armory -> TOR_Environment -> TOR_Core'
