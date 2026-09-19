@@ -116,17 +116,33 @@ public sealed class KaiLiveTestBehavior : CampaignBehaviorBase
         var vampire = Campaign.Current.GetCampaignBehavior<KaiVampirePopulationBehavior>();
         var greenskin = Campaign.Current.GetCampaignBehavior<KaiGreenskinPopulationBehavior>();
         var realmHouse = Campaign.Current.GetCampaignBehavior<KaiRealmHouseGrowthBehavior>();
+        var messenger = Campaign.Current.GetCampaignBehavior<KaiMessengerBehavior>();
+        var warExhaustion = Campaign.Current.GetCampaignBehavior<KaiWarExhaustionBehavior>();
 
         yield return
             $"section=behaviors; diplomacy={State(diplomacy != null, diplomacy?.RuntimeEnabled == true)}; " +
             $"family={Present(family)}; culture={Present(culture)}; dynastic={Present(dynastic)}; " +
             $"incomingMarriage={Present(incoming)}; education={Present(education)}; bloodKiss={Present(bloodKiss)}; " +
             $"mercy={Present(mercy)}; dawi={Present(dawi)}; vampire={Present(vampire)}; " +
-            $"greenskin={Present(greenskin)}; realmHouse={Present(realmHouse)}";
+            $"greenskin={Present(greenskin)}; realmHouse={Present(realmHouse)}; messenger={Present(messenger)}; warExhaustion={Present(warExhaustion)}";
 
         yield return
             $"section=ui; movie={KaiTORDiplomacyScreen.MovieName}; layer={KaiTORDiplomacyScreen.LayerName}; " +
             $"{KaiFamilyAffairsBehavior.DescribeUiStatus()}";
+
+        if (messenger != null)
+        {
+            foreach (var line in messenger.DescribeStatus())
+                yield return "section=messenger; " + line;
+        }
+
+        yield return "section=nap_guard; " + KaiNapWarGuard.Describe();
+
+        if (warExhaustion != null)
+        {
+            foreach (var line in warExhaustion.DescribeWars())
+                yield return "section=war_exhaustion; " + line;
+        }
 
         if (diplomacy != null)
         {
