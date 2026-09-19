@@ -8,6 +8,9 @@ param(
     [ValidateNotNullOrEmpty()]
     [string]$SaveName,
 
+    [ValidateLength(0, 64)]
+    [string]$ServerName = '',
+
     [ValidateSet('public', 'friends_only', 'none')]
     [string]$Visibility = 'none',
 
@@ -260,6 +263,7 @@ try {
     $launcherArgs = @{
         BannerlordRoot = $root
         SaveName = $SaveName
+        ServerName = $ServerName
         ModuleIds = $finalModuleIds.ToArray()
         Visibility = $Visibility
         Password = $Password
