@@ -27,8 +27,12 @@ $EN = @{
     port='Port'
     players='Players'
     server='Server'
+    steam='Steam'
     offline='OFFLINE'
     online='ONLINE'
+    steam_starting='STARTING'
+    steam_ready='LOBBY READY'
+    steam_error='ERROR'
     preflight='Preflight'
     start='Start Server'
     stop='Stop Server'
@@ -65,8 +69,12 @@ $RU = @{
     port='Порт'
     players='Игроки'
     server='Сервер'
+    steam='Steam'
     offline='НЕ ЗАПУЩЕН'
     online='ЗАПУЩЕН'
+    steam_starting='ЗАПУСК'
+    steam_ready='ЛОББИ ГОТОВО'
+    steam_error='ОШИБКА'
     preflight='Проверить'
     start='Запустить сервер'
     stop='Остановить сервер'
@@ -165,6 +173,38 @@ function Get-ConnectedPlayerText {
     }
 }
 
+function Get-SteamLobbyState {
+    if (@(Get-KaiTORServerProcesses).Count -eq 0) {
+        return [pscustomobject]@{ Text = $script:Text.offline; State = 'offline' }
+    }
+
+    $log = Get-ServerLog
+    if ($null -eq $log) {
+        return [pscustomobject]@{ Text = $script:Text.steam_starting; State = 'starting' }
+    }
+
+    try {
+        $lines = @(Get-Content -LiteralPath $log.FullName -Tail 3500 -ErrorAction Stop)
+        $errorPattern = 'GameServer\.Init returned false|Game-server logon failed|Server Steam integration inactive|Could not start the standalone Steam advertisement|Could not create a Steam lobby|Steam lobby data writes failed'
+        if (@($lines | Where-Object { $_ -match $errorPattern }).Count -gt 0) {
+            return [pscustomobject]@{ Text = $script:Text.steam_error; State = 'error' }
+        }
+
+        $loggedOn = @($lines | Where-Object { $_ -match 'Game server logged on:' }).Count -gt 0
+        $lobbyCreated = @($lines | Where-Object { $_ -match 'Steam lobby [0-9]+ created' }).Count -gt 0
+        $tunnelListening = @($lines | Where-Object { $_ -match 'Steam tunnel host listening' }).Count -gt 0
+
+        if ($loggedOn -and $lobbyCreated -and $tunnelListening) {
+            return [pscustomobject]@{ Text = $script:Text.steam_ready; State = 'ready' }
+        }
+
+        return [pscustomobject]@{ Text = $script:Text.steam_starting; State = 'starting' }
+    }
+    catch {
+        return [pscustomobject]@{ Text = $script:Text.steam_starting; State = 'starting' }
+    }
+}
+
 function Set-Status([string]$Key, [string]$Suffix = '') {
     $script:LastStatusKey = $Key
     $lblMessage.Text = $script:Text[$Key] + $Suffix
@@ -256,6 +296,12 @@ $lblServer = New-Label 630 225 160 28
 $lblServer.Font = [Drawing.Font]::new('Segoe UI Semibold',11,[Drawing.FontStyle]::Bold)
 $form.Controls.Add($lblServer)
 
+$lblSteamCaption = New-Label 550 270 80 28
+$form.Controls.Add($lblSteamCaption)
+$lblSteam = New-Label 630 270 160 28
+$lblSteam.Font = [Drawing.Font]::new('Segoe UI Semibold',10,[Drawing.FontStyle]::Bold)
+$form.Controls.Add($lblSteam)
+
 $panel = [Windows.Forms.Panel]::new()
 $panel.SetBounds(25,325,765,2)
 $panel.BackColor = [Drawing.Color]::FromArgb(115,54,38)
@@ -299,6 +345,7 @@ function Refresh-Texts {
     $lblPort.Text = $script:Text.port
     $lblPlayersCaption.Text = $script:Text.players
     $lblServerCaption.Text = $script:Text.server
+    $lblSteamCaption.Text = $script:Text.steam
     $lblStatusCaption.Text = $script:Text.status
     $btnPreflight.Text = $script:Text.preflight
     $btnStart.Text = $script:Text.start
@@ -348,7 +395,15 @@ $btnPreflight.Add_Click({
     Set-Status 'preflight_run'
     [Windows.Forms.Application]::DoEvents()
     try {
-        $output = & $Readiness -PackageRoot $PackageRoot -BannerlordRoot $root -SaveName $txtSave.Text.Trim() 3>&1 2>&1 | Out-String
+        $readinessArgs = @{
+            PackageRoot = $PackageRoot
+            BannerlordRoot = $root
+            SaveName = $txtSave.Text.Trim()
+        }
+        if ($cmbVisibility.SelectedIndex -gt 0) {
+            $readinessArgs.RequireSteamHost = $true
+        }
+        $output = & $Readiness @readinessArgs 3>&1 2>&1 | Out-String
         if ($output -notmatch 'KaiTOR TOR live readiness: PASS') {
             throw ($output.Trim())
         }
@@ -438,6 +493,16 @@ $timer.Add_Tick({
     $lblServer.Text = if ($online) { $script:Text.online } else { $script:Text.offline }
     $lblServer.ForeColor = if ($online) { [Drawing.Color]::FromArgb(129,190,111) } else { [Drawing.Color]::FromArgb(205,100,82) }
     $lblPlayers.Text = Get-ConnectedPlayerText
+
+    $steamState = Get-SteamLobbyState
+    $lblSteam.Text = $steamState.Text
+    $lblSteam.ForeColor = switch ($steamState.State) {
+        'ready' { [Drawing.Color]::FromArgb(129,190,111) }
+        'error' { [Drawing.Color]::FromArgb(205,100,82) }
+        'starting' { [Drawing.Color]::FromArgb(218,196,154) }
+        default { [Drawing.Color]::FromArgb(150,127,100) }
+    }
+
     $btnStart.Enabled = -not $online
     $btnStop.Enabled = $online
 })
