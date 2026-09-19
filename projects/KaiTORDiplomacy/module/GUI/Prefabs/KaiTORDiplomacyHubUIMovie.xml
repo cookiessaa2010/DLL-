@@ -75,12 +75,6 @@
                                     Brush.TextVerticalAlignment="Top"
                                     Text="@FamilySummaryText"/>
 
-                        <Standard.Button WidthSizePolicy="Fixed" SuggestedWidth="330"
-                                         HeightSizePolicy="Fixed" SuggestedHeight="54"
-                                         MarginTop="8"
-                                         Command.Click="ActionOpenFamily"
-                                         Parameter.Text="@OpenFamilyText"/>
-
                         <TextWidget WidthSizePolicy="StretchToParent"
                                     HeightSizePolicy="Fixed" SuggestedHeight="34"
                                     MarginTop="12"
@@ -196,11 +190,6 @@
                                      HeightSizePolicy="Fixed" SuggestedHeight="54"
                                      Command.Click="ActionRefresh"
                                      Parameter.Text="@RefreshText"/>
-                    <Standard.Button WidthSizePolicy="Fixed" SuggestedWidth="300"
-                                     HeightSizePolicy="Fixed" SuggestedHeight="54"
-                                     MarginLeft="10"
-                                     Command.Click="ActionOpenFallbackHub"
-                                     Parameter.Text="@FallbackHubText"/>
                     <Widget WidthSizePolicy="StretchToParent"
                             HeightSizePolicy="StretchToParent"/>
                     <Standard.Button WidthSizePolicy="Fixed" SuggestedWidth="210"
