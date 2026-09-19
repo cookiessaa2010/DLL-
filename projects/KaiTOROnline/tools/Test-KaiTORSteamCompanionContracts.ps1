@@ -64,7 +64,7 @@ function Initialize-BaseRoot {
 <Module><Id value="TOR_Core"/><Version value="v1.3.15"/><DependedModules><DependedModule Id="Native" DependentVersion="v1.3.15"/><DependedModule Id="SandBoxCore" DependentVersion="v1.3.15"/><DependedModule Id="Sandbox" DependentVersion="v1.3.15"/><DependedModule Id="TOR_Armory" DependentVersion="v1.3.15"/><DependedModule Id="TOR_Environment" DependentVersion="v1.3.15"/></DependedModules><SubModules><SubModule><DLLName value="TOR_Core.dll"/><Tags><Tag key="DedicatedServerType" value="none"/><Tag key="IsNoRenderModeElement" value="false"/></Tags></SubModule></SubModules></Module>
 '@
 
-    Write-Module -Root $Root -Id 'Coop' -Dlls @('Coop.dll','Coop.Core.dll','GameInterface.dll','Missions.dll') -Xml @'
+    Write-Module -Root $Root -Id 'Coop' -Dlls @('Common.dll','Coop.dll','Coop.Core.dll','Coop.Steam.dll','GameInterface.dll','Missions.dll') -Xml @'
 <Module><Id value="Coop"/><Version value="v1.3.15.13"/><DependedModules><DependedModule Id="Native" DependentVersion="v1.3.15"/><DependedModule Id="SandBoxCore" DependentVersion="v1.3.15"/><DependedModule Id="Sandbox" DependentVersion="v1.3.15"/><DependedModule Id="CustomBattle" DependentVersion="v1.3.15"/><DependedModule Id="StoryMode" DependentVersion="v1.3.15"/></DependedModules></Module>
 '@
 }
