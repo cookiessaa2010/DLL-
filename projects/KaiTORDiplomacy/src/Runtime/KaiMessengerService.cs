@@ -1,5 +1,4 @@
 using System;
-using HarmonyLib;
 using KaiTOR.Diplomacy.Models;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Conversation;
@@ -10,8 +9,8 @@ using TaleWorlds.Localization;
 namespace KaiTOR.Diplomacy.Runtime;
 
 /// <summary>
-/// Shared messenger contact backend. UI ownership belongs to the Encyclopedia hero page,
-/// matching the Diplomacy implementation integrated by Shokuho.
+/// Shared messenger validation and remote-conversation backend.
+/// Travel timing is owned by KaiMessengerBehavior.
 /// </summary>
 internal static class KaiMessengerService
 {
@@ -88,17 +87,41 @@ internal static class KaiMessengerService
         return true;
     }
 
-    internal static void ContactHero(Hero hero)
+    internal static bool CanArriveAtHeroNow(Hero hero)
+    {
+        if (hero == null || !hero.IsAlive || !hero.IsActive || hero.IsChild || hero.IsPrisoner || hero.IsFugitive)
+            return false;
+
+        return hero.PartyBelongedTo?.MapEvent == null;
+    }
+
+    internal static bool CanInterruptPlayerOnMap()
+    {
+        if (Campaign.Current == null || Hero.MainHero == null || MobileParty.MainParty == null)
+            return false;
+
+        if (Hero.MainHero.IsPrisoner)
+            return false;
+
+        if (Campaign.Current.ConversationManager?.IsConversationInProgress == true)
+            return false;
+
+        if (MobileParty.MainParty.MapEvent != null || MobileParty.MainParty.BesiegedSettlement != null)
+            return false;
+
+        return true;
+    }
+
+    internal static void StartRemoteConversation(Hero hero)
     {
         try
         {
-            if (!CanContactHero(hero, out var reason))
+            if (!CanArriveAtHeroNow(hero) || !CanInterruptPlayerOnMap())
             {
-                ShowQuick(reason?.ToString() ?? "Этот персонаж сейчас недоступен.");
+                ShowQuick("Сейчас начать разговор нельзя. Встреча отменена.");
+                KaiRuntimeLog.Write("MESSENGER_CONTACT_FAILED", $"hero={hero?.StringId ?? "null"}; reason=not_available_at_start");
                 return;
             }
-
-            TryCloseEncyclopedia();
 
             var playerData = new ConversationCharacterData(
                 CharacterObject.PlayerCharacter,
@@ -119,33 +142,11 @@ internal static class KaiMessengerService
         catch (Exception ex)
         {
             KaiRuntimeLog.Exception("MESSENGER_CONTACT_FAILED", ex, $"hero={hero?.StringId ?? "null"}");
-            ShowQuick("Не удалось связаться с персонажем. Ошибка записана в KaiTOR.log.");
+            ShowQuick("Не удалось открыть разговор. Ошибка записана в KaiTOR.log.");
         }
     }
 
-    private static void TryCloseEncyclopedia()
-    {
-        try
-        {
-            var mapScreenType = AccessTools.TypeByName("SandBox.View.Map.MapScreen");
-            var instance = AccessTools.Property(mapScreenType, "Instance")?.GetValue(null);
-            if (instance == null)
-                return;
-
-            var manager = AccessTools.Property(mapScreenType, "EncyclopediaScreenManager")?.GetValue(instance);
-            if (manager == null)
-                return;
-
-            AccessTools.Method(manager.GetType(), "CloseEncyclopedia")?.Invoke(manager, null);
-            KaiRuntimeLog.Write("MESSENGER_ENCYCLOPEDIA_CLOSE", "closed_before_contact=true");
-        }
-        catch (Exception ex)
-        {
-            KaiRuntimeLog.Exception("MESSENGER_ENCYCLOPEDIA_CLOSE_FAILED", ex);
-        }
-    }
-
-    private static void ShowQuick(string text)
+    internal static void ShowQuick(string text)
     {
         MBInformationManager.AddQuickInformation(
             new TextObject(text ?? string.Empty),
