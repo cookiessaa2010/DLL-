@@ -77,7 +77,8 @@ public sealed class SubModule : MBSubModuleBase
         campaignStarter.AddBehavior(new KaiFamilyDiagnosticsBehavior());
         campaignStarter.AddBehavior(new KaiLoreEducationBehavior());
         campaignStarter.AddBehavior(new KaiBloodKissBehavior());
-        campaignStarter.AddBehavior(new KaiMercyRelationBehavior());
+        // Lord-release relation uses a Harmony replacement of Bannerlord's native +4
+        // reward. No second behavior/event grants a separate relation bonus.
         campaignStarter.AddBehavior(new KaiLiveTestBehavior());
         campaignStarter.AddBehavior(new KaiRealmHouseGrowthBehavior());
     }
