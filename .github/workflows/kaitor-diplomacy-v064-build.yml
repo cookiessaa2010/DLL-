@@ -300,8 +300,25 @@ jobs:
             }
           }
 
-          foreach ($token in @('AddDashboardAction','KaiTORDiplomacyScreen.TryOpen(target)','DIPLOMACY_DASHBOARD_OPEN','DIPLOMACY_DASHBOARD_FAILED')) {
-            if (-not $uiPatchSource.Contains($token)) { throw "Native diplomacy dashboard endpoint missing: $token" }
+          foreach ($forbiddenDashboardToken in @(
+            'AddDashboardAction',
+            'KaiTORDiplomacyScreen.TryOpen',
+            'DIPLOMACY_DASHBOARD_OPEN',
+            'DIPLOMACY_DASHBOARD_FAILED'
+          )) {
+            if ($uiPatchSource.Contains($forbiddenDashboardToken)) {
+              throw "Crash-prone diplomacy dashboard injection returned: $forbiddenDashboardToken"
+            }
+          }
+          foreach ($requiredNapToken in @(
+            'AddProposalAction(__instance, diplomacy, source, target)',
+            'AddActivePactAction(__instance, diplomacy, source, target)',
+            'new TextObject("Пакт о ненападении")',
+            'new TextObject("Разорвать пакт")'
+          )) {
+            if (-not $uiPatchSource.Contains($requiredNapToken)) {
+              throw "Native diplomacy NAP action missing: $requiredNapToken"
+            }
           }
 
           foreach ($oldFamilyCall in @('RegisterRootMenu(starter);','RegisterHouseMenu(starter);','RegisterMarriageMenu(starter);')) {
