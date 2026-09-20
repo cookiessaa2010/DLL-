@@ -1,275 +1,163 @@
 using System;
-using System.Reflection;
 using System.Threading;
 using HarmonyLib;
 using TaleWorlds.Engine;
 using TaleWorlds.MountAndBlade;
 using TaleWorlds.MountAndBlade.View.Tableaus;
+using TaleWorlds.ScreenSystem;
 
 namespace KaiTORPortraitFix
 {
     /// <summary>
-    /// Stable, narrowly-scoped repair for Bannerlord's ActionIndexCache static-initializer race.
+    /// Safe runtime fallback for poisoned Bannerlord inventory-idle action indices.
     ///
-    /// Confirmed failure mode on Bannerlord 1.3.15.110062:
-    /// ActionIndexCache.act_inventory_idle_start and act_inventory_idle can be baked as -1 when the
-    /// type is initialized before MBAnimation action types are ready. Later live lookups already
-    /// resolve correctly, but UI tableaus keep consuming the poisoned static values and characters
-    /// remain in bind pose.
+    /// 0.6.0 repaired ActionIndexCache static readonly fields globally. Live testing on
+    /// Bannerlord 1.3.15.110062 + TOR 1.3.15 showed that this can leak into TOR character
+    /// creation and corrupt the preview pose, and a repeat character-creation attempt ended
+    /// in a native access violation. 0.6.1 therefore never writes ActionIndexCache statics.
     ///
-    /// This repair intentionally touches only the two inventory-idle fields required by the affected
-    /// CharacterTableau and BasicCharacterTableau paths. It is a no-op when those fields are healthy.
+    /// The fix is now local to the affected UI call:
+    /// - CharacterTableau.GetIdleAction receives a live fallback only when the returned index is invalid.
+    /// - BasicCharacterTableau receives a live inventory-idle action only on its current preview skeleton.
+    /// - CharacterCreationScreen is explicitly excluded from all pose fallback work.
     /// </summary>
     internal static class ActionIndexCacheRepair
     {
-        private static readonly object Gate = new object();
-        private static bool _completed;
-        private static int _attempts;
-        private static int _deferredLogs;
+        private const string IdleStartAction = "act_inventory_idle_start";
+        private const string IdleAction = "act_inventory_idle";
 
-        private const int MaxAttempts = 3;
-        private const int MaxDeferredLogs = 2;
-        private const string ProbeAction = "act_inventory_idle_start";
-
-        internal static bool TryEnsureRepaired(string phase)
-        {
-            lock (Gate)
-            {
-                if (_completed)
-                    return true;
-                if (_attempts >= MaxAttempts)
-                    return false;
-
-                // Do not touch ActionIndexCache before this MBAnimation-only gate. The gate prevents
-                // this mod from being the code that initializes ActionIndexCache too early.
-                int actionCount;
-                int probeIndex;
-                try
-                {
-                    actionCount = MBAnimation.GetNumActionCodes();
-                    probeIndex = MBAnimation.GetActionCodeWithName(ProbeAction);
-                }
-                catch (Exception ex)
-                {
-                    LogDeferred(phase, "gate-exception=" + ex.GetType().Name);
-                    return false;
-                }
-
-                if (actionCount <= 0 || probeIndex < 0)
-                {
-                    LogDeferred(
-                        phase,
-                        "actionCount=" + actionCount + "; probeIndex=" + probeIndex + "; ready=false");
-                    return false;
-                }
-
-                _attempts++;
-
-                var idleStart = RepairOne("act_inventory_idle_start", "act_inventory_idle_start");
-                var idle = RepairOne("act_inventory_idle", "act_inventory_idle");
-
-                var failed = (idleStart.Failed ? 1 : 0) + (idle.Failed ? 1 : 0);
-                var repaired = (idleStart.Repaired ? 1 : 0) + (idle.Repaired ? 1 : 0);
-                var healthy = (idleStart.Healthy ? 1 : 0) + (idle.Healthy ? 1 : 0);
-
-                _completed = failed == 0 && idleStart.AfterIndex >= 0 && idle.AfterIndex >= 0;
-
-                PortraitFixLog.Event(
-                    "ACTION_CACHE_REPAIR",
-                    "phase=" + phase +
-                    "; attempt=" + _attempts +
-                    "; completed=" + _completed +
-                    "; repaired=" + repaired +
-                    "; healthy=" + healthy +
-                    "; failed=" + failed +
-                    "; idleStart=" + idleStart.AfterIndex +
-                    "; idle=" + idle.AfterIndex);
-
-                return _completed;
-            }
-        }
-
-        internal static int ReadStaticIndex(string fieldName)
+        internal static bool IsCharacterCreationScreenActive()
         {
             try
             {
-                var field = typeof(ActionIndexCache).GetField(fieldName, BindingFlags.Public | BindingFlags.Static);
-                if (field == null || field.FieldType != typeof(ActionIndexCache))
-                    return int.MinValue;
-                return ((ActionIndexCache)field.GetValue(null)).Index;
+                var top = ScreenManager.TopScreen;
+                var fullName = top?.GetType()?.FullName ?? string.Empty;
+                return fullName.IndexOf(
+                    "CharacterCreation.CharacterCreationScreen",
+                    StringComparison.OrdinalIgnoreCase) >= 0;
             }
             catch
             {
-                return int.MinValue;
+                // Fail safe: if screen detection itself is unavailable, do not mutate any global
+                // state anyway. The local fallback remains bounded to the caller.
+                return false;
             }
         }
 
-        private static RepairResult RepairOne(string fieldName, string actionName)
+        internal static bool TryCreateLiveAction(string actionName, out ActionIndexCache action)
         {
-            var result = new RepairResult();
+            action = default(ActionIndexCache);
 
             try
             {
-                var field = typeof(ActionIndexCache).GetField(fieldName, BindingFlags.Public | BindingFlags.Static);
-                if (field == null || field.FieldType != typeof(ActionIndexCache))
-                {
-                    result.Failed = true;
-                    result.AfterIndex = int.MinValue;
-                    PortraitFixLog.Event("ACTION_CACHE_FIELD", "field=" + fieldName + "; found=false");
-                    return result;
-                }
+                if (string.IsNullOrWhiteSpace(actionName))
+                    return false;
 
-                var current = (ActionIndexCache)field.GetValue(null);
-                result.BeforeIndex = current.Index;
+                var actionCount = MBAnimation.GetNumActionCodes();
+                if (actionCount <= 0)
+                    return false;
 
                 var liveIndex = MBAnimation.GetActionCodeWithName(actionName);
-                result.LiveIndex = liveIndex;
-
-                if (current.Index >= 0)
-                {
-                    result.Healthy = true;
-                    result.AfterIndex = current.Index;
-                    PortraitFixLog.Event(
-                        "ACTION_CACHE_FIELD",
-                        "field=" + fieldName +
-                        "; before=" + current.Index +
-                        "; live=" + liveIndex +
-                        "; after=" + current.Index +
-                        "; repaired=false; reason=already-healthy");
-                    return result;
-                }
-
                 if (liveIndex < 0)
-                {
-                    result.Failed = true;
-                    result.AfterIndex = current.Index;
-                    PortraitFixLog.Event(
-                        "ACTION_CACHE_FIELD",
-                        "field=" + fieldName +
-                        "; before=" + current.Index +
-                        "; live=" + liveIndex +
-                        "; after=" + current.Index +
-                        "; repaired=false; reason=live-unresolved");
-                    return result;
-                }
+                    return false;
 
-                // Action types are loaded and these two field->action mappings are exact.
                 var candidate = ActionIndexCache.Create(actionName);
                 if (candidate.Index < 0 || candidate.Index != liveIndex)
-                {
-                    result.Failed = true;
-                    result.AfterIndex = current.Index;
-                    PortraitFixLog.Event(
-                        "ACTION_CACHE_FIELD",
-                        "field=" + fieldName +
-                        "; before=" + current.Index +
-                        "; live=" + liveIndex +
-                        "; candidate=" + candidate.Index +
-                        "; after=" + current.Index +
-                        "; repaired=false; reason=candidate-mismatch");
-                    return result;
-                }
+                    return false;
 
-                field.SetValue(null, candidate);
-                var after = ((ActionIndexCache)field.GetValue(null)).Index;
-
-                result.AfterIndex = after;
-                result.Repaired = after == candidate.Index && after >= 0;
-                result.Failed = !result.Repaired;
-
-                PortraitFixLog.Event(
-                    "ACTION_CACHE_FIELD",
-                    "field=" + fieldName +
-                    "; before=" + current.Index +
-                    "; live=" + liveIndex +
-                    "; candidate=" + candidate.Index +
-                    "; after=" + after +
-                    "; repaired=" + result.Repaired +
-                    "; reason=" + (result.Repaired ? "write-verified" : "write-refused"));
-
-                return result;
+                action = candidate;
+                return true;
             }
-            catch (Exception ex)
+            catch
             {
-                result.Failed = true;
-                result.AfterIndex = int.MinValue;
-                PortraitFixLog.Event(
-                    "ACTION_CACHE_FIELD",
-                    "field=" + fieldName + "; repaired=false; error=" + ex.GetType().Name + ": " + ex.Message);
-                return result;
+                return false;
             }
         }
 
-        private static void LogDeferred(string phase, string detail)
-        {
-            var n = Interlocked.Increment(ref _deferredLogs);
-            if (n <= MaxDeferredLogs)
-            {
-                PortraitFixLog.Event(
-                    "ACTION_CACHE_DEFERRED",
-                    "phase=" + phase + "; " + detail);
-            }
-            else if (n == MaxDeferredLogs + 1)
-            {
-                PortraitFixLog.Event(
-                    "ACTION_CACHE_DEFERRED",
-                    "further-deferred-events-suppressed=true");
-            }
-        }
+        internal static bool TryCreateIdleStart(out ActionIndexCache action)
+            => TryCreateLiveAction(IdleStartAction, out action);
 
-        private sealed class RepairResult
-        {
-            internal int BeforeIndex = int.MinValue;
-            internal int LiveIndex = int.MinValue;
-            internal int AfterIndex = int.MinValue;
-            internal bool Healthy;
-            internal bool Repaired;
-            internal bool Failed;
-        }
+        internal static bool TryCreateIdle(out ActionIndexCache action)
+            => TryCreateLiveAction(IdleAction, out action);
     }
 
     /// <summary>
-    /// Repair immediately before the normal CharacterTableau refresh consumes the cached idle action.
+    /// CharacterTableau normally returns ActionIndexCache.act_inventory_idle_start.
+    /// If that cached value is poisoned, substitute a valid live lookup for this call only.
+    /// TOR's CharacterCreationScreen is never touched.
     /// </summary>
-    [HarmonyPatch(typeof(CharacterTableau), "RefreshCharacterTableau")]
-    internal static class CharacterTableauActionCacheRepairPatch
-    {
-        [HarmonyPrefix]
-        internal static void Prefix()
-        {
-            ActionIndexCacheRepair.TryEnsureRepaired("CharacterTableau.Refresh");
-        }
-    }
-
-    /// <summary>
-    /// Repair immediately before Save/Load BasicCharacterTableau consumes act_inventory_idle.
-    /// </summary>
-    [HarmonyPatch(typeof(BasicCharacterTableau), "RefreshCharacterTableau")]
-    internal static class BasicCharacterTableauActionCacheRepairPatch
+    [HarmonyPatch(typeof(CharacterTableau), "GetIdleAction")]
+    internal static class CharacterTableauIdleFallbackPatch
     {
         private static int _fallbackLogs;
+        private static int _creationSkipLogs;
 
-        [HarmonyPrefix]
-        internal static void Prefix()
+        [HarmonyPostfix]
+        internal static void Postfix(ref ActionIndexCache __result)
         {
-            ActionIndexCacheRepair.TryEnsureRepaired("BasicCharacterTableau.Refresh");
+            if (__result.Index >= 0)
+                return;
+
+            if (ActionIndexCacheRepair.IsCharacterCreationScreenActive())
+            {
+                LogCreationSkip("target=CharacterTableau.GetIdleAction; reason=character-creation");
+                return;
+            }
+
+            if (!ActionIndexCacheRepair.TryCreateIdleStart(out var live))
+                return;
+
+            var before = __result.Index;
+            __result = live;
+
+            var n = Interlocked.Increment(ref _fallbackLogs);
+            if (n <= 6)
+            {
+                PortraitFixLog.Event(
+                    "LOCAL_POSE_FALLBACK",
+                    "target=CharacterTableau.GetIdleAction; applied=true; before=" + before +
+                    "; liveIdleStart=" + live.Index);
+            }
+            else if (n == 7)
+            {
+                PortraitFixLog.Event("LOCAL_POSE_FALLBACK", "further-events-suppressed=true");
+            }
         }
+
+        private static void LogCreationSkip(string message)
+        {
+            var n = Interlocked.Increment(ref _creationSkipLogs);
+            if (n <= 3)
+                PortraitFixLog.Event("CHARACTER_CREATION_BYPASS", message);
+            else if (n == 4)
+                PortraitFixLog.Event("CHARACTER_CREATION_BYPASS", "further-events-suppressed=true");
+        }
+    }
+
+    /// <summary>
+    /// Save/Load uses BasicCharacterTableau and can consume a poisoned static inventory-idle
+    /// value directly. Apply the valid action only to the already-created preview skeleton.
+    /// No static field is read through reflection or written.
+    /// </summary>
+    [HarmonyPatch(typeof(BasicCharacterTableau), "RefreshCharacterTableau")]
+    internal static class BasicCharacterTableauIdleFallbackPatch
+    {
+        private static int _fallbackLogs;
+        private static int _creationSkipLogs;
 
         [HarmonyPostfix]
         internal static void Postfix(BasicCharacterTableau __instance)
         {
-            // Runtime fallback only when reflection could not restore the poisoned readonly static.
-            // It changes only the already-created preview skeleton and never touches save data.
-            var staticIdle = ActionIndexCacheRepair.ReadStaticIndex("act_inventory_idle");
-            if (staticIdle >= 0)
+            if (__instance == null)
                 return;
 
-            var liveCode = MBAnimation.GetActionCodeWithName("act_inventory_idle");
-            if (liveCode < 0)
+            if (ActionIndexCacheRepair.IsCharacterCreationScreenActive())
+            {
+                LogCreationSkip("target=BasicCharacterTableau.Refresh; reason=character-creation");
                 return;
+            }
 
-            var liveIdle = ActionIndexCache.Create("act_inventory_idle");
-            if (liveIdle.Index != liveCode || liveIdle.Index < 0)
+            if (!ActionIndexCacheRepair.TryCreateIdle(out var liveIdle))
                 return;
 
             try
@@ -285,65 +173,35 @@ namespace KaiTORPortraitFix
                     return;
 
                 skeleton.SetAgentActionChannel(0, liveIdle, 0f, -0.2f, true, 0f);
-                LogFallback(
-                    "target=BasicCharacterTableau; applied=true; staticIdle=" + staticIdle +
-                    "; liveIdle=" + liveIdle.Index);
+
+                var n = Interlocked.Increment(ref _fallbackLogs);
+                if (n <= 6)
+                {
+                    PortraitFixLog.Event(
+                        "LOCAL_POSE_FALLBACK",
+                        "target=BasicCharacterTableau.Refresh; applied=true; liveIdle=" + liveIdle.Index);
+                }
+                else if (n == 7)
+                {
+                    PortraitFixLog.Event("LOCAL_POSE_FALLBACK", "further-events-suppressed=true");
+                }
             }
             catch (Exception ex)
             {
-                LogFallback(
-                    "target=BasicCharacterTableau; applied=false; error=" + ex.GetType().Name + ": " + ex.Message);
-            }
-        }
-
-        private static void LogFallback(string message)
-        {
-            var n = Interlocked.Increment(ref _fallbackLogs);
-            if (n <= 4)
-                PortraitFixLog.Event("ACTION_CACHE_FALLBACK", message);
-            else if (n == 5)
-                PortraitFixLog.Event("ACTION_CACHE_FALLBACK", "further-events-suppressed=true");
-        }
-    }
-
-    /// <summary>
-    /// CharacterTableau normally falls back to the static act_inventory_idle_start value. If a
-    /// runtime refuses the reflection write, substitute the same action via a live lookup.
-    /// </summary>
-    [HarmonyPatch(typeof(CharacterTableau), "GetIdleAction")]
-    internal static class CharacterTableauIdleFallbackPatch
-    {
-        private static int _fallbackLogs;
-
-        [HarmonyPostfix]
-        internal static void Postfix(ref ActionIndexCache __result)
-        {
-            if (__result.Index >= 0)
-                return;
-
-            var liveCode = MBAnimation.GetActionCodeWithName("act_inventory_idle_start");
-            if (liveCode < 0)
-                return;
-
-            var live = ActionIndexCache.Create("act_inventory_idle_start");
-            if (live.Index != liveCode || live.Index < 0)
-                return;
-
-            var before = __result.Index;
-            __result = live;
-
-            var n = Interlocked.Increment(ref _fallbackLogs);
-            if (n <= 4)
-            {
                 PortraitFixLog.Event(
-                    "ACTION_CACHE_FALLBACK",
-                    "target=CharacterTableau.GetIdleAction; applied=true; before=" + before +
-                    "; liveIdleStart=" + live.Index);
+                    "LOCAL_POSE_FALLBACK",
+                    "target=BasicCharacterTableau.Refresh; applied=false; error=" +
+                    ex.GetType().Name + ": " + ex.Message);
             }
-            else if (n == 5)
-            {
-                PortraitFixLog.Event("ACTION_CACHE_FALLBACK", "further-events-suppressed=true");
-            }
+        }
+
+        private static void LogCreationSkip(string message)
+        {
+            var n = Interlocked.Increment(ref _creationSkipLogs);
+            if (n <= 3)
+                PortraitFixLog.Event("CHARACTER_CREATION_BYPASS", message);
+            else if (n == 4)
+                PortraitFixLog.Event("CHARACTER_CREATION_BYPASS", "further-events-suppressed=true");
         }
     }
 }
