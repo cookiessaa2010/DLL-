@@ -537,6 +537,10 @@ jobs:
           $bin = Join-Path $package 'bin/Win64_Shipping_Client'
           New-Item -ItemType Directory -Path $bin -Force | Out-Null
           Copy-Item (Join-Path $root 'module/*') $package -Recurse -Force
+          # The old standalone KaiTOR diplomacy Gauntlet screen is deliberately not
+          # distributed. Native Kingdom Diplomacy now owns the entire player-facing
+          # diplomatic flow, which prevents the clipped fifth action and its crash path.
+          Remove-Item (Join-Path $package 'GUI/Prefabs/KaiTORDiplomacyHubUIMovie.xml') -Force -ErrorAction SilentlyContinue
           Copy-Item (Join-Path $root 'build/bin/Win64_Shipping_Client/KaiTOR_Diplomacy.dll') (Join-Path $bin 'KaiTOR_Diplomacy.dll') -Force
           $pdb = Join-Path $root 'build/bin/Win64_Shipping_Client/KaiTOR_Diplomacy.pdb'
           if (Test-Path $pdb) { Copy-Item $pdb (Join-Path $bin 'KaiTOR_Diplomacy.pdb') -Force }
