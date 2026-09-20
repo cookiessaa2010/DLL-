@@ -61,7 +61,7 @@ jobs:
           }
 
           $dawi = Get-Content (Join-Path $runtime 'KaiDawiWomenBehavior.cs') -Raw
-          if ($dawi.Contains('CampaignTime.Now.ToDays') -and $dawi.Contains('dayStamp')) {
+          if ($dawi.Contains('var dayStamp') -or $dawi.Contains('dayStamp %')) {
             throw 'Legacy campaign-day Dawi age generator still present.'
           }
           foreach ($token in @('StableAgeSeed','requestedAge=','finalAge=')) {
