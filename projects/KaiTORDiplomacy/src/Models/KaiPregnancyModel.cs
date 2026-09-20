@@ -54,13 +54,17 @@ public sealed class KaiPregnancyModel : PregnancyModel
 
         if (!KaiRaceLifecycle.UsesCustomFertility(hero))
         {
-            var baseChance = Math.Max(0f, _baseModel.GetDailyChanceOfPregnancyForHero(hero));
+            // TOR's active pregnancy model can return an unconditional zero even for
+            // ordinary living same-race couples. Live-test logs confirmed this for
+            // multiple human couples. Reuse Bannerlord 1.3.15's native fertility
+            // structure here instead of delegating a valid couple back into TOR's gate.
+            var mortalChance = GetBannerlordStyleDailyChance(hero);
             LogOncePerDay(
-                baseChance > 0f ? "PREGNANCY_ALLOWED" : "PREGNANCY_BLOCKED",
+                mortalChance > 0f ? "PREGNANCY_ALLOWED" : "PREGNANCY_BLOCKED",
                 hero,
                 spouse,
-                $"base_model={UnderlyingModelTypeName}; chance={baseChance:0.000000}");
-            return baseChance;
+                $"bannerlord_curve; calendarAge={hero.Age:0.0}; chance={mortalChance:0.000000}; underlying={UnderlyingModelTypeName}");
+            return mortalChance;
         }
 
         var chance = GetRaceAwareDailyChance(hero);
@@ -70,6 +74,43 @@ public sealed class KaiPregnancyModel : PregnancyModel
             spouse,
             $"race_aware; calendarAge={hero.Age:0.0}; biologicalAge={KaiRaceLifecycle.GetBiologicalAge(hero):0.0}; chance={chance:0.000000}");
         return chance;
+    }
+
+    private static float GetBannerlordStyleDailyChance(Hero hero)
+    {
+        var spouse = hero?.Spouse;
+        var clan = hero?.Clan;
+        if (hero == null || spouse == null || clan == null)
+            return 0f;
+
+        if (!KaiRaceLifecycle.IsWithinLoreFertilityWindow(hero))
+            return 0f;
+
+        var childCountFactor = hero.Children.Count + 1;
+        var desiredClanSize = 4f + 4f * clan.Tier;
+        if (desiredClanSize <= 0f)
+            desiredClanSize = 4f;
+
+        var aliveLords = clan.AliveLords.Count;
+        var clanPopulationFactor = hero != Hero.MainHero && spouse != Hero.MainHero
+            ? Math.Min(1f, (2f * desiredClanSize - aliveLords) / desiredClanSize)
+            : 1f;
+        clanPopulationFactor = Math.Max(0f, clanPopulationFactor);
+
+        var ageFactor = Math.Max(
+            0f,
+            1.2f - (hero.Age - KaiRaceLifecycle.HumanFertilityStart) * 0.04f);
+
+        var chance = ageFactor /
+                     (childCountFactor * childCountFactor) *
+                     0.12f *
+                     clanPopulationFactor;
+
+        var explained = new ExplainedNumber(chance, false, null);
+        if (hero.GetPerkValue(DefaultPerks.Charm.Virile) || spouse.GetPerkValue(DefaultPerks.Charm.Virile))
+            explained.AddFactor(DefaultPerks.Charm.Virile.PrimaryBonus, DefaultPerks.Charm.Virile.Name);
+
+        return Math.Max(0f, explained.ResultNumber);
     }
 
     private static float GetRaceAwareDailyChance(Hero hero)
