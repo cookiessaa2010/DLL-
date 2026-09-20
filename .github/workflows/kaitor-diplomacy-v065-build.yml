@@ -1,4 +1,4 @@
-name: KaiTOR Diplomacy v0.6.5.3 Shokuho Messenger UI Build
+name: KaiTOR Diplomacy v0.6.5.4 Messenger Travel Mercy50 Build
 
 on:
   push:
@@ -30,7 +30,7 @@ jobs:
             --nologo
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Validate v0.6.5.3 messenger UI contracts
+      - name: Validate v0.6.5.4 messenger travel + mercy contracts
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -41,10 +41,10 @@ jobs:
           if (-not (Test-Path -LiteralPath $dll -PathType Leaf)) { throw "Missing DLL: $dll" }
 
           $module = Get-Content (Join-Path $root 'module/SubModule.xml') -Raw
-          if ($module -notmatch '<Version value="v0\.6\.5\.3"') { throw 'SubModule version is not v0.6.5.3.' }
+          if ($module -notmatch '<Version value="v0\.6\.5\.4"') { throw 'SubModule version is not v0.6.5.4.' }
 
           $project = Get-Content (Join-Path $src 'KaiTOR_Diplomacy.csproj') -Raw
-          if ($project -notmatch '<Version>0\.6\.5\.3</Version>') { throw 'Assembly version is not 0.6.5.3.' }
+          if ($project -notmatch '<Version>0\.6\.5\.4</Version>') { throw 'Assembly version is not 0.6.5.4.' }
 
           $subModuleCs = Get-Content (Join-Path $src 'SubModule.cs') -Raw
           if ($subModuleCs.Contains('new KaiDiplomacyHubBehavior()')) {
@@ -70,12 +70,30 @@ jobs:
 
           $legacyMapButton = Join-Path $runtime 'KaiMessengerMapButton.cs'
           if (Test-Path -LiteralPath $legacyMapButton) {
-            throw 'Legacy map-bar messenger UI must not ship in v0.6.5.3.'
+            throw 'Legacy map-bar messenger UI must not ship in v0.6.5.4.'
           }
 
           $messenger = Get-Content (Join-Path $runtime 'KaiMessengerService.cs') -Raw
-          foreach ($token in @('CampaignMapConversation.OpenConversation','CanContactHero','ContactHero','MESSENGER_CONTACT','MESSENGER_ENCYCLOPEDIA_CLOSE')) {
+          foreach ($token in @('CampaignMapConversation.OpenConversation','CanContactHero','CanArriveAtHeroNow','CanInterruptPlayerOnMap','StartRemoteConversation','MESSENGER_CONTACT')) {
             if (-not $messenger.Contains($token)) { throw "Messenger backend contract missing: $token" }
+          }
+
+          $messengerBehavior = Get-Content (Join-Path $runtime 'KaiMessengerBehavior.cs') -Raw
+          foreach ($token in @(
+            'MaximumTravelDays = 3f',
+            'CampaignEvents.HourlyTickEvent',
+            'kaitor_messenger_arrival_days_v1',
+            'GetHoursToArrive',
+            'Campaign.MapDiagonal',
+            'MESSENGER_SENT',
+            'MESSENGER_ARRIVED',
+            'MESSENGER_ARRIVAL_ACCEPTED',
+            'StartRemoteConversation'
+          )) {
+            if (-not $messengerBehavior.Contains($token)) { throw "Messenger travel contract missing: $token" }
+          }
+          if (-not $subModuleCs.Contains('new KaiMessengerBehavior()')) {
+            throw 'KaiMessengerBehavior is not registered.'
           }
 
           $messengerUi = Get-Content (Join-Path $runtime 'KaiMessengerEncyclopediaUI.cs') -Raw
@@ -88,8 +106,8 @@ jobs:
             'Command.Click=\"ExecuteSendMessenger\"',
             'ViewModelMixin(nameof(EncyclopediaHeroPageVM.RefreshValues))',
             'ViewModel?.Obj as Hero',
-            'KaiMessengerService.CanContactHero',
-            'KaiMessengerService.ContactHero'
+            'GetCampaignBehavior<KaiMessengerBehavior>()',
+            'messenger.SendMessenger(hero)'
           )) {
             if (-not $messengerUi.Contains($token)) { throw "Encyclopedia messenger UI contract missing: $token" }
           }
@@ -137,12 +155,25 @@ jobs:
             if (-not $culture.Contains($token)) { throw "Culture diagnostics contract missing: $token" }
           }
 
+          $mercy = Get-Content (Join-Path $runtime 'KaiMercyRelationBehavior.cs') -Raw
+          foreach ($token in @(
+            'PostBattleMercyRelationBonus = 50',
+            'conversation_talk_lord_defeat_to_lord_release_on_consequence',
+            'conversation_talk_lord_freed_to_lord_release_on_consequence',
+            'MERCY_RELEASE_BEGIN',
+            'MERCY_RELEASE_EVENT',
+            'targetDelta={PostBattleMercyRelationBonus}',
+            'Math.Max(0, PostBattleMercyRelationBonus - vanillaDelta)'
+          )) {
+            if (-not $mercy.Contains($token)) { throw "Mercy +50 contract missing: $token" }
+          }
+
           $portraitRefs = Get-ChildItem $root -Recurse -File | Select-String -SimpleMatch 'PortraitFix'
           if ($portraitRefs) {
             Write-Host 'PortraitFix references exist in docs/source; no PortraitFix files are packaged by this module.'
           }
 
-          Write-Host 'KaiTOR Diplomacy v0.6.5.3 compile + runtime contracts: PASS'
+          Write-Host 'KaiTOR Diplomacy v0.6.5.4 compile + runtime contracts: PASS'
 
       - name: Assemble test module
         shell: pwsh
@@ -158,7 +189,7 @@ jobs:
       - name: Upload test module
         uses: actions/upload-artifact@v4
         with:
-          name: KaiTOR-Diplomacy-v0.6.5.3-ShokuhoMessengerUI-Runtime
+          name: KaiTOR-Diplomacy-v0.6.5.4-MessengerTravel-Mercy50-Runtime
           path: artifact/KaiTOR_Diplomacy
           if-no-files-found: error
           retention-days: 30
