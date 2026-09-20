@@ -3,7 +3,6 @@ using System.Linq;
 using System.Reflection;
 using HarmonyLib;
 using KaiTOR.Diplomacy.Decisions;
-using KaiTOR.Diplomacy.UI;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Election;
 using TaleWorlds.CampaignSystem.ViewModelCollection.KingdomManagement.Diplomacy;
@@ -40,43 +39,12 @@ internal static class KaiDiplomacyUiPatch
             else
                 AddProposalAction(__instance, diplomacy, source, target);
 
-            AddDashboardAction(__instance, target);
         }
         catch (Exception ex)
         {
             // Native diplomacy remains usable even when the optional action cannot be inserted.
             KaiRuntimeLog.Exception("DIPLOMACY_UI_FAILED", ex, "stage=OnSetPeaceItem_postfix");
         }
-    }
-
-    private static void AddDashboardAction(KingdomDiplomacyVM vm, Kingdom target)
-    {
-        if (vm?.Actions == null)
-            return;
-
-        const string actionName = "Дипломатия и династия";
-        if (vm.Actions.Any(x => string.Equals(x?.Name, actionName, StringComparison.Ordinal)))
-            return;
-
-        vm.Actions.Add(new KingdomDiplomacyProposalActionItemVM(
-            new TextObject(actionName),
-            new TextObject("Просмотреть договоры, состояние дома и владений."),
-            0,
-            true,
-            TextObject.GetEmpty(),
-            () =>
-            {
-                if (KaiTORDiplomacyScreen.TryOpen(target))
-                {
-                    KaiRuntimeLog.Write("DIPLOMACY_DASHBOARD_OPEN", $"target={target?.StringId ?? "none"}");
-                    return;
-                }
-
-                ShowMessage(
-                    "Дипломатия и династия",
-                    "Этот раздел сейчас недоступен.");
-                KaiRuntimeLog.Write("DIPLOMACY_DASHBOARD_FAILED", $"target={target?.StringId ?? "none"}");
-            }));
     }
 
     private static void AddProposalAction(KingdomDiplomacyVM vm, KaiDiplomacyBehavior diplomacy, Kingdom source, Kingdom target)
@@ -89,7 +57,7 @@ internal static class KaiDiplomacyUiPatch
         {
             var canReview = GetNativeProposalAvailability(vm, 0, out var reviewHint);
             vm.Actions.Add(new KingdomDiplomacyProposalActionItemVM(
-                new TextObject("Рассмотреть пакт о ненападении"),
+                new TextObject("Рассмотреть пакт"),
                 new TextObject($"Совет уже рассматривает пакт с {target.Name}."),
                 0,
                 canReview,
@@ -107,7 +75,7 @@ internal static class KaiDiplomacyUiPatch
             ruleReason = $"{target.Name} сейчас не готово принять такое предложение.";
         }
 
-        var explanation = new TextObject($"Предложить {target.Name} пакт о ненападении. Срок выбирается перед голосованием.");
+        var explanation = new TextObject($"Предложить пакт с {target.Name}. Срок выбирается перед голосованием.");
 
         var enabled = nativeAllowed && allowed;
         var actionHint = enabled
@@ -115,7 +83,7 @@ internal static class KaiDiplomacyUiPatch
             : (!nativeAllowed ? nativeReason : new TextObject(string.IsNullOrWhiteSpace(ruleReason) ? "Сейчас это предложение недоступно." : ruleReason));
 
         vm.Actions.Add(new KingdomDiplomacyProposalActionItemVM(
-            new TextObject("Предложить пакт о ненападении"),
+            new TextObject("Пакт о ненападении"),
             explanation,
             KaiDiplomacyBehavior.NapProposalInfluenceCost,
             enabled,
@@ -150,7 +118,7 @@ internal static class KaiDiplomacyUiPatch
         var actionHint = enabled ? TextObject.GetEmpty() : (!nativeAllowed ? nativeReason : breakReason);
 
         vm.Actions.Add(new KingdomDiplomacyProposalActionItemVM(
-            new TextObject("Разорвать пакт о ненападении"),
+            new TextObject("Разорвать пакт"),
             new TextObject($"Пакт с {target.Name}: ещё {remaining} дн. Досрочный разрыв ухудшит отношения."),
             KaiDiplomacyBehavior.NapBreakInfluenceCost,
             enabled,
