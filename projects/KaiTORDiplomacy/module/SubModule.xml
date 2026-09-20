@@ -23,20 +23,6 @@
       </Tags>
     </SubModule>
   </SubModules>
-  <Xmls>
-    <XmlNode>
-      <XmlName id="NPCCharacters" path="kaitor_dawi_women" />
-      <IncludedGameTypes>
-        <GameType value="Campaign" />
-        <GameType value="CampaignStoryMode" />
-      </IncludedGameTypes>
-    </XmlNode>
-    <XmlNode>
-      <XmlName id="Monsters" path="kaitor_dawi_monster" />
-      <IncludedGameTypes>
-        <GameType value="Campaign" />
-        <GameType value="CampaignStoryMode" />
-      </IncludedGameTypes>
-    </XmlNode>
-  </Xmls>
+  <Xmls />
+
 </Module>
