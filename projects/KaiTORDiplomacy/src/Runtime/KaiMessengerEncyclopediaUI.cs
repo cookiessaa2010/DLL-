@@ -30,41 +30,40 @@ internal sealed class KaiMessengerEncyclopediaPrefabExtension : PrefabExtensionI
         var doc = new XmlDocument();
         doc.LoadXml(
             "<ListPanel" +
-            " WidthSizePolicy=\"CoverChildren\"" +
-            " HeightSizePolicy=\"CoverChildren\"" +
             " HorizontalAlignment=\"Center\"" +
-            " VerticalAlignment=\"Center\"" +
-            " MarginTop=\"10\"" +
-            " LayoutImp.LayoutMethod=\"VerticalBottomToTop\">" +
+            " HeightSizePolicy=\"CoverChildren\"" +
+            " WidthSizePolicy=\"CoverChildren\"" +
+            " MarginTop=\"10\">" +
             "<Children>" +
             "<ButtonWidget" +
+            " DoNotPassEventsToChildren=\"true\"" +
             " WidthSizePolicy=\"Fixed\"" +
             " HeightSizePolicy=\"Fixed\"" +
             " SuggestedWidth=\"227\"" +
             " SuggestedHeight=\"40\"" +
-            " HorizontalAlignment=\"Center\"" +
-            " VerticalAlignment=\"Center\"" +
-            " IsEnabled=\"@IsMessengerAvailable\"" +
+            " MarginLeft=\"5\"" +
+            " MarginRight=\"5\"" +
+            " Brush=\"ButtonBrush2\"" +
+            " HorizontalAlignment=\"Left\"" +
+            " UpdateChildrenStates=\"true\"" +
             " Command.Click=\"ExecuteSendMessenger\"" +
-            " DoNotPassEventsToChildren=\"true\"" +
-            " Brush=\"Popup.PartySelection.Confirm\">" +
+            " IsEnabled=\"@IsMessengerAvailable\">" +
             "<Children>" +
             "<TextWidget" +
             " WidthSizePolicy=\"StretchToParent\"" +
             " HeightSizePolicy=\"StretchToParent\"" +
-            " Text=\"@SendMessengerActionName\"" +
-            " Brush=\"Popup.PartySelection.Button.Text\"" +
-            " VerticalAlignment=\"Center\"" +
-            " HorizontalAlignment=\"Center\" />" +
-            "<HintWidget" +
-            " WidthSizePolicy=\"StretchToParent\"" +
-            " HeightSizePolicy=\"StretchToParent\"" +
-            " DataSource=\"{SendMessengerHint}\"" +
-            " Command.HoverBegin=\"ExecuteBeginHint\"" +
-            " Command.HoverEnd=\"ExecuteEndHint\"" +
-            " IsDisabled=\"true\" />" +
+            " Brush=\"Kingdom.GeneralButtons.Text\"" +
+            " Text=\"@SendMessengerActionName\" />" +
             "</Children>" +
             "</ButtonWidget>" +
+            "<HintWidget" +
+            " DataSource=\"{SendMessengerHint}\"" +
+            " DoNotAcceptEvents=\"true\"" +
+            " WidthSizePolicy=\"CoverChildren\"" +
+            " HeightSizePolicy=\"CoverChildren\"" +
+            " Command.HoverBegin=\"ExecuteBeginHint\"" +
+            " Command.HoverEnd=\"ExecuteEndHint\"" +
+            " IsEnabled=\"false\" />" +
             "</Children>" +
             "</ListPanel>");
         return doc;
