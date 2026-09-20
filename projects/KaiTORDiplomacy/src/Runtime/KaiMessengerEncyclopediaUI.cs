@@ -97,7 +97,11 @@ internal sealed class KaiMessengerEncyclopediaMixin : BaseViewModelMixin<Encyclo
                 return;
             }
 
-            IsMessengerAvailable = KaiMessengerService.CanContactHero(hero, out var reason);
+            var messenger = Campaign.Current?.GetCampaignBehavior<KaiMessengerBehavior>();
+            IsMessengerAvailable = messenger != null && messenger.CanSendMessenger(hero, out var reason);
+            if (messenger == null)
+                reason = new TextObject("Система гонцов не запущена.");
+
             SendMessengerHint = IsMessengerAvailable
                 ? _emptyHint
                 : new HintViewModel(reason ?? new TextObject("Этот персонаж сейчас недоступен."));
@@ -125,7 +129,15 @@ internal sealed class KaiMessengerEncyclopediaMixin : BaseViewModelMixin<Encyclo
             "MESSENGER_ENCYCLOPEDIA_CLICK",
             $"hero={hero.StringId}; female={hero.IsFemale}; dawi={KaiRaceLifecycle.IsDawi(hero)}");
 
-        KaiMessengerService.ContactHero(hero);
+        var messenger = Campaign.Current?.GetCampaignBehavior<KaiMessengerBehavior>();
+        if (messenger == null)
+        {
+            KaiMessengerService.ShowQuick("Система гонцов не запущена.");
+            OnRefresh();
+            return;
+        }
+
+        messenger.SendMessenger(hero);
         OnRefresh();
     }
 
