@@ -1,0 +1,32 @@
+<Prefab>
+  <Window>
+    <ListPanel WidthSizePolicy="Fixed"
+               SuggestedWidth="300"
+               HeightSizePolicy="Fixed"
+               SuggestedHeight="86"
+               HorizontalAlignment="Right"
+               VerticalAlignment="Bottom"
+               MarginRight="78"
+               MarginBottom="78"
+               StackLayout.LayoutMethod="VerticalTopToBottom">
+      <Children>
+        <Standard.Button WidthSizePolicy="StretchToParent"
+                         HeightSizePolicy="Fixed"
+                         SuggestedHeight="52"
+                         Command.Click="ExecuteSendMessenger"
+                         Parameter.Text="@ActionText"
+                         IsEnabled="@IsEnabled"/>
+        <TextWidget WidthSizePolicy="StretchToParent"
+                    HeightSizePolicy="Fixed"
+                    SuggestedHeight="28"
+                    MarginTop="4"
+                    HorizontalAlignment="Center"
+                    Brush="Clan.TabControl.Text"
+                    Brush.FontSize="18"
+                    Brush.TextHorizontalAlignment="Center"
+                    Text="@CostText"
+                    DoNotAcceptEvents="true"/>
+      </Children>
+    </ListPanel>
+  </Window>
+</Prefab>
