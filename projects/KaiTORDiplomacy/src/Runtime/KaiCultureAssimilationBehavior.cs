@@ -171,7 +171,19 @@ public sealed class KaiCultureAssimilationBehavior : CampaignBehaviorBase
 
         var targetCulture = GetPlayerClanCulture();
         if (targetCulture == null) { reason = "Сейчас невозможно определить народность вашего рода."; return false; }
-        if (settlement.Culture == targetCulture) { reason = "Поселение уже принадлежит к народности вашего рода."; return false; }
+        if (settlement.Culture == targetCulture)
+        {
+            reason = "Поселение уже принадлежит к народности вашего рода.";
+            KaiRuntimeLog.Write(
+                "CULTURE_CHANGE_FAILED",
+                $"settlement={settlement.StringId}; from={settlement.Culture?.StringId ?? "null"}; to={targetCulture.StringId}; reason=already_current");
+            return false;
+        }
+
+        var previousCulture = settlement.Culture;
+        KaiRuntimeLog.Write(
+            "CULTURE_CHANGE_BEGIN",
+            $"settlement={settlement.StringId}; from={previousCulture?.StringId ?? "null"}; to={targetCulture.StringId}; cost={CultureChangeCost}");
         if (Hero.MainHero == null || Hero.MainHero.Gold < CultureChangeCost) { reason = $"Для реформы требуется {CultureChangeCost:N0} динаров."; return false; }
 
         if (!TorSettlementCultureBridge.ValidateFullConversion(targetCulture, settlement, out _))
@@ -190,6 +202,10 @@ public sealed class KaiCultureAssimilationBehavior : CampaignBehaviorBase
         }
 
         GiveGoldAction.ApplyBetweenCharacters(Hero.MainHero, null, CultureChangeCost, false);
+
+        KaiRuntimeLog.Write(
+            "CULTURE_CHANGE_SUCCESS",
+            $"settlement={settlement.StringId}; from={previousCulture?.StringId ?? "null"}; to={targetCulture.StringId}; affected={affected.Length}; cost={CultureChangeCost}");
 
         reason = $"В {settlement.Name} утверждена народность {targetCulture.Name}. На переселение и перестройку управления потрачено {CultureChangeCost:N0} динаров.";
         return true;
