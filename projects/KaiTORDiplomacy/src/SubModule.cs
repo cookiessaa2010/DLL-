@@ -49,7 +49,7 @@ public sealed class SubModule : MBSubModuleBase
         base.OnGameStart(game, gameStarterObject);
         if (gameStarterObject is not CampaignGameStarter campaignStarter) return;
 
-        KaiRuntimeLog.Write("STARTUP", "KaiTOR Diplomacy v0.6.5.3 campaign start.");
+        KaiRuntimeLog.Write("STARTUP", "KaiTOR Diplomacy v0.6.5.4 campaign start.");
 
         // Family lifecycle: native Bannerlord maturation stays intact; TOR remains the base model stack.
         InstallMarriageWrapper(campaignStarter);
@@ -84,6 +84,7 @@ public sealed class SubModule : MBSubModuleBase
         campaignStarter.AddBehavior(new KaiLoreEducationBehavior());
         campaignStarter.AddBehavior(new KaiBloodKissBehavior());
         campaignStarter.AddBehavior(new KaiMercyRelationBehavior());
+        campaignStarter.AddBehavior(new KaiMessengerBehavior());
         campaignStarter.AddBehavior(new KaiLiveTestBehavior());
         campaignStarter.AddBehavior(new KaiRealmHouseGrowthBehavior());
     }
