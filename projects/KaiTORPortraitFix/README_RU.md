@@ -1,41 +1,54 @@
-# KaiTOR Portrait Fix 0.6.1 Regression
+# KaiTOR Portrait Fix 0.6.3 — Save Preview Only RC4
 
-Регрессионная сборка для **Mount & Blade II: Bannerlord 1.3.15.110062 + The Old Realms 1.3.15**.
+Тестовая сборка для **Mount & Blade II: Bannerlord 1.3.15.110062 + The Old Realms 1.3.15**.
 
-## Почему понадобилась 0.6.1
+## Цель RC4
 
-Live-test 20.09.2026 выявил новый дефект 0.6.0: при активном KaiTOR Portrait Fix и отключённом KaiTOR Diplomacy персонаж в TOR Character Creation мог отображаться горизонтально/растянуто, а повторный вход в создание персонажа завершился нативным access violation.
+Исправить пустой/чёрный портрет героя в меню Save/Load, не вмешиваясь в 3D-модели персонажей.
 
-0.6.0 глобально восстанавливал два static readonly значения `ActionIndexCache`. Это исправляло лежащие UI-превью в Save/Load, Skills и Party, но глобальная запись могла влиять на TOR Character Creation.
+Live-тест показал, что без KaiTOR Portrait Fix модели TOR отображаются нормально. Поэтому из RC4 полностью удалены все pose/action исправления.
 
-## Что изменено
+## Что осталось
 
-- полностью удалена запись в static поля `ActionIndexCache`;
-- `CharacterTableau.GetIdleAction` получает live fallback только для конкретного вызова и только если исходный idle index невалиден;
-- `BasicCharacterTableau` получает live `act_inventory_idle` только на текущий preview skeleton;
-- при активном `CharacterCreationScreen` pose-fallback полностью обходится;
-- восстановление чёрного Save/Load preview через `SavedGameVM.MainHeroVisualCode` сохранено без изменений;
-- мод по-прежнему не меняет race, BodyProperties, equipment, skin material или save-файл.
+Только Harmony postfix на конструкторы `SavedGameVM`:
 
-## Обязательный regression-test
+- если `MainHeroVisualCode` уже заполнен — мод ничего не делает;
+- если сейв повреждён — мод ничего не делает;
+- если visual code отсутствует, мод читает уже сохранённый `GetCharacterVisualCode()` из metadata и возвращает его только в VM превью;
+- save-файл не изменяется.
 
-1. Новая кампания -> Character Creation.
-2. Вернуться в главное меню.
-3. Снова начать новую кампанию и открыть Character Creation.
-4. Проверить Save/Load preview.
-5. Проверить Skills и Party preview.
-6. Проверить Human / Dawi / Vampire / Greenskin.
+## Что полностью удалено
+
+- `CharacterTableau` и `BasicCharacterTableau` patches;
+- любые записи в `ActionIndexCache`;
+- `act_inventory_idle` / `act_inventory_idle_start` manipulation;
+- `SetAgentActionChannel`;
+- skeleton/pose runtime calls;
+- Character Creation hooks;
+- FaceGen / BodyProperties / race / gender / age changes;
+- старые диагностические pose-патчи.
 
 ## Версия
 
-Лаунчер: `v1.3.15.61`.
+- Launcher: `v1.3.15.63`
+- Assembly/File: `0.6.3.0`
+- Scope: Save preview only
 
-## Лог
+## Live-test
+
+1. Запустить новую кампанию и пройти Character Creation.
+2. Проверить Banner Editor и Clan Name.
+3. В кампании проверить Character / Inventory / Party / Clan.
+4. Создать сейв.
+5. Открыть Save/Load и проверить портрет.
+6. Перезагрузить сейв.
+
+Лог:
 
 `%LOCALAPPDATA%\KaiTORPortraitFix\KaiTORPortraitFix.log`
 
-Новые диагностические события:
+Ожидаемые события:
 
-- `CHARACTER_CREATION_BYPASS`
-- `LOCAL_POSE_FALLBACK`
+- `SESSION_START|KaiTOR Portrait Fix 0.6.3-savepreview-only`
+- `PATCH_APPLY|success=true`
 - `SAVE_VM_FIX`
