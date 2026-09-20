@@ -14,7 +14,7 @@ namespace KaiTORPortraitFix
             base.OnSubModuleLoad();
             PortraitFixLog.Event(
                 "SESSION_START",
-                "KaiTOR Portrait Fix 0.6.0-stable; Bannerlord=1.3.15.110062; scope=SavedGameVM preview restore + targeted ActionIndexCache inventory-idle repair; diagnostics=false");
+                "KaiTOR Portrait Fix 0.6.1-regression; Bannerlord=1.3.15.110062; scope=SavedGameVM preview restore + local inventory-idle fallbacks; characterCreationBypass=true; diagnostics=false");
 
             if (_patched)
                 return;
@@ -28,7 +28,7 @@ namespace KaiTORPortraitFix
                 PortraitFixLog.Event(
                     "PATCH_APPLY",
                     "success=true; harmonyId=" + HarmonyId +
-                    "; vmPreviewRestore=true; actionIndexCacheRepair=true; runtimeFallbacks=true; diagnostics=false");
+                    "; vmPreviewRestore=true; globalActionCacheWrites=false; localRuntimeFallbacks=true; characterCreationBypass=true; diagnostics=false");
             }
             catch (Exception ex)
             {
