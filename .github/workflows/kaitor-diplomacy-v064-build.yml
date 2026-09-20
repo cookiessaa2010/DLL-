@@ -200,8 +200,11 @@ jobs:
           $moduleData = Join-Path $root 'module/ModuleData'
           $moduleXmlRaw = Get-Content (Join-Path $root 'module/SubModule.xml') -Raw
           $projectRaw = Get-Content (Join-Path $moduleData 'project.mbproj') -Raw
-          if ($moduleXmlRaw -match 'kaitor_dawi_women|kaitor_dawi_monster') {
-            throw 'Regression build must not register Dawi NPC/monster XML.'
+          if ($moduleXmlRaw -notmatch 'kaitor_dawi_women') {
+            throw 'Dawi woman template must remain registered for save compatibility.'
+          }
+          if ($moduleXmlRaw -match 'kaitor_dawi_monster') {
+            throw 'Regression build must not register the quarantined Dawi monster/action-set override.'
           }
           if ($projectRaw -match 'skins\.xml|action_sets\.xml|type="skin"|type="action_set"') {
             throw 'Regression build must not load quarantined Dawi skin/action assets.'
@@ -561,8 +564,7 @@ jobs:
             'ModuleData/skins.xml',
             'ModuleData/skins.xslt',
             'ModuleData/action_sets.xml',
-            'ModuleData/kaitor_dawi_monster.xml',
-            'ModuleData/kaitor_dawi_women.xml'
+            'ModuleData/kaitor_dawi_monster.xml'
           )) {
             Remove-Item (Join-Path $package $relative) -Force -ErrorAction SilentlyContinue
           }
