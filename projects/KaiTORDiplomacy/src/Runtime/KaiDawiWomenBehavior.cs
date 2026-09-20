@@ -148,9 +148,16 @@ public sealed class KaiDawiWomenBehavior : CampaignBehaviorBase
 
             var minimumAge = (int)Math.Ceiling(KaiRaceLifecycle.DawiFertilityStart);
             var maximumAge = DawiFemaleMaximumGeneratedAge;
-            var dayStamp = Math.Abs((int)CampaignTime.Now.ToDays);
-            var ageSpan = maximumAge - minimumAge + 1;
-            var age = minimumAge + dayStamp % Math.Max(1, ageSpan);
+            var ageSpan = Math.Max(1, maximumAge - minimumAge + 1);
+
+            // v0.6.5: never derive a new hero's starting age from the absolute campaign day.
+            // The old dayStamp % ageSpan scheme produced visible wrap cycles (for example
+            // 108 -> 30) as the campaign clock advanced. Use a stable clan/spawn identity
+            // instead, then let HeroCreator set BirthDay exactly once from that requested age.
+            var spawnOrdinal = clan.Heroes.Count(hero => hero != null && hero.IsFemale && KaiRaceLifecycle.IsDawi(hero));
+            var ageSeed = StableAgeSeed(clan.StringId, spawnOrdinal);
+            var requestedAge = minimumAge + ageSeed % ageSpan;
+            var age = requestedAge;
 
             // HeroCreator owns the initial clan assignment. Do not follow this call with
             // hero.Clan = ...: direct campaign-graph mutation is explicitly forbidden.
@@ -185,13 +192,28 @@ public sealed class KaiDawiWomenBehavior : CampaignBehaviorBase
 
             KaiRuntimeLog.Write(
                 success ? "DAWI_WOMAN_CREATE" : "DAWI_WOMAN_FAIL",
-                $"clan={clan.StringId}; hero={hero.StringId}; name={hero.Name}; age={hero.Age:0.0}; settlement={settlement?.StringId ?? "null"}; placed={placedInSettlement}; success={success}");
+                $"clan={clan.StringId}; hero={hero.StringId}; name={hero.Name}; requestedAge={requestedAge}; finalAge={hero.Age:0.0}; settlement={settlement?.StringId ?? "null"}; placed={placedInSettlement}; success={success}");
             return success;
         }
         catch (Exception ex)
         {
             KaiRuntimeLog.Exception("DAWI_WOMAN_FAIL", ex, $"clan={clan?.StringId ?? "null"}; settlement={settlement?.StringId ?? "null"}");
             return false;
+        }
+    }
+
+    private static int StableAgeSeed(string clanId, int spawnOrdinal)
+    {
+        unchecked
+        {
+            uint hash = 2166136261;
+            var text = (clanId ?? string.Empty) + "#" + Math.Max(0, spawnOrdinal);
+            foreach (var ch in text)
+            {
+                hash ^= ch;
+                hash *= 16777619;
+            }
+            return (int)(hash & 0x7fffffff);
         }
     }
 
