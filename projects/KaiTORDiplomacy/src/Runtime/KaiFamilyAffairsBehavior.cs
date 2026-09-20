@@ -52,9 +52,10 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
         RegisterMarriageMenu(starter);
         RegisterAdoptionMenu(starter);
 
-        AddFamilyMenuOption(starter, "town", "kaitor_family_affairs_town", 9);
-        AddFamilyMenuOption(starter, "town_outside", "kaitor_family_affairs_town_outside", 9);
-        AddFamilyMenuOption(starter, "castle", "kaitor_family_affairs_castle", 9);
+        // v0.6.5: do not duplicate Bannerlord/TOR clan/family management in town/castle menus.
+        // Adoption is the one player-facing family action that remains unique to KaiTOR,
+        // so expose it only from the tavern. Marriage stays in lord conversations.
+        AddAdoptionTavernOption(starter);
     }
 
     private static void RegisterRootMenu(CampaignGameStarter starter)
@@ -245,9 +246,43 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
             "kaitor_family_adoption_back",
             "Назад",
             BackOptionCondition,
-            _ => SafeSwitchToMenu(FamilyMenuId, "back_family"),
+            _ => ReturnFromFamilyMenu(),
             true,
             99);
+    }
+
+    private static void AddAdoptionTavernOption(CampaignGameStarter starter)
+    {
+        starter.AddGameMenuOption(
+            "town_tavern",
+            "kaitor_family_adoption_tavern",
+            "Принять в род",
+            AdoptionTavernEntryCondition,
+            _ => OpenAdoptionFromTavern(),
+            false,
+            8);
+    }
+
+    private static bool AdoptionTavernEntryCondition(MenuCallbackArgs args)
+    {
+        if (Hero.MainHero == null || Clan.PlayerClan == null)
+            return false;
+
+        args.optionLeaveType = GameMenuOption.LeaveType.Manage;
+        args.IsEnabled = CanAdoptMoreChildren();
+        if (!args.IsEnabled)
+            args.Tooltip = new TextObject($"В вашем доме уже {MaximumLivingChildren} живых детей или принятых наследников.");
+        else
+            args.Tooltip = new TextObject("Признать подходящего взрослого спутника или члена клана своим ребёнком и наследником.");
+        return true;
+    }
+
+    private static void OpenAdoptionFromTavern()
+    {
+        var currentMenuId = Campaign.Current?.CurrentMenuContext?.GameMenu?.StringId;
+        _returnMenuId = string.IsNullOrWhiteSpace(currentMenuId) ? "town_tavern" : currentMenuId;
+        KaiRuntimeLog.Write("ADOPTION_ENTRY", $"from={_returnMenuId}");
+        SafeSwitchToMenu(AdoptionMenuId, "tavern_adoption");
     }
 
     private static void AddFamilyMenuOption(CampaignGameStarter starter, string menuId, string optionId, int index)
