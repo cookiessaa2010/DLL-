@@ -103,6 +103,8 @@ jobs:
             "descendant::RichTextWidget[@Text='@InformationText']",
             'SuggestedWidth=\"227\"',
             'SuggestedHeight=\"40\"',
+            'Brush=\"ButtonBrush2\"',
+            'Brush=\"Kingdom.GeneralButtons.Text\"',
             'Command.Click=\"ExecuteSendMessenger\"',
             'ViewModelMixin(nameof(EncyclopediaHeroPageVM.RefreshValues))',
             'ViewModel?.Obj as Hero',
