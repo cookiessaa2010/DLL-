@@ -61,7 +61,7 @@ jobs:
           }
 
           $dawi = Get-Content (Join-Path $runtime 'KaiDawiWomenBehavior.cs') -Raw
-          if ($dawi.Contains('var dayStamp') -or $dawi.Contains('dayStamp %')) {
+          if ($dawi -match '\bvar\s+dayStamp\s*=') {
             throw 'Legacy campaign-day Dawi age generator still present.'
           }
           foreach ($token in @('StableAgeSeed','requestedAge=','finalAge=')) {
@@ -75,6 +75,36 @@ jobs:
 
           $uiPatch = Get-Content (Join-Path $runtime 'KaiDiplomacyUiPatch.cs') -Raw
           if (-not $uiPatch.Contains('KingdomDiplomacyVM')) { throw 'Native Kingdom diplomacy integration missing.' }
+
+          $visualAge = Get-Content (Join-Path $runtime 'KaiVisualAgePatch.cs') -Raw
+          $raceLifecycle = Get-Content (Join-Path $src 'Models/KaiRaceLifecycle.cs') -Raw
+          foreach ($token in @('CharacterObject.GetBodyProperties','FACE_AGE','DynamicBodyProperties')) {
+            if (-not $visualAge.Contains($token)) { throw "VisualAge patch contract missing: $token" }
+          }
+          foreach ($token in @('GetVisualAge','VisualSafeMaximumAge = 45f','return currentVisualAge')) {
+            if (-not $raceLifecycle.Contains($token)) { throw "Race visual-age contract missing: $token" }
+          }
+
+          $family = Get-Content (Join-Path $runtime 'KaiFamilyAffairsBehavior.cs') -Raw
+          if (-not $family.Contains('"town_tavern"')) { throw 'Tavern adoption entry missing.' }
+          if (-not $family.Contains('"Принять в род"')) { throw 'Adoption label missing.' }
+          foreach ($legacyEntry in @('kaitor_family_affairs_town"', 'kaitor_family_affairs_town_outside"', 'kaitor_family_affairs_castle"')) {
+            if ($family.Contains($legacyEntry)) { throw "Legacy public Family Affairs entry still present: $legacyEntry" }
+          }
+          foreach ($token in @('MARRIAGE_CANCELLED','MARRIAGE_BARTER_ACCEPTED','accepted_without_marriage')) {
+            if (-not $family.Contains($token)) { throw "Marriage outcome logging missing: $token" }
+          }
+
+          $realm = Get-Content (Join-Path $runtime 'KaiRealmHouseGrowthBehavior.cs') -Raw
+          if (-not $realm.Contains('REALM_CANDIDATE_REJECT')) { throw 'Realm House stale-founder retry log missing.' }
+          if (-not $realm.Contains('TryQueueNewHouse(kingdom, now, deficit, current, target)')) {
+            throw 'Realm House stale-founder requeue missing.'
+          }
+
+          $culture = Get-Content (Join-Path $runtime 'KaiCultureAssimilationBehavior.cs') -Raw
+          foreach ($token in @('CULTURE_CHANGE_BEGIN','CULTURE_CHANGE_SUCCESS','reason=already_current')) {
+            if (-not $culture.Contains($token)) { throw "Culture diagnostics contract missing: $token" }
+          }
 
           $portraitRefs = Get-ChildItem $root -Recurse -File | Select-String -SimpleMatch 'PortraitFix'
           if ($portraitRefs) {
