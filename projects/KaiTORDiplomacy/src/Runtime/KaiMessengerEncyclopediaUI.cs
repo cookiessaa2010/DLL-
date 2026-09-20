@@ -98,9 +98,16 @@ internal sealed class KaiMessengerEncyclopediaMixin : BaseViewModelMixin<Encyclo
             }
 
             var messenger = Campaign.Current?.GetCampaignBehavior<KaiMessengerBehavior>();
-            IsMessengerAvailable = messenger != null && messenger.CanSendMessenger(hero, out var reason);
+            TextObject reason;
             if (messenger == null)
+            {
+                IsMessengerAvailable = false;
                 reason = new TextObject("Система гонцов не запущена.");
+            }
+            else
+            {
+                IsMessengerAvailable = messenger.CanSendMessenger(hero, out reason);
+            }
 
             SendMessengerHint = IsMessengerAvailable
                 ? _emptyHint
