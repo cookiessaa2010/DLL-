@@ -1,9 +1,9 @@
-name: KaiTOR Portrait Fix 0.6.1 Character Creation Safe Build
+name: KaiTOR Portrait Fix 0.6.3 Save Preview Only RC4
 
 on:
   push:
     branches:
-      - kaitor-portrait-fix-0.6.1-charactercreation-safe
+      - kaitor-portrait-fix-0.6.3-savepreview-only
     paths:
       - 'projects/KaiTORPortraitFix/**'
       - '.github/workflows/kaitor-portrait-fix-build.yml'
@@ -12,6 +12,7 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -23,62 +24,79 @@ jobs:
 
       - name: Restore
         shell: pwsh
-        run: dotnet restore ./projects/KaiTORPortraitFix/src/KaiTORPortraitFix/KaiTORPortraitFix.csproj
+        run: dotnet restore ./projects/KaiTORPortraitFix/src/KaiTORPortraitFix/KaiTORPortraitFix.csproj -p:NuGetAudit=false
 
-      - name: Build module
-        shell: pwsh
-        run: dotnet build ./projects/KaiTORPortraitFix/src/KaiTORPortraitFix/KaiTORPortraitFix.csproj -c Release --no-restore -p:NuGetAudit=false
-
-      - name: Validate regression contracts
+      - name: Validate save-preview-only source contract
         shell: pwsh
         run: |
           [xml]$xml = Get-Content ./projects/KaiTORPortraitFix/module/SubModule.xml -Raw
           if ($xml.Module.Id.value -ne 'KaiTOR_PortraitFix') { throw 'Unexpected module id.' }
-          if ($xml.Module.Version.value -ne 'v1.3.15.61') { throw 'Expected v1.3.15.61.' }
+          if ($xml.Module.Version.value -ne 'v1.3.15.63') { throw 'Expected v1.3.15.63.' }
+          $deps = @($xml.Module.DependedModules.DependedModule | ForEach-Object { $_.Id })
+          if ($deps -notcontains 'TOR_Core') { throw 'TOR_Core dependency missing.' }
 
-          $vm = Get-Content ./projects/KaiTORPortraitFix/src/KaiTORPortraitFix/SavedGamePreviewCodePatch.cs -Raw
-          foreach ($required in @('SavedGameVM','MainHeroVisualCode','GetCharacterVisualCode','SAVE_VM_FIX','restore-preview-code')) {
+          $srcRoot = './projects/KaiTORPortraitFix/src/KaiTORPortraitFix'
+          $sourceFiles = @(Get-ChildItem $srcRoot -Filter '*.cs' -File)
+          $sourceNames = @($sourceFiles.Name | Sort-Object)
+          $expected = @('PortraitFixLog.cs','SavedGamePreviewCodePatch.cs','SubModule.cs')
+          if ((Compare-Object $sourceNames $expected).Count -ne 0) {
+            throw ('Unexpected C# source set: ' + ($sourceNames -join ', '))
+          }
+
+          $joined = ($sourceFiles | Get-Content -Raw) -join "`n"
+          foreach ($forbidden in @(
+            'ActionIndexCache',
+            'CharacterTableau',
+            'BasicCharacterTableau',
+            'SetAgentActionChannel',
+            'MBSkeletonExtensions',
+            'CharacterCreation',
+            'BodyProperties',
+            'FaceGen',
+            'HarmonyTranspiler',
+            'TaleWorlds.Engine'
+          )) {
+            if ($joined -match [regex]::Escape($forbidden)) {
+              throw "Forbidden model/pose hook found: $forbidden"
+            }
+          }
+
+          $vm = Get-Content "$srcRoot/SavedGamePreviewCodePatch.cs" -Raw
+          foreach ($required in @(
+            'SavedGameVM',
+            'MainHeroVisualCode',
+            'GetCharacterVisualCode',
+            'SAVE_VM_FIX',
+            'restore-preview-code'
+          )) {
             if ($vm -notmatch [regex]::Escape($required)) { throw "Missing VM restore contract: $required" }
           }
           if ($vm -match '\.Save\s*=') { throw 'Preview patch must not write the save object.' }
 
-          $repair = Get-Content ./projects/KaiTORPortraitFix/src/KaiTORPortraitFix/ActionIndexCacheRepair.cs -Raw
+          $sub = Get-Content "$srcRoot/SubModule.cs" -Raw
           foreach ($required in @(
-            'MBAnimation.GetNumActionCodes',
-            'MBAnimation.GetActionCodeWithName',
-            'act_inventory_idle_start',
-            'act_inventory_idle',
-            'CharacterTableau',
-            'BasicCharacterTableau',
-            'GetIdleAction',
-            'CHARACTER_CREATION_BYPASS',
-            'LOCAL_POSE_FALLBACK',
-            'IsCharacterCreationScreenActive'
+            '0.6.3-savepreview-only',
+            'vmPreviewRestore=true',
+            'poseHooks=false',
+            'actionCacheWrites=false',
+            'skeletonCalls=false',
+            'characterCreationHooks=false'
           )) {
-            if ($repair -notmatch [regex]::Escape($required)) { throw "Missing local pose-fallback contract: $required" }
-          }
-          if ($repair -match 'field\.SetValue') { throw '0.6.1 must not write ActionIndexCache static fields.' }
-          if ($repair -match 'BindingFlags\.Public\s*\|\s*BindingFlags\.Static') { throw '0.6.1 must not reflect over ActionIndexCache static fields.' }
-
-          $sub = Get-Content ./projects/KaiTORPortraitFix/src/KaiTORPortraitFix/SubModule.cs -Raw
-          foreach ($required in @(
-            '0.6.1-regression',
-            'globalActionCacheWrites=false',
-            'localRuntimeFallbacks=true',
-            'characterCreationBypass=true',
-            'diagnostics=false'
-          )) {
-            if ($sub -notmatch [regex]::Escape($required)) { throw "Missing runtime marker: $required" }
+            if ($sub -notmatch [regex]::Escape($required)) { throw "Missing runtime safety marker: $required" }
           }
 
-          $proj = Get-Content ./projects/KaiTORPortraitFix/src/KaiTORPortraitFix/KaiTORPortraitFix.csproj -Raw
-          if ($proj -notmatch '<AssemblyVersion>0.6.1.0</AssemblyVersion>') { throw 'Assembly version missing.' }
-          if ($proj -notmatch '<FileVersion>0.6.1.0</FileVersion>') { throw 'File version missing.' }
+          $proj = Get-Content "$srcRoot/KaiTORPortraitFix.csproj" -Raw
+          if ($proj -notmatch '<AssemblyVersion>0.6.3.0</AssemblyVersion>') { throw 'Assembly version missing.' }
+          if ($proj -notmatch '<FileVersion>0.6.3.0</FileVersion>') { throw 'File version missing.' }
 
-      - name: Assemble root-installable package
+      - name: Build module from source
+        shell: pwsh
+        run: dotnet build ./projects/KaiTORPortraitFix/src/KaiTORPortraitFix/KaiTORPortraitFix.csproj -c Release --no-restore -p:NuGetAudit=false
+
+      - name: Assemble RC4 package
         shell: pwsh
         run: |
-          $stage = Join-Path $env:RUNNER_TEMP 'KaiTOR-PortraitFix-0.6.1-charactercreation-safe'
+          $stage = Join-Path $env:RUNNER_TEMP 'KaiTOR-PortraitFix-v1.3.15.63-RC4'
           $module = Join-Path $stage 'Modules/KaiTOR_PortraitFix'
           $bin = Join-Path $module 'bin/Win64_Shipping_Client'
           New-Item -ItemType Directory -Force -Path $bin | Out-Null
@@ -88,38 +106,71 @@ jobs:
           Copy-Item ./projects/KaiTORPortraitFix/README_RU.md (Join-Path $stage 'README_RU.md')
 
           @'
-          KaiTOR Portrait Fix 0.6.1 REGRESSION
-          Launcher version: v1.3.15.61
+          KaiTOR Portrait Fix v1.3.15.63 RC4
+          Assembly/File version: 0.6.3.0
           Bannerlord 1.3.15.110062 + The Old Realms 1.3.15
 
-          Reason for this regression build:
-          - 0.6.0 globally rewrote two ActionIndexCache static readonly values.
-          - Live testing showed corrupted/horizontal character creation previews.
-          - A repeat character-creation attempt ended in native access violation 0xC0000005.
-          - KaiTOR_Diplomacy was disabled in that crash session.
+          RC4 is rebuilt from source as SAVE-PREVIEW-ONLY.
 
-          0.6.1 safety change:
-          - no ActionIndexCache static writes;
-          - local live fallback only when a tableau asks for an invalid idle action;
-          - BasicCharacterTableau fallback changes only the current preview skeleton;
-          - CharacterCreationScreen is explicitly bypassed;
-          - SavedGameVM black-preview restore remains unchanged.
+          Runtime scope:
+          - Harmony postfix on SavedGameVM constructors only.
+          - Restore MainHeroVisualCode from existing save metadata only when VM code is empty.
+          - Never write the save object.
 
-          Required regression test:
-          1. New campaign -> character creation -> back to menu -> new campaign again.
-          2. Save/Load preview.
-          3. Skills and Party previews.
-          4. Human, Dawi, Vampire and Greenskin preview checks.
+          Explicitly absent:
+          - CharacterTableau / BasicCharacterTableau hooks
+          - ActionIndexCache reads/writes
+          - pose/idle manipulation
+          - SetAgentActionChannel / skeleton calls
+          - Character Creation hooks
+          - FaceGen / BodyProperties / race / gender / age mutation
+
+          Required live test:
+          1. New campaign -> Character Creation.
+          2. Banner Editor and Clan Name.
+          3. Character / Inventory / Party / Clan.
+          4. Save game -> Save/Load preview.
+          5. Reload the save.
 
           Log:
           %LOCALAPPDATA%\KaiTORPortraitFix\KaiTORPortraitFix.log
-          '@ | Set-Content (Join-Path $stage 'RELEASE_NOTES_0.6.1_RU.txt') -Encoding UTF8
+          '@ | Set-Content (Join-Path $stage 'RELEASE_NOTES_0.6.3_RU.txt') -Encoding UTF8
 
-          $forbidden = Get-ChildItem $stage -Recurse -File | Where-Object { $_.Name -like 'TaleWorlds*.dll' -or $_.Name -eq '0Harmony.dll' }
-          if ($forbidden) { throw 'Reference/runtime dependencies must not be redistributed.' }
+          @'
+          STATIC VALIDATION RC4
 
-          $zip = Join-Path $env:RUNNER_TEMP 'KaiTOR-PortraitFix-0.6.1-charactercreation-safe-Bannerlord-1.3.15.110062.zip'
+          Build: source compile, not binary patch.
+          Module: v1.3.15.63
+          Assembly/File: 0.6.3.0
+
+          CI contracts:
+          PASS only if source set is exactly:
+          - PortraitFixLog.cs
+          - SavedGamePreviewCodePatch.cs
+          - SubModule.cs
+
+          CI rejects any occurrence in C# source of:
+          ActionIndexCache, CharacterTableau, BasicCharacterTableau,
+          SetAgentActionChannel, MBSkeletonExtensions, CharacterCreation,
+          BodyProperties, FaceGen, HarmonyTranspiler, TaleWorlds.Engine.
+
+          Therefore RC4 has no code path that changes character pose/skeleton/model state.
+          Live Bannerlord/TOR test is still required.
+          '@ | Set-Content (Join-Path $stage 'VALIDATION_REPORT_RU.txt') -Encoding UTF8
+
+          $forbidden = Get-ChildItem $stage -Recurse -File | Where-Object {
+            $_.Name -like 'TaleWorlds*.dll' -or $_.Name -eq '0Harmony.dll' -or $_.Extension -eq '.pdb'
+          }
+          if ($forbidden) { throw 'Forbidden dependency/debug files found in package.' }
+
+          $zip = Join-Path $env:RUNNER_TEMP 'KaiTOR-PortraitFix-v1.3.15.63-RC4-Bannerlord-1.3.15.110062.zip'
           Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $zip -Force
+
+          $verify = Join-Path $env:RUNNER_TEMP 'verify-rc4'
+          Expand-Archive -Path $zip -DestinationPath $verify -Force
+          if (-not (Test-Path (Join-Path $verify 'Modules/KaiTOR_PortraitFix/bin/Win64_Shipping_Client/KaiTORPortraitFix.dll'))) {
+            throw 'Packaged DLL missing after archive verification.'
+          }
 
           $hashFile = Join-Path $env:RUNNER_TEMP 'SHA256.txt'
           $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -131,7 +182,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: KaiTOR-PortraitFix-0.6.1-charactercreation-safe
+          name: KaiTOR-PortraitFix-v1.3.15.63-RC4-savepreview-only
           path: |
             ${{ env.PORTRAIT_FIX_ZIP }}
             ${{ env.PORTRAIT_FIX_HASH }}
