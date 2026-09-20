@@ -184,6 +184,18 @@ jobs:
 
           if (-not $messengerUi.Contains('EncyclopediaHeroPageVM')) { throw 'Messenger is not attached to hero encyclopedia flow.' }
           if ($messengerUi.Contains('MapNavigationVM')) { throw 'Obsolete map-bar messenger patch returned.' }
+          foreach ($token in @('GauntletLayer','KaiTORMessengerEncyclopedia','ExecuteSendMessenger','MESSENGER_CLICK','IsFocusLayer = false')) {
+            if (-not $messengerUi.Contains($token)) { throw "Native messenger button contract missing: $token" }
+          }
+          if ($messengerUi.Contains('HyperlinkTexts.GetGenericHyperlinkText')) {
+            throw 'Broken InformationText messenger hyperlink returned.'
+          }
+          $messengerMovie = Join-Path $root 'module/GUI/Prefabs/KaiTORMessengerEncyclopedia.xml'
+          if (-not (Test-Path -LiteralPath $messengerMovie -PathType Leaf)) { throw 'Messenger encyclopedia movie missing.' }
+          $messengerMovieRaw = Get-Content $messengerMovie -Raw
+          foreach ($token in @('ExecuteSendMessenger','@ActionText','@CostText','@IsEnabled')) {
+            if (-not $messengerMovieRaw.Contains($token)) { throw "Messenger movie binding missing: $token" }
+          }
           if (-not $messengerBehavior.Contains('CampaignMapConversation.OpenConversation')) { throw 'Messenger does not open a real lord conversation on arrival.' }
           if (-not $messengerBehavior.Contains('MESSENGER_SENT') -or -not $messengerBehavior.Contains('MESSENGER_ARRIVED')) {
             throw 'Messenger travel lifecycle logging missing.'
