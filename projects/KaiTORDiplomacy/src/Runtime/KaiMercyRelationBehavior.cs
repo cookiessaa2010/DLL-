@@ -114,7 +114,7 @@ public sealed class KaiMercyRelationBehavior : CampaignBehaviorBase
 
         KaiRuntimeLog.Write(
             "MERCY_RELEASE_EVENT",
-            $"hero={prisoner.StringId}; detail={detail}; formerCaptor={formerCaptorParty?.StringId ?? "null"}; mainPartyCaptor={isMainPartyCaptor}; dialogDepth={_dialogReleaseDepth}");
+            $"hero={prisoner.StringId}; detail={detail}; formerCaptor={formerCaptorParty?.Name?.ToString() ?? "null"}; mainPartyCaptor={isMainPartyCaptor}; dialogDepth={_dialogReleaseDepth}");
 
         // The lord-conversation paths are handled by exact Harmony patches below.
         // Suppress the event fallback while one of those methods is executing,
