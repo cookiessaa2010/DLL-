@@ -113,8 +113,12 @@ jobs:
           if (-not $realm.Contains('REALM_REQUEUE')) { throw 'Realm House transient founder requeue missing.' }
 
           $dawi = Get-Content (Join-Path $runtime 'KaiDawiWomenBehavior.cs') -Raw
-          if ($dawi -notmatch 'AutomaticPopulationEnabled\s*=\s*true') {
-            throw 'Dawi women bounded auto-population must be ON.'
+          if ($dawi -notmatch 'AutomaticPopulationEnabled\s*=\s*false') {
+            throw 'Regression build must keep Dawi women automatic population SAFE-OFF.'
+          }
+          $dawiBridge = Get-Content (Join-Path $models 'DawiWomenAssetBridge.cs') -Raw
+          if ($dawiBridge -notmatch 'ForceSafeOffForLiveTest\s*=\s*true') {
+            throw 'Regression build must quarantine integrated Dawi female assets.'
           }
 
           $marriageModel = Get-Content (Join-Path $models 'KaiPlayerMarriageModel.cs') -Raw
@@ -194,24 +198,15 @@ jobs:
           Write-Host "KaiTOR lore family lifecycle contracts: PASS"
 
           $moduleData = Join-Path $root 'module/ModuleData'
-          foreach ($assetText in @(
-            'action_sets.xml',
-            'kaitor_dawi_monster.xml',
-            'kaitor_dawi_women.xml',
-            'project.mbproj',
-            'skins.xml',
-            'skins.xslt'
-          )) {
-            if (-not (Test-Path -LiteralPath (Join-Path $moduleData $assetText) -PathType Leaf)) {
-              throw "Missing Dawi ModuleData contract: $assetText"
-            }
+          $moduleXmlRaw = Get-Content (Join-Path $root 'module/SubModule.xml') -Raw
+          $projectRaw = Get-Content (Join-Path $moduleData 'project.mbproj') -Raw
+          if ($moduleXmlRaw -match 'kaitor_dawi_women|kaitor_dawi_monster') {
+            throw 'Regression build must not register Dawi NPC/monster XML.'
           }
-          $dawiMonster = Get-Content (Join-Path $moduleData 'kaitor_dawi_monster.xml') -Raw
-          $dawiWomenXml = Get-Content (Join-Path $moduleData 'kaitor_dawi_women.xml') -Raw
-          if ($dawiMonster -notmatch 'as_kaitor_dwarf_female_warrior') { throw 'Dawi female action-set binding missing.' }
-          if ($dawiWomenXml -notmatch 'id="kaitor_dawi_woman_lord"' -or $dawiWomenXml -notmatch 'race="dwarf"' -or $dawiWomenXml -notmatch 'is_female="true"') {
-            throw 'Dawi woman template contract is incomplete.'
+          if ($projectRaw -match 'skins\.xml|action_sets\.xml|type="skin"|type="action_set"') {
+            throw 'Regression build must not load quarantined Dawi skin/action assets.'
           }
+          Write-Host "Dawi female asset quarantine: PASS"
 
           foreach ($doc in @('CHANGELOG-v0.6.4-RU.md', 'TEST-v0.6.4-RU.md')) {
             if (-not (Test-Path -LiteralPath (Join-Path $root "module/$doc") -PathType Leaf)) {
@@ -533,6 +528,14 @@ jobs:
             throw 'Duplicate mercy relation behavior returned; native reward must be the only relation mechanic.'
           }
 
+          $liveTestBehavior = Get-Content (Join-Path $runtime 'KaiLiveTestBehavior.cs') -Raw
+          foreach ($token in @('STABILITY_DAILY','STABILITY_WEEKLY','DailyTickEvent','WeeklyTickEvent','mercy=native_relation_patch')) {
+            if (-not $liveTestBehavior.Contains($token)) { throw "Stability/live-test contract missing: $token" }
+          }
+          foreach ($token in @('GetBannerlordStyleDailyChance','bannerlord_curve','HumanFertilityStart')) {
+            if (-not $pregnancyModel.Contains($token)) { throw "Mortal fertility recovery contract missing: $token" }
+          }
+
           Write-Host "KaiTOR unified live-test logging contract: PASS"
           Write-Host "KaiTOR Diplomacy/Co-op UI isolation contract: PASS"
           Write-Host "KaiTOR v0.6.4 compile + safety contracts: PASS"
@@ -550,6 +553,19 @@ jobs:
           # distributed. Native Kingdom Diplomacy now owns the entire player-facing
           # diplomatic flow, which prevents the clipped fifth action and its crash path.
           Remove-Item (Join-Path $package 'GUI/Prefabs/KaiTORDiplomacyHubUIMovie.xml') -Force -ErrorAction SilentlyContinue
+          # Dawi female visual assets are quarantined after the live-test cross-race
+          # rendering regression. Keep the regression artifact mechanically clean.
+          foreach ($relative in @(
+            'AssetPackages/kaitor_dawi_female.tpac',
+            'ModuleData/kaitor_dawi_assets_ready.flag',
+            'ModuleData/skins.xml',
+            'ModuleData/skins.xslt',
+            'ModuleData/action_sets.xml',
+            'ModuleData/kaitor_dawi_monster.xml',
+            'ModuleData/kaitor_dawi_women.xml'
+          )) {
+            Remove-Item (Join-Path $package $relative) -Force -ErrorAction SilentlyContinue
+          }
           Copy-Item (Join-Path $root 'build/bin/Win64_Shipping_Client/KaiTOR_Diplomacy.dll') (Join-Path $bin 'KaiTOR_Diplomacy.dll') -Force
           $pdb = Join-Path $root 'build/bin/Win64_Shipping_Client/KaiTOR_Diplomacy.pdb'
           if (Test-Path $pdb) { Copy-Item $pdb (Join-Path $bin 'KaiTOR_Diplomacy.pdb') -Force }
