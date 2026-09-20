@@ -1,90 +1,41 @@
-# KaiTOR Portrait Fix 0.6.0 Stable
+# KaiTOR Portrait Fix 0.6.1 Regression
 
-Стабильный фикс UI-портретов для **Mount & Blade II: Bannerlord 1.3.15.110062 + The Old Realms 1.3.15**.
+Регрессионная сборка для **Mount & Blade II: Bannerlord 1.3.15.110062 + The Old Realms 1.3.15**.
 
-Версия 0.6.0 объединяет два отдельно подтверждённых исправления:
+## Почему понадобилась 0.6.1
 
-1. **Чёрный силуэт в “Сохранённых кампаниях”** — Bannerlord при module discrepancy очищает `SavedGameVM.MainHeroVisualCode`, хотя visual code персонажа остаётся в metadata сейва. Мод возвращает этот код только в VM превью.
-2. **Лежащий / горизонтальный персонаж в UI** — `ActionIndexCache.act_inventory_idle_start` и `ActionIndexCache.act_inventory_idle` могут инициализироваться слишком рано и остаться равными `-1`, тогда как поздний live lookup уже возвращает корректные индексы. Мод восстанавливает только эти два статических action index перед использованием tableau.
+Live-test 20.09.2026 выявил новый дефект 0.6.0: при активном KaiTOR Portrait Fix и отключённом KaiTOR Diplomacy персонаж в TOR Character Creation мог отображаться горизонтально/растянуто, а повторный вход в создание персонажа завершился нативным access violation.
 
-## Что подтверждено тестом
+0.6.0 глобально восстанавливал два static readonly значения `ActionIndexCache`. Это исправляло лежащие UI-превью в Save/Load, Skills и Party, но глобальная запись могла влиять на TOR Character Creation.
 
-На Bannerlord `1.3.15.110062` диагностическая 0.5.2 зафиксировала:
+## Что изменено
 
-- `act_inventory_idle_start`: `before=-1`, live lookup `4014`, после repair `4014`;
-- `act_inventory_idle`: `before=-1`, live lookup `4216`, после repair `4216`;
-- обе записи были перечитаны и подтверждены после reflection write;
-- после восстановления персонажи снова отображались вертикально в Save/Load, окне навыков и интерфейсе отряда;
-- корректно отображались как человеческие, так и TOR-персонажи других рас, включая орка.
+- полностью удалена запись в static поля `ActionIndexCache`;
+- `CharacterTableau.GetIdleAction` получает live fallback только для конкретного вызова и только если исходный idle index невалиден;
+- `BasicCharacterTableau` получает live `act_inventory_idle` только на текущий preview skeleton;
+- при активном `CharacterCreationScreen` pose-fallback полностью обходится;
+- восстановление чёрного Save/Load preview через `SavedGameVM.MainHeroVisualCode` сохранено без изменений;
+- мод по-прежнему не меняет race, BodyProperties, equipment, skin material или save-файл.
 
-## Что делает стабильная 0.6.0
+## Обязательный regression-test
 
-- сохраняет проверенный `SavedGameVM` preview restore;
-- проверяет готовность `MBAnimation` до обращения к ремонтируемым static action values;
-- восстанавливает **только** `act_inventory_idle_start` и `act_inventory_idle`, если они равны `-1`, а live lookup уже валиден;
-- не перезаписывает здоровые action index;
-- после reflection write перечитывает значение и считает repair успешным только при подтверждённой записи;
-- содержит узкие runtime fallback для `CharacterTableau` и `BasicCharacterTableau`, если конкретный runtime откажется менять `static readonly`;
-- ограничивает повторные попытки и диагностический лог;
-- удаляет экспериментальные pose/gender патчи и тяжёлую reflection-диагностику предыдущих тестовых сборок.
+1. Новая кампания -> Character Creation.
+2. Вернуться в главное меню.
+3. Снова начать новую кампанию и открыть Character Creation.
+4. Проверить Save/Load preview.
+5. Проверить Skills и Party preview.
+6. Проверить Human / Dawi / Vampire / Greenskin.
 
-## Чего мод НЕ делает
+## Версия
 
-- не изменяет `.sav`;
-- не меняет race, body properties, equipment или skeleton персонажа;
-- не отключает предупреждения Bannerlord о несовпадении модулей;
-- не обходит проверки загрузки сохранений;
-- не меняет TOR XML/ресурсы;
-- не влияет на бой или campaign logic.
-
-## Установка
-
-Распакуйте архив **в корень Bannerlord**.
-
-После установки должен существовать файл:
-
-`Modules\KaiTOR_PortraitFix\bin\Win64_Shipping_Client\KaiTORPortraitFix.dll`
-
-Если Windows заблокировал DLL, выполните PowerShell:
-
-```powershell
-Unblock-File "D:\steam\steamapps\common\Mount & Blade II Bannerlord\Modules\KaiTOR_PortraitFix\bin\Win64_Shipping_Client\KaiTORPortraitFix.dll"
-```
-
-Путь к игре при необходимости замените на свой.
-
-Рекомендуемый порядок:
-
-```text
-Bannerlord.Harmony
-Native
-SandBoxCore
-BirthAndDeath
-Sandbox
-CustomBattle
-TOR_Armory
-TOR_Environment
-TOR_Core
-KaiCleave
-KaiTOR_Stability
-KaiTOR_PortraitFix
-TOR_RU_Translation
-```
+Лаунчер: `v1.3.15.61`.
 
 ## Лог
 
 `%LOCALAPPDATA%\KaiTORPortraitFix\KaiTORPortraitFix.log`
 
-Основные строки стабильной версии:
+Новые диагностические события:
 
-```text
-SESSION_START
-PATCH_APPLY
-SAVE_VM_FIX
-ACTION_CACHE_FIELD
-ACTION_CACHE_REPAIR
-ACTION_CACHE_FALLBACK
-COLD_MENU_READY
-```
-
-`ACTION_CACHE_FALLBACK` обычно не нужен: в подтверждённом тесте прямое восстановление static readonly сработало и было проверено перечитыванием.
+- `CHARACTER_CREATION_BYPASS`
+- `LOCAL_POSE_FALLBACK`
+- `SAVE_VM_FIX`
