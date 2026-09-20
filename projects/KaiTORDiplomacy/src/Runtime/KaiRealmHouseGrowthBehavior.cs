@@ -141,6 +141,27 @@ public sealed class KaiRealmHouseGrowthBehavior : CampaignBehaviorBase
                 LogStage("REALM_CREATE_FAIL", $"kingdom={pendingKingdomId}; founder={founderId}; stage=validate; reason={commitReason}");
                 KaiRuntimeLog.Write("REALM_CREATE_FAIL", $"kingdom={pendingKingdomId}; founder={founderId}; reason={commitReason}");
                 ClearPending(pendingKingdomId);
+
+                // A founder can become a party leader/governor/etc. during the pending
+                // delay. That invalidates the candidate, not the whole realm. Reject
+                // this hero and immediately rescan so the next safe candidate can be
+                // queued instead of freezing growth behind a failure cooldown.
+                if (kingdom != null &&
+                    (commitReason.StartsWith("founder_", StringComparison.Ordinal) ||
+                     string.Equals(commitReason, "source_clan_invalid", StringComparison.Ordinal)))
+                {
+                    KaiRuntimeLog.Write(
+                        "REALM_CANDIDATE_REJECT",
+                        $"kingdom={pendingKingdomId}; founder={founderId}; reason={commitReason}");
+
+                    var current = GetCurrentNobleClanCount(kingdom);
+                    var target = GetTargetNobleClanCount(kingdom);
+                    var deficit = target - current;
+                    if (deficit >= MinimumClanDeficitForNewHouse)
+                        TryQueueNewHouse(kingdom, now, deficit, current, target);
+                    return;
+                }
+
                 _kingdomCooldownUntilDays[pendingKingdomId] = now + FailureCooldownDays;
                 return;
             }
