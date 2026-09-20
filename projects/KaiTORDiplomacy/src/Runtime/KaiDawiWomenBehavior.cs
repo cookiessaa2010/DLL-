@@ -11,9 +11,10 @@ using TaleWorlds.ObjectSystem;
 namespace KaiTOR.Diplomacy.Runtime;
 
 /// <summary>
-/// Dawi female-population bridge. The bounded weekly shortage-filling path is enabled.
-/// It creates at most a small number of female Dawi per eligible AI clan and uses a long
-/// per-clan cooldown so population growth remains controlled.
+/// Dawi female-population bridge.
+/// Automatic creation is quarantined in the regression build because the integrated
+/// female skin/action asset layer produced cross-race visual regressions during live test.
+/// The behavior remains in source for separate TOR asset certification.
 /// </summary>
 public sealed class KaiDawiWomenBehavior : CampaignBehaviorBase
 {
@@ -23,9 +24,9 @@ public sealed class KaiDawiWomenBehavior : CampaignBehaviorBase
     private const int GenerationCooldownDays = 336;
     private const string CooldownSaveKey = "kaitor_dawi_women_generation_cooldown_v1";
 
-    // Automatic generation is bounded by MaximumGeneratedWomenPerClan and
-    // GenerationCooldownDays. The manual command remains available for diagnostics.
-    public const bool AutomaticPopulationEnabled = true;
+    // Safe-off until the female Dawi asset pack passes an isolated TOR visual test.
+    // Do not enable this together with unverified skins/action assets.
+    public const bool AutomaticPopulationEnabled = false;
 
     private Dictionary<string, double> _generationCooldownUntilDays = new();
 
