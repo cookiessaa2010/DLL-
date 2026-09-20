@@ -1,91 +1,83 @@
-using TaleWorlds.CampaignSystem;
-using TaleWorlds.CampaignSystem.Actions;
-using TaleWorlds.CampaignSystem.MapEvents;
-using TaleWorlds.CampaignSystem.Party;
-using TaleWorlds.Core;
-using TaleWorlds.Localization;
+using System;
+using System.Collections.Generic;
+using System.Reflection.Emit;
+using HarmonyLib;
+using TaleWorlds.CampaignSystem.CampaignBehaviors;
 
 namespace KaiTOR.Diplomacy.Runtime;
 
 /// <summary>
-/// Rewards the player's deliberate decision to release a defeated lord. Bannerlord's
-/// post-battle prisoner screen commonly reports that choice as ReleasedByChoice, while
-/// direct battle cleanup uses ReleasedAfterBattle; both paths are handled conservatively.
+/// Raises Bannerlord's native relation reward for deliberately releasing a defeated lord.
+/// No extra relation event is created: the original ApplyPlayerRelation call remains the
+/// only mechanic, with its native clan/relative propagation and notification behavior.
 /// </summary>
-public sealed class KaiMercyRelationBehavior : CampaignBehaviorBase
+internal static class KaiMercyRelationPatch
 {
-    public const int PostBattleMercyRelationBonus = 50;
+    public const int NativeReleaseRelation = 4;
+    public const int ReleaseRelation = 50;
 
-    public override void RegisterEvents()
+    [HarmonyPatch(typeof(LordConversationsCampaignBehavior), "conversation_talk_lord_defeat_to_lord_release_on_consequence")]
+    private static class DefeatedLordReleasePatch
     {
-        CampaignEvents.HeroPrisonerReleased.AddNonSerializedListener(this, OnHeroPrisonerReleased);
+        [HarmonyTranspiler]
+        private static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+            => ReplaceNativeReleaseRelation(instructions, "post_battle");
     }
 
-    public override void SyncData(IDataStore dataStore)
+    [HarmonyPatch(typeof(LordConversationsCampaignBehavior), "conversation_talk_lord_freed_to_lord_release_on_consequence")]
+    private static class FreedLordReleasePatch
     {
+        [HarmonyTranspiler]
+        private static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+            => ReplaceNativeReleaseRelation(instructions, "release_by_choice");
     }
 
-    private static void OnHeroPrisonerReleased(
-        Hero prisoner,
-        PartyBase formerCaptorParty,
-        IFaction capturerFaction,
-        EndCaptivityDetail detail,
-        bool showNotification)
+    private static IEnumerable<CodeInstruction> ReplaceNativeReleaseRelation(
+        IEnumerable<CodeInstruction> instructions,
+        string route)
     {
-        if (prisoner == null || prisoner == Hero.MainHero || !prisoner.IsLord)
-            return;
+        var replaced = false;
 
-        if (!IsPlayerMercyRelease(formerCaptorParty, detail))
-            return;
+        foreach (var instruction in instructions)
+        {
+            if (!replaced && LoadsInt32(instruction, NativeReleaseRelation))
+            {
+                instruction.opcode = OpCodes.Ldc_I4;
+                instruction.operand = ReleaseRelation;
+                replaced = true;
+            }
 
-        var relationBefore = Hero.MainHero?.GetRelation(prisoner) ?? 0;
+            yield return instruction;
+        }
 
-        ChangeRelationAction.ApplyPlayerRelation(
-            prisoner,
-            PostBattleMercyRelationBonus,
-            affectRelatives: true,
-            showQuickNotification: true);
-
-        var relationAfter = Hero.MainHero?.GetRelation(prisoner) ?? relationBefore;
-        KaiRuntimeLog.Write(
-            "MERCY_RELEASE",
-            $"hero={prisoner.StringId}; name={prisoner.Name}; detail={detail}; relationBefore={relationBefore}; relationAfter={relationAfter}; expectedBonus={PostBattleMercyRelationBonus}; actualDelta={relationAfter - relationBefore}; relatives=true");
-
-        MBInformationManager.AddQuickInformation(
-            new TextObject($"{prisoner.Name}: милосердие +{PostBattleMercyRelationBonus} к отношениям."),
-            2500,
-            prisoner.CharacterObject,
-            null,
-            string.Empty);
+        if (replaced)
+            KaiRuntimeLog.Write("MERCY_RELATION_PATCH", $"route={route}; native={NativeReleaseRelation}; replacement={ReleaseRelation}");
+        else
+            KaiRuntimeLog.Write("MERCY_RELATION_PATCH_FAILED", $"route={route}; native_constant_not_found={NativeReleaseRelation}");
     }
 
-    private static bool IsPlayerMercyRelease(PartyBase formerCaptorParty, EndCaptivityDetail detail)
+    private static bool LoadsInt32(CodeInstruction instruction, int value)
     {
-        var mainParty = PartyBase.MainParty;
-        if (mainParty == null)
+        if (instruction == null)
             return false;
 
-        // Releasing a prisoner from the player's own roster through the party/post-battle
-        // screen is reported as ReleasedByChoice in Bannerlord 1.3.15.
-        if (detail == EndCaptivityDetail.ReleasedByChoice)
-            return formerCaptorParty == mainParty;
+        if (value == -1 && instruction.opcode == OpCodes.Ldc_I4_M1) return true;
+        if (value == 0 && instruction.opcode == OpCodes.Ldc_I4_0) return true;
+        if (value == 1 && instruction.opcode == OpCodes.Ldc_I4_1) return true;
+        if (value == 2 && instruction.opcode == OpCodes.Ldc_I4_2) return true;
+        if (value == 3 && instruction.opcode == OpCodes.Ldc_I4_3) return true;
+        if (value == 4 && instruction.opcode == OpCodes.Ldc_I4_4) return true;
+        if (value == 5 && instruction.opcode == OpCodes.Ldc_I4_5) return true;
+        if (value == 6 && instruction.opcode == OpCodes.Ldc_I4_6) return true;
+        if (value == 7 && instruction.opcode == OpCodes.Ldc_I4_7) return true;
+        if (value == 8 && instruction.opcode == OpCodes.Ldc_I4_8) return true;
 
-        if (detail != EndCaptivityDetail.ReleasedAfterBattle)
-            return false;
+        if (instruction.opcode == OpCodes.Ldc_I4_S && instruction.operand is sbyte shortValue)
+            return shortValue == value;
 
-        if (formerCaptorParty == mainParty)
-            return true;
+        if (instruction.opcode == OpCodes.Ldc_I4 && instruction.operand is int intValue)
+            return intValue == value;
 
-        // Immediate post-battle release can occur before the hero is assigned to the
-        // player's prisoner roster, so formerCaptorParty is null. Only accept that path
-        // while the active player map event is a player victory.
-        if (formerCaptorParty != null)
-            return false;
-
-        var mapEvent = MapEvent.PlayerMapEvent;
-        return mapEvent != null &&
-               mapEvent.IsPlayerMapEvent &&
-               mapEvent.WinningSide != BattleSideEnum.None &&
-               mapEvent.WinningSide == mapEvent.PlayerSide;
+        return false;
     }
 }
