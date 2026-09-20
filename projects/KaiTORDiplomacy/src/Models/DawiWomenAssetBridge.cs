@@ -19,7 +19,7 @@ internal static class DawiWomenAssetBridge
     private const string AssetPackName = "kaitor_dawi_female.tpac";
     private const long ExpectedAssetPackBytes = 29213977L;
 
-    public const bool ForceSafeOffForLiveTest = false;
+    public const bool ForceSafeOffForLiveTest = true;
 
     public static bool IsAvailable
     {
