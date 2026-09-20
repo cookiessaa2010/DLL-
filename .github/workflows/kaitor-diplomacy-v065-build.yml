@@ -1,0 +1,103 @@
+name: KaiTOR Diplomacy v0.6.5 Live Test Build
+
+on:
+  push:
+    branches:
+      - 'kaitor-v0.6.5-*'
+    paths:
+      - 'projects/KaiTORDiplomacy/**'
+      - '.github/workflows/kaitor-diplomacy-v065-build.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build against Bannerlord 1.3.15.110062 references
+        shell: pwsh
+        run: |
+          dotnet build projects/KaiTORDiplomacy/src/KaiTOR_Diplomacy.csproj `
+            -c Release `
+            -p:UseBannerlordReferenceAssemblies=true `
+            --nologo
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Validate v0.6.5 live-test contracts
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = 'projects/KaiTORDiplomacy'
+          $src = Join-Path $root 'src'
+          $runtime = Join-Path $src 'Runtime'
+          $dll = Join-Path $root 'build/bin/Win64_Shipping_Client/KaiTOR_Diplomacy.dll'
+          if (-not (Test-Path -LiteralPath $dll -PathType Leaf)) { throw "Missing DLL: $dll" }
+
+          $module = Get-Content (Join-Path $root 'module/SubModule.xml') -Raw
+          if ($module -notmatch '<Version value="v0\.6\.5"') { throw 'SubModule version is not v0.6.5.' }
+
+          $project = Get-Content (Join-Path $src 'KaiTOR_Diplomacy.csproj') -Raw
+          if ($project -notmatch '<Version>0\.6\.5</Version>') { throw 'Assembly version is not 0.6.5.' }
+
+          $subModuleCs = Get-Content (Join-Path $src 'SubModule.cs') -Raw
+          if ($subModuleCs.Contains('new KaiDiplomacyHubBehavior()')) {
+            throw 'Public duplicate Diplomacy Hub is still registered.'
+          }
+          if (-not $subModuleCs.Contains('new KaiDiplomacyBehavior()')) {
+            throw 'Diplomacy backend registration missing.'
+          }
+          if (-not $subModuleCs.Contains('new KaiCultureAssimilationBehavior()')) {
+            throw 'Culture backend registration missing.'
+          }
+          if (-not $subModuleCs.Contains('new KaiFamilyAffairsBehavior()')) {
+            throw 'Family backend registration missing.'
+          }
+
+          $dawi = Get-Content (Join-Path $runtime 'KaiDawiWomenBehavior.cs') -Raw
+          if ($dawi.Contains('CampaignTime.Now.ToDays') -and $dawi.Contains('dayStamp')) {
+            throw 'Legacy campaign-day Dawi age generator still present.'
+          }
+          foreach ($token in @('StableAgeSeed','requestedAge=','finalAge=')) {
+            if (-not $dawi.Contains($token)) { throw "Dawi age hardening token missing: $token" }
+          }
+
+          $messenger = Get-Content (Join-Path $runtime 'KaiMessengerMapButton.cs') -Raw
+          foreach ($token in @('MapNavigationVM','MESSENGER_BUTTON_READY','CampaignMapConversation.OpenConversation')) {
+            if (-not $messenger.Contains($token)) { throw "Messenger contract missing: $token" }
+          }
+
+          $uiPatch = Get-Content (Join-Path $runtime 'KaiDiplomacyUiPatch.cs') -Raw
+          if (-not $uiPatch.Contains('KingdomDiplomacyVM')) { throw 'Native Kingdom diplomacy integration missing.' }
+
+          $portraitRefs = Get-ChildItem $root -Recurse -File | Select-String -SimpleMatch 'PortraitFix'
+          if ($portraitRefs) {
+            Write-Host 'PortraitFix references exist in docs/source; no PortraitFix files are packaged by this module.'
+          }
+
+          Write-Host 'KaiTOR Diplomacy v0.6.5 compile + core contracts: PASS'
+
+      - name: Assemble test module
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = 'projects/KaiTORDiplomacy'
+          $package = 'artifact/KaiTOR_Diplomacy'
+          $bin = Join-Path $package 'bin/Win64_Shipping_Client'
+          New-Item -ItemType Directory -Path $bin -Force | Out-Null
+          Copy-Item (Join-Path $root 'module/*') $package -Recurse -Force
+          Copy-Item (Join-Path $root 'build/bin/Win64_Shipping_Client/KaiTOR_Diplomacy.dll') (Join-Path $bin 'KaiTOR_Diplomacy.dll') -Force
+
+      - name: Upload test module
+        uses: actions/upload-artifact@v4
+        with:
+          name: KaiTOR-Diplomacy-v0.6.5-LiveTest
+          path: artifact/KaiTOR_Diplomacy
+          if-no-files-found: error
+          retention-days: 30
