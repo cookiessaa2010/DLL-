@@ -209,7 +209,6 @@ internal static class KaiMessengerMapButton
             }
         }
 
-        [DataSourceMethod]
         public void ExecuteSendMessenger()
         {
             if (Target == null || _behavior == null)
