@@ -15,6 +15,8 @@ public sealed class KaiLiveTestBehavior : CampaignBehaviorBase
         CampaignEvents.OnGameLoadedEvent.AddNonSerializedListener(this, OnGameLoaded);
         CampaignEvents.OnSaveStartedEvent.AddNonSerializedListener(this, OnSaveStarted);
         CampaignEvents.OnSaveOverEvent.AddNonSerializedListener(this, OnSaveOver);
+        CampaignEvents.DailyTickEvent.AddNonSerializedListener(this, OnDailyTick);
+        CampaignEvents.WeeklyTickEvent.AddNonSerializedListener(this, OnWeeklyTick);
     }
 
     public override void SyncData(IDataStore dataStore)
@@ -36,6 +38,39 @@ public sealed class KaiLiveTestBehavior : CampaignBehaviorBase
     private static void OnSaveStarted()
     {
         KaiLiveTestLog.Write("lifecycle", "SAVE_STARTED");
+    }
+
+    private static void OnDailyTick()
+    {
+        if (Campaign.Current == null)
+            return;
+
+        var alive = Hero.AllAliveHeroes.Count(h => h != null);
+        var active = Hero.AllAliveHeroes.Count(h => h != null && h.IsActive);
+        var marriedPairs = Hero.AllAliveHeroes.Count(
+            h => h?.Spouse != null &&
+                 h.Spouse.IsAlive &&
+                 string.CompareOrdinal(h.StringId, h.Spouse.StringId) < 0);
+        var pregnant = Hero.AllAliveHeroes.Count(h => h != null && h.IsPregnant);
+        var children = Hero.AllAliveHeroes.Count(h => h != null && h.Age < Campaign.Current.Models.AgeModel.HeroComesOfAge);
+
+        KaiLiveTestLog.Write(
+            "stability",
+            "STABILITY_DAILY",
+            $"campaignDay={CampaignTime.Now.ToDays:0.00}; kingdoms={Kingdom.All.Count(k => k != null && !k.IsEliminated)}; " +
+            $"clans={Clan.All.Count(clan => clan != null && !clan.IsEliminated)}; aliveHeroes={alive}; activeHeroes={active}; " +
+            $"marriedPairs={marriedPairs}; pregnant={pregnant}; children={children}; " +
+            $"dawiAuto={KaiDawiWomenBehavior.AutomaticPopulationEnabled}; vampireAuto={KaiVampirePopulationBehavior.AutomaticPopulationEnabled}; " +
+            $"greenskinAuto={KaiGreenskinPopulationBehavior.AutomaticPopulationEnabled}");
+    }
+
+    private static void OnWeeklyTick()
+    {
+        if (Campaign.Current == null)
+            return;
+
+        KaiLiveTestLog.Write("stability", "STABILITY_WEEKLY", $"campaignDay={CampaignTime.Now.ToDays:0.00}");
+        WriteSnapshot("stability_weekly");
     }
 
     private static void OnSaveOver(bool success, string saveName)
@@ -112,7 +147,6 @@ public sealed class KaiLiveTestBehavior : CampaignBehaviorBase
         var worldMarriage = Campaign.Current.GetCampaignBehavior<KaiWorldMarriageBehavior>();
         var education = Campaign.Current.GetCampaignBehavior<KaiLoreEducationBehavior>();
         var bloodKiss = Campaign.Current.GetCampaignBehavior<KaiBloodKissBehavior>();
-        var mercy = Campaign.Current.GetCampaignBehavior<KaiMercyRelationBehavior>();
         var dawi = Campaign.Current.GetCampaignBehavior<KaiDawiWomenBehavior>();
         var vampire = Campaign.Current.GetCampaignBehavior<KaiVampirePopulationBehavior>();
         var greenskin = Campaign.Current.GetCampaignBehavior<KaiGreenskinPopulationBehavior>();
@@ -122,11 +156,11 @@ public sealed class KaiLiveTestBehavior : CampaignBehaviorBase
             $"section=behaviors; diplomacy={State(diplomacy != null, diplomacy?.RuntimeEnabled == true)}; " +
             $"family={Present(family)}; culture={Present(culture)}; dynastic={Present(dynastic)}; " +
             $"messenger={Present(messenger)}; familyDiagnostics={Present(familyDiagnostics)}; worldMarriage={Present(worldMarriage)}; " +
-            $"education={Present(education)}; bloodKiss={Present(bloodKiss)}; mercy={Present(mercy)}; " +
+            $"education={Present(education)}; bloodKiss={Present(bloodKiss)}; mercy=native_relation_patch; " +
             $"dawi={Present(dawi)}; vampire={Present(vampire)}; greenskin={Present(greenskin)}; realmHouse={Present(realmHouse)}";
 
         yield return
-            $"section=ui; familyEntry=town_tavern/adoption; marriageEntry=lord_dialogue; messengerEntry=encyclopedia_hero; " +
+            $"section=ui; familyEntry=town_backstreet/adoption; marriageEntry=lord_dialogue; messengerEntry=encyclopedia_hero; " +
             $"{KaiFamilyAffairsBehavior.DescribeUiStatus()}";
 
         if (diplomacy != null)
