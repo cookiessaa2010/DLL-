@@ -27,6 +27,12 @@ internal static class KaiRaceLifecycle
 
     public const float VampireMarriageAge = 18f;
 
+    // FaceGen safety corridor for adult TOR races whose calendar lifespan is far
+    // outside Bannerlord's human visual-aging range. This never changes Hero.Age.
+    public const float VisualAdultMinimumAge = 22f;
+    public const float VisualSafeMaximumAge = 45f;
+    public const float GreenskinVisualMaximumAge = 40f;
+
     public static bool IsDawi(Hero hero)
         => IsRace(hero, "dwarf");
 
@@ -176,6 +182,57 @@ internal static class KaiRaceLifecycle
         var biologicalAge = GetBiologicalAge(hero);
         return Math.Max(0f, 1.2f - (biologicalAge - HumanFertilityStart) * 0.04f);
     }
+
+    /// <summary>
+    /// Returns the age passed to FaceGen. Calendar age remains untouched and remains
+    /// visible to the player. Only long-lived/non-human TOR races are remapped.
+    /// </summary>
+    public static float GetVisualAge(Hero hero, float currentVisualAge)
+    {
+        if (hero == null)
+            return currentVisualAge;
+
+        // Children must stay children. The adult safety floor is applied only after
+        // the race-specific social adulthood threshold.
+        if (IsDawi(hero))
+        {
+            if (hero.Age < DawiMarriageAge)
+                return Clamp(currentVisualAge, 0f, VisualSafeMaximumAge);
+            return Clamp(GetBiologicalAge(hero), VisualAdultMinimumAge, VisualSafeMaximumAge);
+        }
+
+        if (IsLongLivedElf(hero))
+        {
+            if (hero.Age < ElfMarriageAge)
+                return Clamp(currentVisualAge, 0f, VisualSafeMaximumAge);
+            return Clamp(GetBiologicalAge(hero), VisualAdultMinimumAge, VisualSafeMaximumAge);
+        }
+
+        // For vampires and ordinary undead prefer the body/template age already
+        // supplied by TOR. If it exceeds the human-safe corridor, clamp it rather
+        // than feeding a century-scale calendar age into FaceGen.
+        if (TorFamilySafety.IsVampire(hero) || TorFamilySafety.IsUndead(hero))
+        {
+            if (hero.Age < HumanMarriageAge)
+                return Clamp(currentVisualAge, 0f, VisualSafeMaximumAge);
+            var baseline = IsFinite(currentVisualAge) ? currentVisualAge : 35f;
+            return Clamp(baseline, VisualAdultMinimumAge, VisualSafeMaximumAge);
+        }
+
+        if (IsGreenskin(hero))
+        {
+            if (hero.Age < HumanMarriageAge)
+                return Clamp(currentVisualAge, 0f, GreenskinVisualMaximumAge);
+            var baseline = IsFinite(currentVisualAge) ? currentVisualAge : 30f;
+            return Clamp(baseline, 25f, GreenskinVisualMaximumAge);
+        }
+
+        // Humans and unclassified mortal peoples keep the native/TOR value.
+        return currentVisualAge;
+    }
+
+    private static bool IsFinite(float value)
+        => !float.IsNaN(value) && !float.IsInfinity(value);
 
     public static IEnumerable<string> DescribeRules()
     {
