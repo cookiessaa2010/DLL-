@@ -1,4 +1,5 @@
 using System;
+using Bannerlord.UIExtenderEx;
 using HarmonyLib;
 using KaiTOR.Diplomacy.Models;
 using KaiTOR.Diplomacy.Runtime;
@@ -17,12 +18,21 @@ public sealed class SubModule : MBSubModuleBase
     private const bool EnableDawiWomenPopulation = true;
 
     private Harmony _harmony;
+    private UIExtender _uiExtender;
 
     protected override void OnSubModuleLoad()
     {
         base.OnSubModuleLoad();
         try
         {
+            // v0.6.5.3: mirror the Shokuho/Diplomacy encyclopedia integration.
+            // UIExtenderEx injects the messenger button into EncyclopediaHeroPage;
+            // Harmony remains responsible for the rest of the module patches.
+            _uiExtender = UIExtender.Create("KaiTOR.Diplomacy");
+            _uiExtender.Register(typeof(SubModule).Assembly);
+            _uiExtender.Enable();
+            KaiRuntimeLog.Write("MESSENGER_ENCYCLOPEDIA_UI_READY", "UIExtenderEx registered.");
+
             _harmony = new Harmony("kaitor.diplomacy.kingdom-ui");
             _harmony.PatchAll(typeof(SubModule).Assembly);
             KaiRuntimeLog.Write("DIPLOMACY_UI_READY", "Harmony PatchAll completed.");
@@ -39,7 +49,7 @@ public sealed class SubModule : MBSubModuleBase
         base.OnGameStart(game, gameStarterObject);
         if (gameStarterObject is not CampaignGameStarter campaignStarter) return;
 
-        KaiRuntimeLog.Write("STARTUP", "KaiTOR Diplomacy v0.6.5.2 campaign start.");
+        KaiRuntimeLog.Write("STARTUP", "KaiTOR Diplomacy v0.6.5.3 campaign start.");
 
         // Family lifecycle: native Bannerlord maturation stays intact; TOR remains the base model stack.
         InstallMarriageWrapper(campaignStarter);
