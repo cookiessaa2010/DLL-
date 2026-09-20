@@ -37,6 +37,8 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
     {
         CampaignEvents.OnSessionLaunchedEvent.AddNonSerializedListener(this, OnSessionLaunched);
         CampaignEvents.BeforeHeroesMarried.AddNonSerializedListener(this, OnBeforeHeroesMarried);
+        CampaignEvents.OnBarterCanceledEvent.AddNonSerializedListener(this, OnBarterCanceled);
+        CampaignEvents.OnBarterAcceptedEvent.AddNonSerializedListener(this, OnBarterAccepted);
     }
 
     public override void SyncData(IDataStore dataStore)
@@ -929,6 +931,45 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
             (secondHero == _selectedHouseMember && firstHero == _selectedTargetHero))
             ResetMarriageSelection();
     }
+
+    private void OnBarterCanceled(Hero offerer, Hero other, List<Barterable> barters)
+    {
+        var marriage = FindPlayerMarriageBarter(barters);
+        if (marriage == null)
+            return;
+
+        var first = marriage.HeroBeingProposedTo;
+        var second = marriage.ProposingHero;
+        KaiRuntimeLog.Write(
+            "MARRIAGE_CANCELLED",
+            $"first={first?.StringId ?? "null"}; second={second?.StringId ?? "null"}; offerer={offerer?.StringId ?? "null"}; other={other?.StringId ?? "null"}");
+        ResetMarriageSelection();
+    }
+
+    private void OnBarterAccepted(Hero offerer, Hero other, List<Barterable> barters)
+    {
+        var marriage = FindPlayerMarriageBarter(barters);
+        if (marriage == null)
+            return;
+
+        var first = marriage.HeroBeingProposedTo;
+        var second = marriage.ProposingHero;
+        var married = first != null && second != null &&
+                      (first.Spouse == second || second.Spouse == first);
+
+        KaiRuntimeLog.Write(
+            married ? "MARRIAGE_BARTER_ACCEPTED" : "MARRIAGE_FAILED",
+            $"first={first?.StringId ?? "null"}; second={second?.StringId ?? "null"}; offerer={offerer?.StringId ?? "null"}; other={other?.StringId ?? "null"}; married={married}; reason={(married ? "completed" : "accepted_without_marriage")}");
+        ResetMarriageSelection();
+    }
+
+    private static MarriageBarterable FindPlayerMarriageBarter(IEnumerable<Barterable> barters)
+        => barters?
+            .OfType<MarriageBarterable>()
+            .FirstOrDefault(x =>
+                x?.HeroBeingProposedTo != null &&
+                x.ProposingHero != null &&
+                KaiPlayerMarriageModel.InvolvesPlayerClan(x.HeroBeingProposedTo, x.ProposingHero));
 
     private static void ShowAdoptionCandidates()
     {
