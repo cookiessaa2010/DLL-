@@ -96,7 +96,7 @@ internal sealed class KaiMessengerEncyclopediaMixin : BaseViewModelMixin<Encyclo
                 return;
             }
 
-            IsMessengerAvailable = KaiMessengerMapButton.CanContactHero(hero, out var reason);
+            IsMessengerAvailable = KaiMessengerService.CanContactHero(hero, out var reason);
             SendMessengerHint = IsMessengerAvailable
                 ? _emptyHint
                 : new HintViewModel(reason ?? new TextObject("Этот персонаж сейчас недоступен."));
@@ -124,7 +124,7 @@ internal sealed class KaiMessengerEncyclopediaMixin : BaseViewModelMixin<Encyclo
             "MESSENGER_ENCYCLOPEDIA_CLICK",
             $"hero={hero.StringId}; female={hero.IsFemale}; dawi={KaiRaceLifecycle.IsDawi(hero)}");
 
-        KaiMessengerMapButton.ContactHero(hero);
+        KaiMessengerService.ContactHero(hero);
         OnRefresh();
     }
 
