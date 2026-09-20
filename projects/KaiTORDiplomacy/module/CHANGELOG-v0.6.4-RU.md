@@ -144,3 +144,13 @@ LIVE TEST PASSED ставится только после проверки в р
 - Dawi automatic women population включена: bounded shortage fill, максимум 3 generated women на AI-клан, 336 дней cooldown на клан.
 - Vampire automatic population = ON; Greenskin spore population = ON.
 - Добавлена команда `kaitor_diplomacy.family_rules` для проверки реальной активной матрицы правил.
+
+
+## Live-test regression fixes — 20.09.2026
+- Удалён нерабочий текстовый «гиперлинк» гонца из InformationText.
+- Гонец перенесён на отдельную нативную Gauntlet-кнопку в энциклопедии героя без UIExtenderEx/ButterLib.
+- Слой гонца не забирает фокус и снимается при закрытии страницы героя.
+- Обычные совместимые смертные пары переведены на Bannerlord 1.3.15 fertility curve вместо наблюдавшегося постоянного нуля.
+- Добавлены STABILITY_DAILY / STABILITY_WEEKLY и MARRIAGE_BIOLOGY.
+- Dawi female skin/action assets временно изолированы из regression-пакета после кросс-расовой визуальной регрессии; template сохранён для совместимости старого сейва.
+- Старый отдельный diplomacy dashboard остаётся исключён из пакета; Kingdom Diplomacy использует нативный интерфейс.
