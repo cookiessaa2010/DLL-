@@ -1,4 +1,4 @@
-name: KaiTOR Diplomacy v0.6.5 Live Test Build
+name: KaiTOR Diplomacy v0.6.5.1 Crash Hotfix Build
 
 on:
   push:
@@ -30,7 +30,7 @@ jobs:
             --nologo
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Validate v0.6.5 live-test contracts
+      - name: Validate v0.6.5.1 crash-hotfix contracts
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -41,10 +41,10 @@ jobs:
           if (-not (Test-Path -LiteralPath $dll -PathType Leaf)) { throw "Missing DLL: $dll" }
 
           $module = Get-Content (Join-Path $root 'module/SubModule.xml') -Raw
-          if ($module -notmatch '<Version value="v0\.6\.5"') { throw 'SubModule version is not v0.6.5.' }
+          if ($module -notmatch '<Version value="v0\.6\.5\.1"') { throw 'SubModule version is not v0.6.5.1.' }
 
           $project = Get-Content (Join-Path $src 'KaiTOR_Diplomacy.csproj') -Raw
-          if ($project -notmatch '<Version>0\.6\.5</Version>') { throw 'Assembly version is not 0.6.5.' }
+          if ($project -notmatch '<Version>0\.6\.5\.1</Version>') { throw 'Assembly version is not 0.6.5.1.' }
 
           $subModuleCs = Get-Content (Join-Path $src 'SubModule.cs') -Raw
           if ($subModuleCs.Contains('new KaiDiplomacyHubBehavior()')) {
@@ -76,13 +76,13 @@ jobs:
           $uiPatch = Get-Content (Join-Path $runtime 'KaiDiplomacyUiPatch.cs') -Raw
           if (-not $uiPatch.Contains('KingdomDiplomacyVM')) { throw 'Native Kingdom diplomacy integration missing.' }
 
-          $visualAge = Get-Content (Join-Path $runtime 'KaiVisualAgePatch.cs') -Raw
-          $raceLifecycle = Get-Content (Join-Path $src 'Models/KaiRaceLifecycle.cs') -Raw
-          foreach ($token in @('CharacterObject.GetBodyProperties','FACE_AGE','DynamicBodyProperties')) {
-            if (-not $visualAge.Contains($token)) { throw "VisualAge patch contract missing: $token" }
+          $visualPatchPath = Join-Path $runtime 'KaiVisualAgePatch.cs'
+          if (Test-Path -LiteralPath $visualPatchPath) {
+            throw 'Crash-hotfix invariant failed: VisualAge Harmony patch must not ship in Diplomacy v0.6.5.1.'
           }
-          foreach ($token in @('GetVisualAge','VisualSafeMaximumAge = 45f','return currentVisualAge')) {
-            if (-not $raceLifecycle.Contains($token)) { throw "Race visual-age contract missing: $token" }
+          $allRuntimeText = Get-ChildItem $runtime -Filter '*.cs' -File | ForEach-Object { Get-Content $_.FullName -Raw } | Out-String
+          if ($allRuntimeText.Contains('CharacterObject.GetBodyProperties') -and $allRuntimeText.Contains('HarmonyPatch')) {
+            throw 'Crash-hotfix invariant failed: Diplomacy still patches CharacterObject.GetBodyProperties.'
           }
 
           $family = Get-Content (Join-Path $runtime 'KaiFamilyAffairsBehavior.cs') -Raw
@@ -111,7 +111,7 @@ jobs:
             Write-Host 'PortraitFix references exist in docs/source; no PortraitFix files are packaged by this module.'
           }
 
-          Write-Host 'KaiTOR Diplomacy v0.6.5 compile + core contracts: PASS'
+          Write-Host 'KaiTOR Diplomacy v0.6.5.1 compile + crash-hotfix contracts: PASS'
 
       - name: Assemble test module
         shell: pwsh
@@ -127,7 +127,7 @@ jobs:
       - name: Upload test module
         uses: actions/upload-artifact@v4
         with:
-          name: KaiTOR-Diplomacy-v0.6.5-LiveTest
+          name: KaiTOR-Diplomacy-v0.6.5.1-CrashHotfix
           path: artifact/KaiTOR_Diplomacy
           if-no-files-found: error
           retention-days: 30
