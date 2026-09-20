@@ -146,6 +146,7 @@ public sealed class KaiMessengerBehavior : CampaignBehaviorBase
         GiveGoldAction.ApplyBetweenCharacters(Hero.MainHero, null, cost, false);
         var arrival = CampaignTime.Now.ToDays + travelDays;
         _arrivalDayByHeroId[target.StringId] = arrival;
+        KaiMessengerMapButton.RefreshFor(target);
 
         KaiRuntimeLog.Write(
             "MESSENGER_SENT",
@@ -203,6 +204,7 @@ public sealed class KaiMessengerBehavior : CampaignBehaviorBase
                 {
                     _inquiryOpen = false;
                     _arrivalDayByHeroId[target.StringId] = CampaignTime.Now.ToDays + 0.25d;
+                    KaiMessengerMapButton.RefreshFor(target);
                     KaiRuntimeLog.Write("MESSENGER_DEFERRED", $"target={target.StringId}; retry=6h");
                     ShowQuick("Разговор отложен. Гонец вернётся с ответом примерно через 6 часов.");
                 }),
@@ -232,6 +234,7 @@ public sealed class KaiMessengerBehavior : CampaignBehaviorBase
                 false, false, false, false, false, false);
 
             _arrivalDayByHeroId.Remove(target.StringId);
+            KaiMessengerMapButton.RefreshFor(target);
             KaiRuntimeLog.Write(
                 "MESSENGER_CONVERSATION",
                 $"target={target.StringId}; clan={target.Clan?.StringId ?? "none"}; settlement={target.CurrentSettlement?.StringId ?? "none"}; party={target.PartyBelongedTo?.StringId ?? "none"}");
