@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using KaiTOR.Diplomacy.Models;
 using TaleWorlds.CampaignSystem;
 
 namespace KaiTOR.Diplomacy.Runtime;
@@ -38,11 +39,21 @@ public sealed class KaiFamilyDiagnosticsBehavior : CampaignBehaviorBase
             return;
 
         _marriagesThisWeek++;
+        var blockReason = TorFamilySafety.GetVanillaPregnancyBlockReason(first, second);
+        var firstDawi = KaiRaceLifecycle.IsDawi(first);
+        var secondDawi = KaiRaceLifecycle.IsDawi(second);
         KaiFamilyLog.Write(
             "MARRIAGE_SUCCESS",
             $"first={Id(first)}; firstName={Name(first)}; firstClan={ClanId(first)}; firstKingdom={KingdomId(first)}; firstCulture={CultureId(first)}; firstRace={Race(first)}; " +
             $"second={Id(second)}; secondName={Name(second)}; secondClan={ClanId(second)}; secondKingdom={KingdomId(second)}; secondCulture={CultureId(second)}; secondRace={Race(second)}; " +
-            $"biologicalChildren={(Models.TorFamilySafety.CanUseVanillaPregnancy(first, second) ? "allowed" : "blocked")}");
+            $"biologicalChildren={(blockReason == null ? "allowed" : "blocked")}; blockReason={blockReason ?? "none"}");
+
+        KaiFamilyLog.Write(
+            "MARRIAGE_BIOLOGY",
+            $"first={Id(first)}; second={Id(second)}; firstFemale={first.IsFemale}; secondFemale={second.IsFemale}; " +
+            $"firstRace={Race(first)}; secondRace={Race(second)}; firstDawi={firstDawi}; secondDawi={secondDawi}; " +
+            $"dawiAssetsAvailable={DawiWomenAssetBridge.IsAvailable}; dawiPairSupported={DawiWomenAssetBridge.IsSupportedDawiPair(first, second)}; " +
+            $"blockReason={blockReason ?? "none"}");
     }
 
     private void OnChildConceived(Hero mother)
