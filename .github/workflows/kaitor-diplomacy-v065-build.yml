@@ -68,8 +68,13 @@ jobs:
             if (-not $dawi.Contains($token)) { throw "Dawi age hardening token missing: $token" }
           }
 
-          $messenger = Get-Content (Join-Path $runtime 'KaiMessengerMapButton.cs') -Raw
-          foreach ($token in @('MapNavigationVM','MESSENGER_BUTTON_READY','CampaignMapConversation.OpenConversation','CanContactHero','ContactHero','SelectMany(c => c.Heroes')) {
+          $legacyMapButton = Join-Path $runtime 'KaiMessengerMapButton.cs'
+          if (Test-Path -LiteralPath $legacyMapButton) {
+            throw 'Legacy map-bar messenger UI must not ship in v0.6.5.3.'
+          }
+
+          $messenger = Get-Content (Join-Path $runtime 'KaiMessengerService.cs') -Raw
+          foreach ($token in @('CampaignMapConversation.OpenConversation','CanContactHero','ContactHero','MESSENGER_CONTACT','MESSENGER_ENCYCLOPEDIA_CLOSE')) {
             if (-not $messenger.Contains($token)) { throw "Messenger backend contract missing: $token" }
           }
 
@@ -83,8 +88,8 @@ jobs:
             'Command.Click=\"ExecuteSendMessenger\"',
             'ViewModelMixin(nameof(EncyclopediaHeroPageVM.RefreshValues))',
             'ViewModel?.Obj as Hero',
-            'KaiMessengerMapButton.CanContactHero',
-            'KaiMessengerMapButton.ContactHero'
+            'KaiMessengerService.CanContactHero',
+            'KaiMessengerService.ContactHero'
           )) {
             if (-not $messengerUi.Contains($token)) { throw "Encyclopedia messenger UI contract missing: $token" }
           }
