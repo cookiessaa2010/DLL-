@@ -164,8 +164,8 @@ jobs:
           $messengerUi = Get-Content (Join-Path $runtime 'KaiMessengerMapButton.cs') -Raw
           $cultureBehavior = Get-Content (Join-Path $runtime 'KaiCultureAssimilationBehavior.cs') -Raw
 
-          if (-not $familyAffairs.Contains('"town_tavern"')) { throw 'Adoption tavern entry missing.' }
-          if (-not $familyAffairs.Contains('"kaitor_family_adoption_tavern"')) { throw 'Direct tavern adoption action missing.' }
+          if (-not $familyAffairs.Contains('"town_backstreet"')) { throw 'Adoption backstreet/tavern entry missing.' }
+          if (-not $familyAffairs.Contains('"kaitor_family_adoption_backstreet"')) { throw 'Direct backstreet adoption action missing.' }
           if ($subModuleCs.Contains('new KaiDiplomacyHubBehavior()')) { throw 'Removed city diplomacy hub was re-registered.' }
           if ($subModuleCs.Contains('new KaiIncomingMarriageProposalBehavior()')) { throw 'Broken out-of-conversation marriage proposal behavior was re-registered.' }
 
@@ -326,7 +326,7 @@ jobs:
               throw "Obsolete family menu is still registered: $oldFamilyCall"
             }
           }
-          foreach ($token in @('kaitor_family_adoption_tavern','RegisterAdoptionMenu(starter);','AdoptHeroAction.Apply','adoption_back')) {
+          foreach ($token in @('kaitor_family_adoption_backstreet','"town_backstreet"','RegisterAdoptionMenu(starter);','AdoptHeroAction.Apply','adoption_back')) {
             if (-not $familyAffairs.Contains($token)) { throw "Adoption terminal path missing: $token" }
           }
 
