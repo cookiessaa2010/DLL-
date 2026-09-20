@@ -23,6 +23,17 @@
       </Tags>
     </SubModule>
   </SubModules>
-  <Xmls />
+  <Xmls>
+    <!-- Keep the template object registered for save compatibility with live-test saves
+         that already contain generated Dawi women. Runtime generation remains SAFE-OFF
+         and no custom dwarf skin/action assets are loaded in this regression build. -->
+    <XmlNode>
+      <XmlName id="NPCCharacters" path="kaitor_dawi_women" />
+      <IncludedGameTypes>
+        <GameType value="Campaign" />
+        <GameType value="CampaignStoryMode" />
+      </IncludedGameTypes>
+    </XmlNode>
+  </Xmls>
 
 </Module>
