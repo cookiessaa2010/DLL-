@@ -517,11 +517,20 @@ jobs:
           }
           $runtimeLog = Get-Content (Join-Path $runtime 'KaiRuntimeLog.cs') -Raw
           $populationLog = Get-Content (Join-Path $runtime 'KaiPopulationLog.cs') -Raw
-          $mercyLog = Get-Content (Join-Path $runtime 'KaiMercyRelationBehavior.cs') -Raw
+          $mercyPatch = Get-Content (Join-Path $runtime 'KaiMercyRelationBehavior.cs') -Raw
           if (-not $runtimeLog.Contains('KaiLiveTestLog.Write')) { throw 'Runtime events are not mirrored to unified live-test log.' }
           if (-not $populationLog.Contains('KaiLiveTestLog.Write')) { throw 'Population events are not mirrored to unified live-test log.' }
-          if (-not $mercyLog.Contains('relationBefore') -or -not $mercyLog.Contains('relationAfter')) {
-            throw 'Mercy relation before/after live-test diagnostics missing.'
+          foreach ($token in @(
+            'NativeReleaseRelation = 4',
+            'ReleaseRelation = 50',
+            'conversation_talk_lord_defeat_to_lord_release_on_consequence',
+            'conversation_talk_lord_freed_to_lord_release_on_consequence',
+            'ReplaceNativeReleaseRelation'
+          )) {
+            if (-not $mercyPatch.Contains($token)) { throw "Native mercy relation replacement missing: $token" }
+          }
+          if ($subModuleCs.Contains('new KaiMercyRelationBehavior()')) {
+            throw 'Duplicate mercy relation behavior returned; native reward must be the only relation mechanic.'
           }
 
           Write-Host "KaiTOR unified live-test logging contract: PASS"
