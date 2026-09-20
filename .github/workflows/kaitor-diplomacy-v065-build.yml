@@ -1,4 +1,4 @@
-name: KaiTOR Diplomacy v0.6.5.2 Full Assets Hotfix Runtime Build
+name: KaiTOR Diplomacy v0.6.5.3 Shokuho Messenger UI Build
 
 on:
   push:
@@ -30,7 +30,7 @@ jobs:
             --nologo
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Validate v0.6.5.2 runtime contracts
+      - name: Validate v0.6.5.3 messenger UI contracts
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -41,10 +41,10 @@ jobs:
           if (-not (Test-Path -LiteralPath $dll -PathType Leaf)) { throw "Missing DLL: $dll" }
 
           $module = Get-Content (Join-Path $root 'module/SubModule.xml') -Raw
-          if ($module -notmatch '<Version value="v0\.6\.5\.2"') { throw 'SubModule version is not v0.6.5.2.' }
+          if ($module -notmatch '<Version value="v0\.6\.5\.3"') { throw 'SubModule version is not v0.6.5.3.' }
 
           $project = Get-Content (Join-Path $src 'KaiTOR_Diplomacy.csproj') -Raw
-          if ($project -notmatch '<Version>0\.6\.5\.2</Version>') { throw 'Assembly version is not 0.6.5.2.' }
+          if ($project -notmatch '<Version>0\.6\.5\.3</Version>') { throw 'Assembly version is not 0.6.5.3.' }
 
           $subModuleCs = Get-Content (Join-Path $src 'SubModule.cs') -Raw
           if ($subModuleCs.Contains('new KaiDiplomacyHubBehavior()')) {
@@ -69,8 +69,34 @@ jobs:
           }
 
           $messenger = Get-Content (Join-Path $runtime 'KaiMessengerMapButton.cs') -Raw
-          foreach ($token in @('MapNavigationVM','MESSENGER_BUTTON_READY','CampaignMapConversation.OpenConversation')) {
-            if (-not $messenger.Contains($token)) { throw "Messenger contract missing: $token" }
+          foreach ($token in @('MapNavigationVM','MESSENGER_BUTTON_READY','CampaignMapConversation.OpenConversation','CanContactHero','ContactHero','SelectMany(c => c.Heroes')) {
+            if (-not $messenger.Contains($token)) { throw "Messenger backend contract missing: $token" }
+          }
+
+          $messengerUi = Get-Content (Join-Path $runtime 'KaiMessengerEncyclopediaUI.cs') -Raw
+          foreach ($token in @(
+            'PrefabExtension(',
+            'EncyclopediaHeroPage',
+            "descendant::RichTextWidget[@Text='@InformationText']",
+            'SuggestedWidth=\"227\"',
+            'SuggestedHeight=\"40\"',
+            'Command.Click=\"ExecuteSendMessenger\"',
+            'ViewModelMixin(nameof(EncyclopediaHeroPageVM.RefreshValues))',
+            'ViewModel?.Obj as Hero',
+            'KaiMessengerMapButton.CanContactHero',
+            'KaiMessengerMapButton.ContactHero'
+          )) {
+            if (-not $messengerUi.Contains($token)) { throw "Encyclopedia messenger UI contract missing: $token" }
+          }
+
+          if (-not $module.Contains('DependedModule Id="Bannerlord.UIExtenderEx"')) {
+            throw 'UIExtenderEx module dependency missing.'
+          }
+          if (-not $project.Contains('PackageReference Include="Bannerlord.UIExtenderEx"')) {
+            throw 'UIExtenderEx compile reference missing.'
+          }
+          foreach ($token in @('UIExtender.Create("KaiTOR.Diplomacy")','MESSENGER_ENCYCLOPEDIA_UI_READY')) {
+            if (-not $subModuleCs.Contains($token)) { throw "UIExtenderEx startup contract missing: $token" }
           }
 
           $uiPatch = Get-Content (Join-Path $runtime 'KaiDiplomacyUiPatch.cs') -Raw
@@ -111,7 +137,7 @@ jobs:
             Write-Host 'PortraitFix references exist in docs/source; no PortraitFix files are packaged by this module.'
           }
 
-          Write-Host 'KaiTOR Diplomacy v0.6.5.2 compile + runtime contracts: PASS'
+          Write-Host 'KaiTOR Diplomacy v0.6.5.3 compile + runtime contracts: PASS'
 
       - name: Assemble test module
         shell: pwsh
@@ -127,7 +153,7 @@ jobs:
       - name: Upload test module
         uses: actions/upload-artifact@v4
         with:
-          name: KaiTOR-Diplomacy-v0.6.5.2-RuntimeOnly
+          name: KaiTOR-Diplomacy-v0.6.5.3-ShokuhoMessengerUI-Runtime
           path: artifact/KaiTOR_Diplomacy
           if-no-files-found: error
           retention-days: 30
