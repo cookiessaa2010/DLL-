@@ -1,4 +1,4 @@
-name: KaiTOR Diplomacy v0.6.5.1 Crash Hotfix Build
+name: KaiTOR Diplomacy v0.6.5.2 Full Assets Hotfix Runtime Build
 
 on:
   push:
@@ -30,7 +30,7 @@ jobs:
             --nologo
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Validate v0.6.5.1 crash-hotfix contracts
+      - name: Validate v0.6.5.2 runtime contracts
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -41,10 +41,10 @@ jobs:
           if (-not (Test-Path -LiteralPath $dll -PathType Leaf)) { throw "Missing DLL: $dll" }
 
           $module = Get-Content (Join-Path $root 'module/SubModule.xml') -Raw
-          if ($module -notmatch '<Version value="v0\.6\.5\.1"') { throw 'SubModule version is not v0.6.5.1.' }
+          if ($module -notmatch '<Version value="v0\.6\.5\.2"') { throw 'SubModule version is not v0.6.5.2.' }
 
           $project = Get-Content (Join-Path $src 'KaiTOR_Diplomacy.csproj') -Raw
-          if ($project -notmatch '<Version>0\.6\.5\.1</Version>') { throw 'Assembly version is not 0.6.5.1.' }
+          if ($project -notmatch '<Version>0\.6\.5\.2</Version>') { throw 'Assembly version is not 0.6.5.2.' }
 
           $subModuleCs = Get-Content (Join-Path $src 'SubModule.cs') -Raw
           if ($subModuleCs.Contains('new KaiDiplomacyHubBehavior()')) {
@@ -111,7 +111,7 @@ jobs:
             Write-Host 'PortraitFix references exist in docs/source; no PortraitFix files are packaged by this module.'
           }
 
-          Write-Host 'KaiTOR Diplomacy v0.6.5.1 compile + crash-hotfix contracts: PASS'
+          Write-Host 'KaiTOR Diplomacy v0.6.5.2 compile + runtime contracts: PASS'
 
       - name: Assemble test module
         shell: pwsh
@@ -127,7 +127,7 @@ jobs:
       - name: Upload test module
         uses: actions/upload-artifact@v4
         with:
-          name: KaiTOR-Diplomacy-v0.6.5.1-CrashHotfix
+          name: KaiTOR-Diplomacy-v0.6.5.2-RuntimeOnly
           path: artifact/KaiTOR_Diplomacy
           if-no-files-found: error
           retention-days: 30
