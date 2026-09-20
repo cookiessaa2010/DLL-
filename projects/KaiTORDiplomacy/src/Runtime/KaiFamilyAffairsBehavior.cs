@@ -28,7 +28,7 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
     private const string MarriageMenuId = "kaitor_family_marriage";
     private const string AdoptionMenuId = "kaitor_family_adoption";
 
-    private static string _returnMenuId = "town_tavern";
+    private static string _returnMenuId = "town_backstreet";
     private static Hero _selectedHouseMember;
     private static Clan _selectedTargetClan;
     private static Hero _selectedTargetHero;
@@ -47,19 +47,21 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
     private void OnSessionLaunched(CampaignGameStarter starter)
     {
         // Current UX: no family/diplomacy submenus in towns or castles.
-        // Adoption is the only settlement family action and lives directly in the tavern.
+        // Bannerlord 1.3.15 has no "town_tavern" GameMenu: "town_tavern" is only the
+        // option id that opens the tavern mission from "town_backstreet". Therefore
+        // adoption is placed in the backstreet menu next to "Visit the tavern".
         // Marriage is handled by Bannerlord's native lord dialogue.
         ResetMarriageSelection();
         RegisterAdoptionMenu(starter);
 
         starter.AddGameMenuOption(
-            "town_tavern",
-            "kaitor_family_adoption_tavern",
+            "town_backstreet",
+            "kaitor_family_adoption_backstreet",
             "Принять в род",
             FamilyEntryCondition,
             _ =>
             {
-                _returnMenuId = "town_tavern";
+                _returnMenuId = "town_backstreet";
                 SafeSwitchToMenu(AdoptionMenuId, "tavern_adoption");
             },
             false,
@@ -254,7 +256,7 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
             "kaitor_family_adoption_back",
             "Назад",
             BackOptionCondition,
-            _ => SafeSwitchToMenu(string.IsNullOrWhiteSpace(_returnMenuId) ? "town_tavern" : _returnMenuId, "adoption_back"),
+            _ => SafeSwitchToMenu(string.IsNullOrWhiteSpace(_returnMenuId) ? "town_backstreet" : _returnMenuId, "adoption_back"),
             true,
             99);
     }
@@ -784,7 +786,7 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
 
         _returnMenuId = "town_tavern";
         return SafeSwitchToMenu(AdoptionMenuId, "console_adoption")
-            ? "Adoption menu opened. Normal entry point: town tavern."
+            ? "Adoption menu opened. Normal entry point: town backstreet, next to the tavern action."
             : "Could not open adoption menu.";
     }
 
