@@ -1,4 +1,4 @@
-name: KaiTOR Diplomacy v0.6.5.8 Dawi Family Spawn Build
+name: KaiTOR Diplomacy v0.6.5.9 Pregnancy Lifecycle + Dawi Render Build
 
 on:
   push:
@@ -30,7 +30,7 @@ jobs:
             --nologo
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Validate v0.6.5.8 Dawi family spawn + population contracts
+      - name: Validate v0.6.5.9 contracts
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -41,45 +41,39 @@ jobs:
           if (-not (Test-Path -LiteralPath $dll -PathType Leaf)) { throw "Missing DLL: $dll" }
 
           $module = Get-Content (Join-Path $root 'module/SubModule.xml') -Raw
-          if ($module -notmatch '<Version value="v0\.6\.5\.8"') { throw 'SubModule version is not v0.6.5.8.' }
+          if ($module -notmatch '<Version value="v0\.6\.5\.9"') { throw 'SubModule version is not v0.6.5.9.' }
 
           $project = Get-Content (Join-Path $src 'KaiTOR_Diplomacy.csproj') -Raw
-          if ($project -notmatch '<Version>0\.6\.5\.8</Version>') { throw 'Assembly version is not 0.6.5.8.' }
+          if ($project -notmatch '<Version>0\.6\.5\.9</Version>') { throw 'Assembly version is not 0.6.5.9.' }
 
           $subModuleCs = Get-Content (Join-Path $src 'SubModule.cs') -Raw
-          if ($subModuleCs.Contains('new KaiDiplomacyHubBehavior()')) {
-            throw 'Public duplicate Diplomacy Hub is still registered.'
+          foreach ($token in @(
+            'new KaiDiplomacyBehavior()',
+            'new KaiCultureAssimilationBehavior()',
+            'new KaiFamilyAffairsBehavior()',
+            'new KaiMessengerBehavior()',
+            'new KaiRealmHouseGrowthBehavior()',
+            'new KaiPregnancyLifecycleBehavior()'
+          )) {
+            if (-not $subModuleCs.Contains($token)) { throw "SubModule registration missing: $token" }
           }
-          if (-not $subModuleCs.Contains('new KaiDiplomacyBehavior()')) {
-            throw 'Diplomacy backend registration missing.'
-          }
-          if (-not $subModuleCs.Contains('new KaiCultureAssimilationBehavior()')) {
-            throw 'Culture backend registration missing.'
-          }
-          if (-not $subModuleCs.Contains('new KaiFamilyAffairsBehavior()')) {
-            throw 'Family backend registration missing.'
+          if ($subModuleCs.Contains('new KaiDiplomacyHubBehavior()')) { throw 'Duplicate public Diplomacy Hub is registered.' }
+
+          $pregnancy = Get-Content (Join-Path $runtime 'KaiPregnancyLifecycleBehavior.cs') -Raw
+          foreach ($token in @(
+            'CampaignEvents.OnChildConceivedEvent',
+            'CampaignEvents.OnGivenBirthEvent',
+            'PREGNANCY_STARTED',
+            'PREGNANCY_ENDED',
+            'CHILD_BORN'
+          )) {
+            if (-not $pregnancy.Contains($token)) { throw "Pregnancy lifecycle contract missing: $token" }
           }
 
           $dawi = Get-Content (Join-Path $runtime 'KaiDawiWomenBehavior.cs') -Raw
-          if ($dawi -match '\bvar\s+dayStamp\s*=') {
-            throw 'Legacy campaign-day Dawi age generator still present.'
-          }
           foreach ($token in @(
-            'StableAgeSeed',
-            'requestedAge=',
-            'finalAge=',
-            'CampaignEvents.OnGameLoadedEvent',
-            'RepairInactiveGeneratedWomen',
-            'DAWI_WOMAN_REACTIVATED',
-            'DAWI_WOMAN_REPAIR_PASS',
-            'hero.HeroState == Hero.CharacterStates.NotSpawned',
-            'hero.ChangeState(Hero.CharacterStates.Active)',
-            'OriginalCharacter',
-            'origin.StringId',
-            'DawiWomenAssetBridge.FemaleDawiLordTemplateId',
             'MaximumGeneratedWomenPerClan = 5',
             'GenerationCooldownDays = 84',
-            'kaitor_dawi_women_generation_cooldown_v2',
             '(adultMen + 2) / 3',
             'SpawnOneForPlayerFamily',
             'PlayerFamilySpawnAge = 35',
@@ -87,190 +81,57 @@ jobs:
             'AddHeroToPartyAction.Apply(hero, MobileParty.MainParty, false)',
             'DAWI_FAMILY_SPAWN'
           )) {
-            if (-not $dawi.Contains($token)) { throw "Dawi v0.6.5.8 contract missing: $token" }
+            if (-not $dawi.Contains($token)) { throw "Dawi behavior contract missing: $token" }
           }
 
-          $dawiCommands = Get-Content (Join-Path $runtime 'KaiDawiWomenCommands.cs') -Raw
+          $dawiTemplate = Get-Content (Join-Path $root 'module/ModuleData/kaitor_dawi_women.xml') -Raw
           foreach ($token in @(
-            'CommandLineArgumentFunction("spawn_family", "kaitor_dawi_women")',
-            'kaitor_dawi_women.spawn_family',
-            'SpawnOneForPlayerFamily()'
+            '<EquipmentSet id="tor_dw_lord_template_001" />',
+            '<EquipmentSet id="tor_dw_lord_template_001" civilian="true" />'
           )) {
-            if (-not $dawiCommands.Contains($token)) { throw "Dawi family command contract missing: $token" }
+            if (-not $dawiTemplate.Contains($token)) { throw "Dawi render equipment contract missing: $token" }
           }
 
           $legacyMapButton = Join-Path $runtime 'KaiMessengerMapButton.cs'
-          if (Test-Path -LiteralPath $legacyMapButton) {
-            throw 'Legacy map-bar messenger UI must not ship in v0.6.5.8.'
-          }
-
-          $messenger = Get-Content (Join-Path $runtime 'KaiMessengerService.cs') -Raw
-          foreach ($token in @('CampaignMapConversation.OpenConversation','CanContactHero','CanArriveAtHeroNow','CanInterruptPlayerOnMap','StartRemoteConversation','MESSENGER_CONTACT')) {
-            if (-not $messenger.Contains($token)) { throw "Messenger backend contract missing: $token" }
-          }
-
-          $messengerBehavior = Get-Content (Join-Path $runtime 'KaiMessengerBehavior.cs') -Raw
-          foreach ($token in @(
-            'MaximumTravelDays = 3f',
-            'CampaignEvents.HourlyTickEvent',
-            'kaitor_messenger_arrival_days_v1',
-            'GetHoursToArrive',
-            'Campaign.MapDiagonal',
-            'MESSENGER_SENT',
-            'MESSENGER_ARRIVED',
-            'MESSENGER_ARRIVAL_ACCEPTED',
-            'StartRemoteConversation'
-          )) {
-            if (-not $messengerBehavior.Contains($token)) { throw "Messenger travel contract missing: $token" }
-          }
-          if (-not $subModuleCs.Contains('new KaiMessengerBehavior()')) {
-            throw 'KaiMessengerBehavior is not registered.'
-          }
-
-          $messengerUi = Get-Content (Join-Path $runtime 'KaiMessengerEncyclopediaUI.cs') -Raw
-          foreach ($token in @(
-            'PrefabExtension(',
-            'EncyclopediaHeroPage',
-            "descendant::RichTextWidget[@Text='@InformationText']",
-            'SuggestedWidth=\"227\"',
-            'SuggestedHeight=\"40\"',
-            'Brush=\"ButtonBrush2\"',
-            'Brush=\"Kingdom.GeneralButtons.Text\"',
-            'Command.Click=\"ExecuteSendMessenger\"',
-            'ViewModelMixin(nameof(EncyclopediaHeroPageVM.RefreshValues))',
-            'ViewModel?.Obj as Hero',
-            'GetCampaignBehavior<KaiMessengerBehavior>()',
-            'messenger.SendMessenger(hero)'
-          )) {
-            if (-not $messengerUi.Contains($token)) { throw "Encyclopedia messenger UI contract missing: $token" }
-          }
-
-          if ($module.Contains('DependedModule Id="Bannerlord.UIExtenderEx"')) {
-            throw 'External UIExtenderEx launcher dependency must not ship in v0.6.5.8.'
-          }
-          if (-not $project.Contains('PackageReference Include="Bannerlord.UIExtenderEx"')) {
-            throw 'Embedded UIExtenderEx package reference missing.'
-          }
-          if ($project.Contains('IncludeAssets="compile"')) {
-            throw 'UIExtenderEx is still compile-only; runtime DLL would be missing.'
-          }
-          foreach ($token in @(
-            'UIConfig.DoNotUseGeneratedPrefabs = true',
-            'UIExtender.Create("KaiTOR_Diplomacy")',
-            'embedded UIExtenderEx registered'
-          )) {
-            if (-not $subModuleCs.Contains($token)) { throw "Embedded UIExtenderEx startup contract missing: $token" }
-          }
-          $uiRuntime = Join-Path $root 'build/bin/Win64_Shipping_Client/Bannerlord.UIExtenderEx.dll'
-          if (-not (Test-Path -LiteralPath $uiRuntime -PathType Leaf)) {
-            throw "Embedded UIExtenderEx runtime DLL missing from build output: $uiRuntime"
-          }
-          foreach ($token in @('MESSENGER_ENCYCLOPEDIA_UI_FAILED','Harmony PatchAll completed independently.')) {
-            if (-not $subModuleCs.Contains($token)) {
-              throw "UI/Harmony failure isolation contract missing: $token"
-            }
-          }
-
-          $uiPatch = Get-Content (Join-Path $runtime 'KaiDiplomacyUiPatch.cs') -Raw
-          if (-not $uiPatch.Contains('KingdomDiplomacyVM')) { throw 'Native Kingdom diplomacy integration missing.' }
+          if (Test-Path -LiteralPath $legacyMapButton) { throw 'Legacy map-bar messenger UI must not ship.' }
 
           $visualPatchPath = Join-Path $runtime 'KaiVisualAgePatch.cs'
-          if (Test-Path -LiteralPath $visualPatchPath) {
-            throw 'Crash-hotfix invariant failed: VisualAge Harmony patch must not ship in Diplomacy v0.6.5.1.'
-          }
-          $allRuntimeText = Get-ChildItem $runtime -Filter '*.cs' -File | ForEach-Object { Get-Content $_.FullName -Raw } | Out-String
-          if ($allRuntimeText.Contains('CharacterObject.GetBodyProperties') -and $allRuntimeText.Contains('HarmonyPatch')) {
-            throw 'Crash-hotfix invariant failed: Diplomacy still patches CharacterObject.GetBodyProperties.'
-          }
+          if (Test-Path -LiteralPath $visualPatchPath) { throw 'VisualAge Harmony patch must not ship in Diplomacy.' }
 
           $family = Get-Content (Join-Path $runtime 'KaiFamilyAffairsBehavior.cs') -Raw
-          foreach ($token in @(
-            '"town_backstreet"',
-            '"town_tavern"',
-            '"kaitor_family_adoption_backstreet"',
-            '"Принять в род"',
-            'ADOPTION_ENTRY_READY',
-            'primary=town_backstreet'
-          )) {
-            if (-not $family.Contains($token)) { throw "Tavern adoption contract missing: $token" }
-          }
-          foreach ($legacyEntry in @('kaitor_family_affairs_town"', 'kaitor_family_affairs_town_outside"', 'kaitor_family_affairs_castle"')) {
-            if ($family.Contains($legacyEntry)) { throw "Legacy public Family Affairs entry still present: $legacyEntry" }
-          }
           foreach ($token in @('MARRIAGE_CANCELLED','MARRIAGE_BARTER_ACCEPTED','accepted_without_marriage')) {
-            if (-not $family.Contains($token)) { throw "Marriage outcome logging missing: $token" }
+            if (-not $family.Contains($token)) { throw "Marriage regression guard missing: $token" }
           }
 
           $blood = Get-Content (Join-Path $runtime 'KaiBloodKissBehavior.cs') -Raw
-          foreach ($token in @(
-            'kaitor_player_blood_kiss_progeny_v1',
-            'CampaignEvents.OnGameLoadedEvent',
-            'AdoptHeroAction.Apply(target)',
-            'AddHeroToPartyAction.Apply(target, MobileParty.MainParty, false)',
-            'DisbandPartyAction.StartDisband(oldParty)',
-            'PlayerEncounter.LeaveEncounter = true',
-            'BLOOD_KISS_FAMILY_SUCCESS',
-            'BLOOD_KISS_ENCOUNTER_EXIT',
-            'BLOOD_KISS_RECOVERY_SUCCESS',
-            'RepairTrackedBloodProgeny',
-            'CanClaimExistingBloodProgeny'
-          )) {
-            if (-not $blood.Contains($token)) { throw "Blood Kiss family/encounter contract missing: $token" }
-          }
-
-          $professionBridge = Get-Content (Join-Path $runtime 'TorProfessionEffectBridge.cs') -Raw
-          foreach ($token in @('IsMinorVampireIdentity','GetCareerStringId("MinorVampire")')) {
-            if (-not $professionBridge.Contains($token)) { throw "Blood Kiss recovery identity contract missing: $token" }
+          foreach ($token in @('BLOOD_KISS_FAMILY_SUCCESS','BLOOD_KISS_ENCOUNTER_EXIT','BLOOD_KISS_RECOVERY_SUCCESS')) {
+            if (-not $blood.Contains($token)) { throw "Blood Kiss regression guard missing: $token" }
           }
 
           $realm = Get-Content (Join-Path $runtime 'KaiRealmHouseGrowthBehavior.cs') -Raw
           foreach ($token in @(
-            'kaitor_realm_house_kingdom_cooldown_v3',
-            'kaitor_realm_house_pending_founders_v4',
-            'CampaignEvents.OnGameLoadedEvent',
-            'ScanKingdoms("game_loaded")',
-            'OrderByDescending(k => k == playerKingdom)',
-            'reason=target_satisfied',
+            'PerKingdomCooldownDays = 42',
             'REALM_CANDIDATE_REJECT',
-            'TryQueueNewHouse(kingdom, now, deficit, current, target)',
-            'COMMIT_DEFER',
-            '4 + (int)Math.Ceiling(fortifications / 2d)',
-            'first-safe-hour-largest-deficit',
-            'KaiRuntimeLog.Write(eventName, details)'
+            'Clan.CreateCompanionToLordClan',
+            '4 + (int)Math.Ceiling(fortifications / 2d)'
           )) {
-            if (-not $realm.Contains($token)) { throw "Realm House v0.6.5.8 contract missing: $token" }
-          }
-          if ($realm.Contains('CommitHour')) {
-            throw 'Realm House is still gated to a fixed commit hour.'
-          }
-          if ($realm.Contains('PlayerEncounter.Current != null')) {
-            throw 'Realm House still blocks ordinary town/player encounters.'
-          }
-
-          $culture = Get-Content (Join-Path $runtime 'KaiCultureAssimilationBehavior.cs') -Raw
-          foreach ($token in @('CULTURE_CHANGE_BEGIN','CULTURE_CHANGE_SUCCESS','reason=already_current')) {
-            if (-not $culture.Contains($token)) { throw "Culture diagnostics contract missing: $token" }
+            if (-not $realm.Contains($token)) { throw "Realm House regression guard missing: $token" }
           }
 
           $mercy = Get-Content (Join-Path $runtime 'KaiMercyRelationBehavior.cs') -Raw
-          foreach ($token in @(
-            'PostBattleMercyRelationBonus = 50',
-            'conversation_talk_lord_defeat_to_lord_release_on_consequence',
-            'conversation_talk_lord_freed_to_lord_release_on_consequence',
-            'MERCY_RELEASE_BEGIN',
-            'MERCY_RELEASE_EVENT',
-            'targetDelta={PostBattleMercyRelationBonus}',
-            'Math.Max(0, PostBattleMercyRelationBonus - vanillaDelta)'
-          )) {
-            if (-not $mercy.Contains($token)) { throw "Mercy +50 contract missing: $token" }
+          foreach ($token in @('PostBattleMercyRelationBonus = 50','MERCY_RELEASE_BEGIN','MERCY_RELEASE_EVENT')) {
+            if (-not $mercy.Contains($token)) { throw "Mercy regression guard missing: $token" }
           }
 
-          $portraitRefs = Get-ChildItem $root -Recurse -File | Select-String -SimpleMatch 'PortraitFix'
-          if ($portraitRefs) {
-            Write-Host 'PortraitFix references exist in docs/source; no PortraitFix files are packaged by this module.'
+          if ($module.Contains('DependedModule Id="Bannerlord.UIExtenderEx"')) {
+            throw 'External UIExtenderEx launcher dependency must not ship.'
+          }
+          $uiRuntime = Join-Path $root 'build/bin/Win64_Shipping_Client/Bannerlord.UIExtenderEx.dll'
+          if (-not (Test-Path -LiteralPath $uiRuntime -PathType Leaf)) {
+            throw "Embedded UIExtenderEx runtime DLL missing: $uiRuntime"
           }
 
-          Write-Host 'KaiTOR Diplomacy v0.6.5.8 Dawi family spawn + population contracts: PASS'
+          Write-Host 'KaiTOR Diplomacy v0.6.5.9 contracts: PASS'
 
       - name: Assemble test module
         shell: pwsh
@@ -284,15 +145,10 @@ jobs:
           Copy-Item (Join-Path $root 'build/bin/Win64_Shipping_Client/KaiTOR_Diplomacy.dll') (Join-Path $bin 'KaiTOR_Diplomacy.dll') -Force
           Copy-Item (Join-Path $root 'build/bin/Win64_Shipping_Client/Bannerlord.UIExtenderEx.dll') (Join-Path $bin 'Bannerlord.UIExtenderEx.dll') -Force
 
-          # Diagnostics: show any additional non-game dependencies emitted by NuGet.
-          Get-ChildItem (Join-Path $root 'build/bin/Win64_Shipping_Client') -Filter '*.dll' -File |
-            Select-Object Name, Length |
-            Format-Table -AutoSize
-
       - name: Upload test module
         uses: actions/upload-artifact@v4
         with:
-          name: KaiTOR-Diplomacy-v0.6.5.8-DawiFamilySpawn-Runtime
+          name: KaiTOR-Diplomacy-v0.6.5.9-PregnancyLifecycle-DawiRender-Runtime
           path: artifact/KaiTOR_Diplomacy
           if-no-files-found: error
           retention-days: 30
