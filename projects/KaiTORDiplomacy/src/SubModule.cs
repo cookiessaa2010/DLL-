@@ -5,7 +5,6 @@ using KaiTOR.Diplomacy.Models;
 using KaiTOR.Diplomacy.Runtime;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.ComponentInterfaces;
-using TaleWorlds.Core;
 using TaleWorlds.Engine.GauntletUI;
 using TaleWorlds.MountAndBlade;
 
@@ -13,10 +12,7 @@ namespace KaiTOR.Diplomacy;
 
 public sealed class SubModule : MBSubModuleBase
 {
-    private const bool EnableLifecycleRestore = true;
-    private const bool EnableLoreOldAgeMortality = true;
     private const bool EnableMarriageWarnings = true;
-    private const bool EnableDawiWomenPopulation = true;
 
     private Harmony _harmony;
     private UIExtender _uiExtender;
@@ -26,8 +22,6 @@ public sealed class SubModule : MBSubModuleBase
         base.OnSubModuleLoad();
         try
         {
-            // v0.6.5.5: UIExtenderEx is shipped as a replaceable shared DLL inside
-            // KaiTOR_Diplomacy. No separate launcher module is required.
             UIConfig.DoNotUseGeneratedPrefabs = true;
             _uiExtender = UIExtender.Create("KaiTOR_Diplomacy");
             _uiExtender.Register(typeof(SubModule).Assembly);
@@ -36,8 +30,6 @@ public sealed class SubModule : MBSubModuleBase
         }
         catch (Exception ex)
         {
-            // Messenger UI is optional for campaign safety. Do not let a UI library
-            // failure suppress the independent Harmony gameplay patches below.
             KaiRuntimeLog.Exception("MESSENGER_ENCYCLOPEDIA_UI_FAILED", ex, "stage=EmbeddedUIExtender");
         }
 
@@ -58,37 +50,25 @@ public sealed class SubModule : MBSubModuleBase
         base.OnGameStart(game, gameStarterObject);
         if (gameStarterObject is not CampaignGameStarter campaignStarter) return;
 
-        KaiRuntimeLog.Write("STARTUP", "KaiTOR Diplomacy v0.6.5.10 campaign start.");
+        KaiRuntimeLog.Write("STARTUP", "KaiTOR Diplomacy v0.6.6.0 core-clean campaign start.");
 
-        // Family lifecycle: native Bannerlord maturation stays intact; TOR remains the base model stack.
+        // Family and diplomacy only. TOR/Bannerlord retain ownership of world population,
+        // lord/clan generation, clan transitions, visual aging and natural mortality.
         InstallMarriageWrapper(campaignStarter);
         InstallPregnancyWrapper(campaignStarter);
         campaignStarter.AddBehavior(new KaiPregnancyLifecycleBehavior());
-        if (EnableLifecycleRestore)
-            CampaignOptions.IsLifeDeathCycleDisabled = false;
-        if (EnableLoreOldAgeMortality)
-            InstallHeroDeathWrapper(campaignStarter);
         if (EnableMarriageWarnings)
             campaignStarter.AddBehavior(new KaiMarriageWarningBehavior());
-        if (EnableDawiWomenPopulation)
-            campaignStarter.AddBehavior(new KaiDawiWomenBehavior());
 
-        // Safe additive diplomacy permission layer. It delegates every TOR rule and only vetoes
-        // ordinary war proposals while an active non-aggression pact exists.
+        // Additive NAP layer; ordinary TOR war/peace/alliance rules remain authoritative.
         InstallPermissionWrapper(campaignStarter);
-
-        // v0.6.4: autonomous race growth is split into independent, bounded modules.
-        // The old monolithic KaiRacialPopulationBehavior remains unregistered.
-        if (KaiVampirePopulationBehavior.AutomaticPopulationEnabled)
-            campaignStarter.AddBehavior(new KaiVampirePopulationBehavior());
-        if (KaiGreenskinPopulationBehavior.AutomaticPopulationEnabled)
-            campaignStarter.AddBehavior(new KaiGreenskinPopulationBehavior());
 
         campaignStarter.AddBehavior(new KaiDiplomacyBehavior());
         campaignStarter.AddBehavior(new KaiDiplomacyAiBehavior());
         campaignStarter.AddBehavior(new KaiDiplomacyConversationBehavior());
         campaignStarter.AddBehavior(new KaiCultureAssimilationBehavior());
         campaignStarter.AddBehavior(new KaiDynasticMarriageBehavior());
+        campaignStarter.AddBehavior(new KaiDawiDynastyBehavior());
         campaignStarter.AddBehavior(new KaiFamilyAffairsBehavior());
         campaignStarter.AddBehavior(new KaiIncomingMarriageProposalBehavior());
         campaignStarter.AddBehavior(new KaiLoreEducationBehavior());
@@ -96,7 +76,6 @@ public sealed class SubModule : MBSubModuleBase
         campaignStarter.AddBehavior(new KaiMercyRelationBehavior());
         campaignStarter.AddBehavior(new KaiMessengerBehavior());
         campaignStarter.AddBehavior(new KaiLiveTestBehavior());
-        campaignStarter.AddBehavior(new KaiRealmHouseGrowthBehavior());
     }
 
     private static void InstallPermissionWrapper(CampaignGameStarter starter)
@@ -120,12 +99,5 @@ public sealed class SubModule : MBSubModuleBase
         var activeModel = starter.GetModel<PregnancyModel>();
         if (activeModel == null || activeModel is KaiPregnancyModel) return;
         starter.AddModel<PregnancyModel>(new KaiPregnancyModel(activeModel));
-    }
-
-    private static void InstallHeroDeathWrapper(CampaignGameStarter starter)
-    {
-        var activeModel = starter.GetModel<HeroDeathProbabilityCalculationModel>();
-        if (activeModel == null || activeModel is KaiHeroDeathProbabilityModel) return;
-        starter.AddModel<HeroDeathProbabilityCalculationModel>(new KaiHeroDeathProbabilityModel(activeModel));
     }
 }
