@@ -36,6 +36,6 @@ public static class KaiMarriageCommands
                (familyCandidates.Length > 0 ? $" ({string.Join(", ", familyCandidates.Take(8).Select(h => h.Name.ToString()))})" : string.Empty) + "\n" +
                "native map marriage offers=" + (offers && wrapper != null ? "READY" : "BLOCKED") + "\n" +
                $"lifeDeathCycleDisabled={CampaignOptions.IsLifeDeathCycleDisabled}\n" +
-               $"Dawi women assets={(DawiWomenAssetBridge.IsAvailable ? "READY" : "SAFE-OFF")}.";
+               "Dawi marriage route=ABSTRACT_HOUSE_UNION; female Hero/assets=OFF.";
     }
 }
