@@ -332,6 +332,26 @@ internal static class TorProfessionEffectBridge
         catch { return null; }
     }
 
+    public static bool IsMinorVampireIdentity(Hero hero)
+    {
+        if (hero?.CharacterObject == null || !EnsureTypes())
+            return false;
+
+        try
+        {
+            var vampireRace = FaceGen.GetRaceOrDefault("vampire");
+            var minorVampireId = GetCareerStringId("MinorVampire");
+            var currentCareer = GetCurrentCareerId(hero);
+            return hero.CharacterObject.Race == vampireRace &&
+                   !string.IsNullOrWhiteSpace(minorVampireId) &&
+                   string.Equals(currentCareer, minorVampireId, StringComparison.Ordinal);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     private static void ApplySpecializationPackage(Hero hero, string id)
     {
         switch (id)
