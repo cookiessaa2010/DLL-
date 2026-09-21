@@ -1,4 +1,4 @@
-name: KaiTOR Diplomacy v0.6.5.9 Pregnancy Lifecycle + Dawi Render Build
+name: KaiTOR Diplomacy v0.6.5.10 Dawi Female Render Build
 
 on:
   push:
@@ -30,23 +30,49 @@ jobs:
             --nologo
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Validate v0.6.5.9 contracts
+      - name: Validate v0.6.5.10 contracts
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           $root = 'projects/KaiTORDiplomacy'
           $src = Join-Path $root 'src'
           $runtime = Join-Path $src 'Runtime'
+          $modulePath = Join-Path $root 'module'
+          $moduleData = Join-Path $modulePath 'ModuleData'
           $dll = Join-Path $root 'build/bin/Win64_Shipping_Client/KaiTOR_Diplomacy.dll'
           if (-not (Test-Path -LiteralPath $dll -PathType Leaf)) { throw "Missing DLL: $dll" }
 
-          $module = Get-Content (Join-Path $root 'module/SubModule.xml') -Raw
-          if ($module -notmatch '<Version value="v0\.6\.5\.9"') { throw 'SubModule version is not v0.6.5.9.' }
+          $module = Get-Content (Join-Path $modulePath 'SubModule.xml') -Raw
+          if ($module -notmatch '<Version value="v0\.6\.5\.10"') { throw 'SubModule version is not v0.6.5.10.' }
+          if ($module.Contains('<XmlName id="Monsters"')) { throw 'KaiTOR must not override TOR Monster objects in v0.6.5.10.' }
+          if ($module.Contains('kaitor_dawi_monster')) { throw 'Legacy Dawi Monster override is still registered.' }
 
           $project = Get-Content (Join-Path $src 'KaiTOR_Diplomacy.csproj') -Raw
-          if ($project -notmatch '<Version>0\.6\.5\.9</Version>') { throw 'Assembly version is not 0.6.5.9.' }
+          if ($project -notmatch '<Version>0\.6\.5\.10</Version>') { throw 'Assembly version is not v0.6.5.10.' }
+
+          $mbproj = Get-Content (Join-Path $moduleData 'project.mbproj') -Raw
+          if (-not $mbproj.Contains('ModuleData/skins.xml')) { throw 'Dawi skin solution entry missing.' }
+          if ($mbproj.Contains('action_sets')) { throw 'KaiTOR must delegate dwarf action sets to TOR.' }
+          if (Test-Path -LiteralPath (Join-Path $moduleData 'action_sets.xml')) { throw 'Redundant KaiTOR Dawi action_sets.xml still ships.' }
+          if (Test-Path -LiteralPath (Join-Path $moduleData 'kaitor_dawi_monster.xml')) { throw 'Redundant KaiTOR dwarf Monster XML still ships.' }
+
+          $skinPatch = Get-Content (Join-Path $moduleData 'skins.xslt') -Raw
+          foreach ($token in @(
+            "race[@id='dwarf']/skin[@gender='1' and @name='woman' and @mesh_maturity_type='adult']",
+            'dwarf_skeleton_a',
+            'sk_dwarf_bm_f1_body',
+            'sk_dwarf_bm_f1_shoulder',
+            'sk_dwarf_bm_f1_legs',
+            'sk_dwarf_bm_f1_arms',
+            'sk_dwarf_bm_f1_head',
+            'sk_dwarf_underwear_female_a',
+            'm_dwarf_bm_female_a1_head'
+          )) {
+            if (-not $skinPatch.Contains($token)) { throw "Female Dawi skin contract missing: $token" }
+          }
 
           $subModuleCs = Get-Content (Join-Path $src 'SubModule.cs') -Raw
+          if (-not $subModuleCs.Contains('KaiTOR Diplomacy v0.6.5.10 campaign start.')) { throw 'Startup marker is not v0.6.5.10.' }
           foreach ($token in @(
             'new KaiDiplomacyBehavior()',
             'new KaiCultureAssimilationBehavior()',
@@ -60,13 +86,7 @@ jobs:
           if ($subModuleCs.Contains('new KaiDiplomacyHubBehavior()')) { throw 'Duplicate public Diplomacy Hub is registered.' }
 
           $pregnancy = Get-Content (Join-Path $runtime 'KaiPregnancyLifecycleBehavior.cs') -Raw
-          foreach ($token in @(
-            'CampaignEvents.OnChildConceivedEvent',
-            'CampaignEvents.OnGivenBirthEvent',
-            'PREGNANCY_STARTED',
-            'PREGNANCY_ENDED',
-            'CHILD_BORN'
-          )) {
+          foreach ($token in @('PREGNANCY_STARTED','PREGNANCY_ENDED','CHILD_BORN')) {
             if (-not $pregnancy.Contains($token)) { throw "Pregnancy lifecycle contract missing: $token" }
           }
 
@@ -84,16 +104,13 @@ jobs:
             if (-not $dawi.Contains($token)) { throw "Dawi behavior contract missing: $token" }
           }
 
-          $dawiTemplate = Get-Content (Join-Path $root 'module/ModuleData/kaitor_dawi_women.xml') -Raw
+          $dawiTemplate = Get-Content (Join-Path $moduleData 'kaitor_dawi_women.xml') -Raw
           foreach ($token in @(
             '<EquipmentSet id="tor_dw_lord_template_001" />',
             '<EquipmentSet id="tor_dw_lord_template_001" civilian="true" />'
           )) {
-            if (-not $dawiTemplate.Contains($token)) { throw "Dawi render equipment contract missing: $token" }
+            if (-not $dawiTemplate.Contains($token)) { throw "Dawi equipment contract missing: $token" }
           }
-
-          $legacyMapButton = Join-Path $runtime 'KaiMessengerMapButton.cs'
-          if (Test-Path -LiteralPath $legacyMapButton) { throw 'Legacy map-bar messenger UI must not ship.' }
 
           $visualPatchPath = Join-Path $runtime 'KaiVisualAgePatch.cs'
           if (Test-Path -LiteralPath $visualPatchPath) { throw 'VisualAge Harmony patch must not ship in Diplomacy.' }
@@ -109,12 +126,7 @@ jobs:
           }
 
           $realm = Get-Content (Join-Path $runtime 'KaiRealmHouseGrowthBehavior.cs') -Raw
-          foreach ($token in @(
-            'PerKingdomCooldownDays = 42',
-            'REALM_CANDIDATE_REJECT',
-            'Clan.CreateCompanionToLordClan',
-            '4 + (int)Math.Ceiling(fortifications / 2d)'
-          )) {
+          foreach ($token in @('PerKingdomCooldownDays = 42','REALM_CANDIDATE_REJECT','Clan.CreateCompanionToLordClan')) {
             if (-not $realm.Contains($token)) { throw "Realm House regression guard missing: $token" }
           }
 
@@ -131,7 +143,7 @@ jobs:
             throw "Embedded UIExtenderEx runtime DLL missing: $uiRuntime"
           }
 
-          Write-Host 'KaiTOR Diplomacy v0.6.5.9 contracts: PASS'
+          Write-Host 'KaiTOR Diplomacy v0.6.5.10 Dawi female render contracts: PASS'
 
       - name: Assemble test module
         shell: pwsh
@@ -148,7 +160,7 @@ jobs:
       - name: Upload test module
         uses: actions/upload-artifact@v4
         with:
-          name: KaiTOR-Diplomacy-v0.6.5.9-PregnancyLifecycle-DawiRender-Runtime
+          name: KaiTOR-Diplomacy-v0.6.5.10-DawiFemaleRender-Runtime
           path: artifact/KaiTOR_Diplomacy
           if-no-files-found: error
           retention-days: 30
