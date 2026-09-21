@@ -23,5 +23,13 @@
       <Trait id="Manager" value="6" />
       <Trait id="Honor" value="1" />
     </Traits>
+    <!-- Use TOR's native Dawi lord equipment in both render contexts.
+         v0.6.5.8 spawned the female template with empty battle/civilian equipment,
+         which exposed the custom naked-body path directly in clan/character previews.
+         The female dwarf skin meshes themselves resolve correctly in rgl_log. -->
+    <Equipments>
+      <EquipmentSet id="tor_dw_lord_template_001" />
+      <EquipmentSet id="tor_dw_lord_template_001" civilian="true" />
+    </Equipments>
   </NPCCharacter>
 </NPCCharacters>
