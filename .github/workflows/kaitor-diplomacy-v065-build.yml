@@ -130,16 +130,13 @@ jobs:
           )) {
             if (-not $subModuleCs.Contains($token)) { throw "Embedded UIExtenderEx startup contract missing: $token" }
           }
-          foreach ($runtimeDll in @(
-            'Bannerlord.UIExtenderEx.dll',
-            'Bannerlord.BUTR.Shared.dll',
-            'BUTR.MessageBoxPInvoke.dll',
-            'Newtonsoft.Json.dll',
-            'Harmony.Extensions.dll'
-          )) {
-            $runtimePath = Join-Path $root ("build/bin/Win64_Shipping_Client/" + $runtimeDll)
-            if (-not (Test-Path -LiteralPath $runtimePath -PathType Leaf)) {
-              throw "Embedded UI runtime dependency missing from build output: $runtimePath"
+          $uiRuntime = Join-Path $root 'build/bin/Win64_Shipping_Client/Bannerlord.UIExtenderEx.dll'
+          if (-not (Test-Path -LiteralPath $uiRuntime -PathType Leaf)) {
+            throw "Embedded UIExtenderEx runtime DLL missing from build output: $uiRuntime"
+          }
+          foreach ($token in @('MESSENGER_ENCYCLOPEDIA_UI_FAILED','Harmony PatchAll completed independently.')) {
+            if (-not $subModuleCs.Contains($token)) {
+              throw "UI/Harmony failure isolation contract missing: $token"
             }
           }
 
@@ -224,15 +221,7 @@ jobs:
           New-Item -ItemType Directory -Path $bin -Force | Out-Null
           Copy-Item (Join-Path $root 'module/*') $package -Recurse -Force
           Copy-Item (Join-Path $root 'build/bin/Win64_Shipping_Client/KaiTOR_Diplomacy.dll') (Join-Path $bin 'KaiTOR_Diplomacy.dll') -Force
-          foreach ($runtimeDll in @(
-            'Bannerlord.UIExtenderEx.dll',
-            'Bannerlord.BUTR.Shared.dll',
-            'BUTR.MessageBoxPInvoke.dll',
-            'Newtonsoft.Json.dll',
-            'Harmony.Extensions.dll'
-          )) {
-            Copy-Item (Join-Path $root ("build/bin/Win64_Shipping_Client/" + $runtimeDll)) (Join-Path $bin $runtimeDll) -Force
-          }
+          Copy-Item (Join-Path $root 'build/bin/Win64_Shipping_Client/Bannerlord.UIExtenderEx.dll') (Join-Path $bin 'Bannerlord.UIExtenderEx.dll') -Force
 
           # Diagnostics: show any additional non-game dependencies emitted by NuGet.
           Get-ChildItem (Join-Path $root 'build/bin/Win64_Shipping_Client') -Filter '*.dll' -File |
