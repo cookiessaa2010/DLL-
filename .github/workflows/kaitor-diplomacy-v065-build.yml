@@ -72,7 +72,9 @@ jobs:
             'RepairInactiveGeneratedWomen',
             'DAWI_WOMAN_REACTIVATED',
             'DAWI_WOMAN_REPAIR_PASS',
+            'hero.HeroState == Hero.CharacterStates.NotSpawned',
             'hero.ChangeState(Hero.CharacterStates.Active)',
+            'OriginalCharacter',
             'origin.StringId',
             'DawiWomenAssetBridge.FemaleDawiLordTemplateId'
           )) {
