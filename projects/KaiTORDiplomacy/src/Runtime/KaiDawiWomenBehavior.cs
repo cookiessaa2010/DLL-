@@ -57,7 +57,11 @@ public sealed class KaiDawiWomenBehavior : CampaignBehaviorBase
             .Where(hero => hero != null)
             .Distinct()
             .Where(IsKaiGeneratedDawiWoman)
-            .Where(hero => hero.IsAlive && !hero.IsActive && !hero.IsChild)
+            .Where(hero => hero.IsAlive &&
+                           hero.HeroState == Hero.CharacterStates.NotSpawned &&
+                           !hero.IsChild &&
+                           hero.Clan != null &&
+                           !hero.Clan.IsEliminated)
             .ToList();
 
         foreach (var hero in candidates)
