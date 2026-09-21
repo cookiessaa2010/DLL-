@@ -5,6 +5,7 @@ using KaiTOR.Diplomacy.Models;
 using KaiTOR.Diplomacy.Runtime;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.ComponentInterfaces;
+using TaleWorlds.Core;
 using TaleWorlds.Engine.GauntletUI;
 using TaleWorlds.MountAndBlade;
 
