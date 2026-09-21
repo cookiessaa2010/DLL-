@@ -99,11 +99,6 @@ public sealed class KaiLiveTestBehavior : CampaignBehaviorBase
         foreach (var rule in KaiRaceLifecycle.DescribeRules())
             yield return "section=family_rule; " + rule;
 
-        yield return
-            $"section=family_population; dawiAuto={KaiDawiWomenBehavior.AutomaticPopulationEnabled}; " +
-            $"vampireAuto={KaiVampirePopulationBehavior.AutomaticPopulationEnabled}; " +
-            $"greenskinAuto={KaiGreenskinPopulationBehavior.AutomaticPopulationEnabled}";
-
         var diplomacy = Campaign.Current.GetCampaignBehavior<KaiDiplomacyBehavior>();
         var family = Campaign.Current.GetCampaignBehavior<KaiFamilyAffairsBehavior>();
         var culture = Campaign.Current.GetCampaignBehavior<KaiCultureAssimilationBehavior>();
@@ -112,17 +107,13 @@ public sealed class KaiLiveTestBehavior : CampaignBehaviorBase
         var education = Campaign.Current.GetCampaignBehavior<KaiLoreEducationBehavior>();
         var bloodKiss = Campaign.Current.GetCampaignBehavior<KaiBloodKissBehavior>();
         var mercy = Campaign.Current.GetCampaignBehavior<KaiMercyRelationBehavior>();
-        var dawi = Campaign.Current.GetCampaignBehavior<KaiDawiWomenBehavior>();
-        var vampire = Campaign.Current.GetCampaignBehavior<KaiVampirePopulationBehavior>();
-        var greenskin = Campaign.Current.GetCampaignBehavior<KaiGreenskinPopulationBehavior>();
-        var realmHouse = Campaign.Current.GetCampaignBehavior<KaiRealmHouseGrowthBehavior>();
+        var dawiDynasty = Campaign.Current.GetCampaignBehavior<KaiDawiDynastyBehavior>();
 
         yield return
             $"section=behaviors; diplomacy={State(diplomacy != null, diplomacy?.RuntimeEnabled == true)}; " +
             $"family={Present(family)}; culture={Present(culture)}; dynastic={Present(dynastic)}; " +
             $"incomingMarriage={Present(incoming)}; education={Present(education)}; bloodKiss={Present(bloodKiss)}; " +
-            $"mercy={Present(mercy)}; dawi={Present(dawi)}; vampire={Present(vampire)}; " +
-            $"greenskin={Present(greenskin)}; realmHouse={Present(realmHouse)}";
+            $"mercy={Present(mercy)}; dawiDynasty={Present(dawiDynasty)}";
 
         yield return
             $"section=ui; movie={KaiTORDiplomacyScreen.MovieName}; layer={KaiTORDiplomacyScreen.LayerName}; " +
@@ -167,28 +158,10 @@ public sealed class KaiLiveTestBehavior : CampaignBehaviorBase
                 yield return "section=education; " + line;
         }
 
-        if (dawi != null)
+        if (dawiDynasty != null)
         {
-            foreach (var line in dawi.DescribeStatus())
-                yield return "section=dawi; " + line;
-        }
-
-        if (vampire != null)
-        {
-            foreach (var line in vampire.DescribeStatus())
-                yield return "section=vampire; " + line;
-        }
-
-        if (greenskin != null)
-        {
-            foreach (var line in greenskin.DescribeStatus())
-                yield return "section=greenskin; " + line;
-        }
-
-        if (realmHouse != null)
-        {
-            foreach (var line in realmHouse.DescribeStatus())
-                yield return "section=realm_house; " + line;
+            foreach (var line in dawiDynasty.DescribeStatus())
+                yield return "section=dawi_dynasty; " + line;
         }
 
         if (culture != null)
