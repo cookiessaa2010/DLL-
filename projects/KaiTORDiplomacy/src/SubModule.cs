@@ -26,24 +26,30 @@ public sealed class SubModule : MBSubModuleBase
         base.OnSubModuleLoad();
         try
         {
-            // v0.6.5.5: UIExtenderEx is shipped as a private library inside
+            // v0.6.5.5: UIExtenderEx is shipped as a replaceable shared DLL inside
             // KaiTOR_Diplomacy. No separate launcher module is required.
-            // This mirrors UIExtenderEx's own early setup so prefab patches are
-            // applied instead of Bannerlord's generated prefab cache.
             UIConfig.DoNotUseGeneratedPrefabs = true;
             _uiExtender = UIExtender.Create("KaiTOR_Diplomacy");
             _uiExtender.Register(typeof(SubModule).Assembly);
             _uiExtender.Enable();
             KaiRuntimeLog.Write("MESSENGER_ENCYCLOPEDIA_UI_READY", "embedded UIExtenderEx registered; external module not required.");
-
-            _harmony = new Harmony("kaitor.diplomacy.kingdom-ui");
-            _harmony.PatchAll(typeof(SubModule).Assembly);
-            KaiRuntimeLog.Write("DIPLOMACY_UI_READY", "Harmony PatchAll completed.");
         }
         catch (Exception ex)
         {
-            // Never prevent the campaign from loading if an optional UI patch cannot be installed.
-            KaiRuntimeLog.Exception("DIPLOMACY_UI_FAILED", ex, "stage=PatchAll");
+            // Messenger UI is optional for campaign safety. Do not let a UI library
+            // failure suppress the independent Harmony gameplay patches below.
+            KaiRuntimeLog.Exception("MESSENGER_ENCYCLOPEDIA_UI_FAILED", ex, "stage=EmbeddedUIExtender");
+        }
+
+        try
+        {
+            _harmony = new Harmony("kaitor.diplomacy.kingdom-ui");
+            _harmony.PatchAll(typeof(SubModule).Assembly);
+            KaiRuntimeLog.Write("DIPLOMACY_UI_READY", "Harmony PatchAll completed independently.");
+        }
+        catch (Exception ex)
+        {
+            KaiRuntimeLog.Exception("DIPLOMACY_UI_FAILED", ex, "stage=HarmonyPatchAll");
         }
     }
 
