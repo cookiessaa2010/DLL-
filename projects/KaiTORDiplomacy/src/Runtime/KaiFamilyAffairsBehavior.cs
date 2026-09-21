@@ -255,14 +255,41 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
 
     private static void AddAdoptionTavernOption(CampaignGameStarter starter)
     {
-        starter.AddGameMenuOption(
+        // Bannerlord/TOR's "Квартал таверн" screen is the town_backstreet menu.
+        // The old v0.6.5.x hook targeted town_tavern, which is not the menu shown
+        // in the player's live test. Register both ids for compatibility, but the
+        // visible district entry is town_backstreet.
+        AddAdoptionEntry(
+            starter,
+            "town_backstreet",
+            "kaitor_family_adoption_backstreet",
+            4);
+
+        AddAdoptionEntry(
+            starter,
             "town_tavern",
             "kaitor_family_adoption_tavern",
+            8);
+
+        KaiRuntimeLog.Write(
+            "ADOPTION_ENTRY_READY",
+            "menus=town_backstreet,town_tavern; primary=town_backstreet");
+    }
+
+    private static void AddAdoptionEntry(
+        CampaignGameStarter starter,
+        string menuId,
+        string optionId,
+        int index)
+    {
+        starter.AddGameMenuOption(
+            menuId,
+            optionId,
             "Принять в род",
             AdoptionTavernEntryCondition,
             _ => OpenAdoptionFromTavern(),
             false,
-            8);
+            index);
     }
 
     private static bool AdoptionTavernEntryCondition(MenuCallbackArgs args)
@@ -282,7 +309,7 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
     private static void OpenAdoptionFromTavern()
     {
         var currentMenuId = Campaign.Current?.CurrentMenuContext?.GameMenu?.StringId;
-        _returnMenuId = string.IsNullOrWhiteSpace(currentMenuId) ? "town_tavern" : currentMenuId;
+        _returnMenuId = string.IsNullOrWhiteSpace(currentMenuId) ? "town_backstreet" : currentMenuId;
         KaiRuntimeLog.Write("ADOPTION_ENTRY", $"from={_returnMenuId}");
         SafeSwitchToMenu(AdoptionMenuId, "tavern_adoption");
     }
