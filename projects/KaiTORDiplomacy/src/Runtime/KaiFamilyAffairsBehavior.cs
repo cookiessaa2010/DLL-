@@ -487,9 +487,20 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
             KaiRuntimeLog.Write("HOUSE_OPEN", $"hero={mainHero.StringId}");
             var lines = new List<string>();
 
-            lines.Add(mainHero.Spouse != null && mainHero.Spouse.IsAlive
-                ? $"Супруг: {mainHero.Spouse.Name}."
-                : "Супруг: нет.");
+            if (KaiRaceLifecycle.IsDawi(mainHero))
+            {
+                var dawiDynasty = Campaign.Current?.GetCampaignBehavior<KaiDawiDynastyBehavior>();
+                if (dawiDynasty != null)
+                    lines.AddRange(dawiDynasty.DescribePlayerHouse());
+                else
+                    lines.Add("Брачный союз Dawi: система не загружена.");
+            }
+            else
+            {
+                lines.Add(mainHero.Spouse != null && mainHero.Spouse.IsAlive
+                    ? $"Супруг: {mainHero.Spouse.Name}."
+                    : "Супруг: нет.");
+            }
 
             var children = mainHero.Children
                 .Where(h => h != null && h.IsAlive)
@@ -541,7 +552,10 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
 
             if (model == null || candidates.Count == 0)
             {
-                ShowText("Брачные союзы", "Сейчас в вашем доме нет свободного взрослого героя, для которого можно заключить брачный союз.");
+                var text = KaiRaceLifecycle.IsDawi(Hero.MainHero)
+                    ? "Для Dawi обычная супруга-Hero не создаётся. Брачный союз заключается между домами: поговорите с главой другого Dawi-клана. Сыновья появятся в разделе «Мой род» как наследники и станут героями только после взросления."
+                    : "Сейчас в вашем доме нет свободного взрослого героя, для которого можно заключить брачный союз.";
+                ShowText("Брачные союзы", text);
                 return;
             }
 
