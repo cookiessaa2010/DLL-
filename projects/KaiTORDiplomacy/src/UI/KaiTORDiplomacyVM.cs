@@ -33,7 +33,7 @@ public sealed class KaiTORDiplomacyVM : ViewModel, IDisposable
     [DataSourceProperty] public string OverviewTabText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_tab_overview", "Overview");
     [DataSourceProperty] public string DiplomacyTabText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_tab_diplomacy", "Diplomacy");
     [DataSourceProperty] public string FamilyTabText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_tab_family", "Family");
-    [DataSourceProperty] public string PopulationTabText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_tab_population", "Realm & Population");
+    [DataSourceProperty] public string PopulationTabText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_tab_population", "Core & Dawi Dynasty");
     [DataSourceProperty] public string RefreshText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_refresh", "Refresh");
     [DataSourceProperty] public string CloseText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_close", "Close");
     [DataSourceProperty] public string SelectKingdomHeaderText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_select_kingdom", "Select a realm");
@@ -46,11 +46,11 @@ public sealed class KaiTORDiplomacyVM : ViewModel, IDisposable
         ("DAYS", _selectedDurationDays));
     [DataSourceProperty] public string OpenFamilyText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_open_family", "Open family affairs");
     [DataSourceProperty] public string OpenCultureText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_open_culture", "Change settlement nationality");
-    [DataSourceProperty] public string DawiTestText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_dawi_test", "Spawn one Dawi woman for live test");
+    [DataSourceProperty] public string DawiTestText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_dawi_test", "Dawi dynasty status");
     [DataSourceProperty] public string FallbackHubText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_fallback", "Open classic KaiTOR menu");
     [DataSourceProperty] public string SelectedRealmHeaderText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_selected_realm", "Selected realm");
     [DataSourceProperty] public string FamilyHeaderText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_family_header", "House and dynasty");
-    [DataSourceProperty] public string PopulationHeaderText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_population_header", "Realm systems");
+    [DataSourceProperty] public string PopulationHeaderText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_population_header", "Core systems");
     [DataSourceProperty] public string CultureHeaderText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_culture_header", "Settlement");
     [DataSourceProperty] public string ResultHeaderText => KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_result_header", "Latest action");
 
