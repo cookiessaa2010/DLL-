@@ -31,6 +31,10 @@ public sealed class KaiPlayerMarriageModel : DefaultMarriageModel
         if (firstHero == null || secondHero == null || firstHero == secondHero)
             return false;
 
+        // Dawi marriage is an abstract house union. No female spouse Hero is created.
+        if (KaiRaceLifecycle.IsDawi(firstHero) || KaiRaceLifecycle.IsDawi(secondHero))
+            return false;
+
         if (!KaiRaceLifecycle.CanUseSocialMarriage(firstHero) ||
             !KaiRaceLifecycle.CanUseSocialMarriage(secondHero))
             return false;
@@ -81,6 +85,8 @@ public sealed class KaiPlayerMarriageModel : DefaultMarriageModel
     public override bool IsSuitableForMarriage(Hero hero)
     {
         if (hero == null || !hero.IsAlive || !hero.IsActive)
+            return false;
+        if (KaiRaceLifecycle.IsDawi(hero))
             return false;
         if (!KaiRaceLifecycle.CanUseSocialMarriage(hero))
             return false;
