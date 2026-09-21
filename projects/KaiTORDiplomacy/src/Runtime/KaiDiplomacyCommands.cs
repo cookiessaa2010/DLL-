@@ -20,10 +20,7 @@ public static class KaiDiplomacyCommands
             "kaitor_diplomacy.status",
             "kaitor_diplomacy.world_status",
             "kaitor_diplomacy.marriages",
-            "kaitor_diplomacy.racial_status",
             "kaitor_diplomacy.family_rules",
-            "kaitor_diplomacy.dawi_status",
-            "kaitor_diplomacy.dawi_spawn_test",
             "kaitor_diplomacy.ui_status",
             "kaitor_diplomacy.ui_family",
             "kaitor_diplomacy.live_test_start",
@@ -119,53 +116,10 @@ public static class KaiDiplomacyCommands
             "TOR native marriage model: globally disabled; KaiTOR wrapper: ACTIVE."
         };
         lines.AddRange(KaiRaceLifecycle.DescribeRules());
-        lines.Add($"Dawi automatic women population: {(KaiDawiWomenBehavior.AutomaticPopulationEnabled ? "ON" : "OFF")}");
+        lines.Add("Dawi: abstract house union; no female Hero/assets; only adult male heirs materialize.");
         lines.Add("NPC marriage: same culture + same FaceGen race; no upper marriage-age cap.");
         lines.Add("Pregnancy: opposite sex + same FaceGen race + lore biology gate.");
         return C(string.Join("\n", lines));
-    }
-
-    [CommandLineFunctionality.CommandLineArgumentFunction("racial_status", "kaitor_diplomacy")]
-    public static string RacialStatus(List<string> arguments)
-    {
-        if (arguments.Count != 0) return "Usage: kaitor_diplomacy.racial_status";
-        if (Campaign.Current == null) return "No campaign is active.";
-
-        var vampire = Campaign.Current.GetCampaignBehavior<KaiVampirePopulationBehavior>();
-        var greenskin = Campaign.Current.GetCampaignBehavior<KaiGreenskinPopulationBehavior>();
-        var dawi = Campaign.Current.GetCampaignBehavior<KaiDawiWomenBehavior>();
-        if (vampire == null && greenskin == null && dawi == null)
-            return "KaiTOR racial population systems are not loaded.";
-
-        var lines = new List<string>();
-        if (vampire != null) lines.AddRange(vampire.DescribeStatus());
-        if (greenskin != null) lines.AddRange(greenskin.DescribeStatus());
-        if (dawi != null) lines.AddRange(dawi.DescribeStatus());
-        return C("KaiTOR racial population status:\n" + string.Join("\n", lines));
-    }
-
-    [CommandLineFunctionality.CommandLineArgumentFunction("dawi_status", "kaitor_diplomacy")]
-    public static string DawiStatus(List<string> arguments)
-    {
-        if (arguments.Count != 0) return "Usage: kaitor_diplomacy.dawi_status";
-        if (Campaign.Current == null) return "No campaign is active.";
-
-        var behavior = Campaign.Current.GetCampaignBehavior<KaiDawiWomenBehavior>();
-        return behavior == null
-            ? "Dawi women system is not loaded."
-            : C(string.Join("\n", behavior.DescribeStatus()));
-    }
-
-    [CommandLineFunctionality.CommandLineArgumentFunction("dawi_spawn_test", "kaitor_diplomacy")]
-    public static string DawiSpawnTest(List<string> arguments)
-    {
-        if (arguments.Count != 0) return "Usage: kaitor_diplomacy.dawi_spawn_test";
-        if (Campaign.Current == null) return "No campaign is active.";
-
-        var behavior = Campaign.Current.GetCampaignBehavior<KaiDawiWomenBehavior>();
-        return behavior == null
-            ? "Dawi women system is not loaded."
-            : C(behavior.SpawnOneForLiveTest());
     }
 
     [CommandLineFunctionality.CommandLineArgumentFunction("ui_status", "kaitor_diplomacy")]
