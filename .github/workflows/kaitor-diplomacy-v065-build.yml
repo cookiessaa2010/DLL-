@@ -1,4 +1,4 @@
-name: KaiTOR Diplomacy v0.6.5.5 Realm House Embedded Messenger Build
+name: KaiTOR Diplomacy v0.6.5.6 Dawi Activation Tavern Adoption Build
 
 on:
   push:
@@ -30,7 +30,7 @@ jobs:
             --nologo
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Validate v0.6.5.5 realm house + embedded messenger contracts
+      - name: Validate v0.6.5.6 Dawi activation + tavern adoption contracts
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -41,10 +41,10 @@ jobs:
           if (-not (Test-Path -LiteralPath $dll -PathType Leaf)) { throw "Missing DLL: $dll" }
 
           $module = Get-Content (Join-Path $root 'module/SubModule.xml') -Raw
-          if ($module -notmatch '<Version value="v0\.6\.5\.5"') { throw 'SubModule version is not v0.6.5.5.' }
+          if ($module -notmatch '<Version value="v0\.6\.5\.6"') { throw 'SubModule version is not v0.6.5.6.' }
 
           $project = Get-Content (Join-Path $src 'KaiTOR_Diplomacy.csproj') -Raw
-          if ($project -notmatch '<Version>0\.6\.5\.5</Version>') { throw 'Assembly version is not 0.6.5.5.' }
+          if ($project -notmatch '<Version>0\.6\.5\.6</Version>') { throw 'Assembly version is not 0.6.5.6.' }
 
           $subModuleCs = Get-Content (Join-Path $src 'SubModule.cs') -Raw
           if ($subModuleCs.Contains('new KaiDiplomacyHubBehavior()')) {
@@ -64,13 +64,24 @@ jobs:
           if ($dawi -match '\bvar\s+dayStamp\s*=') {
             throw 'Legacy campaign-day Dawi age generator still present.'
           }
-          foreach ($token in @('StableAgeSeed','requestedAge=','finalAge=')) {
-            if (-not $dawi.Contains($token)) { throw "Dawi age hardening token missing: $token" }
+          foreach ($token in @(
+            'StableAgeSeed',
+            'requestedAge=',
+            'finalAge=',
+            'CampaignEvents.OnGameLoadedEvent',
+            'RepairInactiveGeneratedWomen',
+            'DAWI_WOMAN_REACTIVATED',
+            'DAWI_WOMAN_REPAIR_PASS',
+            'hero.ChangeState(Hero.CharacterStates.Active)',
+            'origin.StringId',
+            'DawiWomenAssetBridge.FemaleDawiLordTemplateId'
+          )) {
+            if (-not $dawi.Contains($token)) { throw "Dawi activation/age contract missing: $token" }
           }
 
           $legacyMapButton = Join-Path $runtime 'KaiMessengerMapButton.cs'
           if (Test-Path -LiteralPath $legacyMapButton) {
-            throw 'Legacy map-bar messenger UI must not ship in v0.6.5.5.'
+            throw 'Legacy map-bar messenger UI must not ship in v0.6.5.6.'
           }
 
           $messenger = Get-Content (Join-Path $runtime 'KaiMessengerService.cs') -Raw
@@ -115,7 +126,7 @@ jobs:
           }
 
           if ($module.Contains('DependedModule Id="Bannerlord.UIExtenderEx"')) {
-            throw 'External UIExtenderEx launcher dependency must not ship in v0.6.5.5.'
+            throw 'External UIExtenderEx launcher dependency must not ship in v0.6.5.6.'
           }
           if (-not $project.Contains('PackageReference Include="Bannerlord.UIExtenderEx"')) {
             throw 'Embedded UIExtenderEx package reference missing.'
@@ -153,8 +164,16 @@ jobs:
           }
 
           $family = Get-Content (Join-Path $runtime 'KaiFamilyAffairsBehavior.cs') -Raw
-          if (-not $family.Contains('"town_tavern"')) { throw 'Tavern adoption entry missing.' }
-          if (-not $family.Contains('"Принять в род"')) { throw 'Adoption label missing.' }
+          foreach ($token in @(
+            '"town_backstreet"',
+            '"town_tavern"',
+            '"kaitor_family_adoption_backstreet"',
+            '"Принять в род"',
+            'ADOPTION_ENTRY_READY',
+            'primary=town_backstreet'
+          )) {
+            if (-not $family.Contains($token)) { throw "Tavern adoption contract missing: $token" }
+          }
           foreach ($legacyEntry in @('kaitor_family_affairs_town"', 'kaitor_family_affairs_town_outside"', 'kaitor_family_affairs_castle"')) {
             if ($family.Contains($legacyEntry)) { throw "Legacy public Family Affairs entry still present: $legacyEntry" }
           }
@@ -177,7 +196,7 @@ jobs:
             'first-safe-hour-largest-deficit',
             'KaiRuntimeLog.Write(eventName, details)'
           )) {
-            if (-not $realm.Contains($token)) { throw "Realm House v0.6.5.5 contract missing: $token" }
+            if (-not $realm.Contains($token)) { throw "Realm House v0.6.5.6 contract missing: $token" }
           }
           if ($realm.Contains('CommitHour')) {
             throw 'Realm House is still gated to a fixed commit hour.'
@@ -209,7 +228,7 @@ jobs:
             Write-Host 'PortraitFix references exist in docs/source; no PortraitFix files are packaged by this module.'
           }
 
-          Write-Host 'KaiTOR Diplomacy v0.6.5.5 realm house + embedded messenger contracts: PASS'
+          Write-Host 'KaiTOR Diplomacy v0.6.5.6 Dawi activation + tavern adoption contracts: PASS'
 
       - name: Assemble test module
         shell: pwsh
@@ -231,7 +250,7 @@ jobs:
       - name: Upload test module
         uses: actions/upload-artifact@v4
         with:
-          name: KaiTOR-Diplomacy-v0.6.5.5-RealmHouse-EmbeddedMessenger-Runtime
+          name: KaiTOR-Diplomacy-v0.6.5.6-DawiActivation-TavernAdoption-Runtime
           path: artifact/KaiTOR_Diplomacy
           if-no-files-found: error
           retention-days: 30
