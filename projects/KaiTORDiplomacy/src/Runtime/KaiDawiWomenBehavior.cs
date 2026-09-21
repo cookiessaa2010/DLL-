@@ -4,6 +4,7 @@ using System.Linq;
 using KaiTOR.Diplomacy.Models;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
+using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
 using TaleWorlds.ObjectSystem;
@@ -12,19 +13,21 @@ namespace KaiTOR.Diplomacy.Runtime;
 
 /// <summary>
 /// Dawi female-population bridge. The bounded weekly shortage-filling path is enabled.
-/// It creates at most a small number of female Dawi per eligible AI clan and uses a long
-/// per-clan cooldown so population growth remains controlled.
+/// It creates a bounded number of female Dawi per eligible AI clan and uses a controlled
+/// per-clan cooldown so population growth remains visible without flooding the campaign.
 /// </summary>
 public sealed class KaiDawiWomenBehavior : CampaignBehaviorBase
 {
     private const string DawiCultureId = "sturgia";
     private const int DawiFemaleMaximumGeneratedAge = 110;
-    private const int MaximumGeneratedWomenPerClan = 3;
-    private const int GenerationCooldownDays = 336;
-    private const string CooldownSaveKey = "kaitor_dawi_women_generation_cooldown_v1";
+    private const int PlayerFamilySpawnAge = 35;
+    private const int MaximumLivingPlayerChildren = 6;
+    private const int MaximumGeneratedWomenPerClan = 5;
+    private const int GenerationCooldownDays = 84;
+    private const string CooldownSaveKey = "kaitor_dawi_women_generation_cooldown_v2";
 
     // Automatic generation is bounded by MaximumGeneratedWomenPerClan and
-    // GenerationCooldownDays. The manual command remains available for diagnostics.
+    // GenerationCooldownDays. Manual commands remain available for diagnostics.
     public const bool AutomaticPopulationEnabled = true;
 
     private Dictionary<string, double> _generationCooldownUntilDays = new();
@@ -162,6 +165,98 @@ public sealed class KaiDawiWomenBehavior : CampaignBehaviorBase
         return "Не найден подходящий клан гномов с безопасным поселением для тестового появления.";
     }
 
+    public string SpawnOneForPlayerFamily()
+    {
+        if (Campaign.Current == null)
+            return "Кампания не запущена.";
+        if (!DawiWomenAssetBridge.IsAvailable)
+            return "Шаблон или ресурсы женщины-гнома недоступны.";
+        if (Hero.MainHero == null || Clan.PlayerClan == null || MobileParty.MainParty == null)
+            return "Главный герой, клан или основная партия игрока недоступны.";
+        if (!KaiRaceLifecycle.IsDawi(Hero.MainHero))
+            return "Команда доступна только для главного героя Dawi.";
+        if (Hero.MainHero.Children.Count(h => h != null && h.IsAlive) >= MaximumLivingPlayerChildren)
+            return $"В семье игрока уже {MaximumLivingPlayerChildren} живых детей/наследников — безопасный лимит достигнут.";
+        if (Hero.MainHero.IsPrisoner || MobileParty.MainParty.MapEvent != null)
+            return "Сейчас небезопасный момент для создания члена семьи: выйдите из плена/боя.";
+
+        Hero hero = null;
+        try
+        {
+            var manager = MBObjectManager.Instance;
+            if (manager == null)
+                return "MBObjectManager недоступен.";
+
+            var template = manager.GetObject<CharacterObject>(DawiWomenAssetBridge.FemaleDawiLordTemplateId);
+            if (template == null || !template.IsFemale)
+                return "Шаблон женщины Dawi не найден или повреждён.";
+
+            var dwarfRace = FaceGen.GetRaceOrDefault("dwarf");
+            var humanRace = FaceGen.GetRaceOrDefault("human");
+            if (dwarfRace == humanRace || template.Race != dwarfRace)
+                return "Раса шаблона женщины Dawi не прошла проверку.";
+
+            var spawnSettlement =
+                MobileParty.MainParty.CurrentSettlement
+                ?? Clan.PlayerClan.Settlements
+                    .Where(s => s != null && s.IsFortification && !s.IsUnderSiege)
+                    .OrderBy(s => s.StringId, StringComparer.Ordinal)
+                    .FirstOrDefault()
+                ?? (Clan.PlayerClan.HomeSettlement != null && !Clan.PlayerClan.HomeSettlement.IsUnderSiege
+                    ? Clan.PlayerClan.HomeSettlement
+                    : null);
+
+            hero = HeroCreator.CreateSpecialHero(
+                template,
+                spawnSettlement,
+                Clan.PlayerClan,
+                null,
+                PlayerFamilySpawnAge);
+
+            if (hero == null || !hero.IsFemale || hero.CharacterObject?.Race != dwarfRace)
+                throw new InvalidOperationException("HeroCreator returned an invalid Dawi woman.");
+
+            if (!hero.IsLord)
+                hero.SetNewOccupation(Occupation.Lord);
+
+            hero.ChangeState(Hero.CharacterStates.Active);
+            hero.IsKnownToPlayer = true;
+
+            AdoptHeroAction.Apply(hero);
+
+            if (hero.PartyBelongedTo != MobileParty.MainParty)
+                AddHeroToPartyAction.Apply(hero, MobileParty.MainParty, false);
+
+            var parentLinked = hero.Father == Hero.MainHero || hero.Mother == Hero.MainHero;
+            var success =
+                hero.IsAlive &&
+                hero.IsActive &&
+                hero.Clan == Clan.PlayerClan &&
+                parentLinked &&
+                hero.PartyBelongedTo == MobileParty.MainParty &&
+                KaiRaceLifecycle.IsDawi(hero);
+
+            KaiRuntimeLog.Write(
+                success ? "DAWI_FAMILY_SPAWN" : "DAWI_FAMILY_SPAWN_FAIL",
+                $"hero={hero.StringId}; name={hero.Name}; age={hero.Age:0.0}; clan={hero.Clan?.StringId ?? "null"}; " +
+                $"parentLinked={parentLinked}; father={hero.Father?.StringId ?? "null"}; mother={hero.Mother?.StringId ?? "null"}; " +
+                $"party={hero.PartyBelongedTo?.StringId ?? "null"}; spawnSettlement={spawnSettlement?.StringId ?? "null"}; success={success}");
+
+            if (!success)
+                return $"Женщина Dawi создана частично ({hero.Name}), но семейная проверка не пройдена. Смотрите DAWI_FAMILY_SPAWN_FAIL.";
+
+            return $"Создана {hero.Name}, {Math.Max(0, (int)hero.Age)} лет. Она принята в вашу семью как дочь/наследница, состоит в PlayerClan и добавлена в основную партию. HeroId={hero.StringId}.";
+        }
+        catch (Exception ex)
+        {
+            KaiRuntimeLog.Exception(
+                "DAWI_FAMILY_SPAWN_FAIL",
+                ex,
+                $"hero={hero?.StringId ?? "null"}; stage=spawn_family");
+            return $"Не удалось создать женщину Dawi в семье: {ex.GetBaseException().Message}";
+        }
+    }
+
     private void TryPopulateClan(Clan clan)
     {
         var now = CampaignTime.Now.ToDays;
@@ -180,7 +275,7 @@ public sealed class KaiDawiWomenBehavior : CampaignBehaviorBase
         var adultMen = livingDawiLords.Count(hero => !hero.IsFemale && hero.Age >= KaiRaceLifecycle.DawiMarriageAge);
         var adultWomen = livingDawiLords.Count(hero => hero.IsFemale && hero.Age >= KaiRaceLifecycle.DawiMarriageAge);
 
-        var targetWomen = Math.Min(MaximumGeneratedWomenPerClan, Math.Max(1, (adultMen + 3) / 4));
+        var targetWomen = Math.Min(MaximumGeneratedWomenPerClan, Math.Max(1, (adultMen + 2) / 3));
         if (adultWomen >= targetWomen)
             return;
 
@@ -339,6 +434,7 @@ public sealed class KaiDawiWomenBehavior : CampaignBehaviorBase
         yield return $"Женщины-гномы: ресурсы {(DawiWomenAssetBridge.IsAvailable ? "готовы" : "недоступны")}.";
         yield return $"Automatic population: {(AutomaticPopulationEnabled ? "ON (bounded weekly shortage fill)" : "OFF")}";
         yield return $"Возраст для семьи: {KaiRaceLifecycle.DawiFertilityStart:0}+ лет без ванильного верхнего cutoff; возраст создаваемых женщин — не старше {DawiFemaleMaximumGeneratedAge} лет.";
+        yield return $"Автогенерация: максимум {MaximumGeneratedWomenPerClan} взрослых женщин на Dawi-клан, ориентир ~1 женщина на 3 взрослых мужчин, cooldown {GenerationCooldownDays} дней.";
         if (Campaign.Current == null)
             yield break;
 
