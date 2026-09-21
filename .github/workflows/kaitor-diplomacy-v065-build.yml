@@ -1,4 +1,4 @@
-name: KaiTOR Diplomacy v0.6.5.4 Messenger Travel Mercy50 Build
+name: KaiTOR Diplomacy v0.6.5.5 Realm House Embedded Messenger Build
 
 on:
   push:
@@ -30,7 +30,7 @@ jobs:
             --nologo
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Validate v0.6.5.4 messenger travel + mercy contracts
+      - name: Validate v0.6.5.5 realm house + embedded messenger contracts
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -41,10 +41,10 @@ jobs:
           if (-not (Test-Path -LiteralPath $dll -PathType Leaf)) { throw "Missing DLL: $dll" }
 
           $module = Get-Content (Join-Path $root 'module/SubModule.xml') -Raw
-          if ($module -notmatch '<Version value="v0\.6\.5\.4"') { throw 'SubModule version is not v0.6.5.4.' }
+          if ($module -notmatch '<Version value="v0\.6\.5\.5"') { throw 'SubModule version is not v0.6.5.5.' }
 
           $project = Get-Content (Join-Path $src 'KaiTOR_Diplomacy.csproj') -Raw
-          if ($project -notmatch '<Version>0\.6\.5\.4</Version>') { throw 'Assembly version is not 0.6.5.4.' }
+          if ($project -notmatch '<Version>0\.6\.5\.5</Version>') { throw 'Assembly version is not 0.6.5.5.' }
 
           $subModuleCs = Get-Content (Join-Path $src 'SubModule.cs') -Raw
           if ($subModuleCs.Contains('new KaiDiplomacyHubBehavior()')) {
@@ -70,7 +70,7 @@ jobs:
 
           $legacyMapButton = Join-Path $runtime 'KaiMessengerMapButton.cs'
           if (Test-Path -LiteralPath $legacyMapButton) {
-            throw 'Legacy map-bar messenger UI must not ship in v0.6.5.4.'
+            throw 'Legacy map-bar messenger UI must not ship in v0.6.5.5.'
           }
 
           $messenger = Get-Content (Join-Path $runtime 'KaiMessengerService.cs') -Raw
@@ -114,14 +114,25 @@ jobs:
             if (-not $messengerUi.Contains($token)) { throw "Encyclopedia messenger UI contract missing: $token" }
           }
 
-          if (-not $module.Contains('DependedModule Id="Bannerlord.UIExtenderEx"')) {
-            throw 'UIExtenderEx module dependency missing.'
+          if ($module.Contains('DependedModule Id="Bannerlord.UIExtenderEx"')) {
+            throw 'External UIExtenderEx launcher dependency must not ship in v0.6.5.5.'
           }
           if (-not $project.Contains('PackageReference Include="Bannerlord.UIExtenderEx"')) {
-            throw 'UIExtenderEx compile reference missing.'
+            throw 'Embedded UIExtenderEx package reference missing.'
           }
-          foreach ($token in @('UIExtender.Create("KaiTOR.Diplomacy")','MESSENGER_ENCYCLOPEDIA_UI_READY')) {
-            if (-not $subModuleCs.Contains($token)) { throw "UIExtenderEx startup contract missing: $token" }
+          if ($project.Contains('IncludeAssets="compile"')) {
+            throw 'UIExtenderEx is still compile-only; runtime DLL would be missing.'
+          }
+          foreach ($token in @(
+            'UIConfig.DoNotUseGeneratedPrefabs = true',
+            'UIExtender.Create("KaiTOR_Diplomacy")',
+            'embedded UIExtenderEx registered'
+          )) {
+            if (-not $subModuleCs.Contains($token)) { throw "Embedded UIExtenderEx startup contract missing: $token" }
+          }
+          $uiRuntime = Join-Path $root 'build/bin/Win64_Shipping_Client/Bannerlord.UIExtenderEx.dll'
+          if (-not (Test-Path -LiteralPath $uiRuntime -PathType Leaf)) {
+            throw "Embedded UIExtenderEx runtime DLL missing from build output: $uiRuntime"
           }
 
           $uiPatch = Get-Content (Join-Path $runtime 'KaiDiplomacyUiPatch.cs') -Raw
@@ -147,9 +158,27 @@ jobs:
           }
 
           $realm = Get-Content (Join-Path $runtime 'KaiRealmHouseGrowthBehavior.cs') -Raw
-          if (-not $realm.Contains('REALM_CANDIDATE_REJECT')) { throw 'Realm House stale-founder retry log missing.' }
-          if (-not $realm.Contains('TryQueueNewHouse(kingdom, now, deficit, current, target)')) {
-            throw 'Realm House stale-founder requeue missing.'
+          foreach ($token in @(
+            'kaitor_realm_house_kingdom_cooldown_v3',
+            'kaitor_realm_house_pending_founders_v4',
+            'CampaignEvents.OnGameLoadedEvent',
+            'ScanKingdoms("game_loaded")',
+            'OrderByDescending(k => k == playerKingdom)',
+            'reason=target_satisfied',
+            'REALM_CANDIDATE_REJECT',
+            'TryQueueNewHouse(kingdom, now, deficit, current, target)',
+            'COMMIT_DEFER',
+            '4 + (int)Math.Ceiling(fortifications / 2d)',
+            'first-safe-hour-largest-deficit',
+            'KaiRuntimeLog.Write(eventName, details)'
+          )) {
+            if (-not $realm.Contains($token)) { throw "Realm House v0.6.5.5 contract missing: $token" }
+          }
+          if ($realm.Contains('CommitHour')) {
+            throw 'Realm House is still gated to a fixed commit hour.'
+          }
+          if ($realm.Contains('PlayerEncounter.Current != null')) {
+            throw 'Realm House still blocks ordinary town/player encounters.'
           }
 
           $culture = Get-Content (Join-Path $runtime 'KaiCultureAssimilationBehavior.cs') -Raw
@@ -175,7 +204,7 @@ jobs:
             Write-Host 'PortraitFix references exist in docs/source; no PortraitFix files are packaged by this module.'
           }
 
-          Write-Host 'KaiTOR Diplomacy v0.6.5.4 compile + runtime contracts: PASS'
+          Write-Host 'KaiTOR Diplomacy v0.6.5.5 realm house + embedded messenger contracts: PASS'
 
       - name: Assemble test module
         shell: pwsh
@@ -187,11 +216,17 @@ jobs:
           New-Item -ItemType Directory -Path $bin -Force | Out-Null
           Copy-Item (Join-Path $root 'module/*') $package -Recurse -Force
           Copy-Item (Join-Path $root 'build/bin/Win64_Shipping_Client/KaiTOR_Diplomacy.dll') (Join-Path $bin 'KaiTOR_Diplomacy.dll') -Force
+          Copy-Item (Join-Path $root 'build/bin/Win64_Shipping_Client/Bannerlord.UIExtenderEx.dll') (Join-Path $bin 'Bannerlord.UIExtenderEx.dll') -Force
+
+          # Diagnostics: show any additional non-game dependencies emitted by NuGet.
+          Get-ChildItem (Join-Path $root 'build/bin/Win64_Shipping_Client') -Filter '*.dll' -File |
+            Select-Object Name, Length |
+            Format-Table -AutoSize
 
       - name: Upload test module
         uses: actions/upload-artifact@v4
         with:
-          name: KaiTOR-Diplomacy-v0.6.5.4-MessengerTravel-Mercy50-Runtime
+          name: KaiTOR-Diplomacy-v0.6.5.5-RealmHouse-EmbeddedMessenger-Runtime
           path: artifact/KaiTOR_Diplomacy
           if-no-files-found: error
           retention-days: 30
