@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <base xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" type="solution">
+  <!-- TOR already owns the complete dwarf action-set graph, including female warrior and facegen sets.
+       KaiTOR only patches the adult female Dawi skin to point at the validated female mesh package. -->
   <file id="soln_skins" name="ModuleData/skins.xml" type="skin" />
-  <file id="soln_action_sets" name="ModuleData/action_sets.xml" type="action_set" />
 </base>
