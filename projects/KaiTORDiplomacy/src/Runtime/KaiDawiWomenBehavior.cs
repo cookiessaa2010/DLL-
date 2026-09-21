@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using HarmonyLib;
 using KaiTOR.Diplomacy.Models;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
@@ -32,12 +33,94 @@ public sealed class KaiDawiWomenBehavior : CampaignBehaviorBase
     public override void RegisterEvents()
     {
         CampaignEvents.WeeklyTickEvent.AddNonSerializedListener(this, OnWeeklyTick);
+        CampaignEvents.OnGameLoadedEvent.AddNonSerializedListener(this, OnGameLoaded);
     }
 
     public override void SyncData(IDataStore dataStore)
     {
         dataStore.SyncData(CooldownSaveKey, ref _generationCooldownUntilDays);
         _generationCooldownUntilDays ??= new Dictionary<string, double>();
+    }
+
+    private void OnGameLoaded(CampaignGameStarter starter)
+    {
+        RepairInactiveGeneratedWomen();
+    }
+
+    private void RepairInactiveGeneratedWomen()
+    {
+        if (Campaign.Current == null)
+            return;
+
+        var repaired = 0;
+        var candidates = Hero.AllAliveHeroes
+            .Concat(Hero.DeadOrDisabledHeroes)
+            .Where(hero => hero != null)
+            .Distinct()
+            .Where(IsKaiGeneratedDawiWoman)
+            .Where(hero => hero.IsAlive && !hero.IsActive && !hero.IsChild)
+            .ToList();
+
+        foreach (var hero in candidates)
+        {
+            try
+            {
+                hero.ChangeState(Hero.CharacterStates.Active);
+
+                var settlement = hero.CurrentSettlement
+                                 ?? hero.BornSettlement
+                                 ?? FindSafeHomeSettlement(hero.Clan);
+                if (settlement != null &&
+                    hero.PartyBelongedTo == null &&
+                    !settlement.HeroesWithoutParty.Contains(hero))
+                {
+                    EnterSettlementAction.ApplyForCharacterOnly(hero, settlement);
+                }
+
+                repaired++;
+                KaiRuntimeLog.Write(
+                    "DAWI_WOMAN_REACTIVATED",
+                    $"hero={hero.StringId}; name={hero.Name}; clan={hero.Clan?.StringId ?? "null"}; settlement={settlement?.StringId ?? "null"}; active={hero.IsActive}; age={hero.Age:0.0}");
+            }
+            catch (Exception ex)
+            {
+                KaiRuntimeLog.Exception(
+                    "DAWI_WOMAN_REACTIVATE_FAIL",
+                    ex,
+                    $"hero={hero?.StringId ?? "null"}; clan={hero?.Clan?.StringId ?? "null"}");
+            }
+        }
+
+        KaiRuntimeLog.Write(
+            "DAWI_WOMAN_REPAIR_PASS",
+            $"foundInactiveGenerated={candidates.Count}; repaired={repaired}");
+    }
+
+    private static bool IsKaiGeneratedDawiWoman(Hero hero)
+    {
+        if (hero == null ||
+            !hero.IsFemale ||
+            !hero.IsLord ||
+            !KaiRaceLifecycle.IsDawi(hero) ||
+            hero.CharacterObject == null)
+        {
+            return false;
+        }
+
+        try
+        {
+            var originField = AccessTools.Field(typeof(CharacterObject), "_originCharacter");
+            var origin = originField?.GetValue(hero.CharacterObject) as CharacterObject;
+            return origin != null &&
+                   string.Equals(
+                       origin.StringId,
+                       DawiWomenAssetBridge.FemaleDawiLordTemplateId,
+                       StringComparison.Ordinal);
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private void OnWeeklyTick()
@@ -175,11 +258,17 @@ public sealed class KaiDawiWomenBehavior : CampaignBehaviorBase
             if (!hero.IsLord)
                 hero.SetNewOccupation(Occupation.Lord);
 
+            // HeroCreator.CreateSpecialHero does not activate the hero by itself.
+            // Bannerlord's own lord-creation paths explicitly switch the new hero
+            // to Active before treating it as a normal campaign lord.
+            hero.ChangeState(Hero.CharacterStates.Active);
+
             if (settlement != null && !settlement.HeroesWithoutParty.Contains(hero))
                 EnterSettlementAction.ApplyForCharacterOnly(hero, settlement);
 
             var placedInSettlement = settlement != null && settlement.HeroesWithoutParty.Contains(hero);
             var success = hero.IsAlive &&
+                          hero.IsActive &&
                           hero.IsLord &&
                           hero.Clan == clan &&
                           KaiRaceLifecycle.IsDawi(hero) &&
@@ -192,7 +281,7 @@ public sealed class KaiDawiWomenBehavior : CampaignBehaviorBase
 
             KaiRuntimeLog.Write(
                 success ? "DAWI_WOMAN_CREATE" : "DAWI_WOMAN_FAIL",
-                $"clan={clan.StringId}; hero={hero.StringId}; name={hero.Name}; requestedAge={requestedAge}; finalAge={hero.Age:0.0}; settlement={settlement?.StringId ?? "null"}; placed={placedInSettlement}; success={success}");
+                $"clan={clan.StringId}; hero={hero.StringId}; name={hero.Name}; requestedAge={requestedAge}; finalAge={hero.Age:0.0}; settlement={settlement?.StringId ?? "null"}; active={hero.IsActive}; placed={placedInSettlement}; success={success}");
             return success;
         }
         catch (Exception ex)
