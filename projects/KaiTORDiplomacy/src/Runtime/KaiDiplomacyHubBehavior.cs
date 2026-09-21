@@ -594,22 +594,19 @@ public sealed class KaiDiplomacyHubBehavior : CampaignBehaviorBase
     private static void ShowSystemStatus()
     {
         var diplomacy = GetDiplomacy();
-        var dawi = Campaign.Current?.GetCampaignBehavior<KaiDawiWomenBehavior>();
-        var vampire = Campaign.Current?.GetCampaignBehavior<KaiVampirePopulationBehavior>();
-        var greenskin = Campaign.Current?.GetCampaignBehavior<KaiGreenskinPopulationBehavior>();
-        var realm = Campaign.Current?.GetCampaignBehavior<KaiRealmHouseGrowthBehavior>();
+        var dawiDynasty = Campaign.Current?.GetCampaignBehavior<KaiDawiDynastyBehavior>();
 
         var lines = new List<string>
         {
             $"Дипломатия: {(diplomacy?.RuntimeEnabled == true ? "работает" : "недоступна")}.",
-            $"Женщины-гномы: {(dawi != null ? "модуль загружен" : "модуль не загружен")}.",
-            $"Население вампиров: {(vampire != null ? "включено" : "не загружено")}.",
-            $"Население зеленокожих: {(greenskin != null ? "включено" : "не загружено")}.",
-            $"Рост домов AI: {(realm != null ? "модуль загружен" : "модуль не загружен")}."
+            "Создание новых кланов KaiTOR: отключено.",
+            "Автоспавн лордов/расового населения KaiTOR: отключён.",
+            "Визуальное старение и собственная смертность KaiTOR: отключены.",
+            $"Dawi: {(dawiDynasty != null ? "абстрактный брачный союз и мужские наследники" : "династический модуль не загружен")}."
         };
 
-        if (dawi != null)
-            lines.AddRange(dawi.DescribeStatus().Take(3));
+        if (dawiDynasty != null)
+            lines.AddRange(dawiDynasty.DescribeStatus());
 
         ShowText("Состояние систем KaiTOR", string.Join("\n", lines));
     }
