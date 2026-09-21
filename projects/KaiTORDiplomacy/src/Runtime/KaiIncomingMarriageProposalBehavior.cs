@@ -32,6 +32,7 @@ public sealed class KaiIncomingMarriageProposalBehavior : CampaignBehaviorBase
 
     public override void RegisterEvents()
     {
+        CampaignEvents.OnSessionLaunchedEvent.AddNonSerializedListener(this, OnSessionLaunched);
         CampaignEvents.WeeklyTickEvent.AddNonSerializedListener(this, OnWeeklyTick);
         CampaignEvents.DailyTickEvent.AddNonSerializedListener(this, TryPresentPendingOffer);
     }
@@ -43,6 +44,52 @@ public sealed class KaiIncomingMarriageProposalBehavior : CampaignBehaviorBase
         dataStore.SyncData(PendingTargetSaveKey, ref _pendingTargetId);
         dataStore.SyncData(PendingClanSaveKey, ref _pendingClanId);
         _cooldownUntilDays ??= new Dictionary<string, double>();
+    }
+
+    private void OnSessionLaunched(CampaignGameStarter starter)
+    {
+        starter.AddPlayerLine(
+            "kaitor_ai_marriage_pending_discuss",
+            "hero_main_options",
+            "kaitor_ai_marriage_pending_reply",
+            "Я получил брачное предложение вашего дома. Обсудим условия.",
+            CanDiscussPendingOfferWithCurrentLord,
+            null,
+            127,
+            null,
+            null);
+
+        starter.AddDialogLine(
+            "kaitor_ai_marriage_pending_reply",
+            "kaitor_ai_marriage_pending_reply",
+            "kaitor_ai_marriage_pending_options",
+            "Да. Предложение остаётся в силе. Перейдём к брачным условиям.",
+            CanDiscussPendingOfferWithCurrentLord,
+            null,
+            120,
+            null);
+
+        starter.AddPlayerLine(
+            "kaitor_ai_marriage_pending_accept",
+            "kaitor_ai_marriage_pending_options",
+            "close_window",
+            "Продолжить брачные переговоры.",
+            null,
+            AcceptPendingOfferFromConversation,
+            120,
+            null,
+            null);
+
+        starter.AddPlayerLine(
+            "kaitor_ai_marriage_pending_decline",
+            "kaitor_ai_marriage_pending_options",
+            "close_window",
+            "Нет. Я отказываюсь от предложения.",
+            null,
+            DeclinePendingOfferFromConversation,
+            100,
+            null,
+            null);
     }
 
     private void OnWeeklyTick()
@@ -177,7 +224,10 @@ public sealed class KaiIncomingMarriageProposalBehavior : CampaignBehaviorBase
                 () =>
                 {
                     _inquiryOpen = false;
-                    AcceptPendingOffer();
+                    KaiRuntimeLog.Write(
+                        "AI_MARRIAGE_PROPOSAL_CONTINUE",
+                        $"clan={targetClan.StringId}; member={member.StringId}; target={target.StringId}");
+                    OpenPendingOfferConversation(targetClan);
                 },
                 () =>
                 {
@@ -191,11 +241,50 @@ public sealed class KaiIncomingMarriageProposalBehavior : CampaignBehaviorBase
         KaiRuntimeLog.Write("AI_MARRIAGE_PROPOSAL_OPEN", $"clan={targetClan.StringId}; member={member.StringId}; target={target.StringId}");
     }
 
-    private void AcceptPendingOffer()
+    private void OpenPendingOfferConversation(Clan targetClan)
+    {
+        var leader = targetClan?.Leader;
+        if (leader == null || !leader.IsAlive || leader.IsPrisoner)
+        {
+            KaiRuntimeLog.Write(
+                "AI_MARRIAGE_PROPOSAL_FAILED",
+                $"clan={targetClan?.StringId ?? "null"}; reason=leader_unavailable");
+            return;
+        }
+
+        try
+        {
+            KaiMessengerService.StartRemoteConversation(leader);
+            KaiRuntimeLog.Write(
+                "AI_MARRIAGE_PROPOSAL_CONVERSATION",
+                $"clan={targetClan.StringId}; leader={leader.StringId}");
+        }
+        catch (Exception ex)
+        {
+            KaiRuntimeLog.Exception(
+                "AI_MARRIAGE_PROPOSAL_FAILED",
+                ex,
+                $"clan={targetClan.StringId}; stage=start_remote_conversation");
+        }
+    }
+
+    private bool CanDiscussPendingOfferWithCurrentLord()
+    {
+        if (!TryResolvePending(out var member, out var target, out var targetClan) ||
+            !IsPairStillValid(member, target, targetClan))
+            return false;
+
+        return Hero.OneToOneConversationHero == targetClan.Leader;
+    }
+
+    private void AcceptPendingOfferFromConversation()
     {
         if (!TryResolvePending(out var member, out var target, out var targetClan) ||
             !IsPairStillValid(member, target, targetClan))
         {
+            KaiRuntimeLog.Write(
+                "AI_MARRIAGE_PROPOSAL_FAILED",
+                $"clan={_pendingClanId ?? "null"}; reason=stale_at_conversation");
             ClearPending();
             return;
         }
@@ -203,12 +292,33 @@ public sealed class KaiIncomingMarriageProposalBehavior : CampaignBehaviorBase
         ClearPending();
         if (!KaiMarriageBarterBridge.TryStart(member, target, targetClan, out var reason))
         {
-            KaiRuntimeLog.Write("AI_MARRIAGE_PROPOSAL_FAILED", $"clan={targetClan.StringId}; member={member.StringId}; target={target.StringId}; reason={reason}");
-            MBInformationManager.AddQuickInformation(new TextObject(reason), 3500, target.CharacterObject, null, string.Empty);
+            KaiRuntimeLog.Write(
+                "AI_MARRIAGE_PROPOSAL_FAILED",
+                $"clan={targetClan.StringId}; member={member.StringId}; target={target.StringId}; reason={reason}");
+            MBInformationManager.AddQuickInformation(
+                new TextObject(reason),
+                3500,
+                target.CharacterObject,
+                null,
+                string.Empty);
             return;
         }
 
-        KaiRuntimeLog.Write("AI_MARRIAGE_PROPOSAL_ACCEPTED", $"clan={targetClan.StringId}; member={member.StringId}; target={target.StringId}");
+        KaiRuntimeLog.Write(
+            "AI_MARRIAGE_PROPOSAL_ACCEPTED",
+            $"clan={targetClan.StringId}; member={member.StringId}; target={target.StringId}");
+    }
+
+    private void DeclinePendingOfferFromConversation()
+    {
+        if (TryResolvePending(out var member, out var target, out var targetClan))
+        {
+            KaiRuntimeLog.Write(
+                "AI_MARRIAGE_PROPOSAL_DECLINED",
+                $"clan={targetClan.StringId}; member={member.StringId}; target={target.StringId}; source=conversation");
+        }
+
+        ClearPending();
     }
 
     private static bool IsPairStillValid(Hero member, Hero target, Clan targetClan)
