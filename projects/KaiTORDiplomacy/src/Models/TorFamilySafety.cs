@@ -77,13 +77,11 @@ internal static class TorFamilySafety
             !KaiRaceLifecycle.CanUseBiologicalPregnancy(secondHero))
             return false;
 
-        // Dawi can only enter Bannerlord's offspring generator when both parents are
-        // actual dwarf race and the complete female-Dawi assets are registered.
+        // Core-clean v0.6.6: Dawi never enter Bannerlord's offspring generator.
+        // Their dynasty is represented without a female Hero; only adult male heirs
+        // are materialized by KaiDawiDynastyBehavior.
         if (KaiRaceLifecycle.IsDawi(firstHero) || KaiRaceLifecycle.IsDawi(secondHero))
-        {
-            if (!DawiWomenAssetBridge.IsSupportedDawiPair(firstHero, secondHero))
-                return false;
-        }
+            return false;
 
         return true;
     }
