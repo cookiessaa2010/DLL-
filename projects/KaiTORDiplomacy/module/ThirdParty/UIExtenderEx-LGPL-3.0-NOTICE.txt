@@ -1,0 +1,32 @@
+UIExtenderEx
+Copyright BUTR, shdwp and contributors
+License: GNU Lesser General Public License v3.0 or later
+Project: https://github.com/BUTR/Bannerlord.UIExtenderEx
+
+This KaiTOR Diplomacy package uses UIExtenderEx as an unmodified, replaceable shared library
+to inject the messenger button into Bannerlord's EncyclopediaHeroPage. UIExtenderEx remains
+licensed under LGPL-3.0-or-later. The library DLL is kept separate from KaiTOR_Diplomacy.dll
+so it can be replaced by an interface-compatible build.
+
+GNU LESSER GENERAL PUBLIC LICENSE
+Version 3, 29 June 2007
+
+Copyright (C) 2007 Free Software Foundation, Inc. <https://fsf.org/>
+Everyone is permitted to copy and distribute verbatim copies
+of this license document, but changing it is not allowed.
+
+This version of the GNU Lesser General Public License incorporates
+the terms and conditions of version 3 of the GNU General Public
+License, supplemented by the additional permissions listed below.
+
+0. Additional Definitions.
+As used herein, "this License" refers to version 3 of the GNU Lesser General Public License,
+and the "GNU GPL" refers to version 3 of the GNU General Public License.
+The "Library" refers to a covered work governed by this License, other than an Application
+or a Combined Work as defined below.
+An "Application" is any work that makes use of an interface provided by the Library, but
+which is not otherwise based on the Library.
+A "Combined Work" is a work produced by combining or linking an Application with the Library.
+
+For the complete authoritative LGPL-3.0 text, see:
+https://www.gnu.org/licenses/lgpl-3.0.txt
