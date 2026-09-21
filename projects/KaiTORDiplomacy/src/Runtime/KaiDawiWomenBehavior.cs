@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using HarmonyLib;
 using KaiTOR.Diplomacy.Models;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
@@ -107,20 +106,12 @@ public sealed class KaiDawiWomenBehavior : CampaignBehaviorBase
             return false;
         }
 
-        try
-        {
-            var originField = AccessTools.Field(typeof(CharacterObject), "_originCharacter");
-            var origin = originField?.GetValue(hero.CharacterObject) as CharacterObject;
-            return origin != null &&
-                   string.Equals(
-                       origin.StringId,
-                       DawiWomenAssetBridge.FemaleDawiLordTemplateId,
-                       StringComparison.Ordinal);
-        }
-        catch
-        {
-            return false;
-        }
+        var origin = hero.CharacterObject.OriginalCharacter;
+        return origin != null &&
+               string.Equals(
+                   origin.StringId,
+                   DawiWomenAssetBridge.FemaleDawiLordTemplateId,
+                   StringComparison.Ordinal);
     }
 
     private void OnWeeklyTick()
