@@ -26,6 +26,10 @@
   <ItemGroup>
     <PackageReference Include="Lib.Harmony" Version="2.3.6" PrivateAssets="all" ExcludeAssets="runtime" />
     <PackageReference Include="Bannerlord.UIExtenderEx" Version="2.13.2" PrivateAssets="all" />
+    <PackageReference Include="Bannerlord.BUTR.Shared" Version="3.0.0.142" PrivateAssets="all" />
+    <PackageReference Include="BUTR.MessageBoxPInvoke" Version="1.0.0.1" PrivateAssets="all" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" PrivateAssets="all" />
+    <PackageReference Include="Harmony.Extensions" Version="3.2.0.77" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(UseBannerlordReferenceAssemblies)' == 'true'">
