@@ -6,6 +6,7 @@ using KaiTOR.Diplomacy.Runtime;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.ComponentInterfaces;
 using TaleWorlds.Core;
+using TaleWorlds.Engine.GauntletUI;
 using TaleWorlds.MountAndBlade;
 
 namespace KaiTOR.Diplomacy;
@@ -25,13 +26,15 @@ public sealed class SubModule : MBSubModuleBase
         base.OnSubModuleLoad();
         try
         {
-            // v0.6.5.3: mirror the Shokuho/Diplomacy encyclopedia integration.
-            // UIExtenderEx injects the messenger button into EncyclopediaHeroPage;
-            // Harmony remains responsible for the rest of the module patches.
-            _uiExtender = UIExtender.Create("KaiTOR.Diplomacy");
+            // v0.6.5.5: UIExtenderEx is shipped as a private library inside
+            // KaiTOR_Diplomacy. No separate launcher module is required.
+            // This mirrors UIExtenderEx's own early setup so prefab patches are
+            // applied instead of Bannerlord's generated prefab cache.
+            UIConfig.DoNotUseGeneratedPrefabs = true;
+            _uiExtender = UIExtender.Create("KaiTOR_Diplomacy");
             _uiExtender.Register(typeof(SubModule).Assembly);
             _uiExtender.Enable();
-            KaiRuntimeLog.Write("MESSENGER_ENCYCLOPEDIA_UI_READY", "UIExtenderEx registered.");
+            KaiRuntimeLog.Write("MESSENGER_ENCYCLOPEDIA_UI_READY", "embedded UIExtenderEx registered; external module not required.");
 
             _harmony = new Harmony("kaitor.diplomacy.kingdom-ui");
             _harmony.PatchAll(typeof(SubModule).Assembly);
@@ -49,7 +52,7 @@ public sealed class SubModule : MBSubModuleBase
         base.OnGameStart(game, gameStarterObject);
         if (gameStarterObject is not CampaignGameStarter campaignStarter) return;
 
-        KaiRuntimeLog.Write("STARTUP", "KaiTOR Diplomacy v0.6.5.4 campaign start.");
+        KaiRuntimeLog.Write("STARTUP", "KaiTOR Diplomacy v0.6.5.5 campaign start.");
 
         // Family lifecycle: native Bannerlord maturation stays intact; TOR remains the base model stack.
         InstallMarriageWrapper(campaignStarter);
