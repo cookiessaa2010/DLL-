@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using KaiTOR.Diplomacy.Decisions;
+using KaiTOR.Diplomacy.Models;
 using KaiTOR.Diplomacy.Runtime;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.Core;
