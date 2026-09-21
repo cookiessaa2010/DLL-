@@ -48,4 +48,20 @@ public static class KaiDawiWomenCommands
 
         return behavior.SpawnOneForLiveTest();
     }
+
+    [CommandLineFunctionality.CommandLineArgumentFunction("spawn_family", "kaitor_dawi_women")]
+    public static string SpawnFamily(List<string> arguments)
+    {
+        if (arguments.Count != 0)
+            return "Usage: kaitor_dawi_women.spawn_family";
+        if (Campaign.Current == null)
+            return "No campaign is active.";
+
+        var behavior = Campaign.Current.GetCampaignBehavior<KaiDawiWomenBehavior>();
+        if (behavior == null)
+            return "KaiDawiWomenBehavior is not registered.";
+
+        return behavior.SpawnOneForPlayerFamily();
+    }
+
 }
