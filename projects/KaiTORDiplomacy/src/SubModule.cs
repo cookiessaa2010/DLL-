@@ -58,11 +58,12 @@ public sealed class SubModule : MBSubModuleBase
         base.OnGameStart(game, gameStarterObject);
         if (gameStarterObject is not CampaignGameStarter campaignStarter) return;
 
-        KaiRuntimeLog.Write("STARTUP", "KaiTOR Diplomacy v0.6.5.8 campaign start.");
+        KaiRuntimeLog.Write("STARTUP", "KaiTOR Diplomacy v0.6.5.9 campaign start.");
 
         // Family lifecycle: native Bannerlord maturation stays intact; TOR remains the base model stack.
         InstallMarriageWrapper(campaignStarter);
         InstallPregnancyWrapper(campaignStarter);
+        campaignStarter.AddBehavior(new KaiPregnancyLifecycleBehavior());
         if (EnableLifecycleRestore)
             CampaignOptions.IsLifeDeathCycleDisabled = false;
         if (EnableLoreOldAgeMortality)
