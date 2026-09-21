@@ -15,13 +15,10 @@ public static class KaiDynastyCommands
         if (Campaign.Current == null)
             return "No campaign is active.";
 
-        var realmGrowth = Campaign.Current.GetCampaignBehavior<KaiRealmHouseGrowthBehavior>();
-        if (realmGrowth == null)
-            return "Realm-house growth behavior is not loaded.";
+        var dawi = Campaign.Current.GetCampaignBehavior<KaiDawiDynastyBehavior>();
+        if (dawi == null)
+            return "Dawi abstract dynasty behavior is not loaded.";
 
-        var lines = realmGrowth.DescribeStatus().ToList();
-        return lines.Count == 0
-            ? "No active realm-house state found."
-            : "Realm-house growth status:\n" + string.Join("\n", lines);
+        return string.Join("\n", dawi.DescribeStatus());
     }
 }
