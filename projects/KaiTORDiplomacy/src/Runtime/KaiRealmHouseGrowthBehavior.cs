@@ -29,15 +29,14 @@ public sealed class KaiRealmHouseGrowthBehavior : CampaignBehaviorBase
     private const double PendingDelayDays = 0.25d;
     private const int NewHouseMinimumRulerGold = 30000;
     private const int NewHouseSeedGold = 10000;
-    private const int CommitHour = 4;
     private const string TorSpecialSettlementId = "castle_BK1";
 
     // Preserve all existing save keys for v0.6.3.3 compatibility.
-    private const string KingdomCooldownSaveKey = "kaitor_realm_house_kingdom_cooldown_v2";
-    private const string PendingFounderByKingdomSaveKey = "kaitor_realm_house_pending_founders_v3";
-    private const string PendingHomeByKingdomSaveKey = "kaitor_realm_house_pending_homes_v3";
-    private const string PendingReadyByKingdomSaveKey = "kaitor_realm_house_pending_ready_v3";
-    private const string LastCreatedClanSaveKey = "kaitor_realm_house_last_created_v2";
+    private const string KingdomCooldownSaveKey = "kaitor_realm_house_kingdom_cooldown_v3";
+    private const string PendingFounderByKingdomSaveKey = "kaitor_realm_house_pending_founders_v4";
+    private const string PendingHomeByKingdomSaveKey = "kaitor_realm_house_pending_homes_v4";
+    private const string PendingReadyByKingdomSaveKey = "kaitor_realm_house_pending_ready_v4";
+    private const string LastCreatedClanSaveKey = "kaitor_realm_house_last_created_v3";
 
     private Dictionary<string, double> _kingdomCooldownUntilDays = new();
     private Dictionary<string, string> _pendingFounderByKingdom = new();
@@ -52,6 +51,7 @@ public sealed class KaiRealmHouseGrowthBehavior : CampaignBehaviorBase
         // Master-TZ v0.6.4: first missing house must be discovered daily, not weekly.
         CampaignEvents.DailyTickEvent.AddNonSerializedListener(this, OnDailyTick);
         CampaignEvents.HourlyTickEvent.AddNonSerializedListener(this, OnHourlyTick);
+        CampaignEvents.OnGameLoadedEvent.AddNonSerializedListener(this, OnGameLoaded);
     }
 
     public override void SyncData(IDataStore dataStore)
@@ -68,33 +68,58 @@ public sealed class KaiRealmHouseGrowthBehavior : CampaignBehaviorBase
         _pendingReadyByKingdom ??= new Dictionary<string, double>();
     }
 
+    private void OnGameLoaded(CampaignGameStarter starter)
+    {
+        // v0.6.5.5 migration intentionally starts with fresh realm-house scheduling
+        // keys, so stale v0.6.5.x cooldown/pending state cannot freeze a campaign.
+        LogStage("MIGRATION", "v0.6.5.5 realm-house scheduling state initialized with fresh save keys");
+        ScanKingdoms("game_loaded");
+    }
+
     private void OnDailyTick()
+    {
+        ScanKingdoms("daily");
+    }
+
+    private void ScanKingdoms(string trigger)
     {
         if (Campaign.Current == null || _commitInProgress)
             return;
 
         var now = CampaignTime.Now.ToDays;
+        var playerKingdom = Clan.PlayerClan?.Kingdom;
+
         foreach (var kingdom in Kingdom.All
                      .Where(k => k != null && !k.IsEliminated && k.Leader != null && k.Leader != Hero.MainHero)
-                     .OrderByDescending(k => GetTargetNobleClanCount(k) - GetCurrentNobleClanCount(k))
+                     .OrderByDescending(k => k == playerKingdom)
+                     .ThenByDescending(k => GetTargetNobleClanCount(k) - GetCurrentNobleClanCount(k))
                      .ThenBy(k => k.StringId, StringComparer.Ordinal))
         {
             var current = GetCurrentNobleClanCount(kingdom);
             var target = GetTargetNobleClanCount(kingdom);
             var deficit = target - current;
+            var isPlayerKingdom = kingdom == playerKingdom;
+
+            LogStage(
+                "SCAN",
+                $"trigger={trigger}; kingdom={kingdom.StringId}; playerKingdom={isPlayerKingdom}; currentClans={current}; targetClans={target}; deficit={deficit}");
 
             if (deficit < MinimumClanDeficitForNewHouse)
+            {
+                if (isPlayerKingdom)
+                    LogStage("SKIP", $"kingdom={kingdom.StringId}; reason=target_satisfied; currentClans={current}; targetClans={target}");
                 continue;
+            }
 
             if (HasPendingHouse(kingdom.StringId))
             {
-                LogStage("REALM_SCAN", $"kingdom={kingdom.StringId}; currentClans={current}; targetClans={target}; deficit={deficit}; state=pending");
+                LogStage("SCAN", $"kingdom={kingdom.StringId}; currentClans={current}; targetClans={target}; deficit={deficit}; state=pending");
                 continue;
             }
 
             if (_kingdomCooldownUntilDays.TryGetValue(kingdom.StringId, out var cooldownUntil) && now < cooldownUntil)
             {
-                LogStage("REALM_SCAN", $"kingdom={kingdom.StringId}; currentClans={current}; targetClans={target}; deficit={deficit}; state=cooldown; remaining={cooldownUntil - now:0.0}d");
+                LogStage("SCAN", $"kingdom={kingdom.StringId}; currentClans={current}; targetClans={target}; deficit={deficit}; state=cooldown; remaining={cooldownUntil - now:0.0}d");
                 continue;
             }
 
@@ -115,10 +140,11 @@ public sealed class KaiRealmHouseGrowthBehavior : CampaignBehaviorBase
 
         if (_commitInProgress || _pendingReadyByKingdom.Count == 0)
             return;
-        if (CampaignTime.Now.GetHourOfDay != CommitHour)
-            return;
         if (!IsSafeWorldMutationWindow())
+        {
+            LogStage("COMMIT_DEFER", "reason=unsafe_window; pending=" + _pendingReadyByKingdom.Count);
             return;
+        }
 
         var now = CampaignTime.Now.ToDays;
         var pendingKingdomId = SelectReadyPendingKingdom(now);
@@ -223,7 +249,7 @@ public sealed class KaiRealmHouseGrowthBehavior : CampaignBehaviorBase
             return false;
         if (mainParty.BesiegedSettlement != null)
             return false;
-        if (PlayerEncounter.Current != null)
+        if (Campaign.Current.ConversationManager?.IsConversationInProgress == true)
             return false;
         if (Hero.MainHero?.IsPrisoner == true)
             return false;
@@ -628,7 +654,7 @@ public sealed class KaiRealmHouseGrowthBehavior : CampaignBehaviorBase
         yield return
             $"Realm-house growth: pending={pending.Length} [{string.Join(",", pending)}]; commitBusy={_commitInProgress}; " +
             $"scan=daily; perKingdomCooldown={PerKingdomCooldownDays}d; failureCooldown={FailureCooldownDays}d; minimumDeficit={MinimumClanDeficitForNewHouse}; " +
-            $"founders=unattached+safe-party-member TOR AI companions/lords; commit=one-per-safe-day-largest-deficit; lastCreated={_lastCreatedClanId ?? "none"}.";
+            $"founders=unattached+safe-party-member TOR AI companions/lords; commit=first-safe-hour-largest-deficit; lastCreated={_lastCreatedClanId ?? "none"}.";
     }
 
     private bool HasPendingHouse(string kingdomId)
@@ -656,8 +682,12 @@ public sealed class KaiRealmHouseGrowthBehavior : CampaignBehaviorBase
     private static int GetTargetNobleClanCount(Kingdom kingdom)
     {
         var fortifications = kingdom.Settlements.Count(settlement => settlement != null && settlement.IsFortification);
-        var target = 2 + (int)Math.Ceiling(fortifications / 2d);
-        return Math.Max(3, Math.Min(MaximumTargetNobleClans, target));
+        // v0.6.5.5: the previous 2 + half-fortifications formula saturated too
+        // early on TOR realms and could leave no room for any house growth.
+        // Keep growth bounded by the hard cap, but reserve two additional houses
+        // for medium/large realms.
+        var target = 4 + (int)Math.Ceiling(fortifications / 2d);
+        return Math.Max(5, Math.Min(MaximumTargetNobleClans, target));
     }
 
     private static void LogStage(string stage, string details)
@@ -672,6 +702,11 @@ public sealed class KaiRealmHouseGrowthBehavior : CampaignBehaviorBase
             var path = Path.Combine(directory, "KaiTORRealmHouse.log");
             var line = $"{DateTime.UtcNow:O}|{stage}|{details}{Environment.NewLine}";
             File.AppendAllText(path, line);
+
+            var eventName = stage.StartsWith("REALM_", StringComparison.Ordinal)
+                ? stage
+                : "REALM_" + stage;
+            KaiRuntimeLog.Write(eventName, details);
         }
         catch
         {
