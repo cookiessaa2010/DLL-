@@ -136,6 +136,14 @@ public sealed class KaiTORDiplomacyVM : ViewModel, IDisposable
             if (hero == null)
                 return KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_no_campaign", "Campaign data is not available.");
 
+            if (KaiRaceLifecycle.IsDawi(hero))
+            {
+                var dawi = Campaign.Current?.GetCampaignBehavior<KaiDawiDynastyBehavior>();
+                return dawi == null
+                    ? "Dawi dynasty: unavailable."
+                    : string.Join("\n", dawi.DescribePlayerHouse());
+            }
+
             var spouse = hero.Spouse?.IsAlive == true
                 ? hero.Spouse.Name.ToString()
                 : KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_none", "None");
@@ -156,19 +164,17 @@ public sealed class KaiTORDiplomacyVM : ViewModel, IDisposable
     {
         get
         {
-            var dawi = Campaign.Current?.GetCampaignBehavior<KaiDawiWomenBehavior>();
-            var vampire = Campaign.Current?.GetCampaignBehavior<KaiVampirePopulationBehavior>();
-            var greenskin = Campaign.Current?.GetCampaignBehavior<KaiGreenskinPopulationBehavior>();
-            var realm = Campaign.Current?.GetCampaignBehavior<KaiRealmHouseGrowthBehavior>();
+            var dawi = Campaign.Current?.GetCampaignBehavior<KaiDawiDynastyBehavior>();
+            var dawiStatus = dawi == null
+                ? "Dawi dynasty: unavailable."
+                : string.Join("\n", dawi.DescribeStatus());
 
-            return KaiTORDiplomacyUiText.Format(
-                "kaitor_diplomacy_ui_population_format",
-                "Dawi women module: {DAWI}\nDawi automatic population: {DAWI_AUTO}\nVampire population: {VAMPIRE}\nGreenskin population: {GREEN}\nAI realm-house growth: {HOUSES}",
-                ("DAWI", YesNo(dawi != null)),
-                ("DAWI_AUTO", YesNo(KaiDawiWomenBehavior.AutomaticPopulationEnabled)),
-                ("VAMPIRE", YesNo(vampire != null)),
-                ("GREEN", YesNo(greenskin != null)),
-                ("HOUSES", YesNo(realm != null)));
+            return
+                "KaiTOR world generation: OFF\n" +
+                "KaiTOR new clans / lord spawning: OFF\n" +
+                "KaiTOR racial auto-population: OFF\n" +
+                "KaiTOR visual aging / custom old-age mortality: OFF\n" +
+                dawiStatus;
         }
     }
 
@@ -410,10 +416,10 @@ public sealed class KaiTORDiplomacyVM : ViewModel, IDisposable
     {
         if (_disposed) return;
 
-        var behavior = Campaign.Current?.GetCampaignBehavior<KaiDawiWomenBehavior>();
+        var behavior = Campaign.Current?.GetCampaignBehavior<KaiDawiDynastyBehavior>();
         ActionResultText = behavior == null
-            ? KaiTORDiplomacyUiText.Get("kaitor_diplomacy_ui_dawi_unavailable", "The Dawi women module is not loaded.")
-            : behavior.SpawnOneForLiveTest();
+            ? "Dawi abstract dynasty is not loaded."
+            : string.Join("\n", behavior.DescribeStatus());
 
         Refresh();
     }
