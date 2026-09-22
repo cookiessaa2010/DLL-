@@ -608,7 +608,28 @@ public sealed class KaiLoreEducationBehavior : CampaignBehaviorBase
                 .ToList();
 
             _loaded = _options.Count > 0;
-            KaiRuntimeLog.Write("CHILD_EDUCATION_LOAD", $"options={_options.Count}; specializations={_specializations.Count}; bridge={TorProfessionEffectBridge.IsAvailable}");
+            var professionIds = _options.Where(x => x.Stage == 3)
+                .Select(x => x.Id)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            var missingProfessions = professionIds
+                .Where(x => !TorProfessionEffectBridge.IsProfessionSupported(x))
+                .OrderBy(x => x, StringComparer.Ordinal)
+                .ToArray();
+            var missingSpecializations = _specializations
+                .Select(x => x.Id)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Where(x => !TorProfessionEffectBridge.IsSpecializationSupported(x))
+                .OrderBy(x => x, StringComparer.Ordinal)
+                .ToArray();
+
+            KaiRuntimeLog.Write("CHILD_EDUCATION_LOAD",
+                $"options={_options.Count}; professions={professionIds.Length}; specializations={_specializations.Count}; bridge={TorProfessionEffectBridge.IsAvailable}; missingProfessions={missingProfessions.Length}; missingSpecializations={missingSpecializations.Length}");
+
+            if (missingProfessions.Length > 0)
+                KaiRuntimeLog.Write("CHILD_EDUCATION_COVERAGE_FAIL", "professions=" + string.Join(",", missingProfessions));
+            if (missingSpecializations.Length > 0)
+                KaiRuntimeLog.Write("CHILD_EDUCATION_COVERAGE_FAIL", "specializations=" + string.Join(",", missingSpecializations));
         }
         catch (Exception ex)
         {
