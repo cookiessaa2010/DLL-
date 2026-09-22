@@ -102,7 +102,6 @@ public sealed class KaiLiveTestBehavior : CampaignBehaviorBase
         var diplomacy = Campaign.Current.GetCampaignBehavior<KaiDiplomacyBehavior>();
         var family = Campaign.Current.GetCampaignBehavior<KaiFamilyAffairsBehavior>();
         var culture = Campaign.Current.GetCampaignBehavior<KaiCultureAssimilationBehavior>();
-        var dynastic = Campaign.Current.GetCampaignBehavior<KaiDynasticMarriageBehavior>();
         var incoming = Campaign.Current.GetCampaignBehavior<KaiIncomingMarriageProposalBehavior>();
         var education = Campaign.Current.GetCampaignBehavior<KaiLoreEducationBehavior>();
         var bloodKiss = Campaign.Current.GetCampaignBehavior<KaiBloodKissBehavior>();
@@ -111,7 +110,7 @@ public sealed class KaiLiveTestBehavior : CampaignBehaviorBase
 
         yield return
             $"section=behaviors; diplomacy={State(diplomacy != null, diplomacy?.RuntimeEnabled == true)}; " +
-            $"family={Present(family)}; culture={Present(culture)}; dynastic={Present(dynastic)}; " +
+            $"family={Present(family)}; culture={Present(culture)}; " +
             $"incomingMarriage={Present(incoming)}; education={Present(education)}; bloodKiss={Present(bloodKiss)}; " +
             $"mercy={Present(mercy)}; dawiDynasty={Present(dawiDynasty)}";
 
