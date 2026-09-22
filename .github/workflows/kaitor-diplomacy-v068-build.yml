@@ -1,0 +1,112 @@
+name: KaiTOR Diplomacy v0.6.8.0 Family Cap 20 Build
+
+on:
+  push:
+    branches:
+      - 'kaitor-diplomacy-family-cap-v0.6.8'
+    paths:
+      - 'projects/KaiTORDiplomacy/**'
+      - '.github/workflows/kaitor-diplomacy-v068-build.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build against Bannerlord 1.3.15.110062 references
+        shell: pwsh
+        run: |
+          dotnet build projects/KaiTORDiplomacy/src/KaiTOR_Diplomacy.csproj `
+            -c Release `
+            -p:UseBannerlordReferenceAssemblies=true `
+            --nologo
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Validate v0.6.8 family contracts
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = 'projects/KaiTORDiplomacy'
+          $src = Join-Path $root 'src'
+          $runtime = Join-Path $src 'Runtime'
+          $models = Join-Path $src 'Models'
+          $module = Join-Path $root 'module'
+          $dll = Join-Path $root 'build/bin/Win64_Shipping_Client/KaiTOR_Diplomacy.dll'
+
+          if (-not (Test-Path -LiteralPath $dll -PathType Leaf)) { throw "Missing DLL: $dll" }
+
+          $sub = Get-Content (Join-Path $src 'SubModule.cs') -Raw
+          if (-not $sub.Contains('KaiTOR Diplomacy v0.6.8.0 family-cap20 campaign start.')) { throw 'Wrong startup marker.' }
+          if ($sub.Contains('new KaiDynasticMarriageBehavior()')) { throw 'Dynastic Marriage must stay removed.' }
+
+          $moduleXml = Get-Content (Join-Path $module 'SubModule.xml') -Raw
+          if ($moduleXml -notmatch '<Version value="v0\.6\.8\.0"') { throw 'SubModule version mismatch.' }
+
+          $limits = Get-Content (Join-Path $models 'KaiFamilyLimits.cs') -Raw
+          if (-not $limits.Contains('MaximumLivingChildren = 20')) { throw 'Shared family cap is not 20.' }
+
+          $family = Get-Content (Join-Path $runtime 'KaiFamilyAffairsBehavior.cs') -Raw
+          foreach ($token in @(
+            'MaximumLivingChildren = KaiFamilyLimits.MaximumLivingChildren',
+            'Принять в племя',
+            'Признать наследником клана',
+            'Принять в кровный дом',
+            'Принять в дом',
+            'Принять в семью',
+            'AreAcceptanceProfilesCompatible',
+            'KaiRaceLifecycle.IsGreenskin(candidate)',
+            'TorFamilySafety.IsVampire(candidate)'
+          )) {
+            if (-not $family.Contains($token)) { throw "Race-aware family contract missing: $token" }
+          }
+
+          $pregnancy = Get-Content (Join-Path $models 'KaiPregnancyModel.cs') -Raw
+          if (-not $pregnancy.Contains('family_cap={KaiFamilyLimits.MaximumLivingChildren}')) {
+            throw 'Biological family cap diagnostic missing.'
+          }
+          if (-not $pregnancy.Contains('HasReachedFamilyCap(hero)') -or -not $pregnancy.Contains('HasReachedFamilyCap(spouse)')) {
+            throw 'Biological family cap is not enforced for both parents.'
+          }
+
+          $dawi = Get-Content (Join-Path $runtime 'KaiDawiDynastyBehavior.cs') -Raw
+          if (-not $dawi.Contains('MaximumHeirs = KaiFamilyLimits.MaximumLivingChildren')) {
+            throw 'Dawi heirs do not use shared family cap.'
+          }
+          if (-not $dawi.Contains('GetReservedFamilySlots()')) {
+            throw 'Dawi family slots do not account for accepted heirs.'
+          }
+
+          $education = Get-Content (Join-Path $runtime 'KaiLoreEducationBehavior.cs') -Raw
+          foreach ($token in @('ApplySyntheticFullTorPath','CHILD_TOR_FULL_PATH','CHILD_EDUCATION_COVERAGE_FAIL')) {
+            if (-not $education.Contains($token)) { throw "Child education regression: $token" }
+          }
+
+          Write-Host 'KaiTOR Diplomacy v0.6.8.0 family contracts: PASS'
+
+      - name: Assemble test module
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = 'projects/KaiTORDiplomacy'
+          $package = 'artifact/KaiTOR_Diplomacy'
+          $bin = Join-Path $package 'bin/Win64_Shipping_Client'
+          New-Item -ItemType Directory -Path $bin -Force | Out-Null
+          Copy-Item (Join-Path $root 'module/*') $package -Recurse -Force
+          Copy-Item (Join-Path $root 'build/bin/Win64_Shipping_Client/KaiTOR_Diplomacy.dll') (Join-Path $bin 'KaiTOR_Diplomacy.dll') -Force
+          Copy-Item (Join-Path $root 'build/bin/Win64_Shipping_Client/Bannerlord.UIExtenderEx.dll') (Join-Path $bin 'Bannerlord.UIExtenderEx.dll') -Force
+
+      - name: Upload test module
+        uses: actions/upload-artifact@v4
+        with:
+          name: KaiTOR-Diplomacy-v0.6.8.0-FamilyCap20-RaceAwareAdoption-Test
+          path: artifact/KaiTOR_Diplomacy
+          if-no-files-found: error
+          retention-days: 30
