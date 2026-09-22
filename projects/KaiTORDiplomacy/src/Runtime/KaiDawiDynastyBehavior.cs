@@ -28,7 +28,7 @@ public sealed class KaiDawiDynastyBehavior : CampaignBehaviorBase
     public const int HeirIntervalDays = 240;
     public const int HeirMaturityYears = 4;
     public const int AdultSpawnAge = 30;
-    public const int MaximumHeirs = 4;
+    public const int MaximumHeirs = KaiFamilyLimits.MaximumLivingChildren;
 
     private static readonly string[] MaleHeirNames =
     {
@@ -163,7 +163,7 @@ public sealed class KaiDawiDynastyBehavior : CampaignBehaviorBase
 
     private void TryCreateVirtualHeir()
     {
-        if (_heirs.Count >= MaximumHeirs ||
+        if (GetReservedFamilySlots() >= MaximumHeirs ||
             _nextHeirDay < 0d ||
             CampaignTime.Now.ToDays < _nextHeirDay)
             return;
@@ -182,6 +182,23 @@ public sealed class KaiDawiDynastyBehavior : CampaignBehaviorBase
         KaiRuntimeLog.Write(
             "DAWI_HEIR_VIRTUAL_BORN",
             $"name={name}; ordinal={ordinal + 1}; birthDay={born:0.00}; maturityDay={mature:0.00}; unionClan={_unionClanId}");
+    }
+
+    private int GetReservedFamilySlots()
+    {
+        var materializedIds = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var raw in _heirs)
+        {
+            if (TryDecode(raw, out _, out _, out _, out var heroId) && !string.IsNullOrWhiteSpace(heroId))
+                materializedIds.Add(heroId);
+        }
+
+        var otherLivingChildren = Hero.MainHero?.Children.Count(h =>
+            h != null &&
+            h.IsAlive &&
+            !materializedIds.Contains(h.StringId)) ?? 0;
+
+        return _heirs.Count + otherLivingChildren;
     }
 
     private void TryMaterializeHeirs()
@@ -359,7 +376,7 @@ public sealed class KaiDawiDynastyBehavior : CampaignBehaviorBase
 
     public IEnumerable<string> DescribeStatus()
     {
-        yield return $"Dawi abstract dynasty: union={(HasPlayerUnion ? _unionClanId : "none")}; heirs={_heirs.Count}/{MaximumHeirs}; nextHeirDay={_nextHeirDay:0.00}.";
+        yield return $"Dawi abstract dynasty: union={(HasPlayerUnion ? _unionClanId : "none")}; heirs={_heirs.Count}; familySlots={GetReservedFamilySlots()}/{MaximumHeirs}; nextHeirDay={_nextHeirDay:0.00}.";
         yield return "Female Dawi Hero/assets: disabled; adult heirs only use existing male TOR Dawi templates.";
     }
 
