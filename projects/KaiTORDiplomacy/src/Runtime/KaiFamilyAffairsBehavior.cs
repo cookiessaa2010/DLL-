@@ -190,15 +190,6 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
 
         starter.AddGameMenuOption(
             MarriageMenuId,
-            "kaitor_family_dynastic_marriage",
-            $"Династический брак ({KaiDynasticMarriageBehavior.PoliticalMarriageCost:N0} динаров)",
-            PoliticalMarriageCondition,
-            _ => ConfirmPoliticalMarriage(),
-            false,
-            4);
-
-        starter.AddGameMenuOption(
-            MarriageMenuId,
             "kaitor_family_marriage_reset",
             "Сбросить выбор",
             ManageOptionCondition,
@@ -389,31 +380,6 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
         args.IsEnabled = valid;
         if (!valid)
             args.Tooltip = new TextObject(reason);
-        return true;
-    }
-
-    private static bool PoliticalMarriageCondition(MenuCallbackArgs args)
-    {
-        args.optionLeaveType = GameMenuOption.LeaveType.Manage;
-
-        if (!ValidateSelectedMarriage(out var reason))
-        {
-            args.IsEnabled = false;
-            args.Tooltip = new TextObject(reason);
-            return true;
-        }
-
-        var behavior = Campaign.Current?.GetCampaignBehavior<KaiDynasticMarriageBehavior>();
-        if (behavior == null || !behavior.CanBeginPoliticalMarriage(_selectedHouseMember, _selectedTargetHero, _selectedTargetClan, out reason))
-        {
-            args.IsEnabled = false;
-            args.Tooltip = new TextObject(string.IsNullOrWhiteSpace(reason) ? "Династический брак сейчас недоступен." : reason);
-            return true;
-        }
-
-        args.IsEnabled = true;
-        args.Tooltip = new TextObject(
-            $"Политический брак резервирует {KaiDynasticMarriageBehavior.PoliticalMarriageCost:N0} динаров. После состоявшейся свадьбы дома получат династические узы, +20 отношений, +30 доверия и до 180 дней пакта о ненападении между державами.");
         return true;
     }
 
@@ -749,68 +715,6 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
         BeginMarriageBarter();
     }
 
-    private static void ConfirmPoliticalMarriage()
-    {
-        if (!ValidateSelectedMarriage(out var reason))
-        {
-            ShowQuick(reason);
-            return;
-        }
-
-        var behavior = Campaign.Current?.GetCampaignBehavior<KaiDynasticMarriageBehavior>();
-        if (behavior == null || !behavior.CanBeginPoliticalMarriage(_selectedHouseMember, _selectedTargetHero, _selectedTargetClan, out reason))
-        {
-            ShowQuick(string.IsNullOrWhiteSpace(reason) ? "Династический брак сейчас недоступен." : reason);
-            return;
-        }
-
-        var childlessWarning = TorFamilySafety.CanUseVanillaPregnancy(_selectedHouseMember, _selectedTargetHero)
-            ? string.Empty
-            : " У этой пары не будет биологических детей.";
-
-        InformationManager.ShowInquiry(
-            new InquiryData(
-                "Династический брак",
-                $"Заключить политический брачный договор между {_selectedHouseMember.Name} и {_selectedTargetHero.Name}? " +
-                $"До окончания переговоров будет зарезервировано {KaiDynasticMarriageBehavior.PoliticalMarriageCost:N0} динаров. " +
-                "Если свадьба состоится, другой дом получит эту сумму, отношения домов улучшатся, дипломатическое доверие вырастет, а между разными державами будет заключён пакт о ненападении сроком до 180 дней. При отмене переговоров деньги вернутся полностью." +
-                childlessWarning,
-                true,
-                true,
-                "Начать переговоры",
-                "Отмена",
-                BeginPoliticalMarriage,
-                null),
-            false,
-            false);
-    }
-
-    private static void BeginPoliticalMarriage()
-    {
-        if (!ValidateSelectedMarriage(out var reason))
-        {
-            ShowQuick(reason);
-            return;
-        }
-
-        var behavior = Campaign.Current?.GetCampaignBehavior<KaiDynasticMarriageBehavior>();
-        if (behavior == null)
-        {
-            ShowQuick("Династический брак сейчас недоступен.");
-            return;
-        }
-
-        var member = _selectedHouseMember;
-        var target = _selectedTargetHero;
-        var clan = _selectedTargetClan;
-        var returnMenu = string.IsNullOrWhiteSpace(_returnMenuId) ? "town" : _returnMenuId;
-        if (!SafeSwitchToMenu(returnMenu, "dynastic_barter_return"))
-            return;
-
-        if (!behavior.BeginPoliticalMarriage(member, target, clan, out reason))
-            ShowQuick(reason);
-    }
-
     private static void BeginMarriageBarter()
     {
         if (!ValidateSelectedMarriage(out var reason))
@@ -825,8 +729,8 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
         var targetClan = _selectedTargetClan;
 
         // Return to the settlement menu before opening native barter. The shared bridge
-        // is also used by incoming AI proposals and political marriages so all three
-        // frontends exercise exactly the same MarriageBarterable -> MarriageAction path.
+        // is also used by incoming AI proposals so both frontends exercise exactly
+        // the same MarriageBarterable -> MarriageAction path.
         var returnMenu = string.IsNullOrWhiteSpace(_returnMenuId) ? "town" : _returnMenuId;
         if (!SafeSwitchToMenu(returnMenu, "marriage_barter_return"))
             return;
