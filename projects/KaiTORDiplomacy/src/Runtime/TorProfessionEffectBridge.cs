@@ -30,6 +30,66 @@ internal static class TorProfessionEffectBridge
 
     public static bool IsAvailable => EnsureTypes();
 
+    private static readonly HashSet<string> SupportedProfessions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "option_3_empire_magister_apprentice",
+        "option_3_empire_knight",
+        "option_3_empire_priest_acolyte",
+        "option_3_empire_witch_hunter",
+        "option_3_empire_free_company",
+        "option_3_bretonnia_damsel",
+        "option_3_bretonnia_knight_errant",
+        "option_3_we_spellsinger",
+        "option_3_we_waywatcher",
+        "option_3_we_warden",
+        "option_3_eo_greylord_apprentice",
+        "option_3_eo_ghost_strider",
+        "option_3_vc_vampire",
+        "option_3_vc_necromancer",
+        "option_3_mousillon_vampire",
+        "option_3_mousillon_necromancer",
+        "option_3_mousillon_knight_errant",
+        "option_3_dw_shield_breaker",
+        "option_3_dw_slayer",
+        "option_3_dw_rune_smith",
+        "option_3_gs_path_of_boss",
+        "option_3_gs_path_of_bully",
+        "option_3_gs_path_of_boar_boys",
+        "option_3_gs_path_of_savage_boys",
+        "option_3_gs_path_of_shaman"
+    };
+
+    private static readonly HashSet<string> SupportedSpecializations = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "priest_sigmar",
+        "priest_ulric",
+        "bloodline_von_carstein",
+        "bloodline_blood_dragon",
+        "bloodline_necrarch",
+        "bloodline_von_carstein_mous",
+        "bloodline_blood_dragon_mous",
+        "bloodline_necrarch_mous",
+        "knight_blazing_sun",
+        "knight_panthers",
+        "knight_white_wolf",
+        "knight_griphon",
+        "knight_gryphon",
+        "knight_reiksguard",
+        "lore_of_fire",
+        "lore_of_light",
+        "lore_of_metal",
+        "lore_of_death",
+        "lore_of_beasts",
+        "lore_of_heavens",
+        "lore_of_life"
+    };
+
+    public static bool IsProfessionSupported(string professionId)
+        => !string.IsNullOrWhiteSpace(professionId) && SupportedProfessions.Contains(professionId);
+
+    public static bool IsSpecializationSupported(string specializationId)
+        => string.IsNullOrWhiteSpace(specializationId) || SupportedSpecializations.Contains(specializationId);
+
     public static bool ApplyStage2Effect(Hero hero, string optionId, out string error)
     {
         error = string.Empty;
