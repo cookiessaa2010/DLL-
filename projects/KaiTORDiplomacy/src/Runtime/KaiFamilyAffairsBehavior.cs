@@ -21,7 +21,7 @@ namespace KaiTOR.Diplomacy.Runtime;
 /// </summary>
 public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
 {
-    private const int MaximumLivingChildren = 6;
+    private const int MaximumLivingChildren = KaiFamilyLimits.MaximumLivingChildren;
 
     private const string FamilyMenuId = "kaitor_family_affairs";
     private const string HouseMenuId = "kaitor_family_house";
@@ -95,8 +95,8 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
         starter.AddGameMenuOption(
             FamilyMenuId,
             "kaitor_family_adoption_open",
-            "Принять в род",
-            ManageOptionCondition,
+            "Принять в семью",
+            AdoptionRootCondition,
             _ => SafeSwitchToMenu(AdoptionMenuId, "root_adoption"),
             false,
             2);
@@ -219,7 +219,7 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
     {
         starter.AddGameMenu(
             AdoptionMenuId,
-            "Здесь можно признать взрослого спутника или члена вашего клана своим ребёнком и наследником. Кандидат должен принадлежать вашему дому, быть той же расы и не иметь собственной семьи.",
+            "Здесь можно закрепить взрослого спутника или члена вашего клана в доме, кровной линии или племени как преемника. Кандидат должен принадлежать вашему клану, соответствовать расовым правилам и не иметь собственной семьи.",
             _ => KaiRuntimeLog.Write("ADOPTION_OPEN", $"children={GetLivingChildrenCount()}"),
             GameMenu.MenuOverlayType.None,
             GameMenu.MenuFlags.None,
@@ -276,7 +276,7 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
         starter.AddGameMenuOption(
             menuId,
             optionId,
-            "Принять в род",
+            "Принять в семью",
             AdoptionTavernEntryCondition,
             _ => OpenAdoptionFromTavern(),
             false,
@@ -289,11 +289,12 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
             return false;
 
         args.optionLeaveType = GameMenuOption.LeaveType.Manage;
+        args.Text = new TextObject(GetAcceptanceTitle(Hero.MainHero));
         args.IsEnabled = CanAdoptMoreChildren();
         if (!args.IsEnabled)
-            args.Tooltip = new TextObject($"В вашем доме уже {MaximumLivingChildren} живых детей или принятых наследников.");
+            args.Tooltip = new TextObject($"Достигнут предел семейной линии: {MaximumLivingChildren} живых детей или признанных преемников.");
         else
-            args.Tooltip = new TextObject("Признать подходящего взрослого спутника или члена клана своим ребёнком и наследником.");
+            args.Tooltip = new TextObject(GetAcceptanceTooltip(Hero.MainHero));
         return true;
     }
 
@@ -323,6 +324,16 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
             return false;
 
         args.optionLeaveType = GameMenuOption.LeaveType.Manage;
+        return true;
+    }
+
+    private static bool AdoptionRootCondition(MenuCallbackArgs args)
+    {
+        if (Hero.MainHero == null || Clan.PlayerClan == null)
+            return false;
+
+        args.optionLeaveType = GameMenuOption.LeaveType.Manage;
+        args.Text = new TextObject(GetAcceptanceTitle(Hero.MainHero));
         return true;
     }
 
@@ -388,7 +399,7 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
         args.optionLeaveType = GameMenuOption.LeaveType.Manage;
         args.IsEnabled = CanAdoptMoreChildren();
         if (!args.IsEnabled)
-            args.Tooltip = new TextObject($"В вашем доме уже {MaximumLivingChildren} живых детей или принятых наследников.");
+            args.Tooltip = new TextObject($"Достигнут предел семейной линии: {MaximumLivingChildren} живых детей или признанных преемников.");
         return Hero.MainHero != null && Clan.PlayerClan != null;
     }
 
@@ -918,9 +929,10 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
 
     private static void ShowAdoptionCandidates()
     {
+        var title = GetAcceptanceTitle(Hero.MainHero);
         if (!CanAdoptMoreChildren())
         {
-            ShowText("Принять в род", $"Ваш дом уже достиг предела: {MaximumLivingChildren} живых детей или принятых наследников.");
+            ShowText(title, $"Достигнут предел семейной линии: {MaximumLivingChildren} живых детей или признанных преемников.");
             return;
         }
 
@@ -929,7 +941,7 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
             var pool = GetAdoptionCandidatePool().ToArray();
             if (pool.Length == 0)
             {
-                ShowText("Принять в род", "Сейчас в вашем клане нет спутников или других взрослых героев, которых можно рассмотреть для принятия в род.");
+                ShowText(title, "Сейчас в вашем клане нет подходящих взрослых спутников или героев для этой церемонии.");
                 return;
             }
 
@@ -940,7 +952,7 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
                 {
                     var allowed = IsEligibleForAdoption(h, out var reason);
                     var hint = allowed
-                        ? $"Отношение: {Hero.MainHero.GetRelation(h):+0;-0;0}. Может быть принят в род."
+                        ? $"Отношение: {Hero.MainHero.GetRelation(h):+0;-0;0}. {GetAcceptanceCandidateHint(Hero.MainHero)}"
                         : reason;
                     return new InquiryElement(
                         h,
@@ -954,13 +966,13 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
             KaiRuntimeLog.Write("ADOPTION_OPEN", $"pool={pool.Length}; eligible={elements.Count(x => x.IsEnabled)}");
             MBInformationManager.ShowMultiSelectionInquiry(
                 new MultiSelectionInquiryData(
-                    "Принять в род",
-                    "Выберите героя. Недоступные кандидаты показаны вместе с причиной. Принятие сделает героя вашим ребёнком и членом PlayerClan.",
+                    title,
+                    GetAcceptanceInquiryText(Hero.MainHero),
                     elements,
                     true,
                     1,
                     1,
-                    "Принять в род",
+                    GetAcceptanceAction(Hero.MainHero),
                     "Отмена",
                     selected =>
                     {
@@ -1009,9 +1021,7 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
                 "ADOPTION_SUCCESS",
                 $"candidate={candidate.StringId}; clan={candidate.Clan?.StringId ?? "null"}; father={candidate.Father?.StringId ?? "null"}; mother={candidate.Mother?.StringId ?? "null"}");
 
-            ShowQuick(
-                $"{candidate.Name} принят{(candidate.IsFemale ? "а" : string.Empty)} в ваш род и признан{(candidate.IsFemale ? "а" : string.Empty)} наследником.",
-                candidate);
+            ShowQuick(GetAcceptanceSuccess(Hero.MainHero, candidate), candidate);
         }
         catch (Exception ex)
         {
@@ -1047,7 +1057,7 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
 
         if (!CanAdoptMoreChildren())
         {
-            reason = $"Ваш дом уже достиг предела: {MaximumLivingChildren} живых детей или принятых наследников.";
+            reason = $"Достигнут предел семейной линии: {MaximumLivingChildren} живых детей или признанных преемников.";
             return false;
         }
 
@@ -1093,13 +1103,140 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
             return false;
         }
 
-        if (hero.CharacterObject?.Race != mainHero.CharacterObject.Race)
+        if (KaiRaceLifecycle.IsDawi(mainHero) && hero.IsFemale)
         {
-            reason = "Для признания наследником требуется общая раса вашего рода.";
+            reason = "Женские Dawi Hero отключены в безопасной семейной схеме; кандидатом может быть только мужчина-Dawi.";
+            return false;
+        }
+
+        if (!AreAcceptanceProfilesCompatible(mainHero, hero))
+        {
+            reason = GetAcceptanceCompatibilityFailure(mainHero);
             return false;
         }
 
         return true;
+    }
+
+    private static bool AreAcceptanceProfilesCompatible(Hero mainHero, Hero candidate)
+    {
+        if (mainHero?.CharacterObject == null || candidate?.CharacterObject == null)
+            return false;
+
+        // Greenskin society is tribal rather than biological-family based: Orcs and
+        // Goblins may both be folded into the same tribe/warband.
+        if (KaiRaceLifecycle.IsGreenskin(mainHero))
+            return KaiRaceLifecycle.IsGreenskin(candidate);
+
+        // Vampire and Necrarch are both TOR vampire identities. This is a social
+        // blood-house relation only; it does not grant Blood Kiss or change race.
+        if (TorFamilySafety.IsVampire(mainHero))
+            return TorFamilySafety.IsVampire(candidate);
+
+        if (KaiRaceLifecycle.IsDawi(mainHero))
+            return KaiRaceLifecycle.IsDawi(candidate);
+
+        if (KaiRaceLifecycle.IsLongLivedElf(mainHero))
+            return KaiRaceLifecycle.IsLongLivedElf(candidate);
+
+        if (TorFamilySafety.IsUndeadNonVampire(mainHero))
+            return TorFamilySafety.IsUndeadNonVampire(candidate) &&
+                   candidate.CharacterObject.Race == mainHero.CharacterObject.Race;
+
+        return candidate.CharacterObject.Race == mainHero.CharacterObject.Race;
+    }
+
+    private static string GetAcceptanceTitle(Hero hero)
+    {
+        if (KaiRaceLifecycle.IsGreenskin(hero)) return "Принять в племя";
+        if (KaiRaceLifecycle.IsDawi(hero)) return "Признать наследником клана";
+        if (TorFamilySafety.IsVampire(hero)) return "Принять в кровный дом";
+        if (KaiRaceLifecycle.IsLongLivedElf(hero)) return "Принять в дом";
+        if (TorFamilySafety.IsUndeadNonVampire(hero)) return "Признать частью дома";
+        return "Принять в семью";
+    }
+
+    private static string GetAcceptanceAction(Hero hero)
+    {
+        if (KaiRaceLifecycle.IsGreenskin(hero)) return "Принять в племя";
+        if (KaiRaceLifecycle.IsDawi(hero)) return "Признать";
+        if (TorFamilySafety.IsVampire(hero)) return "Принять в кровный дом";
+        if (KaiRaceLifecycle.IsLongLivedElf(hero)) return "Принять в дом";
+        if (TorFamilySafety.IsUndeadNonVampire(hero)) return "Признать";
+        return "Принять в семью";
+    }
+
+    private static string GetAcceptanceTooltip(Hero hero)
+    {
+        if (KaiRaceLifecycle.IsGreenskin(hero))
+            return "Включить взрослого Orc/Goblin из вашего клана в племя и признать его преемником.";
+        if (KaiRaceLifecycle.IsDawi(hero))
+            return "Признать взрослого мужчину-Dawi из вашего клана наследником.";
+        if (TorFamilySafety.IsVampire(hero))
+            return "Принять подходящего вампира или Necrarch из вашего клана в кровный дом как наследника.";
+        if (KaiRaceLifecycle.IsLongLivedElf(hero))
+            return "Принять взрослого эльфа из вашего клана в дом как наследника.";
+        if (TorFamilySafety.IsUndeadNonVampire(hero))
+            return "Закрепить подходящего героя-нежить в вашем доме как преемника.";
+        return "Принять подходящего взрослого спутника или члена клана в семью как ребёнка и наследника.";
+    }
+
+    private static string GetAcceptanceCandidateHint(Hero hero)
+    {
+        if (KaiRaceLifecycle.IsGreenskin(hero)) return "Может быть принят в племя как преемник.";
+        if (KaiRaceLifecycle.IsDawi(hero)) return "Может быть признан наследником клана.";
+        if (TorFamilySafety.IsVampire(hero)) return "Может быть принят в кровный дом.";
+        if (KaiRaceLifecycle.IsLongLivedElf(hero)) return "Может быть принят в дом.";
+        if (TorFamilySafety.IsUndeadNonVampire(hero)) return "Может быть признан частью дома.";
+        return "Может быть принят в семью.";
+    }
+
+    private static string GetAcceptanceInquiryText(Hero hero)
+    {
+        if (KaiRaceLifecycle.IsGreenskin(hero))
+            return "Выберите взрослого Orc/Goblin из вашего клана. Это племенное признание преемника, а не биологическое родство и не способ размножения.";
+        if (KaiRaceLifecycle.IsDawi(hero))
+            return "Выберите взрослого мужчину-Dawi. Он будет признан наследником клана без создания женских Dawi-ассетов.";
+        if (TorFamilySafety.IsVampire(hero))
+            return "Выберите вампира или Necrarch из вашего клана. Это признание в кровном доме; оно не заменяет Blood Kiss и не меняет расу героя.";
+        if (KaiRaceLifecycle.IsLongLivedElf(hero))
+            return "Выберите взрослого эльфа из вашего клана для принятия в дом и наследственную линию.";
+        if (TorFamilySafety.IsUndeadNonVampire(hero))
+            return "Выберите подходящего героя-нежить из вашего клана для признания частью дома и преемником.";
+        return "Выберите взрослого героя вашего клана. Принятие сделает его вашим ребёнком/наследником и закрепит в PlayerClan.";
+    }
+
+    private static string GetAcceptanceSuccess(Hero mainHero, Hero candidate)
+    {
+        var female = candidate?.IsFemale == true;
+        var suffix = female ? "а" : string.Empty;
+
+        if (KaiRaceLifecycle.IsGreenskin(mainHero))
+            return $"{candidate.Name} принят{suffix} в племя и признан{suffix} преемником вождя.";
+        if (KaiRaceLifecycle.IsDawi(mainHero))
+            return $"{candidate.Name} признан наследником клана Dawi.";
+        if (TorFamilySafety.IsVampire(mainHero))
+            return $"{candidate.Name} принят{suffix} в кровный дом и признан{suffix} наследником.";
+        if (KaiRaceLifecycle.IsLongLivedElf(mainHero))
+            return $"{candidate.Name} принят{suffix} в дом и признан{suffix} наследником.";
+        if (TorFamilySafety.IsUndeadNonVampire(mainHero))
+            return $"{candidate.Name} признан{suffix} частью вашего дома и преемником.";
+        return $"{candidate.Name} принят{suffix} в семью и признан{suffix} наследником.";
+    }
+
+    private static string GetAcceptanceCompatibilityFailure(Hero mainHero)
+    {
+        if (KaiRaceLifecycle.IsGreenskin(mainHero))
+            return "В племя можно принять только Greenskin: Orc или Goblin.";
+        if (KaiRaceLifecycle.IsDawi(mainHero))
+            return "Наследником клана может быть только Dawi.";
+        if (TorFamilySafety.IsVampire(mainHero))
+            return "В кровный дом можно принять только Vampire или Necrarch.";
+        if (KaiRaceLifecycle.IsLongLivedElf(mainHero))
+            return "В эльфийский дом можно принять только эльфа.";
+        if (TorFamilySafety.IsUndeadNonVampire(mainHero))
+            return "Для этой нежити требуется совместимый тип нежити.";
+        return "Для принятия в семью требуется совместимая раса.";
     }
 
     private static bool CanAdoptMoreChildren()
