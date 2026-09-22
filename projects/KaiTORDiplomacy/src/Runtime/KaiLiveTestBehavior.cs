@@ -127,17 +127,6 @@ public sealed class KaiLiveTestBehavior : CampaignBehaviorBase
                 yield return "section=diplomacy_history; " + line;
         }
 
-        if (playerClan != null && dynastic != null)
-        {
-            foreach (var clan in Clan.All
-                         .Where(c => c != null && !c.IsEliminated && c != playerClan)
-                         .OrderBy(c => c.StringId, StringComparer.Ordinal))
-            {
-                if (dynastic.IsDynasticBondActive(playerClan, clan))
-                    yield return $"section=dynastic_bond; playerClan={playerClan.StringId}; otherClan={clan.StringId}; otherName={clan.Name}; active=true";
-            }
-        }
-
         if (playerClan != null)
         {
             foreach (var member in playerClan.Heroes
