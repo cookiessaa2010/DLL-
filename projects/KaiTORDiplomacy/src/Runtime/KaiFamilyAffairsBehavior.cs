@@ -756,7 +756,8 @@ public sealed class KaiFamilyAffairsBehavior : CampaignBehaviorBase
         return $"KaiTOR UI: currentMenu={current}; returnMenu={_returnMenuId}; " +
                $"member={_selectedHouseMember?.StringId ?? "none"}; " +
                $"targetClan={_selectedTargetClan?.StringId ?? "none"}; " +
-               $"targetHero={_selectedTargetHero?.StringId ?? "none"}.";
+               $"targetHero={_selectedTargetHero?.StringId ?? "none"}; " +
+               $"familyAction={GetAcceptanceTitle(Hero.MainHero)}; livingChildren={GetLivingChildrenCount()}/{MaximumLivingChildren}.";
     }
 
     public static string OpenFamilyMenuFromConsole()
