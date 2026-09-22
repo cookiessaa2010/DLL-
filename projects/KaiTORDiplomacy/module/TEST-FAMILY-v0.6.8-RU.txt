@@ -1,0 +1,52 @@
+KaiTOR Diplomacy v0.6.8.0 — Family live test
+
+1. Human / Necromancer
+Open tavern district.
+Expected entry: "Принять в семью".
+Accept a compatible adult clan hero.
+Expected: hero becomes player child/heir; success text uses family terminology.
+
+2. Elf
+Expected entry: "Принять в дом".
+Only elf candidates are valid.
+
+3. Dawi
+Expected entry: "Признать наследником клана".
+Only adult male Dawi candidates are valid.
+Abstract Dawi heirs + accepted heirs together reserve up to 20 family slots.
+
+4. Vampire / Necrarch
+Expected entry: "Принять в кровный дом".
+Vampire and Necrarch are mutually compatible for this social family action.
+No Blood Kiss/race conversion should occur.
+
+5. Greenskin
+Expected entry: "Принять в племя".
+Orc and Goblin may both be accepted into the same tribe.
+This must NOT enable pregnancy.
+
+6. Family cap
+Create/accept children until 20 living children/successors are present.
+Expected:
+- acceptance UI becomes disabled at 20;
+- biological pregnancy chance becomes 0 when either parent has 20 living children;
+- Dawi stops reserving new virtual heirs when all 20 slots are occupied.
+
+7. Regression
+Check:
+- ordinary marriage still works for supported races;
+- Dawi abstract marriage still works;
+- TOR child education at 8/14/16 and full adult career package still works;
+- Blood Kiss still works;
+- no Dynastic Marriage button exists.
+
+Useful logs:
+ADOPTION_OPEN
+ADOPTION_SUCCESS
+ADOPTION_FAILED
+PREGNANCY_BLOCKED (family_cap=20)
+DAWI_HEIR_VIRTUAL_BORN
+DAWI_HEIR_MATERIALIZED
+CHILD_STAGE
+CHILD_SPECIALIZATION
+CAREER_APPLY
