@@ -51,6 +51,16 @@ public sealed class KaiPregnancyModel : PregnancyModel
             return 0f;
         }
 
+        if (HasReachedFamilyCap(hero) || HasReachedFamilyCap(spouse))
+        {
+            LogOncePerDay(
+                "PREGNANCY_BLOCKED",
+                hero,
+                spouse,
+                $"family_cap={KaiFamilyLimits.MaximumLivingChildren}; heroLivingChildren={GetLivingChildrenCount(hero)}; spouseLivingChildren={GetLivingChildrenCount(spouse)}");
+            return 0f;
+        }
+
         if (!KaiRaceLifecycle.UsesCustomFertility(hero))
             return _baseModel.GetDailyChanceOfPregnancyForHero(hero);
 
@@ -93,6 +103,12 @@ public sealed class KaiPregnancyModel : PregnancyModel
 
         return Math.Max(0f, explained.ResultNumber);
     }
+
+    private static bool HasReachedFamilyCap(Hero hero)
+        => GetLivingChildrenCount(hero) >= KaiFamilyLimits.MaximumLivingChildren;
+
+    private static int GetLivingChildrenCount(Hero hero)
+        => hero?.Children.Count(child => child != null && child.IsAlive) ?? 0;
 
     private void LogOncePerDay(string stage, Hero hero, Hero spouse, string details)
     {
