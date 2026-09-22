@@ -289,9 +289,20 @@ public sealed class KaiDawiDynastyBehavior : CampaignBehaviorBase
                 !created.IsFemale &&
                 KaiRaceLifecycle.IsDawi(created);
 
+            var educationApplied = false;
+            var educationReport = "not_attempted";
+            if (success)
+            {
+                var education = Campaign.Current?.GetCampaignBehavior<KaiLoreEducationBehavior>();
+                educationApplied = education != null && education.ApplySyntheticFullTorPath(created, out educationReport);
+                if (!educationApplied)
+                    KaiRuntimeLog.Write("DAWI_HEIR_EDUCATION_FAIL",
+                        $"hero={created.StringId}; report={educationReport}");
+            }
+
             KaiRuntimeLog.Write(
                 success ? "DAWI_HEIR_MATERIALIZED" : "DAWI_HEIR_MATERIALIZE_FAIL",
-                $"hero={created.StringId}; name={created.Name}; age={created.Age:0.0}; clan={created.Clan?.StringId ?? "null"}; parentLinked={parentLinked}; party={created.PartyBelongedTo?.StringId ?? "null"}; success={success}");
+                $"hero={created.StringId}; name={created.Name}; age={created.Age:0.0}; clan={created.Clan?.StringId ?? "null"}; parentLinked={parentLinked}; party={created.PartyBelongedTo?.StringId ?? "null"}; educationApplied={educationApplied}; education={educationReport}; success={success}");
 
             if (!success)
                 return null;
