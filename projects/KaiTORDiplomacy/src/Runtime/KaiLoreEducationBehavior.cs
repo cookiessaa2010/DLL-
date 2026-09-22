@@ -435,14 +435,14 @@ public sealed class KaiLoreEducationBehavior : CampaignBehaviorBase
         return score;
     }
 
-    private void TryAssignCareer(Hero hero)
+    private bool TryAssignCareer(Hero hero)
     {
-        if (hero == null || !_professionChoices.TryGetValue(hero.StringId, out var professionId)) return;
-        if (_careerApplied.TryGetValue(hero.StringId, out var done) && done) return;
+        if (hero == null || !_professionChoices.TryGetValue(hero.StringId, out var professionId)) return false;
+        if (_careerApplied.TryGetValue(hero.StringId, out var done) && done) return true;
 
         var specs = GetSpecializations(professionId).ToList();
         _specializationChoices.TryGetValue(hero.StringId, out var specializationId);
-        if (specs.Count > 0 && string.IsNullOrWhiteSpace(specializationId)) return;
+        if (specs.Count > 0 && string.IsNullOrWhiteSpace(specializationId)) return false;
 
         if (TorProfessionEffectBridge.ApplyProfessionPackage(hero, professionId, specializationId, out var error))
         {
@@ -450,11 +450,122 @@ public sealed class KaiLoreEducationBehavior : CampaignBehaviorBase
             KaiRuntimeLog.Write("CAREER_APPLY", $"hero={hero.StringId}; profession={professionId}; specialization={specializationId ?? "none"}; career={TorProfessionEffectBridge.GetCurrentCareerId(hero) ?? "none"}");
             if (hero.Clan == Clan.PlayerClan)
                 InformationManager.DisplayMessage(new InformationMessage($"{hero.Name} вступает на выбранный профессиональный путь."));
+            return true;
         }
-        else
+
+        KaiRuntimeLog.Write("CAREER_EFFECT_FAIL", $"hero={hero.StringId}; profession={professionId}; specialization={specializationId ?? "none"}; error={error}");
+        return false;
+    }
+
+    /// <summary>
+    /// Completes the same personal TOR character-creation path for a hero that did not
+    /// exist as a normal child (currently used by abstract Dawi heirs and diagnostics).
+    /// The method deliberately excludes character-creation world effects: no teleport,
+    /// kingdom/clan switch, companion grant, settlement unlock or player-only resource.
+    /// </summary>
+    public bool ApplySyntheticFullTorPath(Hero hero, out string result)
+    {
+        result = string.Empty;
+        if (hero == null || !hero.IsAlive || !hero.IsActive)
         {
-            KaiRuntimeLog.Write("CAREER_EFFECT_FAIL", $"hero={hero.StringId}; profession={professionId}; specialization={specializationId ?? "none"}; error={error}");
+            result = "hero is missing/inactive";
+            return false;
         }
+
+        if (!_loaded) LoadTorOptions();
+        if (!_loaded)
+        {
+            result = "TOR character-creation XML is unavailable";
+            return false;
+        }
+
+        try
+        {
+            for (var stage = 1; stage <= 3; stage++)
+            {
+                if (IsStageDone(hero, stage)) continue;
+
+                var choices = GetChoices(hero, stage).ToList();
+                if (choices.Count == 0)
+                {
+                    result = $"no TOR options for culture={hero.Culture?.StringId ?? "none"} stage={stage}";
+                    return false;
+                }
+
+                var option = choices
+                    .OrderByDescending(x => GetAiChoiceScore(hero, stage, x))
+                    .ThenBy(x => x.Id, StringComparer.Ordinal)
+                    .First();
+
+                CommitStageChoice(hero, stage, option, true);
+
+                if (stage != 3) continue;
+
+                var specs = GetSpecializations(option.Id).ToList();
+                if (specs.Count == 0) continue;
+
+                var spec = specs
+                    .OrderByDescending(x => StableScore(hero.StringId + "|synthetic-spec|" + x.Id))
+                    .ThenBy(x => x.Id, StringComparer.Ordinal)
+                    .First();
+
+                ApplySpecializationStats(hero, option.Id, spec);
+                _specializationChoices[hero.StringId] = spec.Id;
+                KaiRuntimeLog.Write("CHILD_SPECIALIZATION",
+                    $"hero={hero.StringId}; profession={option.Id}; specialization={spec.Id}; ai=true; synthetic=true");
+            }
+
+            if (!TryAssignCareer(hero))
+            {
+                result = "TOR profession package was not applied";
+                return false;
+            }
+
+            _professionChoices.TryGetValue(hero.StringId, out var profession);
+            _specializationChoices.TryGetValue(hero.StringId, out var specialization);
+            result = $"culture={hero.Culture?.StringId ?? "none"}; profession={profession ?? "none"}; specialization={specialization ?? "none"}; career={TorProfessionEffectBridge.GetCurrentCareerId(hero) ?? "none"}";
+            KaiRuntimeLog.Write("CHILD_TOR_FULL_PATH", $"hero={hero.StringId}; {result}");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            result = ex.GetBaseException().Message;
+            KaiRuntimeLog.Exception("CAREER_EFFECT_FAIL", ex, $"hero={hero.StringId}; stage=synthetic_full_path");
+            return false;
+        }
+    }
+
+    public IEnumerable<string> DescribeTorCoverage()
+    {
+        if (!_loaded) LoadTorOptions();
+        if (!_loaded)
+        {
+            yield return "TOR character-creation XML: unavailable.";
+            yield break;
+        }
+
+        var professions = _options.Where(x => x.Stage == 3)
+            .Select(x => x.Id)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x, StringComparer.Ordinal)
+            .ToArray();
+        var missingProfessions = professions.Where(x => !TorProfessionEffectBridge.IsProfessionSupported(x)).ToArray();
+
+        var specializations = _specializations
+            .Select(x => x.Id)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x, StringComparer.Ordinal)
+            .ToArray();
+        var missingSpecializations = specializations.Where(x => !TorProfessionEffectBridge.IsSpecializationSupported(x)).ToArray();
+
+        yield return $"TOR child education: options={_options.Count}; professions={professions.Length}; specializations={specializations.Length}.";
+        yield return missingProfessions.Length == 0
+            ? "Profession personal-effect coverage: COMPLETE."
+            : "Missing professions: " + string.Join(", ", missingProfessions);
+        yield return missingSpecializations.Length == 0
+            ? "Specialization personal-effect coverage: COMPLETE."
+            : "Missing specializations: " + string.Join(", ", missingSpecializations);
+        yield return "Excluded by design: character-creation teleport/spawn, kingdom or clan switching, companion grants, Oak/world unlocks and player-only resources.";
     }
 
     private void LoadTorOptions()
