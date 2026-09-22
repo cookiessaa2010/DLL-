@@ -187,10 +187,27 @@ public sealed class KaiDawiDynastyBehavior : CampaignBehaviorBase
     private int GetReservedFamilySlots()
     {
         var materializedIds = new HashSet<string>(StringComparer.Ordinal);
+        var trackedLivingOrVirtualHeirs = 0;
+
         foreach (var raw in _heirs)
         {
-            if (TryDecode(raw, out _, out _, out _, out var heroId) && !string.IsNullOrWhiteSpace(heroId))
-                materializedIds.Add(heroId);
+            if (!TryDecode(raw, out _, out _, out _, out var heroId))
+                continue;
+
+            if (string.IsNullOrWhiteSpace(heroId))
+            {
+                // A not-yet-materialized Dawi son already reserves one family slot.
+                trackedLivingOrVirtualHeirs++;
+                continue;
+            }
+
+            materializedIds.Add(heroId);
+            var materialized = Hero.AllAliveHeroes.FirstOrDefault(h =>
+                h != null &&
+                string.Equals(h.StringId, heroId, StringComparison.Ordinal));
+
+            if (materialized != null && materialized.IsAlive)
+                trackedLivingOrVirtualHeirs++;
         }
 
         var otherLivingChildren = Hero.MainHero?.Children.Count(h =>
@@ -198,7 +215,7 @@ public sealed class KaiDawiDynastyBehavior : CampaignBehaviorBase
             h.IsAlive &&
             !materializedIds.Contains(h.StringId)) ?? 0;
 
-        return _heirs.Count + otherLivingChildren;
+        return trackedLivingOrVirtualHeirs + otherLivingChildren;
     }
 
     private void TryMaterializeHeirs()
