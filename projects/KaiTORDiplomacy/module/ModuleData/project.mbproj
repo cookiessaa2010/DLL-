@@ -2,5 +2,5 @@
 <base xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
       xmlns:xsd="http://www.w3.org/2001/XMLSchema"
       type="solution">
-  <!-- Core-clean Diplomacy intentionally ships no race skin, skeleton, monster or action-set overrides. -->
+  <!-- Core-clean Diplomacy intentionally ships no race-render override entries. -->
 </base>
