@@ -7,10 +7,10 @@
     <AssemblyName>KaiTOR_Diplomacy</AssemblyName>
     <RootNamespace>KaiTOR.Diplomacy</RootNamespace>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
-    <Version>0.6.6.0</Version>
-    <AssemblyVersion>0.6.6.0</AssemblyVersion>
-    <FileVersion>0.6.6.0</FileVersion>
-    <InformationalVersion>0.6.6.0-CoreClean-DawiAbstractDynasty</InformationalVersion>
+    <Version>0.6.7.0</Version>
+    <AssemblyVersion>0.6.7.0</AssemblyVersion>
+    <FileVersion>0.6.7.0</FileVersion>
+    <InformationalVersion>0.6.7.0-TORChildEducation-DawiAbstractFamily</InformationalVersion>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <OutputPath>..\build\bin\Win64_Shipping_Client\</OutputPath>
     <DebugType>portable</DebugType>
