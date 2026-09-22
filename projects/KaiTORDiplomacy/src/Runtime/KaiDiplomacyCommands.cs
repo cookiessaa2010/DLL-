@@ -131,7 +131,6 @@ public static class KaiDiplomacyCommands
         var family = Campaign.Current.GetCampaignBehavior<KaiFamilyAffairsBehavior>();
         var diplomacy = GetBehavior();
         var culture = Campaign.Current.GetCampaignBehavior<KaiCultureAssimilationBehavior>();
-        var dynastic = Campaign.Current.GetCampaignBehavior<KaiDynasticMarriageBehavior>();
         var incoming = Campaign.Current.GetCampaignBehavior<KaiIncomingMarriageProposalBehavior>();
 
         return C(string.Join("\n", new[]
@@ -142,7 +141,6 @@ public static class KaiDiplomacyCommands
             $"FamilyAffairsBehavior={(family != null ? "OK" : "MISSING")}",
             $"DiplomacyBehavior={(diplomacy != null ? (diplomacy.RuntimeEnabled ? "OK" : "BLOCKED") : "MISSING")}",
             $"CultureAssimilationBehavior={(culture != null ? "OK" : "MISSING")}",
-            $"DynasticMarriageBehavior={(dynastic != null ? "OK" : "MISSING")}",
             $"IncomingMarriageProposalBehavior={(incoming != null ? "OK" : "MISSING")}"
         }));
     }
