@@ -29,9 +29,6 @@ public sealed class KaiDawiDynastyBehavior : CampaignBehaviorBase
     public const int HeirMaturityYears = 4;
     public const int AdultSpawnAge = 30;
     public const int MaximumHeirs = 4;
-    public const int UnionRelationBonus = 20;
-    public const int UnionTrustBonus = 20;
-    public const int UnionNapDays = 180;
 
     private static readonly string[] MaleHeirNames =
     {
@@ -97,7 +94,7 @@ public sealed class KaiDawiDynastyBehavior : CampaignBehaviorBase
             "Между нашими домами пока недостаточно доверия для такого союза.",
             CanRejectUnion,
             () => KaiRuntimeLog.Write(
-                "DAWI_DYNASTIC_UNION_REJECTED",
+                "DAWI_ABSTRACT_UNION_REJECTED",
                 $"playerClan={Clan.PlayerClan?.StringId ?? "null"}; targetClan={Hero.OneToOneConversationHero?.Clan?.StringId ?? "null"}"),
             110,
             null);
@@ -145,39 +142,12 @@ public sealed class KaiDawiDynastyBehavior : CampaignBehaviorBase
         _unionStartDay = CampaignTime.Now.ToDays;
         _nextHeirDay = _unionStartDay + FirstHeirDelayDays;
 
-        if (playerClan.Leader != null && targetClan.Leader != null)
-            ChangeRelationAction.ApplyRelationChangeBetweenHeroes(
-                playerClan.Leader,
-                targetClan.Leader,
-                UnionRelationBonus,
-                true);
-
-        var playerKingdom = playerClan.Kingdom;
-        var targetKingdom = targetClan.Kingdom;
-        var diplomacy = Campaign.Current?.GetCampaignBehavior<KaiDiplomacyBehavior>();
-        var nap = "same_or_no_kingdom";
-
-        if (diplomacy != null &&
-            playerKingdom != null &&
-            targetKingdom != null &&
-            playerKingdom != targetKingdom)
-        {
-            diplomacy.AdjustTrust(playerKingdom, targetKingdom, UnionTrustBonus);
-            nap = diplomacy.EnsureNonAggressionPactAtLeast(
-                    playerKingdom,
-                    targetKingdom,
-                    UnionNapDays,
-                    out var reason)
-                ? "active"
-                : "unavailable:" + reason;
-        }
-
         InformationManager.DisplayMessage(new InformationMessage(
-            $"Брачный союз Dawi заключён между домом {playerClan.Name} и домом {targetClan.Name}."));
+            $"Семейный союз Dawi заключён между домом {playerClan.Name} и домом {targetClan.Name}."));
 
         KaiRuntimeLog.Write(
-            "DAWI_DYNASTIC_UNION",
-            $"playerClan={playerClan.StringId}; targetClan={targetClan.StringId}; relation=+{UnionRelationBonus}; trust=+{UnionTrustBonus}; nap={nap}; firstHeirIn={FirstHeirDelayDays}d");
+            "DAWI_ABSTRACT_UNION",
+            $"playerClan={playerClan.StringId}; targetClan={targetClan.StringId}; diplomaticBonuses=none; firstHeirIn={FirstHeirDelayDays}d");
     }
 
     private void OnDailyTick()
