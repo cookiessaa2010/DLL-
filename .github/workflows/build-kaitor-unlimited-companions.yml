@@ -1,0 +1,50 @@
+name: Build KaiTOR Unlimited Companions
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'kaitor-unlimited-companions/**'
+      - '.github/workflows/build-kaitor-unlimited-companions.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore kaitor-unlimited-companions/src/KaiTOR_UnlimitedCompanions/KaiTOR_UnlimitedCompanions.csproj
+
+      - name: Build
+        run: dotnet build kaitor-unlimited-companions/src/KaiTOR_UnlimitedCompanions/KaiTOR_UnlimitedCompanions.csproj -c Release --no-restore
+
+      - name: Package Workshop module
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="dist/KaiTOR_UnlimitedCompanions"
+          mkdir -p "$ROOT/bin/Win64_Shipping_Client"
+          cp kaitor-unlimited-companions/Module/SubModule.xml "$ROOT/SubModule.xml"
+          cp kaitor-unlimited-companions/src/KaiTOR_UnlimitedCompanions/bin/Release/net472/KaiTOR_UnlimitedCompanions.dll "$ROOT/bin/Win64_Shipping_Client/KaiTOR_UnlimitedCompanions.dll"
+          cd dist
+          zip -r "KaiTOR-UnlimitedCompanions-v1.3.15.01-Workshop.zip" KaiTOR_UnlimitedCompanions
+          sha256sum "KaiTOR-UnlimitedCompanions-v1.3.15.01-Workshop.zip" > "KaiTOR-UnlimitedCompanions-v1.3.15.01-Workshop.zip.sha256"
+
+      - name: Upload Workshop build
+        uses: actions/upload-artifact@v4
+        with:
+          name: KaiTOR-UnlimitedCompanions-v1.3.15.01-Workshop
+          path: |
+            dist/KaiTOR-UnlimitedCompanions-v1.3.15.01-Workshop.zip
+            dist/KaiTOR-UnlimitedCompanions-v1.3.15.01-Workshop.zip.sha256
+          if-no-files-found: error
