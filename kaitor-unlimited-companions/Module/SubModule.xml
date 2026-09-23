@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Module>
+  <Name value="KaiTOR Unlimited Companions" />
+  <Id value="KaiTOR_UnlimitedCompanions" />
+  <Version value="v1.3.15.01" />
+  <DefaultModule value="false" />
+  <ModuleCategory value="Singleplayer" />
+  <DependedModules>
+    <DependedModule Id="Bannerlord.Harmony" />
+    <DependedModule Id="Native" DependentVersion="v1.3.15" />
+    <DependedModule Id="SandBoxCore" DependentVersion="v1.3.15" />
+    <DependedModule Id="Sandbox" DependentVersion="v1.3.15" />
+    <DependedModule Id="StoryMode" DependentVersion="v1.3.15" />
+  </DependedModules>
+  <SubModules>
+    <SubModule>
+      <Name value="KaiTOR Unlimited Companions" />
+      <DLLName value="KaiTOR_UnlimitedCompanions.dll" />
+      <SubModuleClassType value="KaiTOR.UnlimitedCompanions.SubModule" />
+      <Tags>
+        <Tag key="DedicatedServerType" value="none" />
+        <Tag key="IsNoRenderModeElement" value="false" />
+      </Tags>
+    </SubModule>
+  </SubModules>
+</Module>
