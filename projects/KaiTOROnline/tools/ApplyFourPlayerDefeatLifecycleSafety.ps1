@@ -72,7 +72,7 @@ $releaseNew = @'
         Logger.Information("Restored released party {PartyId} for peer {Peer}", party.StringId, peer.Id);
 '@ -replace "`r`n", "`n"
 
-if ($visibility.Contains('hero.PartyBelongedToAsPrisoner != null)') {
+if ($visibility.Contains('hero.PartyBelongedToAsPrisoner != null')) {
     # Do not use this broad marker alone for idempotency: other upstream handlers also inspect it.
     $alreadyHardened = $visibility.Contains(
         'Kept released party {PartyId} parked for controller {ControllerId}: hero is dead, unresolved, or still captive')
