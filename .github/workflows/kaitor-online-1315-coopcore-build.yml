@@ -45,7 +45,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: Bannerlord-Coop-Team/BannerlordCoop
-          ref: 107d1c29ec3dc2d9f2d3a7836ae1691c2391e00c
+          ref: b99b788649917975508a9a92881319cf91f5c7a9
           path: upstream
 
       - name: Setup .NET 8 SDK and .NET 6 runtime
