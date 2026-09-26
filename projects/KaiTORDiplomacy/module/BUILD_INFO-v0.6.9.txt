@@ -1,0 +1,30 @@
+KaiTOR Diplomacy v0.6.9.0
+Profile: STRICT CLEAN
+Bannerlord: 1.3.15.110062
+TOR target: 1.3.15
+
+ACTIVE SYSTEMS
+- Non-aggression pacts, Trust, breach/cooldown handling and native diplomacy integration.
+- Messenger (Encyclopedia button + delayed travel + remote conversation).
+- Settlement nationality/culture conversion, including TOR settlement/service/market refresh.
+- Ordinary marriages and incoming marriage proposals.
+- Race-aware family acceptance/adoption, shared cap 20.
+- Biological children where lore-safe.
+- Full TOR child education / Character Creation path.
+- Dawi abstract house union + adult male heirs.
+- Blood Kiss.
+- Mercy/relation reward for released lords.
+- Runtime/live-test diagnostics and explicit child test commands.
+
+REMOVED / NOT OWNED BY KAITOR
+- Realm House / custom new-clan generation.
+- KaiTOR lord spawning/generation for world population.
+- KaiTOR lord defections/transfers/redistribution.
+- KaiTOR custom aging, visual aging and old-age mortality.
+- Standalone Dynastic Marriage contracts/escrow/trust/alliance timer.
+- Legacy custom KaiTOR Gauntlet diplomacy hub and its UI assets.
+- Duplicate city/castle diplomacy and family-management hub UI.
+
+IMPORTANT
+Settlement nationality conversion is RETAINED.
+UIExtenderEx is RETAINED because the Messenger encyclopedia button uses it.
