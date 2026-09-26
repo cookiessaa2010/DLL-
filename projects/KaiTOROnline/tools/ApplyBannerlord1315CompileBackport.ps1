@@ -161,10 +161,203 @@ Replace-Exact `
         }
 '@
 
-# Keep the current upstream battle reward pipeline intact. Older KaiTOR builds reduced
-# CommitCalculatedMapEventResults to XP-only because Bannerlord 1.3.15 lacks some later convenience
-# methods. That silently drops renown/influence/morale/gold and is no longer acceptable. Any API drift
-# is handled explicitly below or surfaced by the 1.3.15 compiler instead of deleting reward phases.
+# Bannerlord 1.3.15 commits battle rewards through MapEventSide rather than the later
+# per-MapEventParty Commit* convenience methods. Preserve upstream Coop's phase-by-phase safety
+# loop, but backport each phase to the exact 1.3.15 semantics instead of dropping rewards.
+Replace-Exact `
+    'source/GameInterface/Services/MapEvents/Patches/MapEventPatches.cs' `
+    'using TaleWorlds.CampaignSystem;' `
+    "using TaleWorlds.CampaignSystem;\nusing TaleWorlds.CampaignSystem.Actions;"
+
+Replace-Exact `
+    'source/GameInterface/Services/MapEvents/Patches/MapEventPatches.cs' `
+    @'
+    private static readonly Action<MapEventParty>[] CommitResultPhases =
+    {
+        party => party.CommitXpGain(),
+        CommitRenownChanges,
+        party => party.CommitInfluenceChanges(),
+        party => party.CommitMoraleChanges(),
+        party => party.CommitGoldChanges()
+    };
+
+    private readonly record struct MapEventRewardState(List<RemovedMapEventParty> RemovedParties, float[] StrengthOfSide, float[] RenownValues, float[] InfluenceValues);
+
+    private static void CommitRenownChanges(MapEventParty party)
+    {
+        Hero leaderHero = party.Party.LeaderHero;
+        if (CanCommitRenownChanges(leaderHero))
+        {
+            party.CommitRenownChanges();
+            return;
+        }
+
+        if (party.GainedRenown <= 0f)
+            return;
+
+        Logger.Error(
+            "Skipped {Renown} renown for map event party {PartyId} because leader hero {HeroId} has no clan",
+            party.GainedRenown,
+            party.Party.Id,
+            leaderHero.StringId);
+    }
+
+    internal static bool CanCommitRenownChanges(Hero leaderHero) =>
+        leaderHero == null || leaderHero.Clan != null;
+'@ `
+    @'
+    private static readonly Action<MapEventParty>[] CommitResultPhases =
+    {
+        party => party.CommitXpGain(),
+        CommitRenownChanges,
+        CommitInfluenceChanges,
+        CommitMoraleChanges,
+        CommitGoldChanges
+    };
+
+    private readonly record struct MapEventRewardState(List<RemovedMapEventParty> RemovedParties, float[] StrengthOfSide, float[] RenownValues, float[] InfluenceValues);
+
+    private static void CommitRenownChanges(MapEventParty party)
+    {
+        Hero leaderHero = party.Party.LeaderHero;
+        if (leaderHero == null)
+            return;
+
+        if (!CanCommitRenownChanges(leaderHero))
+        {
+            if (party.GainedRenown > 0f)
+            {
+                Logger.Error(
+                    "Skipped {Renown} renown for map event party {PartyId} because leader hero {HeroId} has no clan",
+                    party.GainedRenown,
+                    party.Party.Id,
+                    leaderHero.StringId);
+            }
+            return;
+        }
+
+        if (party.GainedRenown > 0.001f)
+            GainRenownAction.Apply(leaderHero, party.GainedRenown, true);
+    }
+
+    private static void CommitInfluenceChanges(MapEventParty party)
+    {
+        Hero leaderHero = party.Party.LeaderHero;
+        if (leaderHero != null && party.GainedInfluence > 0.001f)
+            GainKingdomInfluenceAction.ApplyForBattle(leaderHero, party.GainedInfluence);
+    }
+
+    private static void CommitMoraleChanges(MapEventParty party)
+    {
+        if (party.Party.MobileParty != null)
+            party.Party.MobileParty.RecentEventsMorale += party.MoraleChange;
+    }
+
+    private static void CommitGoldChanges(MapEventParty party)
+    {
+        var partyBase = party.Party;
+        Hero leaderHero = partyBase.LeaderHero;
+        if (leaderHero != null)
+        {
+            if (party.PlunderedGold > 0)
+                GiveGoldAction.ApplyBetweenCharacters(null, leaderHero, party.PlunderedGold, true);
+
+            if (party.GoldLost > 0)
+                GiveGoldAction.ApplyBetweenCharacters(leaderHero, null, party.GoldLost, true);
+
+            return;
+        }
+
+        if (partyBase.IsMobile && partyBase.MobileParty.IsPartyTradeActive)
+        {
+            partyBase.MobileParty.PartyTradeGold -= party.GoldLost;
+            partyBase.MobileParty.PartyTradeGold += party.PlunderedGold;
+        }
+    }
+
+    internal static bool CanCommitRenownChanges(Hero leaderHero) =>
+        leaderHero == null || leaderHero.Clan != null;
+'@
+
+# The 1.3.15 MapEventSide equivalent has the older name and calculates the same side
+# RenownValue/InfluenceValue inputs after retreated parties have been temporarily removed.
+Replace-Exact `
+    'source/GameInterface/Services/MapEvents/Patches/MapEventPatches.cs' `
+    '            side?.CalculateRenownAndInfluenceValuesOnPartyInvolved(__instance.StrengthOfSide);' `
+    '            side?.CalculateRenownAndInfluenceValues(__instance.StrengthOfSide);'
+
+# Voice key UI compatibility: 1.3.15 GameKeyOptionVM takes (GameKey, request, onKeySet)
+# and predates ExtraInformationText.
+Replace-Exact `
+    'source/GameInterface/Services/UI/CoopOptions/Providers/VoiceTab/Sections/VoicePushToTalkKeyVM.cs' `
+    @'
+            }, null)
+'@ `
+    @'
+            })
+'@
+
+Replace-Exact `
+    'source/GameInterface/Services/UI/CoopOptions/Providers/VoiceTab/Sections/VoicePushToTalkKeyVM.cs' `
+    '        ExtraInformationText = "Controller push-to-talk remains D-pad right.";'`
+    '        // Bannerlord 1.3.15 KeyOptionVM has no ExtraInformationText property.'
+
+# Aging/equipment API compatibility. 1.3.15 returns equipment rosters instead of a direct Equipment.
+Replace-Exact `
+    'source/GameInterface/Services/Heroes/Interfaces/AgingCampaignBehaviorInterface.cs' `
+    @'
+            Equipment battleEquipment = Campaign.Current.Models.EquipmentSelectionModel.GetEquipmentForHeroComeOfAge(hero, Equipment.EquipmentType.Battle);
+            Equipment civilianEquipment = Campaign.Current.Models.EquipmentSelectionModel.GetEquipmentForHeroComeOfAge(hero, Equipment.EquipmentType.Civilian);
+
+            battleEquipment ??= MBEquipmentRosterExtensions.All.Find(x => x.StringId == "generic_bat_dummy").GetBattleEquipments().First<Equipment>();
+            civilianEquipment ??= MBEquipmentRosterExtensions.All.Find(x => x.StringId == "generic_civ_dummy").GetCivilianEquipments().First<Equipment>();
+
+            EquipmentHelper.AssignHeroEquipmentFromEquipment(hero, battleEquipment);
+            EquipmentHelper.AssignHeroEquipmentFromEquipment(hero, civilianEquipment);
+'@ `
+    @'
+            MBList<MBEquipmentRoster> battleRosters =
+                Campaign.Current.Models.EquipmentSelectionModel.GetEquipmentRostersForHeroComeOfAge(hero, false);
+            MBList<MBEquipmentRoster> civilianRosters =
+                Campaign.Current.Models.EquipmentSelectionModel.GetEquipmentRostersForHeroComeOfAge(hero, true);
+
+            if (battleRosters.IsEmpty<MBEquipmentRoster>())
+                battleRosters.Add(MBEquipmentRosterExtensions.All.Find(x => x.StringId == "generic_bat_dummy"));
+            if (civilianRosters.IsEmpty<MBEquipmentRoster>())
+                civilianRosters.Add(MBEquipmentRosterExtensions.All.Find(x => x.StringId == "generic_civ_dummy"));
+
+            Equipment battleEquipment = battleRosters.GetRandomElement<MBEquipmentRoster>().AllEquipments.GetRandomElement<Equipment>();
+            Equipment civilianEquipment = civilianRosters.GetRandomElement<MBEquipmentRoster>().AllEquipments.GetRandomElement<Equipment>();
+
+            EquipmentHelper.AssignHeroEquipmentFromEquipment(hero, battleEquipment);
+            EquipmentHelper.AssignHeroEquipmentFromEquipment(hero, civilianEquipment);
+'@
+
+Replace-Exact `
+    'source/GameInterface/Services/Heroes/Interfaces/AgingCampaignBehaviorInterface.cs' `
+    @'
+        Equipment equipmentForHeroReachesTeenAge = Campaign.Current.Models.EquipmentSelectionModel.GetEquipmentForHeroReachesTeenAge(hero);
+        if (equipmentForHeroReachesTeenAge != null)
+        {
+            EquipmentHelper.AssignHeroEquipmentFromEquipment(hero, equipmentForHeroReachesTeenAge);
+            new Equipment(Equipment.EquipmentType.Battle).FillFrom(equipmentForHeroReachesTeenAge, false);
+            EquipmentHelper.AssignHeroEquipmentFromEquipment(hero, equipmentForHeroReachesTeenAge);
+        }
+'@ `
+    @'
+        MBEquipmentRoster teenRoster =
+            Campaign.Current.Models.EquipmentSelectionModel
+                .GetEquipmentRostersForHeroReachesTeenAge(hero)
+                .GetRandomElementInefficiently<MBEquipmentRoster>();
+        if (teenRoster != null)
+        {
+            Equipment equipmentForHeroReachesTeenAge =
+                teenRoster.GetCivilianEquipments().GetRandomElementInefficiently<Equipment>();
+            EquipmentHelper.AssignHeroEquipmentFromEquipment(hero, equipmentForHeroReachesTeenAge);
+            new Equipment(Equipment.EquipmentType.Battle).FillFrom(equipmentForHeroReachesTeenAge, false);
+            EquipmentHelper.AssignHeroEquipmentFromEquipment(hero, equipmentForHeroReachesTeenAge);
+        }
+'@
 
 # 1.3.15 has no explicit simulation-setup invalidation API; leader replacement followed by the native
 # leader modifier recache is sufficient for the bootstrap path.
@@ -238,6 +431,7 @@ $removeBlock = @'
     <Compile Remove="Services\Kingdoms\Commands\KingdomDebugCommand.cs" />
     <Compile Remove="Services\Workshops\Interfaces\WorkshopsCampaignBehaviorInterface.cs" />
     <Compile Remove="Services\Workshops\Handlers\WorkshopWarehouseHandler.cs" />
+    <Compile Remove="Services\Workshops\Patches\WorkshopsCampaignBehaviorPatches.cs" />
 
     <!-- Companion/party-role APIs changed substantially after 1.3.15. -->
     <Compile Remove="Services\Companions\**\*.cs" />
