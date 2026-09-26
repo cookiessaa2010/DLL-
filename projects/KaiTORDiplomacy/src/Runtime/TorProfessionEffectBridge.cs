@@ -27,6 +27,9 @@ internal static class TorProfessionEffectBridge
     private static Type _torPerks;
     private static Type _spellCastingLevel;
     private static Type _religionObject;
+    private static Type _extendedInfoManager;
+    private static Type _heroExtendedInfo;
+    private static Type _torCampaignEvents;
 
     public static bool IsAvailable => EnsureTypes();
 
@@ -39,19 +42,34 @@ internal static class TorProfessionEffectBridge
         "option_3_empire_free_company",
         "option_3_bretonnia_damsel",
         "option_3_bretonnia_knight_errant",
+        "option_3_bretonnia_yeoman_warden",
+        "option_3_bretonnia_freeman",
+        "option_3_bretonnia_wall_warden",
         "option_3_we_spellsinger",
         "option_3_we_waywatcher",
         "option_3_we_warden",
+        "option_3_we_wardancer",
+        "option_3_we_gladerider",
         "option_3_eo_greylord_apprentice",
         "option_3_eo_ghost_strider",
+        "option_3_eo_envoy",
+        "option_3_eo_kithband_warrior",
+        "option_3_eo_eonir_expatriate",
         "option_3_vc_vampire",
         "option_3_vc_necromancer",
+        "option_3_vc_night_watchman",
+        "option_3_vc_strigany_donmu",
+        "option_3_vc_vagabond",
         "option_3_mousillon_vampire",
         "option_3_mousillon_necromancer",
         "option_3_mousillon_knight_errant",
+        "option_3_mousillon_cordon_runner",
+        "option_3_mousillon_bog_pirate",
         "option_3_dw_shield_breaker",
         "option_3_dw_slayer",
         "option_3_dw_rune_smith",
+        "option_3_dw_engineer",
+        "option_3_dw_ranger",
         "option_3_gs_path_of_boss",
         "option_3_gs_path_of_bully",
         "option_3_gs_path_of_boar_boys",
@@ -100,6 +118,8 @@ internal static class TorProfessionEffectBridge
             error = "TOR reflection types unavailable";
             return false;
         }
+        if (!EnsureHeroExtendedInfo(hero, out error))
+            return false;
 
         try
         {
@@ -148,6 +168,8 @@ internal static class TorProfessionEffectBridge
             error = "TOR reflection types unavailable";
             return false;
         }
+        if (!EnsureHeroExtendedInfo(hero, out error))
+            return false;
 
         try
         {
@@ -261,9 +283,24 @@ internal static class TorProfessionEffectBridge
                     SetCareerSafe(hero, "Waywatcher");
                     break;
                 case "option_3_we_warden":
+                case "option_3_we_wardancer":
+                case "option_3_we_gladerider":
                     SetCareerSafe(hero, "Warden");
                     break;
                 case "option_3_empire_free_company":
+                case "option_3_bretonnia_yeoman_warden":
+                case "option_3_bretonnia_freeman":
+                case "option_3_bretonnia_wall_warden":
+                case "option_3_vc_night_watchman":
+                case "option_3_vc_strigany_donmu":
+                case "option_3_vc_vagabond":
+                case "option_3_mousillon_cordon_runner":
+                case "option_3_mousillon_bog_pirate":
+                case "option_3_eo_envoy":
+                case "option_3_eo_kithband_warrior":
+                case "option_3_eo_eonir_expatriate":
+                case "option_3_dw_engineer":
+                case "option_3_dw_ranger":
                     SetCareerSafe(hero, "Mercenary");
                     break;
                 case "option_3_gs_path_of_boss":
@@ -313,6 +350,8 @@ internal static class TorProfessionEffectBridge
             error = "TOR reflection types unavailable";
             return false;
         }
+        if (!EnsureHeroExtendedInfo(hero, out error))
+            return false;
 
         try
         {
@@ -363,8 +402,23 @@ internal static class TorProfessionEffectBridge
         if (professionId == "option_3_bretonnia_knight_errant") return "GrailKnight";
         if (professionId == "option_3_mousillon_knight_errant") return "BlackGrailKnight";
         if (professionId == "option_3_we_waywatcher" || professionId == "option_3_eo_ghost_strider") return "Waywatcher";
-        if (professionId == "option_3_we_warden") return "Warden";
-        if (professionId == "option_3_empire_free_company") return "Mercenary";
+        if (professionId == "option_3_we_warden" ||
+            professionId == "option_3_we_wardancer" ||
+            professionId == "option_3_we_gladerider") return "Warden";
+        if (professionId == "option_3_empire_free_company" ||
+            professionId == "option_3_bretonnia_yeoman_warden" ||
+            professionId == "option_3_bretonnia_freeman" ||
+            professionId == "option_3_bretonnia_wall_warden" ||
+            professionId == "option_3_vc_night_watchman" ||
+            professionId == "option_3_vc_strigany_donmu" ||
+            professionId == "option_3_vc_vagabond" ||
+            professionId == "option_3_mousillon_cordon_runner" ||
+            professionId == "option_3_mousillon_bog_pirate" ||
+            professionId == "option_3_eo_envoy" ||
+            professionId == "option_3_eo_kithband_warrior" ||
+            professionId == "option_3_eo_eonir_expatriate" ||
+            professionId == "option_3_dw_engineer" ||
+            professionId == "option_3_dw_ranger") return "Mercenary";
         if (professionId == "option_3_gs_path_of_shaman") return "OrcShaman";
         if (!string.IsNullOrWhiteSpace(professionId) && professionId.StartsWith("option_3_gs_path_of_", StringComparison.Ordinal)) return "OrcBoss";
 
@@ -637,6 +691,76 @@ internal static class TorProfessionEffectBridge
         InvokeReligiousInfluence(hero, religion, amount);
     }
 
+    private static bool EnsureHeroExtendedInfo(Hero hero, out string error)
+    {
+        error = string.Empty;
+        if (hero?.CharacterObject == null)
+        {
+            error = "hero/character missing";
+            return false;
+        }
+
+        try
+        {
+            if (GetExtendedInfo(hero) != null)
+                return true;
+
+            var manager = _extendedInfoManager?
+                .GetProperty("Instance", BindingFlags.Public | BindingFlags.Static)?
+                .GetValue(null);
+            if (manager == null)
+            {
+                error = "TOR ExtendedInfoManager.Instance unavailable";
+                return false;
+            }
+
+            var infosField = _extendedInfoManager.GetField(
+                "_heroInfos",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            if (infosField?.GetValue(manager) is not IDictionary infos)
+            {
+                error = "TOR hero ExtendedInfo dictionary unavailable";
+                return false;
+            }
+
+            var ctor = _heroExtendedInfo.GetConstructor(new[] { typeof(CharacterObject) });
+            if (ctor == null)
+            {
+                error = "TOR HeroExtendedInfo constructor unavailable";
+                return false;
+            }
+
+            var info = ctor.Invoke(new object[] { hero.CharacterObject });
+            infos[hero.StringId] = info;
+
+            var events = _torCampaignEvents?
+                .GetField("Instance", BindingFlags.Public | BindingFlags.Static)?
+                .GetValue(null);
+            _torCampaignEvents?
+                .GetMethod("OnHeroExtendedInfoCreated", BindingFlags.Public | BindingFlags.Instance)?
+                .Invoke(events, new object[] { hero });
+
+            // Mirror the safe, target-hero part of TOR ExtendedInfoManager.OnHeroCreated.
+            InvokeHeroExtension("AddCultureSpecificCustomResource", hero, 0f);
+
+            if (GetExtendedInfo(hero) == null)
+            {
+                error = "TOR ExtendedInfo repair did not persist";
+                return false;
+            }
+
+            KaiRuntimeLog.Write(
+                "CHILD_TOR_EXTENDED_INFO_REPAIRED",
+                $"hero={hero.StringId}; culture={hero.Culture?.StringId ?? "none"}");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            error = "TOR ExtendedInfo repair failed: " + ex.GetBaseException().Message;
+            return false;
+        }
+    }
+
     private static object GetExtendedInfo(Hero hero)
     {
         var method = _heroExtensions.GetMethods(BindingFlags.Public | BindingFlags.Static)
@@ -670,6 +794,11 @@ internal static class TorProfessionEffectBridge
         _torPerks = _torAssembly.GetType("TOR_Core.CharacterDevelopment.TORPerks");
         _spellCastingLevel = _torAssembly.GetType("TOR_Core.AbilitySystem.Spells.SpellCastingLevel");
         _religionObject = _torAssembly.GetType("TOR_Core.CampaignMechanics.Religion.ReligionObject");
-        return _heroExtensions != null && _torCareers != null && _torSkills != null && _torPerks != null && _spellCastingLevel != null && _religionObject != null;
+        _extendedInfoManager = _torAssembly.GetType("TOR_Core.Extensions.ExtendedInfoSystem.ExtendedInfoManager");
+        _heroExtendedInfo = _torAssembly.GetType("TOR_Core.Extensions.ExtendedInfoSystem.HeroExtendedInfo");
+        _torCampaignEvents = _torAssembly.GetType("TOR_Core.Utilities.TORCampaignEvents");
+        return _heroExtensions != null && _torCareers != null && _torSkills != null && _torPerks != null &&
+               _spellCastingLevel != null && _religionObject != null && _extendedInfoManager != null &&
+               _heroExtendedInfo != null && _torCampaignEvents != null;
     }
 }
