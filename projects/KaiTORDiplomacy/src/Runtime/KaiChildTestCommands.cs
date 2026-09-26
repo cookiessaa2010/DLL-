@@ -195,13 +195,7 @@ public static class KaiChildTestCommands
             else
                 child.Father = Hero.MainHero;
 
-            var serial = Clan.PlayerClan.Heroes.Count(h =>
-                h != null &&
-                h.IsAlive &&
-                h.Name != null &&
-                h.Name.ToString().StartsWith("TEST ", StringComparison.OrdinalIgnoreCase)) + 1;
-            var name = new TextObject($"TEST {label} Child {serial}");
-            child.SetName(name, name);
+            EnsureLoreFriendlyName(child, templateHero);
 
             KaiRuntimeLog.Write("CHILD_TEST_SPAWN",
                 $"hero={child.StringId}; culture={cultureId}; race={raceId}; age={age}; female={female}; template={templateHero.StringId}; parent={Hero.MainHero.StringId}");
@@ -215,6 +209,106 @@ public static class KaiChildTestCommands
                 $"culture={cultureId}; race={raceId}; age={age}; female={female}");
             return "Spawn failed: " + ex.GetBaseException().Message;
         }
+    }
+
+    internal static int NormalizeTechnicalChildNames()
+    {
+        if (Clan.PlayerClan == null) return 0;
+
+        var renamed = 0;
+        foreach (var hero in Clan.PlayerClan.Heroes
+                     .Where(h => h != null && h.IsAlive && h != Hero.MainHero)
+                     .OrderBy(h => h.StringId, StringComparer.Ordinal))
+        {
+            if (!IsTechnicalChildName(hero?.Name?.ToString())) continue;
+
+            var donor = ResolveNameDonor(hero);
+            if (EnsureLoreFriendlyName(hero, donor))
+                renamed++;
+        }
+
+        return renamed;
+    }
+
+    private static bool EnsureLoreFriendlyName(Hero hero, Hero preferredDonor)
+    {
+        if (hero == null) return false;
+
+        var current = hero.Name?.ToString()?.Trim();
+        if (!string.IsNullOrWhiteSpace(current) && !IsTechnicalChildName(current))
+            return false;
+
+        var donor = preferredDonor;
+        if (donor == null ||
+            donor == hero ||
+            donor.Culture?.StringId != hero.Culture?.StringId ||
+            donor.IsFemale != hero.IsFemale ||
+            IsTechnicalChildName(donor.Name?.ToString()))
+        {
+            donor = ResolveNameDonor(hero);
+        }
+
+        var candidate = donor?.FirstName?.ToString()?.Trim();
+        if (string.IsNullOrWhiteSpace(candidate) || IsTechnicalChildName(candidate))
+            candidate = donor?.Name?.ToString()?.Trim();
+
+        if (string.IsNullOrWhiteSpace(candidate) || IsTechnicalChildName(candidate))
+            return false;
+
+        var oldName = current ?? string.Empty;
+        var name = new TextObject(candidate);
+        hero.SetName(name, name);
+
+        KaiRuntimeLog.Write(
+            "CHILD_NAME_NORMALIZED",
+            $"hero={hero.StringId}; old={oldName}; new={candidate}; culture={hero.Culture?.StringId ?? "none"}; female={hero.IsFemale}; source={donor?.StringId ?? "none"}");
+
+        return true;
+    }
+
+    private static Hero ResolveNameDonor(Hero hero)
+    {
+        if (hero?.Culture == null) return null;
+
+        var candidates = Hero.AllAliveHeroes
+            .Where(h =>
+                h != null &&
+                h != hero &&
+                h.IsAlive &&
+                h.CharacterObject != null &&
+                h.Culture != null &&
+                string.Equals(h.Culture.StringId, hero.Culture.StringId, StringComparison.OrdinalIgnoreCase) &&
+                h.IsFemale == hero.IsFemale &&
+                !IsTechnicalChildName(h.Name?.ToString()) &&
+                !string.IsNullOrWhiteSpace(h.FirstName?.ToString()))
+            .OrderByDescending(h => h.CharacterObject.Race == hero.CharacterObject?.Race)
+            .ThenByDescending(h => h.IsLord)
+            .ThenBy(h => h.StringId, StringComparer.Ordinal)
+            .ToArray();
+
+        if (candidates.Length == 0) return null;
+
+        var hash = 17;
+        foreach (var ch in hero.StringId ?? string.Empty)
+            hash = unchecked(hash * 31 + ch);
+
+        var index = (hash & 0x7fffffff) % candidates.Length;
+        return candidates[index];
+    }
+
+    private static bool IsTechnicalChildName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return true;
+
+        var value = name.Trim();
+        if (value.StartsWith("TEST ", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (value.StartsWith("KaiTOR Child ", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return value.IndexOf(" Child ", StringComparison.OrdinalIgnoreCase) >= 0 &&
+               value.Any(char.IsDigit);
     }
 
     private static Hero ResolveTemplate(string cultureId, bool female)
