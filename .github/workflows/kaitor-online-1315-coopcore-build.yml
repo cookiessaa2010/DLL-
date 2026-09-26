@@ -16,6 +16,8 @@ on:
       - 'projects/KaiTOROnline/tools/ApplyFourPlayerGate.ps1'
       - 'projects/KaiTOROnline/tools/ApplyNetPeerIdentitySafety.ps1'
       - 'projects/KaiTOROnline/tools/ApplySharedMapDiagnostics.ps1'
+      - 'projects/KaiTOROnline/tools/ApplyFourPlayer*.ps1'
+      - 'projects/KaiTOROnline/tools/TestFourPlayer*.ps1'
       - 'projects/KaiTOROnline/tools/AuditManagedAssemblyReferences.ps1'
       - 'projects/KaiTOROnline/tools/Test-KaiTORSteamCompanionContracts.ps1'
       - 'projects/KaiTOROnline/runtime/**'
