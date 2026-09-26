@@ -1,0 +1,109 @@
+name: KaiTOR Diplomacy v0.6.9.1 Child Career Fix Build
+
+on:
+  push:
+    branches:
+      - 'kaitor-diplomacy-child-career-fix-v0.6.9.1'
+    paths:
+      - 'projects/KaiTORDiplomacy/**'
+      - '.github/workflows/kaitor-diplomacy-v0691-build.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build
+        shell: pwsh
+        run: |
+          dotnet build projects/KaiTORDiplomacy/src/KaiTOR_Diplomacy.csproj `
+            -c Release `
+            -p:UseBannerlordReferenceAssemblies=true `
+            --nologo
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Validate child career fix
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = 'projects/KaiTORDiplomacy'
+          $src = Join-Path $root 'src'
+          $runtime = Join-Path $src 'Runtime'
+          $module = Join-Path $root 'module'
+          $dll = Join-Path $root 'build/bin/Win64_Shipping_Client/KaiTOR_Diplomacy.dll'
+
+          if (-not (Test-Path $dll)) { throw "Missing DLL: $dll" }
+
+          $sub = Get-Content (Join-Path $src 'SubModule.cs') -Raw
+          if (-not $sub.Contains('KaiTOR Diplomacy v0.6.9.1 child-career-fix campaign start.')) { throw 'Wrong startup marker.' }
+
+          $bridge = Get-Content (Join-Path $runtime 'TorProfessionEffectBridge.cs') -Raw
+          $professionIds = [regex]::Matches($bridge, '"option_3_[^"]+"') | ForEach-Object { $_.Value.Trim('"') } | Sort-Object -Unique
+          foreach ($required in @(
+            'option_3_eo_envoy',
+            'option_3_eo_kithband_warrior',
+            'option_3_eo_eonir_expatriate',
+            'option_3_dw_engineer',
+            'option_3_dw_ranger',
+            'option_3_we_wardancer',
+            'option_3_we_gladerider',
+            'option_3_vc_night_watchman',
+            'option_3_vc_strigany_donmu',
+            'option_3_vc_vagabond',
+            'option_3_bretonnia_freeman',
+            'option_3_bretonnia_wall_warden',
+            'option_3_bretonnia_yeoman_warden',
+            'option_3_mousillon_bog_pirate',
+            'option_3_mousillon_cordon_runner'
+          )) {
+            if (-not $bridge.Contains($required)) { throw "Missing profession fallback: $required" }
+          }
+          foreach ($required in @(
+            'EnsureHeroExtendedInfo',
+            'CHILD_TOR_EXTENDED_INFO_REPAIRED',
+            'ExtendedInfoManager',
+            'HeroExtendedInfo',
+            'TORCampaignEvents'
+          )) {
+            if (-not $bridge.Contains($required)) { throw "ExtendedInfo repair contract missing: $required" }
+          }
+
+          $xml = Get-Content (Join-Path $module 'SubModule.xml') -Raw
+          if ($xml -notmatch '<Version value="v0\.6\.9\.1"') { throw 'SubModule version mismatch.' }
+
+          $culture = Get-Content (Join-Path $runtime 'KaiCultureAssimilationBehavior.cs') -Raw
+          if (-not $culture.Contains('Сменить народность поселения')) { throw 'Settlement nationality mechanic lost.' }
+
+          if ($sub.Contains('KaiDynasticMarriageBehavior') -or $sub.Contains('KaiDiplomacyHubBehavior')) {
+            throw 'Removed legacy system returned.'
+          }
+
+          Write-Host 'KaiTOR Diplomacy v0.6.9.1 child career contracts: PASS'
+
+      - name: Assemble module
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = 'projects/KaiTORDiplomacy'
+          $package = 'artifact/KaiTOR_Diplomacy'
+          $bin = Join-Path $package 'bin/Win64_Shipping_Client'
+          New-Item -ItemType Directory -Path $bin -Force | Out-Null
+          Copy-Item (Join-Path $root 'module/*') $package -Recurse -Force
+          Copy-Item (Join-Path $root 'build/bin/Win64_Shipping_Client/KaiTOR_Diplomacy.dll') (Join-Path $bin 'KaiTOR_Diplomacy.dll') -Force
+          Copy-Item (Join-Path $root 'build/bin/Win64_Shipping_Client/Bannerlord.UIExtenderEx.dll') (Join-Path $bin 'Bannerlord.UIExtenderEx.dll') -Force
+
+      - name: Upload test module
+        uses: actions/upload-artifact@v4
+        with:
+          name: KaiTOR-Diplomacy-v0.6.9.1-ChildCareerFix-Test
+          path: artifact/KaiTOR_Diplomacy
+          if-no-files-found: error
+          retention-days: 30
