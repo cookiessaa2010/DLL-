@@ -7,10 +7,10 @@
     <AssemblyName>KaiTOR_Diplomacy</AssemblyName>
     <RootNamespace>KaiTOR.Diplomacy</RootNamespace>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
-    <Version>0.6.8.0</Version>
-    <AssemblyVersion>0.6.8.0</AssemblyVersion>
-    <FileVersion>0.6.8.0</FileVersion>
-    <InformationalVersion>0.6.8.0-FamilyCap20-RaceAwareAdoption</InformationalVersion>
+    <Version>0.6.9.0</Version>
+    <AssemblyVersion>0.6.9.0</AssemblyVersion>
+    <FileVersion>0.6.9.0</FileVersion>
+    <InformationalVersion>0.6.9.0-StrictClean</InformationalVersion>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <OutputPath>..\build\bin\Win64_Shipping_Client\</OutputPath>
     <DebugType>portable</DebugType>
@@ -37,13 +37,10 @@
     <Reference Include="TaleWorlds.CampaignSystem"><HintPath>$(BannerlordBin)\TaleWorlds.CampaignSystem.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="TaleWorlds.CampaignSystem.ViewModelCollection"><HintPath>$(BannerlordBin)\TaleWorlds.CampaignSystem.ViewModelCollection.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="TaleWorlds.Core"><HintPath>$(BannerlordBin)\TaleWorlds.Core.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="TaleWorlds.Engine.GauntletUI"><HintPath>$(BannerlordBin)\TaleWorlds.Engine.GauntletUI.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="TaleWorlds.GauntletUI"><HintPath>$(BannerlordBin)\TaleWorlds.GauntletUI.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="TaleWorlds.Library"><HintPath>$(BannerlordBin)\TaleWorlds.Library.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="TaleWorlds.Localization"><HintPath>$(BannerlordBin)\TaleWorlds.Localization.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="TaleWorlds.ModuleManager"><HintPath>$(BannerlordBin)\TaleWorlds.ModuleManager.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="TaleWorlds.MountAndBlade"><HintPath>$(BannerlordBin)\TaleWorlds.MountAndBlade.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="TaleWorlds.ObjectSystem"><HintPath>$(BannerlordBin)\TaleWorlds.ObjectSystem.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="TaleWorlds.ScreenSystem"><HintPath>$(BannerlordBin)\TaleWorlds.ScreenSystem.dll</HintPath><Private>false</Private></Reference>
   </ItemGroup>
 </Project>
