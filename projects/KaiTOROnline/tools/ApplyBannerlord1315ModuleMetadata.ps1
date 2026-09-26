@@ -30,8 +30,11 @@ $props = [IO.File]::ReadAllText($propsPath)
 if ($props.Contains('<CoopVersion>0.1.5</CoopVersion>')) {
     $props = $props.Replace('<CoopVersion>0.1.5</CoopVersion>', '<CoopVersion>1.3.15.13</CoopVersion>')
 }
+elseif ($props.Contains('<CoopVersion>0.1.6</CoopVersion>')) {
+    $props = $props.Replace('<CoopVersion>0.1.6</CoopVersion>', '<CoopVersion>1.3.15.13</CoopVersion>')
+}
 elseif (-not $props.Contains('<CoopVersion>1.3.15.13</CoopVersion>')) {
-    throw 'Expected CoopVersion anchor not found.'
+    throw 'Expected CoopVersion anchor not found (supported upstream: 0.1.5/0.1.6).'
 }
 [IO.File]::WriteAllText($propsPath, $props, [Text.UTF8Encoding]::new($false))
 
