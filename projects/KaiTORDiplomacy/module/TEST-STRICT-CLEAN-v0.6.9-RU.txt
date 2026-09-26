@@ -1,8 +1,8 @@
-KaiTOR Diplomacy v0.6.9.0 — Strict Clean smoke test
+KaiTOR Diplomacy v0.6.9.2 — Strict Clean smoke test
 
 1. Startup
 Expected log marker:
-  KaiTOR Diplomacy v0.6.9.0 strict-clean campaign start.
+  KaiTOR Diplomacy v0.6.9.2 strict-clean campaign start.
 
 2. Diplomacy
 Open native kingdom diplomacy UI.
@@ -30,18 +30,23 @@ Adult male heir materialization + TOR education must work.
 
 6. Child education
 Use kaitor_child.coverage.
-Expected profession and specialization coverage COMPLETE.
+Expected profession and specialization coverage COMPLETE (40/40 profession options; no missing professions).
 Test 8 -> 14 -> 16 -> 18 or kaitor_child.auto_path <heroId>.
 
-7. Blood Kiss
+7. Mercy
+Release a defeated lord deliberately.
+Expected: final direct relation delta is exactly +50 unless capped at +100.
+Log should show actualDelta=50; requestedDelta=50.
+
+8. Blood Kiss
 Verify conversion flow and cooldown.
 
-8. Messenger
+9. Messenger
 Open a Hero encyclopedia page.
 Expected: Отправить гонца button.
 Messenger travel and remote conversation must work.
 
-9. Removed systems
+10. Removed systems
 There must be no:
 - Realm House
 - custom world lord spawn
