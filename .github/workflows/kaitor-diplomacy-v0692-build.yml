@@ -83,7 +83,7 @@ jobs:
           )) {
             if (-not $mercy.Contains($required)) { throw "Mercy exact50 contract missing: $required" }
           }
-          if (-not $mercy.Contains('Math.Clamp')) { throw 'Mercy relation cap handling missing.' }
+          if (-not $mercy.Contains('ClampRelation')) { throw 'Mercy relation cap handling missing.' }
 
           $culture = Get-Content (Join-Path $runtime 'KaiCultureAssimilationBehavior.cs') -Raw
           if (-not $culture.Contains('Сменить народность поселения')) { throw 'Settlement nationality mechanic lost.' }
