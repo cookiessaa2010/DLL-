@@ -1,0 +1,123 @@
+name: KaiTOR Diplomacy v0.6.9.2 Mercy Exact50 Build
+
+on:
+  push:
+    branches:
+      - 'kaitor-diplomacy-mercy-exact50-v0.6.9.2'
+    paths:
+      - 'projects/KaiTORDiplomacy/**'
+      - '.github/workflows/kaitor-diplomacy-v0692-build.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build
+        shell: pwsh
+        run: |
+          dotnet build projects/KaiTORDiplomacy/src/KaiTOR_Diplomacy.csproj `
+            -c Release `
+            -p:UseBannerlordReferenceAssemblies=true `
+            --nologo
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Validate v0.6.9.2 contracts
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = 'projects/KaiTORDiplomacy'
+          $src = Join-Path $root 'src'
+          $runtime = Join-Path $src 'Runtime'
+          $module = Join-Path $root 'module'
+          $dll = Join-Path $root 'build/bin/Win64_Shipping_Client/KaiTOR_Diplomacy.dll'
+
+          if (-not (Test-Path $dll)) { throw "Missing DLL: $dll" }
+
+          $sub = Get-Content (Join-Path $src 'SubModule.cs') -Raw
+          if (-not $sub.Contains('KaiTOR Diplomacy v0.6.9.2 mercy-exact50 campaign start.')) { throw 'Wrong startup marker.' }
+
+          $xml = Get-Content (Join-Path $module 'SubModule.xml') -Raw
+          if ($xml -notmatch '<Version value="v0\.6\.9\.2"') { throw 'SubModule version mismatch.' }
+
+          $bridge = Get-Content (Join-Path $runtime 'TorProfessionEffectBridge.cs') -Raw
+          $professionIds = [regex]::Matches($bridge, '"option_3_[^"]+"') | ForEach-Object { $_.Value.Trim('"') } | Sort-Object -Unique
+          if ($professionIds.Count -lt 40) { throw "Profession bridge coverage under 40: $($professionIds.Count)" }
+          foreach ($required in @(
+            'option_3_eo_kithband_warrior',
+            'option_3_eo_envoy',
+            'option_3_eo_eonir_expatriate',
+            'option_3_dw_engineer',
+            'option_3_dw_ranger',
+            'option_3_we_wardancer',
+            'option_3_we_gladerider',
+            'option_3_vc_night_watchman',
+            'option_3_vc_strigany_donmu',
+            'option_3_vc_vagabond',
+            'option_3_bretonnia_freeman',
+            'option_3_bretonnia_wall_warden',
+            'option_3_bretonnia_yeoman_warden',
+            'option_3_mousillon_bog_pirate',
+            'option_3_mousillon_cordon_runner',
+            'EnsureHeroExtendedInfo',
+            'CHILD_TOR_EXTENDED_INFO_REPAIRED'
+          )) {
+            if (-not $bridge.Contains($required)) { throw "Child career contract missing: $required" }
+          }
+
+          $mercy = Get-Content (Join-Path $runtime 'KaiMercyRelationBehavior.cs') -Raw
+          foreach ($required in @(
+            'NormalizeDirectRelation',
+            'SetPersonalRelation',
+            'relationAfterAction',
+            'requestedTarget',
+            'requestedDelta'
+          )) {
+            if (-not $mercy.Contains($required)) { throw "Mercy exact50 contract missing: $required" }
+          }
+          if (-not $mercy.Contains('Math.Clamp')) { throw 'Mercy relation cap handling missing.' }
+
+          $culture = Get-Content (Join-Path $runtime 'KaiCultureAssimilationBehavior.cs') -Raw
+          if (-not $culture.Contains('Сменить народность поселения')) { throw 'Settlement nationality mechanic lost.' }
+
+          foreach ($forbidden in @(
+            'KaiDynasticMarriageBehavior',
+            'KaiDiplomacyHubBehavior',
+            'KaiRealmHouseBehavior',
+            'KaiWorldMarriageBehavior',
+            'KaiGreenskinPopulationBehavior',
+            'KaiVampirePopulationBehavior',
+            'KaiHeroDeathProbabilityModel'
+          )) {
+            if ($sub.Contains($forbidden)) { throw "Removed system returned: $forbidden" }
+          }
+
+          Write-Host 'KaiTOR Diplomacy v0.6.9.2 contracts: PASS'
+
+      - name: Assemble module
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = 'projects/KaiTORDiplomacy'
+          $package = 'artifact/KaiTOR_Diplomacy'
+          $bin = Join-Path $package 'bin/Win64_Shipping_Client'
+          New-Item -ItemType Directory -Path $bin -Force | Out-Null
+          Copy-Item (Join-Path $root 'module/*') $package -Recurse -Force
+          Copy-Item (Join-Path $root 'build/bin/Win64_Shipping_Client/KaiTOR_Diplomacy.dll') (Join-Path $bin 'KaiTOR_Diplomacy.dll') -Force
+          Copy-Item (Join-Path $root 'build/bin/Win64_Shipping_Client/Bannerlord.UIExtenderEx.dll') (Join-Path $bin 'Bannerlord.UIExtenderEx.dll') -Force
+
+      - name: Upload test module
+        uses: actions/upload-artifact@v4
+        with:
+          name: KaiTOR-Diplomacy-v0.6.9.2-MercyExact50-Test
+          path: artifact/KaiTOR_Diplomacy
+          if-no-files-found: error
+          retention-days: 30
