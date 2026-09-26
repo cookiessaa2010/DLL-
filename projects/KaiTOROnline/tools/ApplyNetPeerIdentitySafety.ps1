@@ -114,16 +114,40 @@ Replace-Exact `
     '    private readonly Dictionary<NetPeer, long> relayRevocationCounts = new Dictionary<NetPeer, long>();' `
     '    private readonly Dictionary<NetPeer, long> relayRevocationCounts = new Dictionary<NetPeer, long>(ReferenceComparer<NetPeer>.Instance);'
 
-# Join catch-up bookkeeping also lives across the reconnect boundary. A replacement peer must not
-# inherit the old peer's catch-up start timestamp, nor be considered the same member of the active set.
-Replace-Exact `
-    'source/Coop.Core/Server/Services/Time/OverloadedPeerManager.cs' `
-    '    private readonly Dictionary<NetPeer, DateTime> joinCatchUpStartedUtc = new Dictionary<NetPeer, DateTime>();' `
-    '    private readonly Dictionary<NetPeer, DateTime> joinCatchUpStartedUtc = new Dictionary<NetPeer, DateTime>(ReferenceComparer<NetPeer>.Instance);'
+# Join catch-up bookkeeping also lives across the reconnect boundary. Newer upstream already
+# hardened this subsystem with ReferenceComparer<T>, bounded join progress and pre-entry
+# backpressure tracking. Only patch the legacy 107d-style fields when they are still present.
+$overloadedPath = Join-Path $UpstreamRoot 'source/Coop.Core/Server/Services/Time/OverloadedPeerManager.cs'
+$overloadedText = [IO.File]::ReadAllText($overloadedPath) -replace "`r`n", "`n"
 
-Replace-Exact `
-    'source/Coop.Core/Server/Services/Time/OverloadedPeerManager.cs' `
-    '        var activePeers = new HashSet<NetPeer>(peers);' `
-    '        var activePeers = new HashSet<NetPeer>(peers, ReferenceComparer<NetPeer>.Instance);'
+$legacyJoinStarted = '    private readonly Dictionary<NetPeer, DateTime> joinCatchUpStartedUtc = new Dictionary<NetPeer, DateTime>();'
+$legacyActivePeers = '        var activePeers = new HashSet<NetPeer>(peers);'
+$newJoinProgressMarker = 'ReferenceComparer<NetPeer>.Instance'
+$newBackpressureMarker = 'preEntryBackpressureStartedUtc'
+
+if ($overloadedText.Contains($legacyJoinStarted)) {
+    Replace-Exact `
+        'source/Coop.Core/Server/Services/Time/OverloadedPeerManager.cs' `
+        $legacyJoinStarted `
+        '    private readonly Dictionary<NetPeer, DateTime> joinCatchUpStartedUtc = new Dictionary<NetPeer, DateTime>(ReferenceComparer<NetPeer>.Instance);'
+}
+elseif ($overloadedText.Contains($newJoinProgressMarker) -and $overloadedText.Contains($newBackpressureMarker)) {
+    Write-Host 'OverloadedPeerManager already uses upstream reference-identity join tracking; no legacy patch required.'
+}
+else {
+    throw 'OverloadedPeerManager uses an unknown join-tracking shape; refusing to guess reconnect semantics.'
+}
+
+# Refresh after a possible legacy replacement.
+$overloadedText = [IO.File]::ReadAllText($overloadedPath) -replace "`r`n", "`n"
+if ($overloadedText.Contains($legacyActivePeers)) {
+    Replace-Exact `
+        'source/Coop.Core/Server/Services/Time/OverloadedPeerManager.cs' `
+        $legacyActivePeers `
+        '        var activePeers = new HashSet<NetPeer>(peers, ReferenceComparer<NetPeer>.Instance);'
+}
+elseif ($overloadedText -match 'new HashSet<NetPeer>\\?\s*\(' -and $overloadedText.Contains('ReferenceComparer<NetPeer>.Instance')) {
+    Write-Host 'OverloadedPeerManager active-peer set is already reference-identity safe.'
+}
 
 Write-Host 'Applied reference-identity semantics to authoritative NetPeer registries and join catch-up tracking.'
