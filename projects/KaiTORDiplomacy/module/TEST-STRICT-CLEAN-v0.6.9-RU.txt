@@ -1,0 +1,51 @@
+KaiTOR Diplomacy v0.6.9.0 — Strict Clean smoke test
+
+1. Startup
+Expected log marker:
+  KaiTOR Diplomacy v0.6.9.0 strict-clean campaign start.
+
+2. Diplomacy
+Open native kingdom diplomacy UI.
+Expected: KaiTOR NAP actions appear in the native diplomacy screen.
+No separate KaiTOR Gauntlet diplomacy hub should open.
+
+3. Settlement nationality
+Enter a player-owned town/castle.
+Expected: "Сменить народность поселения" remains available when its conditions are met.
+Verify culture conversion and TOR service/market refresh.
+
+4. Family
+Tavern district:
+- Human/Necromancer: Принять в семью
+- Elf: Принять в дом
+- Dawi: Признать наследником клана
+- Vampire/Necrarch: Принять в кровный дом
+- Orc/Goblin: Принять в племя
+Shared living child/successor cap: 20.
+
+5. Dawi
+Abstract family union only.
+No female Dawi Hero/assets.
+Adult male heir materialization + TOR education must work.
+
+6. Child education
+Use kaitor_child.coverage.
+Expected profession and specialization coverage COMPLETE.
+Test 8 -> 14 -> 16 -> 18 or kaitor_child.auto_path <heroId>.
+
+7. Blood Kiss
+Verify conversion flow and cooldown.
+
+8. Messenger
+Open a Hero encyclopedia page.
+Expected: Отправить гонца button.
+Messenger travel and remote conversation must work.
+
+9. Removed systems
+There must be no:
+- Realm House
+- custom world lord spawn
+- custom lord transfers/defections
+- custom aging/old-age death
+- Dynastic Marriage
+- old custom KaiTOR diplomacy Gauntlet hub
