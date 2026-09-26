@@ -56,13 +56,13 @@ foreach ($path in @(
     Replace-Exact $path '.SpawnSettings' '.ReinforcementSpawnSettings'
 }
 
-# The later MissionBattleSideSpawnContext reservation counter does not exist in 1.3.15.
-# Allocation refresh is battle-only and is not part of the 0.0.1 shared-map acceptance test;
-# use zero as the bootstrap reservation baseline and restore the exact semantics at the battle milestone.
+# Bannerlord 1.3.15 stores the same reserved-troop counter on MissionAgentSpawnLogic._missionSides
+# rather than the later _battleSideSpawnContexts collection. Preserve the real reservation count so
+# refreshed lifetime quotas do not double-count already reserved reinforcements.
 Replace-Exact `
     'source/Missions/Battles/CoopBattleMissionSpawnHandler.cs' `
     '_missionAgentSpawnLogic._battleSideSpawnContexts[(int)side].ReservedTroopsCount' `
-    '0'
+    '_missionAgentSpawnLogic._missionSides[(int)side].ReservedTroopsCount'
 
 # SaveLoadVM initialization was made async in 1.4.7. In 1.3.15 the base constructor populates
 # the synchronous save groups, so there is no InitializeAsync method to await.
