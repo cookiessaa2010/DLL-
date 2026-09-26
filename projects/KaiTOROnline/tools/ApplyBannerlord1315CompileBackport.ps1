@@ -167,7 +167,7 @@ Replace-Exact `
 Replace-Exact `
     'source/GameInterface/Services/MapEvents/Patches/MapEventPatches.cs' `
     'using TaleWorlds.CampaignSystem;' `
-    "using TaleWorlds.CampaignSystem;\nusing TaleWorlds.CampaignSystem.Actions;"
+    "using TaleWorlds.CampaignSystem;`nusing TaleWorlds.CampaignSystem.Actions;"
 
 Replace-Exact `
     'source/GameInterface/Services/MapEvents/Patches/MapEventPatches.cs' `
