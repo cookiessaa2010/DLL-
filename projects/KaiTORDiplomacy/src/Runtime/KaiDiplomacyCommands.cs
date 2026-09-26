@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using KaiTOR.Diplomacy.Models;
+using KaiTOR.Diplomacy.UI;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.Library;
 
@@ -27,6 +28,8 @@ public static class KaiDiplomacyCommands
             "kaitor_diplomacy.live_test_path",
             "kaitor_diplomacy.live_test_mark <text>",
             "kaitor_diplomacy.save_status",
+            "kaitor_diplomacy.culture_support",
+            "kaitor_diplomacy.settlement",
             "kaitor_diplomacy.kingdoms",
             "kaitor_diplomacy.ledger",
             "kaitor_diplomacy.inspect <kingdomA> <kingdomB>"
@@ -127,13 +130,17 @@ public static class KaiDiplomacyCommands
 
         var family = Campaign.Current.GetCampaignBehavior<KaiFamilyAffairsBehavior>();
         var diplomacy = GetBehavior();
+        var culture = Campaign.Current.GetCampaignBehavior<KaiCultureAssimilationBehavior>();
         var incoming = Campaign.Current.GetCampaignBehavior<KaiIncomingMarriageProposalBehavior>();
 
         return C(string.Join("\n", new[]
         {
             KaiFamilyAffairsBehavior.DescribeUiStatus(),
+            $"GauntletMovie={KaiTORDiplomacyScreen.MovieName}",
+            $"GauntletLayer={KaiTORDiplomacyScreen.LayerName}",
             $"FamilyAffairsBehavior={(family != null ? "OK" : "MISSING")}",
             $"DiplomacyBehavior={(diplomacy != null ? (diplomacy.RuntimeEnabled ? "OK" : "BLOCKED") : "MISSING")}",
+            $"CultureAssimilationBehavior={(culture != null ? "OK" : "MISSING")}",
             $"IncomingMarriageProposalBehavior={(incoming != null ? "OK" : "MISSING")}"
         }));
     }
@@ -185,6 +192,28 @@ public static class KaiDiplomacyCommands
         if (arguments.Count != 0) return "Usage: kaitor_diplomacy.save_status";
         var behavior = GetBehavior();
         return C(behavior?.DescribeSaveCompatibility() ?? "KaiTOR Diplomacy behavior is not loaded.");
+    }
+
+    [CommandLineFunctionality.CommandLineArgumentFunction("culture_support", "kaitor_diplomacy")]
+    public static string CultureSupport(List<string> arguments)
+    {
+        if (arguments.Count != 0) return "Usage: kaitor_diplomacy.culture_support";
+        if (Campaign.Current == null) return "No campaign is active.";
+
+        var behavior = Campaign.Current.GetCampaignBehavior<KaiCultureAssimilationBehavior>();
+        if (behavior == null) return "KaiTOR culture conversion behavior is not loaded.";
+
+        return C("KaiTOR TOR culture support matrix:\n" + string.Join("\n", behavior.DescribeCultureSupport()));
+    }
+
+    [CommandLineFunctionality.CommandLineArgumentFunction("settlement", "kaitor_diplomacy")]
+    public static string SettlementStatus(List<string> arguments)
+    {
+        if (arguments.Count != 0) return "Usage: kaitor_diplomacy.settlement";
+        if (Campaign.Current == null) return "No campaign is active.";
+
+        var behavior = Campaign.Current.GetCampaignBehavior<KaiCultureAssimilationBehavior>();
+        return C(behavior?.DescribeCurrentSettlement() ?? "KaiTOR culture conversion behavior is not loaded.");
     }
 
     [CommandLineFunctionality.CommandLineArgumentFunction("kingdoms", "kaitor_diplomacy")]
