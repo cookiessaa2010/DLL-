@@ -161,52 +161,10 @@ Replace-Exact `
         }
 '@
 
-# The newer co-op result pipeline split result commits into methods that 1.3.15 does not expose.
-# Battles are a later KaiTOR milestone, so retain XP as the only directly available commit phase while
-# keeping the clan-safety helper for callers/tests.
-Replace-Exact `
-    'source/GameInterface/Services/MapEvents/Patches/MapEventPatches.cs' `
-    @'
-    private static readonly Action<MapEventParty>[] CommitResultPhases =
-    {
-        party => party.CommitXpGain(),
-        CommitRenownChanges,
-        party => party.CommitInfluenceChanges(),
-        party => party.CommitMoraleChanges(),
-        party => party.CommitGoldChanges()
-    };
-
-    private static void CommitRenownChanges(MapEventParty party)
-    {
-        Hero leaderHero = party.Party.LeaderHero;
-        if (CanCommitRenownChanges(leaderHero))
-        {
-            party.CommitRenownChanges();
-            return;
-        }
-
-        if (party.GainedRenown <= 0f)
-            return;
-
-        Logger.Error(
-            "Skipped {Renown} renown for map event party {PartyId} because leader hero {HeroId} has no clan",
-            party.GainedRenown,
-            party.Party.Id,
-            leaderHero.StringId);
-    }
-
-    internal static bool CanCommitRenownChanges(Hero leaderHero) =>
-        leaderHero == null || leaderHero.Clan != null;
-'@ `
-    @'
-    private static readonly Action<MapEventParty>[] CommitResultPhases =
-    {
-        party => party.CommitXpGain()
-    };
-
-    internal static bool CanCommitRenownChanges(Hero leaderHero) =>
-        leaderHero == null || leaderHero.Clan != null;
-'@
+# Keep the current upstream battle reward pipeline intact. Older KaiTOR builds reduced
+# CommitCalculatedMapEventResults to XP-only because Bannerlord 1.3.15 lacks some later convenience
+# methods. That silently drops renown/influence/morale/gold and is no longer acceptable. Any API drift
+# is handled explicitly below or surfaced by the 1.3.15 compiler instead of deleting reward phases.
 
 # 1.3.15 has no explicit simulation-setup invalidation API; leader replacement followed by the native
 # leader modifier recache is sufficient for the bootstrap path.
