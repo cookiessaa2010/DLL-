@@ -79,6 +79,32 @@ jobs:
           Write-Host "Pinned SDK: $selected"
           if ($selected -notlike '8.0.*') { throw "Expected .NET 8 SDK, got $selected" }
 
+      - name: Parse KaiTOR PowerShell scripts
+        shell: pwsh
+        run: |
+          $errorsFound = @()
+          Get-ChildItem ./kaitor/projects/KaiTOROnline -Recurse -File -Filter '*.ps1' | ForEach-Object {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              $_.FullName,
+              [ref]$tokens,
+              [ref]$errors) | Out-Null
+            foreach ($parseError in @($errors)) {
+              $errorsFound += [PSCustomObject]@{
+                File = $_.FullName
+                Line = $parseError.Extent.StartLineNumber
+                Column = $parseError.Extent.StartColumnNumber
+                Message = $parseError.Message
+              }
+            }
+          }
+          if ($errorsFound.Count -gt 0) {
+            $errorsFound | Format-Table -AutoSize | Out-String | Write-Host
+            throw "KaiTOR PowerShell syntax validation failed for $($errorsFound.Count) parse error(s)."
+          }
+          Write-Host 'KaiTOR PowerShell syntax validation: PASS.'
+
       - name: Validate standalone campaign-server launch contract
         shell: pwsh
         run: |
