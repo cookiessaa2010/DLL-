@@ -6,6 +6,7 @@ using KaiTOR.Diplomacy.Runtime;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.ComponentInterfaces;
 using TaleWorlds.Core;
+using TaleWorlds.Engine.GauntletUI;
 using TaleWorlds.MountAndBlade;
 
 namespace KaiTOR.Diplomacy;
@@ -22,6 +23,7 @@ public sealed class SubModule : MBSubModuleBase
         base.OnSubModuleLoad();
         try
         {
+            UIConfig.DoNotUseGeneratedPrefabs = true;
             _uiExtender = UIExtender.Create("KaiTOR_Diplomacy");
             _uiExtender.Register(typeof(SubModule).Assembly);
             _uiExtender.Enable();
@@ -49,7 +51,7 @@ public sealed class SubModule : MBSubModuleBase
         base.OnGameStart(game, gameStarterObject);
         if (gameStarterObject is not CampaignGameStarter campaignStarter) return;
 
-        KaiRuntimeLog.Write("STARTUP", "KaiTOR Diplomacy v0.6.9.0 strict-clean campaign start.");
+        KaiRuntimeLog.Write("STARTUP", "KaiTOR Diplomacy v0.6.8.0 family-cap20 campaign start.");
 
         // Family and diplomacy only. TOR/Bannerlord retain ownership of world population,
         // lord/clan generation, clan transitions, visual aging and natural mortality.
@@ -65,6 +67,7 @@ public sealed class SubModule : MBSubModuleBase
         campaignStarter.AddBehavior(new KaiDiplomacyBehavior());
         campaignStarter.AddBehavior(new KaiDiplomacyAiBehavior());
         campaignStarter.AddBehavior(new KaiDiplomacyConversationBehavior());
+        campaignStarter.AddBehavior(new KaiCultureAssimilationBehavior());
         campaignStarter.AddBehavior(new KaiDawiDynastyBehavior());
         campaignStarter.AddBehavior(new KaiFamilyAffairsBehavior());
         campaignStarter.AddBehavior(new KaiIncomingMarriageProposalBehavior());
