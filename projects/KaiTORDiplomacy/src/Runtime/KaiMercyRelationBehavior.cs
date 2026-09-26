@@ -67,10 +67,7 @@ public sealed class KaiMercyRelationBehavior : CampaignBehaviorBase
 
             var relationAfterVanilla = Hero.MainHero.GetRelation(hero);
             var vanillaDelta = relationAfterVanilla - state.RelationBefore;
-            var requestedTarget = Math.Clamp(
-                state.RelationBefore + PostBattleMercyRelationBonus,
-                -100,
-                100);
+            var requestedTarget = ClampRelation(state.RelationBefore + PostBattleMercyRelationBonus);
             var topUp = Math.Max(0, requestedTarget - relationAfterVanilla);
 
             if (topUp > 0)
@@ -111,12 +108,15 @@ public sealed class KaiMercyRelationBehavior : CampaignBehaviorBase
         }
     }
 
+    private static int ClampRelation(int value)
+        => Math.Max(-100, Math.Min(100, value));
+
     private static int NormalizeDirectRelation(Hero hero, int targetRelation)
     {
         if (hero == null || Hero.MainHero == null)
             return 0;
 
-        targetRelation = Math.Clamp(targetRelation, -100, 100);
+        targetRelation = ClampRelation(targetRelation);
 
         // Set from the same side that GetRelation() is read from.
         Hero.MainHero.SetPersonalRelation(hero, targetRelation);
@@ -161,10 +161,7 @@ public sealed class KaiMercyRelationBehavior : CampaignBehaviorBase
             return;
 
         var relationBefore = Hero.MainHero?.GetRelation(prisoner) ?? 0;
-        var requestedTarget = Math.Clamp(
-            relationBefore + PostBattleMercyRelationBonus,
-            -100,
-            100);
+        var requestedTarget = ClampRelation(relationBefore + PostBattleMercyRelationBonus);
         var requestedActionDelta = Math.Max(0, requestedTarget - relationBefore);
 
         if (requestedActionDelta > 0)
