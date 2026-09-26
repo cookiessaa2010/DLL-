@@ -100,6 +100,7 @@ public sealed class KaiLiveTestBehavior : CampaignBehaviorBase
 
         var diplomacy = Campaign.Current.GetCampaignBehavior<KaiDiplomacyBehavior>();
         var family = Campaign.Current.GetCampaignBehavior<KaiFamilyAffairsBehavior>();
+        var culture = Campaign.Current.GetCampaignBehavior<KaiCultureAssimilationBehavior>();
         var incoming = Campaign.Current.GetCampaignBehavior<KaiIncomingMarriageProposalBehavior>();
         var education = Campaign.Current.GetCampaignBehavior<KaiLoreEducationBehavior>();
         var bloodKiss = Campaign.Current.GetCampaignBehavior<KaiBloodKissBehavior>();
@@ -108,7 +109,7 @@ public sealed class KaiLiveTestBehavior : CampaignBehaviorBase
 
         yield return
             $"section=behaviors; diplomacy={State(diplomacy != null, diplomacy?.RuntimeEnabled == true)}; " +
-            $"family={Present(family)}; " +
+            $"family={Present(family)}; culture={Present(culture)}; " +
             $"incomingMarriage={Present(incoming)}; education={Present(education)}; bloodKiss={Present(bloodKiss)}; " +
             $"mercy={Present(mercy)}; dawiDynasty={Present(dawiDynasty)}";
 
@@ -148,6 +149,9 @@ public sealed class KaiLiveTestBehavior : CampaignBehaviorBase
             foreach (var line in dawiDynasty.DescribeStatus())
                 yield return "section=dawi_dynasty; " + line;
         }
+
+        if (culture != null)
+            yield return "section=settlement_culture; " + culture.DescribeCurrentSettlement();
 
         yield return
             $"section=counts; kingdoms={Kingdom.All.Count(k => k != null && !k.IsEliminated)}; " +
