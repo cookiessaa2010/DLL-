@@ -382,9 +382,9 @@ Replace-Exact `
             contributionRate);
 '@
 
-# The public helper used by the newer siege aftermath implementation does not exist in 1.3.15.
-# Keep an empty contribution table during the 0.0.1 shared-map bootstrap; real siege result semantics
-# are restored when the battle milestone is backported.
+# 1.3.15 computes siege aftermath contribution through MapEvent.GetBattleRewards instead of
+# SiegeAftermathCampaignBehavior.GetLootPercentagesOfPartiesOnSideForSiegeAftermath. Mirror the
+# native 1.3.15 OnMapEventEnded loop so army gold/morale distribution keeps real contributions.
 Replace-Exact `
     'source/GameInterface/Services/SiegeEvents/Patches/SiegeAftermathPatches.cs' `
     @'
@@ -398,8 +398,23 @@ Replace-Exact `
         }
 '@ `
     @'
-        // Bannerlord 1.3.15 exposes no equivalent public contribution helper.
         var contributions = new Dictionary<MobileParty, float>();
+        foreach (MapEventParty mapEventParty in mapEvent.PartiesOnSide(battleSide))
+        {
+            mapEvent.GetBattleRewards(
+                mapEventParty.Party,
+                out float _,
+                out float __,
+                out float ___,
+                out float ____,
+                out float contribution);
+
+            if (mapEventParty.Party.IsMobile &&
+                !contributions.ContainsKey(mapEventParty.Party.MobileParty))
+            {
+                contributions.Add(mapEventParty.Party.MobileParty, contribution);
+            }
+        }
 '@
 
 # The upstream SDK-style GameInterface project still carries legacy GUID/Name metadata on its
