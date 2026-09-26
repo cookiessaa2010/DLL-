@@ -1,4 +1,4 @@
-KaiTOR Diplomacy v0.6.9.0
+KaiTOR Diplomacy v0.6.9.2
 Profile: STRICT CLEAN
 Bannerlord: 1.3.15.110062
 TOR target: 1.3.15
@@ -10,10 +10,10 @@ ACTIVE SYSTEMS
 - Ordinary marriages and incoming marriage proposals.
 - Race-aware family acceptance/adoption, shared cap 20.
 - Biological children where lore-safe.
-- Full TOR child education / Character Creation path.
+- Full TOR child education / Character Creation path, including all 40 known stage-3 profession options and ExtendedInfo repair for generated children.
 - Dawi abstract house union + adult male heirs.
 - Blood Kiss.
-- Mercy/relation reward for released lords.
+- Mercy/relation reward for deliberately released lords, normalized to exact +50 total relation where the -100..100 cap allows.
 - Runtime/live-test diagnostics and explicit child test commands.
 
 REMOVED / NOT OWNED BY KAITOR
