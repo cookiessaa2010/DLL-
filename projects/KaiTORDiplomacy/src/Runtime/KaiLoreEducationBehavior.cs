@@ -71,6 +71,10 @@ public sealed class KaiLoreEducationBehavior : CampaignBehaviorBase
     private void OnSessionLaunched(CampaignGameStarter starter)
     {
         LoadTorOptions();
+
+        var renamed = KaiChildTestCommands.NormalizeTechnicalChildNames();
+        if (renamed > 0)
+            KaiRuntimeLog.Write("CHILD_NAME_MIGRATION", $"renamed={renamed}");
     }
 
     private void OnChildEducationCompleted(Hero child, int age)
