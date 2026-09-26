@@ -1,0 +1,131 @@
+name: KaiTOR Diplomacy v0.6.9.0 Strict Clean Build
+
+on:
+  push:
+    branches:
+      - 'kaitor-diplomacy-strict-clean-v0.6.9'
+    paths:
+      - 'projects/KaiTORDiplomacy/**'
+      - '.github/workflows/kaitor-diplomacy-v069-build.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build
+        shell: pwsh
+        run: |
+          dotnet build projects/KaiTORDiplomacy/src/KaiTOR_Diplomacy.csproj `
+            -c Release `
+            -p:UseBannerlordReferenceAssemblies=true `
+            --nologo
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Validate strict-clean contracts
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = 'projects/KaiTORDiplomacy'
+          $src = Join-Path $root 'src'
+          $runtime = Join-Path $src 'Runtime'
+          $module = Join-Path $root 'module'
+          $dll = Join-Path $root 'build/bin/Win64_Shipping_Client/KaiTOR_Diplomacy.dll'
+
+          if (-not (Test-Path $dll)) { throw "Missing DLL: $dll" }
+
+          $sub = Get-Content (Join-Path $src 'SubModule.cs') -Raw
+          if (-not $sub.Contains('KaiTOR Diplomacy v0.6.9.0 strict-clean campaign start.')) { throw 'Wrong startup marker.' }
+
+          foreach ($required in @(
+            'new KaiCultureAssimilationBehavior()',
+            'new KaiDawiDynastyBehavior()',
+            'new KaiFamilyAffairsBehavior()',
+            'new KaiIncomingMarriageProposalBehavior()',
+            'new KaiLoreEducationBehavior()',
+            'new KaiBloodKissBehavior()',
+            'new KaiMercyRelationBehavior()',
+            'new KaiMessengerBehavior()'
+          )) {
+            if (-not $sub.Contains($required)) { throw "Required behavior missing: $required" }
+          }
+
+          foreach ($forbidden in @(
+            'KaiDynasticMarriageBehavior',
+            'RealmHouse',
+            'LordSpawn',
+            'LordDefection',
+            'LordTransfer',
+            'VisualAge',
+            'OldAgeDeath',
+            'KaiDiplomacyHubBehavior',
+            'UIConfig.DoNotUseGeneratedPrefabs'
+          )) {
+            $hits = Get-ChildItem $src -Recurse -File -Include *.cs | Select-String -SimpleMatch $forbidden
+            if ($hits) { throw "Forbidden legacy system remains: $forbidden" }
+          }
+
+          foreach ($obsolete in @(
+            'src/UI/KaiTORDiplomacyScreen.cs',
+            'src/UI/KaiTORDiplomacyVM.cs',
+            'src/UI/KaiDiplomacyKingdomItemVM.cs',
+            'src/UI/KaiTORDiplomacyUiText.cs',
+            'module/GUI/Prefabs/KaiTORDiplomacyHubUIMovie.xml'
+          )) {
+            if (Test-Path (Join-Path $root $obsolete)) { throw "Obsolete hub asset remains: $obsolete" }
+          }
+
+          $culture = Get-Content (Join-Path $runtime 'KaiCultureAssimilationBehavior.cs') -Raw
+          if (-not $culture.Contains('Сменить народность поселения')) { throw 'Settlement nationality mechanic was lost.' }
+          if (-not $culture.Contains('TryChangeCultureImmediately')) { throw 'Settlement culture conversion backend missing.' }
+
+          $commands = Get-Content (Join-Path $runtime 'KaiDiplomacyCommands.cs') -Raw
+          if ($commands.Contains('KaiTORDiplomacyScreen')) { throw 'Legacy screen command reference remains.' }
+          if (-not $commands.Contains('culture_support') -or -not $commands.Contains('settlement')) {
+            throw 'Culture diagnostics were lost.'
+          }
+
+          $family = Get-Content (Join-Path $runtime 'KaiFamilyAffairsBehavior.cs') -Raw
+          if (-not $family.Contains('MaximumLivingChildren = KaiFamilyLimits.MaximumLivingChildren')) { throw 'Family cap regression.' }
+
+          $limits = Get-Content (Join-Path $src 'Models/KaiFamilyLimits.cs') -Raw
+          if (-not $limits.Contains('MaximumLivingChildren = 20')) { throw 'Family cap is not 20.' }
+
+          $education = Get-Content (Join-Path $runtime 'KaiLoreEducationBehavior.cs') -Raw
+          if (-not $education.Contains('ApplySyntheticFullTorPath')) { throw 'TOR child education regression.' }
+
+          $messenger = Get-Content (Join-Path $runtime 'KaiMessengerEncyclopediaUI.cs') -Raw
+          if (-not $messenger.Contains('Отправить гонца')) { throw 'Messenger UI regression.' }
+
+          $moduleXml = Get-Content (Join-Path $module 'SubModule.xml') -Raw
+          if ($moduleXml -notmatch '<Version value="v0\.6\.9\.0"') { throw 'SubModule version mismatch.' }
+
+          Write-Host 'KaiTOR Diplomacy v0.6.9.0 STRICT CLEAN contracts: PASS'
+
+      - name: Assemble module
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = 'projects/KaiTORDiplomacy'
+          $package = 'artifact/KaiTOR_Diplomacy'
+          $bin = Join-Path $package 'bin/Win64_Shipping_Client'
+          New-Item -ItemType Directory -Path $bin -Force | Out-Null
+          Copy-Item (Join-Path $root 'module/*') $package -Recurse -Force
+          Copy-Item (Join-Path $root 'build/bin/Win64_Shipping_Client/KaiTOR_Diplomacy.dll') (Join-Path $bin 'KaiTOR_Diplomacy.dll') -Force
+          Copy-Item (Join-Path $root 'build/bin/Win64_Shipping_Client/Bannerlord.UIExtenderEx.dll') (Join-Path $bin 'Bannerlord.UIExtenderEx.dll') -Force
+
+      - name: Upload test module
+        uses: actions/upload-artifact@v4
+        with:
+          name: KaiTOR-Diplomacy-v0.6.9.0-StrictClean-Test
+          path: artifact/KaiTOR_Diplomacy
+          if-no-files-found: error
+          retention-days: 30
