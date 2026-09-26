@@ -77,34 +77,37 @@ if ($joinLeave.Contains($unsafeLeave)) {
     throw 'Legacy battle-leave path is still present: client PartyId reaches removal without ownership validation.'
 }
 
-# Exit isolation: a remote teardown must first resolve the exact live peer to a persistent player,
-# then to that player's authoritative MobileParty, and finally prove membership in this MapEvent.
-# Bannerlord 1.3.15 exposes InvolvedParties but not the later single-argument FindMapEventParty API.
+# Exit isolation: preserve upstream finalize handling, but require an additional participant-ownership
+# gate after the MapEvent is resolved. The host-election guard may remain earlier in the method;
+# participant membership is the fail-closed backstop for stale/unknown peers and hostless events.
 Require-Text $finalize `
-    'if (!playerManager.TryGetPlayer(requester, out var requestingPlayer))' `
+    'if (!playerManager.TryGetPlayer(requester, out var finalizingPlayer))' `
     'Mission finalize does not reject unknown/stale NetPeer requesters.'
 Require-Text $finalize `
-    '!objectManager.TryGetObject<MobileParty>(requestingPlayer.MobilePartyId, out var requestingParty)' `
+    '!objectManager.TryGetObject<MobileParty>(' `
     'Mission finalize does not resolve the requester authoritative MobileParty.'
+Require-Text $finalize `
+    'finalizingPlayer.MobilePartyId' `
+    'Mission finalize does not bind membership to the requester registered MobileParty.'
 Require-Text $finalize `
     'mapEvent.InvolvedParties == null' `
     'Mission finalize does not guard missing authoritative MapEvent membership.'
 Require-Text $finalize `
-    '!mapEvent.InvolvedParties.Contains(requestingParty.Party)' `
+    '!mapEvent.InvolvedParties.Contains(finalizingParty.Party)' `
     'Mission finalize does not reject players outside the target MapEvent using the 1.3.15 API.'
 Require-Text $finalize `
-    'if (hostRegistry.TryGet(payload.What.MapEventId, out var hostAssignment)' `
-    'Mission finalize no longer enforces the elected battle host when one exists.'
+    'if (requester != null && hostRegistry.TryGet(payload.What.MapEventId, out var hostAssignment)' `
+    'Mission finalize no longer preserves upstream elected-host enforcement.'
 Require-Text $finalize `
     'requestingPlayer.ControllerId != hostAssignment.HostControllerId' `
     'Mission finalize host ownership comparison is missing.'
 
-$legacyBypass = @'
-if (requester != null && hostRegistry.TryGet(payload.What.MapEventId, out var hostAssignment)
-            && playerManager.TryGetPlayer(requester, out var requestingPlayer)
-'@ -replace "`r`n", "`n"
-if ($finalize.Contains($legacyBypass)) {
-    throw 'Legacy finalize authorization is still present: an unknown NetPeer can bypass the host check.'
+$mapResolveIndex = $finalize.IndexOf('if (!objectManager.TryGetObjectWithLogging(payload.What.MapEventId, out MapEvent mapEvent))', [StringComparison]::Ordinal)
+$participantGateIndex = $finalize.IndexOf('if (!playerManager.TryGetPlayer(requester, out var finalizingPlayer))', [StringComparison]::Ordinal)
+$membershipIndex = $finalize.IndexOf('!mapEvent.InvolvedParties.Contains(finalizingParty.Party)', [StringComparison]::Ordinal)
+if ($mapResolveIndex -lt 0 -or $participantGateIndex -lt 0 -or $membershipIndex -lt 0 -or
+    $mapResolveIndex -gt $participantGateIndex -or $participantGateIndex -gt $membershipIndex) {
+    throw 'Mission finalize participant ownership must execute after MapEvent resolution and before finalization.'
 }
 
 Write-Host 'KaiTOR four-player mission enter/leave/exit isolation staging: PASS'
