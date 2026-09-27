@@ -1,4 +1,4 @@
-name: Build KaiTOR Unlimited Companions
+name: Build Kai TOR Unlimited Companions
 
 on:
   pull_request:
@@ -28,7 +28,7 @@ jobs:
       - name: Build
         run: dotnet build kaitor-unlimited-companions/src/KaiTOR_UnlimitedCompanions/KaiTOR_UnlimitedCompanions.csproj -c Release --no-restore
 
-      - name: Package Workshop module
+      - name: Package module
         shell: bash
         run: |
           set -euo pipefail
@@ -37,14 +37,14 @@ jobs:
           cp kaitor-unlimited-companions/Module/SubModule.xml "$ROOT/SubModule.xml"
           cp kaitor-unlimited-companions/src/KaiTOR_UnlimitedCompanions/bin/Release/net472/KaiTOR_UnlimitedCompanions.dll "$ROOT/bin/Win64_Shipping_Client/KaiTOR_UnlimitedCompanions.dll"
           cd dist
-          zip -r "KaiTOR-UnlimitedCompanions-v1.3.15.01-Workshop.zip" KaiTOR_UnlimitedCompanions
-          sha256sum "KaiTOR-UnlimitedCompanions-v1.3.15.01-Workshop.zip" > "KaiTOR-UnlimitedCompanions-v1.3.15.01-Workshop.zip.sha256"
+          zip -r "KaiTOR-UnlimitedCompanions-v1.3.15.05-Workshop.zip" KaiTOR_UnlimitedCompanions
+          sha256sum "KaiTOR-UnlimitedCompanions-v1.3.15.05-Workshop.zip" > "KaiTOR-UnlimitedCompanions-v1.3.15.05-Workshop.zip.sha256"
 
-      - name: Upload Workshop build
+      - name: Upload build
         uses: actions/upload-artifact@v4
         with:
-          name: KaiTOR-UnlimitedCompanions-v1.3.15.01-Workshop
+          name: KaiTOR-UnlimitedCompanions-v1.3.15.05-Workshop
           path: |
-            dist/KaiTOR-UnlimitedCompanions-v1.3.15.01-Workshop.zip
-            dist/KaiTOR-UnlimitedCompanions-v1.3.15.01-Workshop.zip.sha256
+            dist/KaiTOR-UnlimitedCompanions-v1.3.15.05-Workshop.zip
+            dist/KaiTOR-UnlimitedCompanions-v1.3.15.05-Workshop.zip.sha256
           if-no-files-found: error
