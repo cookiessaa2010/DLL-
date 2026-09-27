@@ -1,9 +1,9 @@
-name: KaiTOR Diplomacy v0.6.9.3 Live Fix Build
+name: Kai TOR Diplomacy v0.6.9.4 Dialogue Fix Build
 
 on:
   push:
     branches:
-      - 'kaitor-diplomacy-livefix-v0.6.9.3'
+      - 'kaitor-diplomacy-dialogue-fix-v0.6.9.4'
     paths:
       - 'projects/KaiTORDiplomacy/**'
       - '.github/workflows/kaitor-diplomacy-v0693-build.yml'
@@ -42,7 +42,7 @@ jobs:
           if (-not (Test-Path $dll)) { throw "Missing DLL: $dll" }
 
           $sub = Get-Content (Join-Path $src 'SubModule.cs') -Raw
-          if (-not $sub.Contains('KaiTOR Diplomacy v0.6.9.3 live-fix campaign start.')) { throw 'Wrong startup marker.' }
+          if (-not $sub.Contains('Kai TOR Diplomacy v0.6.9.4 dialogue-fix campaign start.')) { throw 'Wrong startup marker.' }
 
           $marriage = Get-Content (Join-Path $runtime 'KaiIncomingMarriageProposalBehavior.cs') -Raw
           foreach ($required in @(
@@ -79,9 +79,9 @@ jobs:
           if (-not $culture.Contains('Сменить народность поселения')) { throw 'Settlement culture conversion lost.' }
 
           $xml = Get-Content (Join-Path $module 'SubModule.xml') -Raw
-          if ($xml -notmatch '<Version value="v0\.6\.9\.3"') { throw 'SubModule version mismatch.' }
+          if ($xml -notmatch '<Version value="v0\.6\.9\.4"') { throw 'SubModule version mismatch.' }
 
-          Write-Host 'KaiTOR Diplomacy v0.6.9.3 live-test fix contracts: PASS'
+          Write-Host 'Kai TOR Diplomacy v0.6.9.4 dialogue fix contracts: PASS'
 
       - name: Assemble module
         shell: pwsh
@@ -98,7 +98,7 @@ jobs:
       - name: Upload test module
         uses: actions/upload-artifact@v4
         with:
-          name: KaiTOR-Diplomacy-v0.6.9.3-LiveFix-Test
+          name: KaiTOR-Diplomacy-v0.6.9.4-DialogueFix-Test
           path: artifact/KaiTOR_Diplomacy
           if-no-files-found: error
           retention-days: 30
