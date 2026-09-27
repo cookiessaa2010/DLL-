@@ -98,7 +98,7 @@ public sealed class KaiIncomingMarriageProposalBehavior : CampaignBehaviorBase
             return;
 
         CleanupCooldowns();
-        var proposal = FindBestProposal();
+        var proposal = FindBestProposal(ignoreCooldown: false, preferredMember: null);
         if (proposal == null)
             return;
 
@@ -114,7 +114,51 @@ public sealed class KaiIncomingMarriageProposalBehavior : CampaignBehaviorBase
         TryPresentPendingOffer();
     }
 
-    private Proposal FindBestProposal()
+    internal bool QueueTestProposal(out string report)
+    {
+        report = string.Empty;
+
+        if (Campaign.Current == null || Clan.PlayerClan == null || Hero.MainHero == null)
+        {
+            report = "No campaign/player clan is active.";
+            return false;
+        }
+
+        if (HasPendingOffer)
+        {
+            KaiRuntimeLog.Write(
+                "AI_MARRIAGE_TEST_REPLACE_PENDING",
+                $"member={_pendingMemberId}; target={_pendingTargetId}; clan={_pendingClanId}");
+            ClearPending();
+        }
+
+        var proposal = FindBestProposal(ignoreCooldown: true, preferredMember: Hero.MainHero);
+        if (proposal == null)
+        {
+            report = "No valid incoming marriage pair was found for the player clan.";
+            KaiRuntimeLog.Write("AI_MARRIAGE_TEST_FAILED", "reason=no_valid_pair");
+            return false;
+        }
+
+        _pendingMemberId = proposal.Member.StringId;
+        _pendingTargetId = proposal.Target.StringId;
+        _pendingClanId = proposal.TargetClan.StringId;
+
+        KaiRuntimeLog.Write(
+            "AI_MARRIAGE_TEST_QUEUED",
+            $"clan={proposal.TargetClan.StringId}; member={proposal.Member.StringId}; target={proposal.Target.StringId}; score={proposal.Score}; preferredMainHero={proposal.Member == Hero.MainHero}");
+
+        var canPresent = CanPresentNow();
+        TryPresentPendingOffer();
+
+        report = canPresent
+            ? $"Test marriage proposal queued/opened: {proposal.TargetClan.Name}; {proposal.Member.Name} <-> {proposal.Target.Name}."
+            : $"Test marriage proposal queued: {proposal.TargetClan.Name}; {proposal.Member.Name} <-> {proposal.Target.Name}. It will open when the campaign is in a safe state.";
+
+        return true;
+    }
+
+    private Proposal FindBestProposal(bool ignoreCooldown, Hero preferredMember)
     {
         var playerClan = Clan.PlayerClan;
         var model = Campaign.Current?.Models?.MarriageModel;
@@ -131,7 +175,8 @@ public sealed class KaiIncomingMarriageProposalBehavior : CampaignBehaviorBase
                         (h == Hero.MainHero || h.IsLord) &&
                         h.CanMarry() &&
                         model.IsSuitableForMarriage(h))
-            .OrderBy(h => h.StringId, StringComparer.Ordinal)
+            .OrderByDescending(h => preferredMember != null && h == preferredMember)
+            .ThenBy(h => h.StringId, StringComparer.Ordinal)
             .ToArray();
 
         Proposal best = null;
@@ -139,7 +184,7 @@ public sealed class KaiIncomingMarriageProposalBehavior : CampaignBehaviorBase
                      .Where(IsEligibleOfferingClan)
                      .OrderBy(c => c.StringId, StringComparer.Ordinal))
         {
-            if (GetCooldown(clan.StringId) > CampaignTime.Now.ToDays)
+            if (!ignoreCooldown && GetCooldown(clan.StringId) > CampaignTime.Now.ToDays)
                 continue;
             if (FactionManager.IsAtWarAgainstFaction(playerClan.MapFaction, clan.MapFaction))
                 continue;
