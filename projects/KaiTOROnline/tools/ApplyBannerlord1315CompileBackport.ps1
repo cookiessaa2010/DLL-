@@ -362,6 +362,14 @@ Replace-Exact `
         }
 '@
 
+# Player captivity hook changed name/visibility in 1.3.15: the same native capture loop is
+# MapEvent.LootDefeatedPartyMembers(MBReadOnlyList<MapEventParty>, MBReadOnlyList<MapEventParty>).
+# Harmony may target the private method by name; prefix parameters are unchanged.
+Replace-Exact `
+    'source/GameInterface/Services/PlayerCaptivityService/Patches/PlayerStartCaptivityPatches.cs' `
+    '[HarmonyPatch(typeof(MapEvent), nameof(MapEvent.CaptureDefeatedPartyMembers))]' `
+    '[HarmonyPatch(typeof(MapEvent), "LootDefeatedPartyMembers")]'
+
 # Core battle spawn patches use type names introduced after 1.3.15. The same responsibilities
 # live on MissionAgentSpawnLogic and its nested MissionSide in 1.3.15; publicized references expose
 # the private engine members these Harmony patches already require.
