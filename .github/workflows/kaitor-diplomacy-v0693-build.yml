@@ -1,0 +1,104 @@
+name: KaiTOR Diplomacy v0.6.9.3 Live Fix Build
+
+on:
+  push:
+    branches:
+      - 'kaitor-diplomacy-livefix-v0.6.9.3'
+    paths:
+      - 'projects/KaiTORDiplomacy/**'
+      - '.github/workflows/kaitor-diplomacy-v0693-build.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build
+        shell: pwsh
+        run: |
+          dotnet build projects/KaiTORDiplomacy/src/KaiTOR_Diplomacy.csproj `
+            -c Release `
+            -p:UseBannerlordReferenceAssemblies=true `
+            --nologo
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Validate live-test fixes
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = 'projects/KaiTORDiplomacy'
+          $src = Join-Path $root 'src'
+          $runtime = Join-Path $src 'Runtime'
+          $module = Join-Path $root 'module'
+          $dll = Join-Path $root 'build/bin/Win64_Shipping_Client/KaiTOR_Diplomacy.dll'
+          if (-not (Test-Path $dll)) { throw "Missing DLL: $dll" }
+
+          $sub = Get-Content (Join-Path $src 'SubModule.cs') -Raw
+          if (-not $sub.Contains('KaiTOR Diplomacy v0.6.9.3 live-fix campaign start.')) { throw 'Wrong startup marker.' }
+
+          $marriage = Get-Content (Join-Path $runtime 'KaiIncomingMarriageProposalBehavior.cs') -Raw
+          foreach ($required in @(
+            'QueueTestProposal',
+            'AI_MARRIAGE_TEST_QUEUED',
+            'ignoreCooldown: true',
+            'preferredMember: Hero.MainHero'
+          )) {
+            if (-not $marriage.Contains($required)) { throw "Marriage test path missing: $required" }
+          }
+
+          $commands = Get-Content (Join-Path $runtime 'KaiMarriageCommands.cs') -Raw
+          if (-not $commands.Contains('test_marriage_offer')) { throw 'Marriage test console command missing.' }
+
+          $mercy = Get-Content (Join-Path $runtime 'KaiMercyRelationBehavior.cs') -Raw
+          foreach ($required in @(
+            'PostBattleReleaseRelationGain = 15',
+            'SetPersonalRelation(Hero.MainHero, desiredRelation)',
+            'affectRelatives=False'
+          )) {
+            if (-not $mercy.Contains($required)) { throw "Release relation fix missing: $required" }
+          }
+          if ($mercy.Contains('PostBattleMercyRelationBonus = 50') -or $mercy.Contains('affectRelatives: true')) {
+            throw 'Legacy +50/relative propagation still present.'
+          }
+
+          $child = Get-Content (Join-Path $runtime 'KaiChildTestCommands.cs') -Raw
+          if (-not $child.Contains('NormalizeTechnicalChildNames')) { throw 'Child-name fix lost.' }
+
+          $bridge = Get-Content (Join-Path $runtime 'TorProfessionEffectBridge.cs') -Raw
+          if (-not $bridge.Contains('EnsureHeroExtendedInfo')) { throw 'Child-career fix lost.' }
+
+          $culture = Get-Content (Join-Path $runtime 'KaiCultureAssimilationBehavior.cs') -Raw
+          if (-not $culture.Contains('Сменить народность поселения')) { throw 'Settlement culture conversion lost.' }
+
+          $xml = Get-Content (Join-Path $module 'SubModule.xml') -Raw
+          if ($xml -notmatch '<Version value="v0\.6\.9\.3"') { throw 'SubModule version mismatch.' }
+
+          Write-Host 'KaiTOR Diplomacy v0.6.9.3 live-test fix contracts: PASS'
+
+      - name: Assemble module
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = 'projects/KaiTORDiplomacy'
+          $package = 'artifact/KaiTOR_Diplomacy'
+          $bin = Join-Path $package 'bin/Win64_Shipping_Client'
+          New-Item -ItemType Directory -Path $bin -Force | Out-Null
+          Copy-Item (Join-Path $root 'module/*') $package -Recurse -Force
+          Copy-Item (Join-Path $root 'build/bin/Win64_Shipping_Client/KaiTOR_Diplomacy.dll') (Join-Path $bin 'KaiTOR_Diplomacy.dll') -Force
+          Copy-Item (Join-Path $root 'build/bin/Win64_Shipping_Client/Bannerlord.UIExtenderEx.dll') (Join-Path $bin 'Bannerlord.UIExtenderEx.dll') -Force
+
+      - name: Upload test module
+        uses: actions/upload-artifact@v4
+        with:
+          name: KaiTOR-Diplomacy-v0.6.9.3-LiveFix-Test
+          path: artifact/KaiTOR_Diplomacy
+          if-no-files-found: error
+          retention-days: 30
