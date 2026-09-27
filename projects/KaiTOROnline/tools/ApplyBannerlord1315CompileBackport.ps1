@@ -442,6 +442,51 @@ $resultsText = $resultsText.Replace(
     $staticWinnerCall,
     'mapEvent.FindWinnerPartyToGetCurrentLootObjectBasedOnChances(')
 
+
+# Four loot helpers did not previously need the MapEvent because newer Bannerlord exposed the
+# recipient selector as static. In 1.3.15 it is an instance method, so thread the authoritative
+# MapEvent through those helper calls explicitly.
+$resultsText = $resultsText.Replace(
+    'LootDefeatedPartyCasualties(winnerParties, defeatedParties, winnerPlayerParties, winningSideIncludesPlayers, playerLootData.LootedItems);',
+    'LootDefeatedPartyCasualties(mapEvent, winnerParties, defeatedParties, winnerPlayerParties, winningSideIncludesPlayers, playerLootData.LootedItems);')
+$resultsText = $resultsText.Replace(
+    'LootDefeatedPartyItems(winnerParties, defeatedParties, playerLootData.LootedItems);',
+    'LootDefeatedPartyItems(mapEvent, winnerParties, defeatedParties, playerLootData.LootedItems);')
+$resultsText = $resultsText.Replace(
+    'LootDefeatedPartyPrisoners(winnerParties, defeatedParties, playerLootData.LootedMembers);',
+    'LootDefeatedPartyPrisoners(mapEvent, winnerParties, defeatedParties, playerLootData.LootedMembers);')
+
+$resultsText = $resultsText.Replace(
+    @'
+    private void LootDefeatedPartyCasualties(
+        MBReadOnlyList<MapEventParty> winnerParties,
+'@ -replace "`r`n", "`n",
+    @'
+    private void LootDefeatedPartyCasualties(
+        MapEvent mapEvent,
+        MBReadOnlyList<MapEventParty> winnerParties,
+'@ -replace "`r`n", "`n")
+$resultsText = $resultsText.Replace(
+    @'
+    private void LootDefeatedPartyItems(
+        MBReadOnlyList<MapEventParty> winnerParties,
+'@ -replace "`r`n", "`n",
+    @'
+    private void LootDefeatedPartyItems(
+        MapEvent mapEvent,
+        MBReadOnlyList<MapEventParty> winnerParties,
+'@ -replace "`r`n", "`n")
+$resultsText = $resultsText.Replace(
+    @'
+    private void LootDefeatedPartyPrisoners(
+        MBReadOnlyList<MapEventParty> winnerParties,
+'@ -replace "`r`n", "`n",
+    @'
+    private void LootDefeatedPartyPrisoners(
+        MapEvent mapEvent,
+        MBReadOnlyList<MapEventParty> winnerParties,
+'@ -replace "`r`n", "`n")
+
 $modernCapture = @'
         MBList<KeyValuePair<MapEventParty, float>> woundedCaptureChances;
         MBList<KeyValuePair<MapEventParty, float>> healthyCaptureChances;
