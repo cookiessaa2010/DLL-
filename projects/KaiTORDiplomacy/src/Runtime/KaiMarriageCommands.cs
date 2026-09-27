@@ -9,6 +9,23 @@ namespace KaiTOR.Diplomacy.Runtime;
 
 public static class KaiMarriageCommands
 {
+    [CommandLineFunctionality.CommandLineArgumentFunction("test_marriage_offer", "kaitor_diplomacy")]
+    public static string TestMarriageOffer(List<string> arguments)
+    {
+        if (arguments.Count != 0)
+            return "Usage: kaitor_diplomacy.test_marriage_offer";
+        if (Campaign.Current == null)
+            return "No campaign is active.";
+
+        var behavior = Campaign.Current.GetCampaignBehavior<KaiIncomingMarriageProposalBehavior>();
+        if (behavior == null)
+            return "KaiIncomingMarriageProposalBehavior is not loaded.";
+
+        return behavior.QueueTestProposal(out var report)
+            ? report
+            : "Test marriage proposal failed: " + report;
+    }
+
     [CommandLineFunctionality.CommandLineArgumentFunction("marriage_status", "kaitor_diplomacy")]
     public static string MarriageStatus(List<string> arguments)
     {
