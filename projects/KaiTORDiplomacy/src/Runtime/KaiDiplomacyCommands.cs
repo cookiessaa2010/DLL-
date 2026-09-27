@@ -22,6 +22,7 @@ public static class KaiDiplomacyCommands
             "kaitor_diplomacy.family_rules",
             "kaitor_diplomacy.ui_status",
             "kaitor_diplomacy.ui_family",
+            "kaitor_diplomacy.test_marriage_offer",
             "kaitor_diplomacy.live_test_start",
             "kaitor_diplomacy.live_test_snapshot",
             "kaitor_diplomacy.live_test_path",
