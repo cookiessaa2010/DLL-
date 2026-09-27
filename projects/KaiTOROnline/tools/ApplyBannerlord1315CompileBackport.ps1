@@ -456,36 +456,44 @@ $resultsText = $resultsText.Replace(
     'LootDefeatedPartyPrisoners(winnerParties, defeatedParties, playerLootData.LootedMembers);',
     'LootDefeatedPartyPrisoners(mapEvent, winnerParties, defeatedParties, playerLootData.LootedMembers);')
 
-$resultsText = $resultsText.Replace(
-    @'
+$casualtiesSignatureOld = @'
     private void LootDefeatedPartyCasualties(
         MBReadOnlyList<MapEventParty> winnerParties,
-'@ -replace "`r`n", "`n",
-    @'
+'@ -replace "`r`n", "`n"
+$casualtiesSignatureNew = @'
     private void LootDefeatedPartyCasualties(
         MapEvent mapEvent,
         MBReadOnlyList<MapEventParty> winnerParties,
-'@ -replace "`r`n", "`n")
-$resultsText = $resultsText.Replace(
-    @'
+'@ -replace "`r`n", "`n"
+$itemsSignatureOld = @'
     private void LootDefeatedPartyItems(
         MBReadOnlyList<MapEventParty> winnerParties,
-'@ -replace "`r`n", "`n",
-    @'
+'@ -replace "`r`n", "`n"
+$itemsSignatureNew = @'
     private void LootDefeatedPartyItems(
         MapEvent mapEvent,
         MBReadOnlyList<MapEventParty> winnerParties,
-'@ -replace "`r`n", "`n")
-$resultsText = $resultsText.Replace(
-    @'
+'@ -replace "`r`n", "`n"
+$prisonersSignatureOld = @'
     private void LootDefeatedPartyPrisoners(
         MBReadOnlyList<MapEventParty> winnerParties,
-'@ -replace "`r`n", "`n",
-    @'
+'@ -replace "`r`n", "`n"
+$prisonersSignatureNew = @'
     private void LootDefeatedPartyPrisoners(
         MapEvent mapEvent,
         MBReadOnlyList<MapEventParty> winnerParties,
-'@ -replace "`r`n", "`n")
+'@ -replace "`r`n", "`n"
+
+foreach ($signaturePair in @(
+    @($casualtiesSignatureOld, $casualtiesSignatureNew),
+    @($itemsSignatureOld, $itemsSignatureNew),
+    @($prisonersSignatureOld, $prisonersSignatureNew)
+)) {
+    if (-not $resultsText.Contains($signaturePair[0])) {
+        throw "Expected loot-helper signature not found: $($signaturePair[0])"
+    }
+    $resultsText = $resultsText.Replace($signaturePair[0], $signaturePair[1])
+}
 
 $modernCapture = @'
         MBList<KeyValuePair<MapEventParty, float>> woundedCaptureChances;
