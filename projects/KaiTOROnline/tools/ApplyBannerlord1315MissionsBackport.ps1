@@ -64,6 +64,29 @@ Replace-Exact `
     '_missionAgentSpawnLogic._battleSideSpawnContexts[(int)side].ReservedTroopsCount' `
     '_missionAgentSpawnLogic._missionSides[(int)side].ReservedTroopsCount'
 
+# Hideout ambush APIs drifted after 1.3.15. The older IMissionAgentSpawnLogic exposes a
+# parameterless GetReinforcementInterval(), and LocateTheMainCampObjective/Objectives namespace
+# did not exist yet. Keep the cooperative hideout controller but omit only the newer objective UI.
+Replace-Exact `
+    'source/Missions/Hideouts/CoopHideoutNativeControllers.cs' `
+    'using SandBox.Missions.MissionLogics.Hideout.Objectives;' `
+    ''
+
+Replace-Exact `
+    'source/Missions/Hideouts/CoopHideoutNativeControllers.cs' `
+    '    public float GetReinforcementInterval(BattleSideEnum side = BattleSideEnum.None) => 0f;' `
+    '    public float GetReinforcementInterval() => 0f;'
+
+Replace-Exact `
+    'source/Missions/Hideouts/CoopHideoutNativeControllers.cs' `
+    @'
+            _locateTheMainCampObjective = new LocateTheMainCampObjective(Mission);
+            _missionObjectiveLogic.StartObjective(_locateTheMainCampObjective);
+'@ `
+    @'
+            // Bannerlord 1.3.15 predates LocateTheMainCampObjective; native hideout state remains authoritative.
+'@
+
 # SaveLoadVM initialization was made async in 1.4.7. In 1.3.15 the base constructor populates
 # the synchronous save groups, so there is no InitializeAsync method to await.
 Replace-Exact `
