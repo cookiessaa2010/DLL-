@@ -90,12 +90,15 @@ Replace-Exact `
 # Mission.InitialPlayerAgent/_initialPlayerAgent were introduced after 1.3.15. On 1.3.15,
 # MainAgent is the authoritative local player-agent slot. Preserve the same guards and promotion
 # behavior using MainAgent, which native deployment already consumes on this branch.
-foreach ($path in @(
-    'source/Missions/Battles/PuppetSpawner.cs',
-    'source/Missions/Battles/CoopBattleMissionSpawnHandler.cs'
-)) {
-    Replace-Exact $path 'Mission.Current.InitialPlayerAgent' 'Mission.Current.MainAgent'
-}
+Replace-Exact `
+    'source/Missions/Battles/PuppetSpawner.cs' `
+    'Mission.Current.InitialPlayerAgent' `
+    'Mission.Current.MainAgent'
+
+Replace-Exact `
+    'source/Missions/Battles/CoopBattleMissionSpawnHandler.cs' `
+    'mission.InitialPlayerAgent' `
+    'mission.MainAgent'
 Replace-Exact `
     'source/Missions/Battles/BattleAuthorityMigrator.cs' `
     @'
