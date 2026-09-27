@@ -477,26 +477,8 @@ $removeBlock = @'
     <Compile Remove="Services\HeroDevelopers\Patches\ResetSkillsPatches.cs" />
     <Compile Remove="Services\Heroes\Patches\HeroFieldPatches.cs" />
 
-    <!-- Battle/encounter result pipeline is a later milestone. Shared utility contracts that are
-         also referenced by campaign-map registries stay compiled until a 1.3.15-specific adapter
-         proves they must be replaced. -->
-    <Compile Remove="Services\MapEventParties\MapEventPartySync.cs" />
-    <Compile Remove="Services\MapEventComponents\Handlers\RaidProductionRewardsHandler.cs" />
-    <Compile Remove="Services\MapEvents\Interfaces\PlayerEncounterInterface.cs" />
-    <Compile Remove="Services\MapEvents\Interfaces\MapEventResultsInterface.cs" />
-    <Compile Remove="Services\MapEvents\Handlers\MapEventResultsHandler.cs" />
-    <Compile Remove="Services\MapEvents\Handlers\BattleSimulationRunHandler.cs" />
-    <Compile Remove="Services\MapEvents\Patches\PlayerEncounterPatches.cs" />
-    <Compile Remove="Services\MapEvents\Patches\BattleModeEncounterOptionsPatch.cs" />
-    <Compile Remove="Services\MapEventSides\Patches\MapEventSideDestructionPatches.cs" />
-
-    <!-- Battle-only hooks using post-1.3.15 spawn APIs; battle networking is out of scope for 0.0.1. -->
-    <Compile Remove="Services\MapEvents\Patches\BattleSpawnDiagnosticPatch.cs" />
-    <Compile Remove="Services\MapEvents\Patches\BattleTroopSupplierInjectionPatch.cs" />
-    <Compile Remove="Services\MapEvents\Patches\CoopBattleDepletionPatch.cs" />
-    <Compile Remove="Services\MapEvents\Patches\CoopEmptyTeamDeploymentPatch.cs" />
-    <Compile Remove="Services\MapEvents\Patches\MissionSpawnCapacityPatch.cs" />
-    <Compile Remove="Services\MapEventParties\Patches\MapEventPartyPatches.cs" />
+    <!-- Core battle/encounter synchronization is retained on 1.3.15. Any API drift in these
+         surfaces must be adapted explicitly above; silently compiling them out hides runtime defects. -->
   </ItemGroup>
 '@
 
@@ -516,4 +498,4 @@ $projectText = $projectText.Replace('</Project>', "$removeBlock`n</Project>")
 [IO.File]::WriteAllText($fullProjectPath, $projectText, [Text.UTF8Encoding]::new($false))
 
 Write-Host 'Applied KaiTOR Bannerlord 1.3.15 GameInterface compile backport.'
-Write-Host 'Campaign-map core retained; post-1.3.15/battle-only systems are conditionally disabled for 0.0.1.'
+Write-Host 'Bannerlord 1.3.15 backport applied with core battle/encounter synchronization retained.'
