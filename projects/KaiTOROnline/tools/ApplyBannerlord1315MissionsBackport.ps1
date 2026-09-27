@@ -87,6 +87,97 @@ Replace-Exact `
             // Bannerlord 1.3.15 predates LocateTheMainCampObjective; native hideout state remains authoritative.
 '@
 
+# Mission.InitialPlayerAgent/_initialPlayerAgent were introduced after 1.3.15. On 1.3.15,
+# MainAgent is the authoritative local player-agent slot. Preserve the same guards and promotion
+# behavior using MainAgent, which native deployment already consumes on this branch.
+foreach ($path in @(
+    'source/Missions/Battles/PuppetSpawner.cs',
+    'source/Missions/Battles/CoopBattleMissionSpawnHandler.cs'
+)) {
+    Replace-Exact $path 'Mission.Current.InitialPlayerAgent' 'Mission.Current.MainAgent'
+}
+Replace-Exact `
+    'source/Missions/Battles/BattleAuthorityMigrator.cs' `
+    @'
+            if (mission.InitialPlayerAgent == null)
+                mission._initialPlayerAgent = agent;
+'@ `
+    @'
+            // Bannerlord 1.3.15 has no separate InitialPlayerAgent slot; MainAgent is assigned below.
+'@
+
+# 1.3.15 hideout ambush keeps prior allies and boss identity in older fields and builds its enemy
+# origin list in the base constructor. Adapt the cooperative wrapper to that exact state shape.
+Replace-Exact `
+    'source/Missions/Hideouts/CoopHideoutNativeControllers.cs' `
+    'using TaleWorlds.CampaignSystem;' `
+    "using TaleWorlds.CampaignSystem;`nusing TaleWorlds.CampaignSystem.Roster;"
+
+Replace-Exact `
+    'source/Missions/Hideouts/CoopHideoutNativeControllers.cs' `
+    @'
+    private readonly CoopHideoutMissionLogic coop;
+    private bool locationListenerRegistered;
+
+    public CoopHideoutAmbushController(CoopHideoutMissionLogic coop, IMissionTroopSupplier[] suppliers)
+        : base(suppliers, BattleSideEnum.Attacker, 0) => this.coop = coop;
+'@ `
+    @'
+    private readonly CoopHideoutMissionLogic coop;
+    private readonly IMissionTroopSupplier[] coopSuppliers;
+    private bool locationListenerRegistered;
+
+    public CoopHideoutAmbushController(CoopHideoutMissionLogic coop, IMissionTroopSupplier[] suppliers)
+        : base(BattleSideEnum.Attacker, new FlattenedTroopRoster())
+    {
+        this.coop = coop;
+        coopSuppliers = suppliers;
+    }
+'@
+
+Replace-Exact `
+    'source/Missions/Hideouts/CoopHideoutNativeControllers.cs' `
+    '    public IEnumerable<IAgentOriginBase> GetAllTroopsForSide(BattleSideEnum side) => _suppliers[(int)side].GetAllTroops();' `
+    '    public IEnumerable<IAgentOriginBase> GetAllTroopsForSide(BattleSideEnum side) => coopSuppliers[(int)side].GetAllTroops();'
+
+Replace-Exact `
+    'source/Missions/Hideouts/CoopHideoutNativeControllers.cs' `
+    @'
+        _playerTroopCount = coop.Attacker.NumTroopsNotSupplied;
+        InitializeTroops();
+'@ `
+    @'
+        // The 1.3.15 base constructor already initialized enemy origins. Cooperative player
+        // reserves are supplied by CoopHideoutMissionLogic instead of the native prior-allies list.
+'@
+
+Replace-Exact `
+    'source/Missions/Hideouts/CoopHideoutNativeControllers.cs' `
+    '_overriddenHideoutBossAgentOrigin' `
+    '_overriddenHideoutBossCharacterObject'
+
+Replace-Exact `
+    'source/Missions/Hideouts/CoopHideoutNativeControllers.cs' `
+    '_playerPriorTroops' `
+    '_priorAllyTroops'
+
+# The clear-objective tracking collection was added later; 1.3.15 has no equivalent state to mutate.
+Replace-Exact `
+    'source/Missions/Hideouts/CoopHideoutNativeControllers.cs' `
+    @'
+        else
+            _clearObjectiveTargetAgents.Remove(affectedAgent);
+'@ `
+    @'
+        // 1.3.15 has no _clearObjectiveTargetAgents collection for the main-agent removal path.
+'@
+
+# 1.3.15 Mission.SpawnTroop includes forceDismounted immediately before position/direction.
+Replace-Exact `
+    'source/Missions/Hideouts/CoopHideoutMissionLogic.cs' `
+    '            var agent = Mission.SpawnTroop(origin, true, true, false, false, 0, 0, true, true, position, direction);' `
+    '            var agent = Mission.SpawnTroop(origin, true, true, false, false, 0, 0, true, true, false, position, direction);'
+
 # SaveLoadVM initialization was made async in 1.4.7. In 1.3.15 the base constructor populates
 # the synchronous save groups, so there is no InitializeAsync method to await.
 Replace-Exact `
