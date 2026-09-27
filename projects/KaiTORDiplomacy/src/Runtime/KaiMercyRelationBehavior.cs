@@ -1,7 +1,6 @@
 using System;
 using HarmonyLib;
 using TaleWorlds.CampaignSystem;
-using TaleWorlds.CampaignSystem.Actions;
 using TaleWorlds.CampaignSystem.CampaignBehaviors;
 using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.Core;
@@ -10,14 +9,15 @@ using TaleWorlds.Localization;
 namespace KaiTOR.Diplomacy.Runtime;
 
 /// <summary>
-/// Guarantees a total +50 relation gain for the player's deliberate mercy choice
-/// when releasing a defeated lord. Bannerlord 1.3.15 normally grants +4 in the
-/// two lord-conversation release consequences; we top that path up to +50.
+/// Guarantees a total +15 personal relation gain with the released lord for the
+/// player's deliberate post-battle release choice. Bannerlord/TOR usually grants
+/// a smaller vanilla gain first; KaiTOR only tops the final personal relation up
+/// to +15 total. Relatives and the target clan are intentionally not affected.
 /// A separate ReleasedByChoice fallback covers releases made outside those dialogs.
 /// </summary>
 public sealed class KaiMercyRelationBehavior : CampaignBehaviorBase
 {
-    public const int PostBattleMercyRelationBonus = 50;
+    public const int PostBattleReleaseRelationGain = 15;
 
     private static int _dialogReleaseDepth;
 
@@ -65,26 +65,21 @@ public sealed class KaiMercyRelationBehavior : CampaignBehaviorBase
 
             var relationAfterVanilla = Hero.MainHero.GetRelation(hero);
             var vanillaDelta = relationAfterVanilla - state.RelationBefore;
-            var topUp = Math.Max(0, PostBattleMercyRelationBonus - vanillaDelta);
+            var desiredRelation = Math.Min(100, state.RelationBefore + PostBattleReleaseRelationGain);
 
-            if (topUp > 0)
-            {
-                ChangeRelationAction.ApplyPlayerRelation(
-                    hero,
-                    topUp,
-                    affectRelatives: true,
-                    showQuickNotification: false);
-            }
+            if (relationAfterVanilla < desiredRelation)
+                hero.SetPersonalRelation(Hero.MainHero, desiredRelation);
 
             var relationAfter = Hero.MainHero.GetRelation(hero);
             var actualDelta = relationAfter - state.RelationBefore;
+            var topUp = relationAfter - relationAfterVanilla;
 
             KaiRuntimeLog.Write(
                 "MERCY_RELEASE",
-                $"hero={hero.StringId}; name={hero.Name}; source={source}; relationBefore={state.RelationBefore}; relationAfterVanilla={relationAfterVanilla}; vanillaDelta={vanillaDelta}; topUp={topUp}; relationAfter={relationAfter}; actualDelta={actualDelta}; targetDelta={PostBattleMercyRelationBonus}");
+                $"hero={hero.StringId}; name={hero.Name}; source={source}; relationBefore={state.RelationBefore}; relationAfterVanilla={relationAfterVanilla}; vanillaDelta={vanillaDelta}; topUp={topUp}; relationAfter={relationAfter}; actualDelta={actualDelta}; targetDelta={PostBattleReleaseRelationGain}; affectRelatives=False");
 
             MBInformationManager.AddQuickInformation(
-                new TextObject($"{hero.Name}: милосердие +{actualDelta} к отношениям."),
+                new TextObject($"{hero.Name}: отношения +{actualDelta}."),
                 2500,
                 hero.CharacterObject,
                 null,
@@ -128,22 +123,20 @@ public sealed class KaiMercyRelationBehavior : CampaignBehaviorBase
             return;
 
         var relationBefore = Hero.MainHero?.GetRelation(prisoner) ?? 0;
+        var desiredRelation = Math.Min(100, relationBefore + PostBattleReleaseRelationGain);
 
-        ChangeRelationAction.ApplyPlayerRelation(
-            prisoner,
-            PostBattleMercyRelationBonus,
-            affectRelatives: true,
-            showQuickNotification: false);
+        if (relationBefore < desiredRelation)
+            prisoner.SetPersonalRelation(Hero.MainHero, desiredRelation);
 
         var relationAfter = Hero.MainHero?.GetRelation(prisoner) ?? relationBefore;
         var actualDelta = relationAfter - relationBefore;
 
         KaiRuntimeLog.Write(
             "MERCY_RELEASE",
-            $"hero={prisoner.StringId}; name={prisoner.Name}; source=ReleasedByChoiceEvent; detail={detail}; relationBefore={relationBefore}; relationAfter={relationAfter}; actualDelta={actualDelta}; targetDelta={PostBattleMercyRelationBonus}");
+            $"hero={prisoner.StringId}; name={prisoner.Name}; source=ReleasedByChoiceEvent; detail={detail}; relationBefore={relationBefore}; relationAfter={relationAfter}; actualDelta={actualDelta}; targetDelta={PostBattleReleaseRelationGain}; affectRelatives=False");
 
         MBInformationManager.AddQuickInformation(
-            new TextObject($"{prisoner.Name}: милосердие +{actualDelta} к отношениям."),
+            new TextObject($"{prisoner.Name}: отношения +{actualDelta}."),
             2500,
             prisoner.CharacterObject,
             null,
