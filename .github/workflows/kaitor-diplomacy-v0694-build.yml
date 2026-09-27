@@ -7,6 +7,8 @@ on:
     paths:
       - 'projects/KaiTORDiplomacy/**'
       - '.github/workflows/kaitor-diplomacy-v0694-build.yml'
+  pull_request:
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
