@@ -1,0 +1,95 @@
+name: Kai TOR Diplomacy v0.6.9.4 Dialogue Fix Build
+
+on:
+  push:
+    branches:
+      - 'kaitor-diplomacy-dialogue-fix-v0.6.9.4'
+    paths:
+      - 'projects/KaiTORDiplomacy/**'
+      - '.github/workflows/kaitor-diplomacy-v0694-build.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build
+        shell: pwsh
+        run: |
+          dotnet build projects/KaiTORDiplomacy/src/KaiTOR_Diplomacy.csproj -c Release -p:UseBannerlordReferenceAssemblies=true --nologo
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Validate dialogue fix and retained live-test fixes
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = 'projects/KaiTORDiplomacy'
+          $src = Join-Path $root 'src'
+          $runtime = Join-Path $src 'Runtime'
+          $module = Join-Path $root 'module'
+          $dll = Join-Path $root 'build/bin/Win64_Shipping_Client/KaiTOR_Diplomacy.dll'
+          if (-not (Test-Path $dll)) { throw "Missing DLL: $dll" }
+
+          $sub = Get-Content (Join-Path $src 'SubModule.cs') -Raw
+          if (-not $sub.Contains('Kai TOR Diplomacy v0.6.9.4 dialogue-fix campaign start.')) { throw 'Wrong startup marker.' }
+
+          $dialogue = Get-Content (Join-Path $runtime 'KaiDiplomacyConversationBehavior.cs') -Raw
+          foreach ($required in @(
+            '"kaitor_diplomacy_talk_back"',
+            '"lord_pretalk"',
+            'NapDurations.Any(CanPropose)',
+            'TryGetDiplomacyContext',
+            'diplomacy.RuntimeEnabled'
+          )) {
+            if (-not $dialogue.Contains($required)) { throw "Dialogue fix missing: $required" }
+          }
+
+          $marriage = Get-Content (Join-Path $runtime 'KaiIncomingMarriageProposalBehavior.cs') -Raw
+          foreach ($required in @('QueueTestProposal','AI_MARRIAGE_TEST_QUEUED','ignoreCooldown: true','preferredMember: Hero.MainHero')) {
+            if (-not $marriage.Contains($required)) { throw "Marriage test path missing: $required" }
+          }
+
+          $mercy = Get-Content (Join-Path $runtime 'KaiMercyRelationBehavior.cs') -Raw
+          foreach ($required in @('PostBattleReleaseRelationGain = 15','SetPersonalRelation(Hero.MainHero, desiredRelation)','affectRelatives=False')) {
+            if (-not $mercy.Contains($required)) { throw "Release relation fix missing: $required" }
+          }
+
+          $child = Get-Content (Join-Path $runtime 'KaiChildTestCommands.cs') -Raw
+          if (-not $child.Contains('NormalizeTechnicalChildNames')) { throw 'Child-name fix lost.' }
+
+          $bridge = Get-Content (Join-Path $runtime 'TorProfessionEffectBridge.cs') -Raw
+          if (-not $bridge.Contains('EnsureHeroExtendedInfo')) { throw 'Child-career fix lost.' }
+
+          $xml = Get-Content (Join-Path $module 'SubModule.xml') -Raw
+          if ($xml -notmatch '<Version value="v0\.6\.9\.4"') { throw 'SubModule version mismatch.' }
+          if ($xml -notmatch '<Name value="Kai TOR Diplomacy"') { throw 'User-facing Kai TOR name spacing mismatch.' }
+
+          Write-Host 'Kai TOR Diplomacy v0.6.9.4 dialogue/live-test contracts: PASS'
+
+      - name: Assemble module
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = 'projects/KaiTORDiplomacy'
+          $package = 'artifact/KaiTOR_Diplomacy'
+          $bin = Join-Path $package 'bin/Win64_Shipping_Client'
+          New-Item -ItemType Directory -Path $bin -Force | Out-Null
+          Copy-Item (Join-Path $root 'module/*') $package -Recurse -Force
+          Copy-Item (Join-Path $root 'build/bin/Win64_Shipping_Client/KaiTOR_Diplomacy.dll') (Join-Path $bin 'KaiTOR_Diplomacy.dll') -Force
+          Copy-Item (Join-Path $root 'build/bin/Win64_Shipping_Client/Bannerlord.UIExtenderEx.dll') (Join-Path $bin 'Bannerlord.UIExtenderEx.dll') -Force
+
+      - name: Upload test module
+        uses: actions/upload-artifact@v4
+        with:
+          name: KaiTOR-Diplomacy-v0.6.9.4-DialogueFix-Test
+          path: artifact/KaiTOR_Diplomacy
+          if-no-files-found: error
+          retention-days: 30
