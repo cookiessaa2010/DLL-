@@ -49,7 +49,7 @@ public sealed class SubModule : MBSubModuleBase
         base.OnGameStart(game, gameStarterObject);
         if (gameStarterObject is not CampaignGameStarter campaignStarter) return;
 
-        KaiRuntimeLog.Write("STARTUP", "KaiTOR Diplomacy v0.6.9.3 live-fix campaign start.");
+        KaiRuntimeLog.Write("STARTUP", "Kai TOR Diplomacy v0.6.9.4 dialogue-fix campaign start.");
 
         // Family and diplomacy only. TOR/Bannerlord retain ownership of world population,
         // lord/clan generation, clan transitions, visual aging and natural mortality.
