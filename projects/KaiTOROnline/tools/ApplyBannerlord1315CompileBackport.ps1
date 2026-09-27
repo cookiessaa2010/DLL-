@@ -370,6 +370,148 @@ Replace-Exact `
     '[HarmonyPatch(typeof(MapEvent), nameof(MapEvent.CaptureDefeatedPartyMembers))]' `
     '[HarmonyPatch(typeof(MapEvent), "LootDefeatedPartyMembers")]'
 
+# ---- Full battle/captivity pipeline compatibility for Bannerlord 1.3.15 ----
+
+# 1.3.15 has no MobileParty.DisembarkToPosition helper. ReleasePlayerFromCaptivity already
+# restores the authoritative releasePosition immediately afterwards, so avoid the later helper.
+Replace-Exact `
+    'source/GameInterface/Services/PlayerCaptivityService/Handlers/PlayerCaptivityServerHandler.cs' `
+    '            playerParty.DisembarkToPosition(captorParty.Settlement.GatePosition);' `
+    '            // Bannerlord 1.3.15: releasePosition below is the authoritative settlement exit position.'
+
+# WasEverInLootingPhase is a later MapEvent field. 1.3.15 RaidEventComponent carries the actual
+# rewards/damage state but no equivalent persistent flag; keep the wire field false and do not write
+# a non-existent property on clients.
+Replace-Exact `
+    'source/GameInterface/Services/MapEventComponents/Handlers/RaidProductionRewardsHandler.cs' `
+    '            component.MapEvent?.WasEverInLootingPhase == true,' `
+    '            false,'
+
+Replace-Exact `
+    'source/GameInterface/Services/MapEventComponents/Handlers/RaidProductionRewardsHandler.cs' `
+    @'
+                if (data.WasEverInLootingPhase && component.MapEvent != null)
+                    component.MapEvent.WasEverInLootingPhase = true;
+'@ `
+    @'
+                // Bannerlord 1.3.15 has no MapEvent.WasEverInLootingPhase state.
+'@
+
+# 1.3.15 stores raw reward scalars on MapEventParty.
+Replace-Exact `
+    'source/GameInterface/Services/MapEventParties/MapEventPartySync.cs' `
+    '            autoSyncBuilder.AddProperty(AccessTools.Property(typeof(MapEventParty), nameof(MapEventParty.GainedRenownExplained)));' `
+    '            autoSyncBuilder.AddProperty(AccessTools.Property(typeof(MapEventParty), nameof(MapEventParty.GainedRenown)));'
+Replace-Exact `
+    'source/GameInterface/Services/MapEventParties/MapEventPartySync.cs' `
+    '            autoSyncBuilder.AddProperty(AccessTools.Property(typeof(MapEventParty), nameof(MapEventParty.GainedInfluenceExplained)));' `
+    '            autoSyncBuilder.AddProperty(AccessTools.Property(typeof(MapEventParty), nameof(MapEventParty.GainedInfluence)));'
+Replace-Exact `
+    'source/GameInterface/Services/MapEventParties/MapEventPartySync.cs' `
+    '            autoSyncBuilder.AddProperty(AccessTools.Property(typeof(MapEventParty), nameof(MapEventParty.GainedMoraleExplained)));' `
+    '            autoSyncBuilder.AddProperty(AccessTools.Property(typeof(MapEventParty), nameof(MapEventParty.MoraleChange)));'
+
+# PlayerEncounter's 1.3.15 state machine calls DoLootParty for the LootParty state.
+Replace-Exact `
+    'source/GameInterface/Services/MapEvents/Interfaces/PlayerEncounterInterface.cs' `
+    '                        playerEncounter.DoLootMembersAndPrisonersOfParty();' `
+    '                        playerEncounter.DoLootParty();'
+
+# Reward snapshots exposed to UI are ExplainedNumber in Coop but raw floats in 1.3.15.
+Replace-Exact `
+    'source/GameInterface/Services/MapEvents/Patches/PlayerEncounterPatches.cs' `
+    '            renownChange = mapEventParty.GainedRenownExplained;' `
+    '            renownChange = new ExplainedNumber(mapEventParty.GainedRenown, false, null);'
+Replace-Exact `
+    'source/GameInterface/Services/MapEvents/Patches/PlayerEncounterPatches.cs' `
+    '            influenceChange = mapEventParty.GainedInfluenceExplained;' `
+    '            influenceChange = new ExplainedNumber(mapEventParty.GainedInfluence, false, null);'
+Replace-Exact `
+    'source/GameInterface/Services/MapEvents/Patches/PlayerEncounterPatches.cs' `
+    '            moraleChange = mapEventParty.GainedMoraleExplained;' `
+    '            moraleChange = new ExplainedNumber(mapEventParty.MoraleChange, false, null);'
+
+# MapEvent.FindWinnerPartyToGetCurrentLootObjectBasedOnChances is an instance method in 1.3.15.
+$resultsPath = Join-Path $UpstreamRoot 'source/GameInterface/Services/MapEvents/Interfaces/MapEventResultsInterface.cs'
+$resultsText = [IO.File]::ReadAllText($resultsPath) -replace "`r`n", "`n"
+$staticWinnerCall = 'MapEvent.FindWinnerPartyToGetCurrentLootObjectBasedOnChances('
+if (-not $resultsText.Contains($staticWinnerCall)) {
+    throw 'Expected static winner-party calls not found in MapEventResultsInterface.cs'
+}
+$resultsText = $resultsText.Replace(
+    $staticWinnerCall,
+    'mapEvent.FindWinnerPartyToGetCurrentLootObjectBasedOnChances(')
+
+$modernCapture = @'
+        MBList<KeyValuePair<MapEventParty, float>> woundedCaptureChances;
+        MBList<KeyValuePair<MapEventParty, float>> healthyCaptureChances;
+
+        Campaign.Current.Models.BattleRewardModel.GetCaptureMemberChancesForWinnerParties(mapEvent, winnerParties, out woundedCaptureChances, out healthyCaptureChances);
+        float playerPartyMemberScatterChance = Campaign.Current.Models.BattleRewardModel.GetMainPartyMemberScatterChance();
+'@ -replace "`r`n", "`n"
+$legacyCapture = @'
+        MBReadOnlyList<KeyValuePair<MapEventParty, float>> memberCaptureChances =
+            Campaign.Current.Models.BattleRewardModel.GetLootMemberChancesForWinnerParties(winnerParties);
+        MBList<KeyValuePair<MapEventParty, float>> woundedCaptureChances = memberCaptureChances.ToMBList();
+        MBList<KeyValuePair<MapEventParty, float>> healthyCaptureChances = memberCaptureChances.ToMBList();
+        bool defeatedSideSurrendered = mapEvent.GetMapEventSide(mapEvent.DefeatedSide).IsSurrendered;
+        float playerPartyMemberScatterChance = Campaign.Current.Models.BattleRewardModel.GetMainPartyMemberScatterChance();
+'@ -replace "`r`n", "`n"
+if (-not $resultsText.Contains($modernCapture)) {
+    throw 'Modern capture-chance block not found in MapEventResultsInterface.cs'
+}
+$resultsText = $resultsText.Replace($modernCapture, $legacyCapture)
+$resultsText = $resultsText.Replace(
+    'if (Campaign.Current.Models.BattleRewardModel.CanTroopBeTakenPrisoner(character))',
+    'if (true) // 1.3.15 native captures wounded regular troops without a separate model gate')
+$resultsText = $resultsText.Replace(
+    'if (healthyCaptureChances.Count > 0)',
+    'if (defeatedSideSurrendered && healthyCaptureChances.Count > 0)')
+[IO.File]::WriteAllText($resultsPath, $resultsText, [Text.UTF8Encoding]::new($false))
+
+# MapEventPatches now publishes the plunder notification from the 1.3.15 gold adapter. Import the
+# existing Coop hero extension and notification contract explicitly.
+Replace-Exact `
+    'source/GameInterface/Services/MapEvents/Patches/MapEventPatches.cs' `
+    'using GameInterface.Services.MapEventParties.Messages;' `
+    "using GameInterface.Services.MapEventParties.Messages;`nusing GameInterface.Services.Heroes.Extensions;`nusing GameInterface.Services.UI.Notifications.Messages;"
+
+# Late-join simulation bookkeeping changed after 1.3.15. The old branch has no allocation lock or
+# participating-troop setter; MapEventParty.Update + EnqueueTroopSpawnProbabilities is the native path.
+Replace-Exact `
+    'source/GameInterface/Services/MapEvents/Handlers/BattleSimulationRunHandler.cs' `
+    @'
+            if (side._troopAllocationsLocked)
+                return;
+
+'@ `
+    @'
+            // Bannerlord 1.3.15 has no _troopAllocationsLocked flag.
+'@
+Replace-Exact `
+    'source/GameInterface/Services/MapEvents/Handlers/BattleSimulationRunHandler.cs' `
+    '            joiningParty.SetParticipatingTroopCount(sizeOfParty);' `
+    '            // Bannerlord 1.3.15 derives participation from MapEventParty.Update().'
+Replace-Exact `
+    'source/GameInterface/Services/MapEvents/Handlers/BattleSimulationRunHandler.cs' `
+    '            sim.MapEvent.CommitXpGains();' `
+    '            side.CommitXpGains();'
+
+# 1.3.15 exposes IsNavalMapEvent but predates MapEventHelper.IsNavalRaid.
+Replace-Exact `
+    'source/GameInterface/Services/MapEvents/Patches/BattleModeEncounterOptionsPatch.cs' `
+    @'
+        var isNavalOrder = mapEvent.IsNavalMapEvent ||
+                           (MapEventHelper.IsNavalRaid(mapEvent) && mapEvent.PlayerSide == BattleSideEnum.Attacker);
+'@ `
+    '        var isNavalOrder = mapEvent.IsNavalMapEvent;'
+
+# Native 1.3.15 RemovePartyInternal has no simulation invalidation call.
+Replace-Exact `
+    'source/GameInterface/Services/MapEventSides/Patches/MapEventSideDestructionPatches.cs' `
+    '        __instance.InvalidateSimulationSetup();' `
+    '        // Bannerlord 1.3.15 has no InvalidateSimulationSetup().'
+
 # Core battle spawn patches use type names introduced after 1.3.15. The same responsibilities
 # live on MissionAgentSpawnLogic and its nested MissionSide in 1.3.15; publicized references expose
 # the private engine members these Harmony patches already require.
