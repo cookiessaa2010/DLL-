@@ -2,7 +2,6 @@ using System;
 using System.Linq;
 using KaiTOR.Diplomacy.Decisions;
 using TaleWorlds.CampaignSystem;
-using TaleWorlds.Localization;
 
 namespace KaiTOR.Diplomacy.Runtime;
 
@@ -13,6 +12,8 @@ namespace KaiTOR.Diplomacy.Runtime;
 /// </summary>
 public sealed class KaiDiplomacyConversationBehavior : CampaignBehaviorBase
 {
+    private static readonly int[] NapDurations = { 30, 60, 90, 180 };
+
     public override void RegisterEvents()
     {
         CampaignEvents.OnSessionLaunchedEvent.AddNonSerializedListener(this, OnSessionLaunched);
@@ -48,10 +49,13 @@ public sealed class KaiDiplomacyConversationBehavior : CampaignBehaviorBase
         AddDurationLine(starter, 90, 118);
         AddDurationLine(starter, 180, 117);
 
+        // Return to the normal lord conversation flow. Returning to hero_main_options
+        // caused Bannerlord to immediately select kaitor_diplomacy_talk_open again
+        // when it was the only valid player line, creating an infinite dialogue loop.
         starter.AddPlayerLine(
             "kaitor_diplomacy_talk_back",
             "kaitor_diplomacy_talk_options",
-            "hero_main_options",
+            "lord_pretalk",
             "Пока ничего. Вернёмся к этому позже.",
             null,
             null,
@@ -76,30 +80,42 @@ public sealed class KaiDiplomacyConversationBehavior : CampaignBehaviorBase
 
     private static bool CanOpenDiplomacyTalk()
     {
+        if (!TryGetDiplomacyContext(out _, out _, out var diplomacy))
+            return false;
+        if (!diplomacy.RuntimeEnabled)
+            return false;
+
+        // Do not open an empty submenu. The entry is visible only if at least one
+        // treaty duration is currently valid for this ruler.
+        return NapDurations.Any(CanPropose);
+    }
+
+    private static bool TryGetDiplomacyContext(out Kingdom source, out Kingdom target, out KaiDiplomacyBehavior diplomacy)
+    {
+        source = null;
+        target = null;
+        diplomacy = null;
+
         var targetHero = Hero.OneToOneConversationHero;
-        var source = Clan.PlayerClan?.Kingdom;
+        source = Clan.PlayerClan?.Kingdom;
         if (Campaign.Current == null || targetHero == null || source == null)
             return false;
         if (Clan.PlayerClan.IsUnderMercenaryService)
             return false;
 
-        var target = targetHero.MapFaction as Kingdom;
+        target = targetHero.MapFaction as Kingdom;
         if (target == null || target == source || target.IsEliminated || target.Leader != targetHero)
             return false;
 
-        var diplomacy = Campaign.Current.GetCampaignBehavior<KaiDiplomacyBehavior>();
-        return diplomacy?.RuntimeEnabled == true;
+        diplomacy = Campaign.Current.GetCampaignBehavior<KaiDiplomacyBehavior>();
+        return diplomacy != null;
     }
 
     private static bool CanPropose(int days)
     {
-        if (!CanOpenDiplomacyTalk())
+        if (!TryGetDiplomacyContext(out var source, out var target, out var diplomacy))
             return false;
-
-        var source = Clan.PlayerClan.Kingdom;
-        var target = Hero.OneToOneConversationHero.MapFaction as Kingdom;
-        var diplomacy = Campaign.Current.GetCampaignBehavior<KaiDiplomacyBehavior>();
-        if (target == null || diplomacy == null)
+        if (!diplomacy.RuntimeEnabled)
             return false;
         if (Clan.PlayerClan.Influence < KaiDiplomacyBehavior.NapProposalInfluenceCost)
             return false;
@@ -115,13 +131,12 @@ public sealed class KaiDiplomacyConversationBehavior : CampaignBehaviorBase
 
     private static void QueueDecision(int days)
     {
-        var source = Clan.PlayerClan?.Kingdom;
-        var target = Hero.OneToOneConversationHero?.MapFaction as Kingdom;
-        var diplomacy = Campaign.Current?.GetCampaignBehavior<KaiDiplomacyBehavior>();
-        if (source == null || target == null || diplomacy == null)
+        if (!TryGetDiplomacyContext(out var source, out var target, out var diplomacy))
             return;
 
-        if (!diplomacy.CanCreateNonAggressionPact(source, target, days, out var reason) ||
+        string reason = string.Empty;
+        if (!diplomacy.RuntimeEnabled ||
+            !diplomacy.CanCreateNonAggressionPact(source, target, days, out reason) ||
             Clan.PlayerClan.Influence < KaiDiplomacyBehavior.NapProposalInfluenceCost)
         {
             KaiRuntimeLog.Write("DIPLOMACY_DIALOGUE_FAILED", $"target={target.StringId}; days={days}; reason={reason}");
