@@ -211,8 +211,14 @@ public sealed class KaiIncomingMarriageProposalBehavior : CampaignBehaviorBase
                     if (score < 0)
                         continue;
 
-                    if (best == null || score > best.Score ||
-                        (score == best.Score && string.CompareOrdinal(clan.StringId + target.StringId, best.TargetClan.StringId + best.Target.StringId) < 0))
+                    var memberPreferred = preferredMember != null && member == preferredMember;
+                    var bestPreferred = preferredMember != null && best?.Member == preferredMember;
+
+                    if (best == null ||
+                        (memberPreferred && !bestPreferred) ||
+                        (memberPreferred == bestPreferred &&
+                         (score > best.Score ||
+                          (score == best.Score && string.CompareOrdinal(clan.StringId + target.StringId, best.TargetClan.StringId + best.Target.StringId) < 0))))
                         best = new Proposal(member, target, clan, score);
                 }
             }
