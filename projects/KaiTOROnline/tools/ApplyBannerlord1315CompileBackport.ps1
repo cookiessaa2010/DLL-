@@ -259,6 +259,9 @@ Replace-Exact `
         Hero leaderHero = partyBase.LeaderHero;
         if (leaderHero != null)
         {
+            if (party.PlunderedGold > 0 && leaderHero.IsPlayerHero())
+                MessageBroker.Instance.Publish(party, new NotifyGoldPlundered(leaderHero, party.PlunderedGold));
+
             if (party.PlunderedGold > 0)
                 GiveGoldAction.ApplyBetweenCharacters(null, leaderHero, party.PlunderedGold, true);
 
@@ -359,6 +362,67 @@ Replace-Exact `
         }
 '@
 
+# Core battle spawn patches use type names introduced after 1.3.15. The same responsibilities
+# live on MissionAgentSpawnLogic and its nested MissionSide in 1.3.15; publicized references expose
+# the private engine members these Harmony patches already require.
+foreach ($path in @(
+    'source/GameInterface/Services/MapEvents/Patches/BattleTroopSupplierInjectionPatch.cs',
+    'source/GameInterface/Services/MapEvents/Patches/CoopBattleDepletionPatch.cs',
+    'source/GameInterface/Services/MapEvents/Patches/CoopEmptyTeamDeploymentPatch.cs'
+)) {
+    $battlePatchPath = Join-Path $UpstreamRoot $path
+    $battlePatchText = [IO.File]::ReadAllText($battlePatchPath)
+    if ($battlePatchText.Contains('DefaultBattleMissionAgentSpawnLogic')) {
+        $battlePatchText = $battlePatchText.Replace('DefaultBattleMissionAgentSpawnLogic', 'MissionAgentSpawnLogic')
+        [IO.File]::WriteAllText($battlePatchPath, $battlePatchText, [Text.UTF8Encoding]::new($false))
+    }
+}
+
+foreach ($path in @(
+    'source/GameInterface/Services/MapEvents/Patches/BattleSpawnDiagnosticPatch.cs',
+    'source/GameInterface/Services/MapEvents/Patches/MissionSpawnCapacityPatch.cs'
+)) {
+    $battleSidePath = Join-Path $UpstreamRoot $path
+    $battleSideText = [IO.File]::ReadAllText($battleSidePath)
+    if ($battleSideText.Contains('MissionBattleSideSpawnContext')) {
+        $battleSideText = $battleSideText.Replace(
+            'MissionBattleSideSpawnContext',
+            'MissionAgentSpawnLogic.MissionSide')
+        [IO.File]::WriteAllText($battleSidePath, $battleSideText, [Text.UTF8Encoding]::new($false))
+    }
+}
+
+# ForceSpawnPlayerMounted belongs to the later side-spawn context. 1.3.15's MissionSide has no
+# equivalent flag; its native SpawnTroops path uses SpawnWithHorses and forceDismounted=false.
+Replace-Exact `
+    'source/GameInterface/Services/MapEvents/Patches/MissionSpawnCapacityPatch.cs' `
+    '__instance._reservedTroops, __instance.SpawnWithHorses, __instance.ForceSpawnPlayerMounted);' `
+    '__instance._reservedTroops, __instance.SpawnWithHorses, false);'
+
+# MapEventParty.CommitGoldChanges did not exist yet in 1.3.15. Gold is committed by our
+# 1.3.15 MapEventPatches adapter, so remove only the obsolete Harmony target and preserve the
+# plunder notification by publishing it from that adapter before the gold transfer.
+Replace-Exact `
+    'source/GameInterface/Services/MapEventParties/Patches/MapEventPartyPatches.cs' `
+    @'
+    [HarmonyPatch(nameof(MapEventParty.CommitGoldChanges))]
+    [HarmonyPrefix]
+    public static bool CommitGoldChangesPrefix(MapEventParty __instance)
+    {
+        if (ModInformation.IsClient) return false;
+
+        // Plundering gold is a different message to the regular gold change
+        Hero leaderHero = __instance.Party.LeaderHero;
+        if (__instance.PlunderedGold > 0 && leaderHero != null && leaderHero.IsPlayerHero())
+        {
+            MessageBroker.Instance.Publish(__instance, new NotifyGoldPlundered(leaderHero, __instance.PlunderedGold));
+        }
+
+        return true;
+    }
+'@ `
+    ''
+
 # 1.3.15 has no explicit simulation-setup invalidation API; leader replacement followed by the native
 # leader modifier recache is sufficient for the bootstrap path.
 Replace-Exact `
@@ -458,13 +522,7 @@ $removeBlock = @'
     <Compile Remove="Services\MobileParties\Patches\PartyRolesPatches.cs" />
     <Compile Remove="Services\MobileParties\Handlers\PartyRolesHandler.cs" />
 
-    <!-- Captivity implementation is not needed for shared-map bootstrap, but its tiny message
-         contracts are retained because several core handlers still subscribe/publish them. -->
-    <Compile Remove="Services\PlayerCaptivityService\Commands\**\*.cs" />
-    <Compile Remove="Services\PlayerCaptivityService\Handlers\**\*.cs" />
-    <Compile Remove="Services\PlayerCaptivityService\Patches\**\*.cs" />
-    <Compile Remove="Services\PlayerCaptivityService\PlayerCaptivityConfig.cs" />
-    <Compile Remove="Services\PlayerCaptivityService\PlayerCaptivityLogger.cs" />
+    <!-- Player captivity is part of the battle lifecycle and remains compiled on 1.3.15. -->
     <Compile Remove="Services\ItemRosters\Patches\AllowItemRostersInGUI.cs" />
     <Compile Remove="Services\Bandits\Patches\BanditInteractionsCampaignBehaviorPatches.cs" />
     <Compile Remove="Services\Inventory\Patches\InventoryLogicPatches.cs" />
