@@ -1,8 +1,8 @@
 using System;
+using System.IO;
 using System.Reflection;
 using HarmonyLib;
 using TaleWorlds.CampaignSystem;
-using TaleWorlds.CampaignSystem.GameComponents;
 using TaleWorlds.MountAndBlade;
 
 namespace KaiTOR.UnlimitedCompanions
@@ -15,19 +15,103 @@ namespace KaiTOR.UnlimitedCompanions
         {
             base.OnSubModuleLoad();
             HarmonyInstance.PatchAll(Assembly.GetExecutingAssembly());
+            DiagnosticLog.Write("LOAD|v1.3.15.05|reserve=200|patch=Clan.CompanionLimit");
         }
     }
 
-    [HarmonyPatch(typeof(DefaultClanTierModel), "GetCompanionLimit", new Type[] { typeof(Clan) })]
-    internal static class CompanionLimitPatch
+    [HarmonyPatch(typeof(Clan), nameof(Clan.CompanionLimit), MethodType.Getter)]
+    internal static class CompanionLimitGetterPatch
     {
-        private const int UnlimitedCompanionLimit = 2500;
+        private const int ReserveSlots = 200;
 
-        private static void Postfix(Clan clan, ref int __result)
+        [HarmonyPostfix]
+        [HarmonyPriority(Priority.Last)]
+        private static void Postfix(Clan __instance, ref int __result)
         {
-            if (clan == Clan.PlayerClan && __result < UnlimitedCompanionLimit)
+            try
             {
-                __result = UnlimitedCompanionLimit;
+                if (__instance == null || __instance != Clan.PlayerClan)
+                    return;
+
+                int currentCount = __instance.Companions != null ? __instance.Companions.Count : 0;
+                int minimumLimit = currentCount > int.MaxValue - ReserveSlots
+                    ? int.MaxValue
+                    : currentCount + ReserveSlots;
+
+                int originalResult = __result;
+                if (__result < minimumLimit)
+                    __result = minimumLimit;
+
+                DiagnosticLog.WriteAdjustment(currentCount, originalResult, __result);
+            }
+            catch (Exception ex)
+            {
+                // Never let a companion-limit helper crash the campaign/UI.
+                DiagnosticLog.Write("ERROR|" + ex.GetType().FullName + "|" + ex.Message);
+            }
+        }
+    }
+
+    internal static class DiagnosticLog
+    {
+        private static readonly object Sync = new object();
+        private static int _remainingAdjustmentLines = 32;
+
+        private static string LogPath
+        {
+            get
+            {
+                string documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+                return Path.Combine(
+                    documents,
+                    "Mount and Blade II Bannerlord",
+                    "Configs",
+                    "KaiTOR_UnlimitedCompanions.log");
+            }
+        }
+
+        internal static void WriteAdjustment(int currentCount, int originalLimit, int finalLimit)
+        {
+            if (_remainingAdjustmentLines <= 0)
+                return;
+
+            lock (Sync)
+            {
+                if (_remainingAdjustmentLines <= 0)
+                    return;
+
+                _remainingAdjustmentLines--;
+                WriteInternal(
+                    "LIMIT|companions=" + currentCount +
+                    "|original=" + originalLimit +
+                    "|final=" + finalLimit);
+            }
+        }
+
+        internal static void Write(string message)
+        {
+            lock (Sync)
+            {
+                WriteInternal(message);
+            }
+        }
+
+        private static void WriteInternal(string message)
+        {
+            try
+            {
+                string path = LogPath;
+                string directory = Path.GetDirectoryName(path);
+                if (!Directory.Exists(directory))
+                    Directory.CreateDirectory(directory);
+
+                File.AppendAllText(
+                    path,
+                    DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff") + "|" + message + Environment.NewLine);
+            }
+            catch
+            {
+                // Logging is diagnostic only and must never affect the game.
             }
         }
     }
