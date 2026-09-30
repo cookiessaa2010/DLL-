@@ -4,6 +4,9 @@ concurrency:
   group: kaitor-online-1315-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: write
+
 on:
   push:
     branches:
@@ -416,3 +419,54 @@ jobs:
           }
 
           Write-Host "Uploaded artifact passed contract, provenance, and redistribution checks for $env:GITHUB_SHA."
+
+      - name: Publish v1.3.15.13 GitHub prerelease
+        if: github.ref == 'refs/heads/kaitor-online-ui-ru-en-v0.1'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = 'v1.3.15.13'
+          $assetName = 'KaiTORCoop-v1.3.15.13-Bannerlord-1.3.15.110062-TOR-1.3.15.zip'
+          $zip = Join-Path $env:RUNNER_TEMP $assetName
+          if (Test-Path -LiteralPath $zip) { Remove-Item -LiteralPath $zip -Force }
+          Compress-Archive -Path (Join-Path $env:KAITOR_ARTIFACT '*') -DestinationPath $zip -CompressionLevel Optimal
+
+          $sha256 = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          $notes = Join-Path $env:RUNNER_TEMP 'kaitor-release-notes.md'
+          @"
+          ## KaiTOR Co-op v1.3.15.13 — Test Build
+
+          **RU**
+          - Bannerlord: 1.3.15.110062
+          - The Old Realms: 1.3.15
+          - До 4 игроков одновременно
+          - Визуальное меню подключения: Steam Lobby / прямой IP
+          - Визуальная серверная панель RU/ENG: preflight, запуск/остановка, статус сервера/Steam, лог
+          - Восстановлен и адаптирован под 1.3.15 основной battle/encounter/captivity pipeline
+          - Сборка проходит CI, компиляцию против точных 1.3.15 reference assemblies, smoke-test ServerConsole и проверку границ дистрибутива
+          - Требуется реальный live-тест 4 клиентов в TOR перед пометкой Stable
+
+          **EN**
+          - Bannerlord: 1.3.15.110062
+          - The Old Realms: 1.3.15
+          - Up to 4 simultaneous players
+          - Visual connection menu: Steam Lobby / direct IP
+          - RU/ENG visual server panel: preflight, start/stop, server/Steam status, log access
+          - Core battle/encounter/captivity pipeline restored and adapted for Bannerlord 1.3.15
+          - CI validates exact 1.3.15 compilation, ServerConsole smoke test and distributable package boundaries
+          - A real four-client TOR live test is still required before marking the build Stable
+
+          Source commit: $env:GITHUB_SHA
+          SHA256: $sha256
+          "@ | Set-Content -LiteralPath $notes -Encoding UTF8
+
+          if (gh release view $tag --repo $env:GITHUB_REPOSITORY *> $null) {
+            gh release upload $tag $zip --repo $env:GITHUB_REPOSITORY --clobber
+            gh release edit $tag --repo $env:GITHUB_REPOSITORY --title 'KaiTOR Co-op v1.3.15.13 — Test Build' --notes-file $notes --prerelease
+          } else {
+            gh release create $tag $zip --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title 'KaiTOR Co-op v1.3.15.13 — Test Build' --notes-file $notes --prerelease
+          }
+
+          Write-Host "Published $tag prerelease asset: $assetName"
+          Write-Host "SHA256: $sha256"
