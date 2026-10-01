@@ -38,4 +38,4 @@ KAI TOR UNLIMITED COMPANIONS v1.3.15.09 - FULL LIVE TEST
 UIExtenderEx
 В комплект включена официальная сборка BUTR Bannerlord.UIExtenderEx v2.13.3.
 Проект: https://github.com/BUTR/Bannerlord.UIExtenderEx
-Лицензия: MIT. Оригинальные файлы и license/notice из релиза сохраняются без изменений.
+Лицензия UIExtenderEx: GNU Lesser General Public License v3.0 (LGPL-3.0).\nОфициальный файл LICENSE включён в полный пакет; UIExtenderEx распространяется без изменений.
