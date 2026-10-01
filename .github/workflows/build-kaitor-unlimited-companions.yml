@@ -28,7 +28,7 @@ jobs:
       - name: Build
         run: dotnet build kaitor-unlimited-companions/src/KaiTOR_UnlimitedCompanions/KaiTOR_UnlimitedCompanions.csproj -c Release --no-restore
 
-      - name: Validate v1.3.15.08 contracts
+      - name: Validate v1.3.15.09 contracts
         shell: bash
         run: |
           set -euo pipefail
@@ -37,21 +37,22 @@ jobs:
           DLL="$SRC/bin/Release/net472/KaiTOR_UnlimitedCompanions.dll"
 
           test -f "$DLL"
-          grep -q 'v1.3.15.08' "$MODULE"
+          grep -q 'v1.3.15.09' "$MODULE"
           grep -q 'Bannerlord.UIExtenderEx' "$MODULE"
+          grep -q 'v2.13.3' "$MODULE"
           grep -q 'ReserveSlots = 200' "$SRC/SubModule.cs"
           grep -q 'Clan.CompanionLimit' "$SRC/SubModule.cs"
           grep -q 'CompanionBulkRecallMixin' "$SRC/CompanionBulkRecallUI.cs"
-          grep -q 'PrefabExtension(.*ClanScreen' "$SRC/CompanionBulkRecallUI.cs" || true
           grep -q 'BaseViewModelMixin<ClanManagementVM>' "$SRC/CompanionBulkRecallUI.cs"
           grep -q 'TeleportHeroAction.ApplyDelayedTeleportToParty' "$SRC/CompanionBulkRecallUI.cs"
           grep -q 'hero.PartyBelongedTo != null' "$SRC/CompanionBulkRecallUI.cs"
           grep -q 'hero.GovernorOf != null' "$SRC/CompanionBulkRecallUI.cs"
           grep -q 'IsMainClanMemberAvailableForRecall' "$SRC/CompanionBulkRecallUI.cs"
           grep -q 'KaiTORBulkRecallButton' "$SRC/CompanionBulkRecallUI.cs"
-          echo "v1.3.15.08 contracts: PASS"
+          grep -q '3809043415' "kaitor-unlimited-companions/full-test/INSTALL_FULL_TEST.ps1"
+          echo "v1.3.15.09 contracts: PASS"
 
-      - name: Package module
+      - name: Package Kai TOR module
         shell: bash
         run: |
           set -euo pipefail
@@ -61,14 +62,55 @@ jobs:
           cp kaitor-unlimited-companions/Module/SubModule.xml "$ROOT/SubModule.xml"
           cp "$BUILD/KaiTOR_UnlimitedCompanions.dll" "$ROOT/bin/Win64_Shipping_Client/KaiTOR_UnlimitedCompanions.dll"
           cd dist
-          zip -r "KaiTOR-UnlimitedCompanions-v1.3.15.08-Workshop.zip" KaiTOR_UnlimitedCompanions
-          sha256sum "KaiTOR-UnlimitedCompanions-v1.3.15.08-Workshop.zip" > "KaiTOR-UnlimitedCompanions-v1.3.15.08-Workshop.zip.sha256"
+          zip -r "KaiTOR-UnlimitedCompanions-v1.3.15.09-Workshop.zip" KaiTOR_UnlimitedCompanions
+          sha256sum "KaiTOR-UnlimitedCompanions-v1.3.15.09-Workshop.zip" > "KaiTOR-UnlimitedCompanions-v1.3.15.09-Workshop.zip.sha256"
+
+      - name: Download official UIExtenderEx v2.13.3
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p deps/uiex
+          curl -L --fail --retry 3             "https://github.com/BUTR/Bannerlord.UIExtenderEx/releases/download/v2.13.3/Bannerlord.UIExtenderEx.7z"             -o deps/Bannerlord.UIExtenderEx.7z
+          echo "9748fff9d4f6944a62cf00144bab369e563e4cfe00e710364b069343e14cfe2d  deps/Bannerlord.UIExtenderEx.7z" | sha256sum -c -
+          7z x -y deps/Bannerlord.UIExtenderEx.7z -odeps/uiex >/dev/null
+          UI_XML=$(grep -rl '<Id value="Bannerlord.UIExtenderEx"' deps/uiex --include='SubModule.xml' | head -n 1)
+          test -n "$UI_XML"
+          UI_DIR=$(dirname "$UI_XML")
+          echo "UI_DIR=$UI_DIR" >> "$GITHUB_ENV"
+          grep -q 'v2.13.3' "$UI_XML"
+
+      - name: Assemble full live-test bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          FULL="full/KaiTOR-UnlimitedCompanions-v1.3.15.09-FULL"
+          mkdir -p "$FULL/Modules/KaiTOR_UnlimitedCompanions"
+          mkdir -p "$FULL/Modules/Bannerlord.UIExtenderEx"
+
+          cp -a dist/KaiTOR_UnlimitedCompanions/. "$FULL/Modules/KaiTOR_UnlimitedCompanions/"
+          cp -a "$UI_DIR"/. "$FULL/Modules/Bannerlord.UIExtenderEx/"
+
+          cp kaitor-unlimited-companions/full-test/INSTALL_FULL_TEST.ps1 "$FULL/INSTALL_FULL_TEST.ps1"
+          cp kaitor-unlimited-companions/full-test/INSTALL_FULL_TEST.bat "$FULL/INSTALL_FULL_TEST.bat"
+          cp kaitor-unlimited-companions/full-test/README_RU.txt "$FULL/README_RU.txt"
+
+          test -f "$FULL/Modules/KaiTOR_UnlimitedCompanions/SubModule.xml"
+          test -f "$FULL/Modules/KaiTOR_UnlimitedCompanions/bin/Win64_Shipping_Client/KaiTOR_UnlimitedCompanions.dll"
+          test -f "$FULL/Modules/Bannerlord.UIExtenderEx/SubModule.xml"
+          grep -q 'v1.3.15.09' "$FULL/Modules/KaiTOR_UnlimitedCompanions/SubModule.xml"
+          grep -q 'v2.13.3' "$FULL/Modules/Bannerlord.UIExtenderEx/SubModule.xml"
+
+          cd full
+          zip -r "KaiTOR-UnlimitedCompanions-v1.3.15.09-FULL-LIVE-TEST.zip" "KaiTOR-UnlimitedCompanions-v1.3.15.09-FULL"
+          sha256sum "KaiTOR-UnlimitedCompanions-v1.3.15.09-FULL-LIVE-TEST.zip" > "KaiTOR-UnlimitedCompanions-v1.3.15.09-FULL-LIVE-TEST.zip.sha256"
 
       - name: Upload build
         uses: actions/upload-artifact@v4
         with:
-          name: KaiTOR-UnlimitedCompanions-v1.3.15.08-Workshop
+          name: KaiTOR-UnlimitedCompanions-v1.3.15.09-FULL
           path: |
-            dist/KaiTOR-UnlimitedCompanions-v1.3.15.08-Workshop.zip
-            dist/KaiTOR-UnlimitedCompanions-v1.3.15.08-Workshop.zip.sha256
+            dist/KaiTOR-UnlimitedCompanions-v1.3.15.09-Workshop.zip
+            dist/KaiTOR-UnlimitedCompanions-v1.3.15.09-Workshop.zip.sha256
+            full/KaiTOR-UnlimitedCompanions-v1.3.15.09-FULL-LIVE-TEST.zip
+            full/KaiTOR-UnlimitedCompanions-v1.3.15.09-FULL-LIVE-TEST.zip.sha256
           if-no-files-found: error
