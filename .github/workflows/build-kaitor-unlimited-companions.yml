@@ -28,23 +28,48 @@ jobs:
       - name: Build
         run: dotnet build kaitor-unlimited-companions/src/KaiTOR_UnlimitedCompanions/KaiTOR_UnlimitedCompanions.csproj -c Release --no-restore
 
+      - name: Validate v1.3.15.06 contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          SRC="kaitor-unlimited-companions/src/KaiTOR_UnlimitedCompanions"
+          MODULE="kaitor-unlimited-companions/Module/SubModule.xml"
+          DLL="$SRC/bin/Release/net472/KaiTOR_UnlimitedCompanions.dll"
+          UIX="$SRC/bin/Release/net472/Bannerlord.UIExtenderEx.dll"
+
+          test -f "$DLL"
+          test -f "$UIX"
+          grep -q 'v1.3.15.06' "$MODULE"
+          grep -q 'ReserveSlots = 200' "$SRC/SubModule.cs"
+          grep -q 'Clan.CompanionLimit' "$SRC/SubModule.cs"
+          grep -q 'CompanionBulkRecallMixin' "$SRC/CompanionBulkRecallUI.cs"
+          grep -q 'TeleportHeroAction.ApplyDelayedTeleportToParty' "$SRC/CompanionBulkRecallUI.cs"
+          grep -q 'hero.PartyBelongedTo != null' "$SRC/CompanionBulkRecallUI.cs"
+          grep -q 'hero.CurrentSettlement == null' "$SRC/CompanionBulkRecallUI.cs"
+          grep -q 'hero.GovernorOf != null' "$SRC/CompanionBulkRecallUI.cs"
+          grep -q 'IsMainClanMemberAvailableForRecall' "$SRC/CompanionBulkRecallUI.cs"
+          grep -q 'KaiTORBulkRecallButton' "$SRC/CompanionBulkRecallUI.cs"
+          echo "v1.3.15.06 contracts: PASS"
+
       - name: Package module
         shell: bash
         run: |
           set -euo pipefail
           ROOT="dist/KaiTOR_UnlimitedCompanions"
+          BUILD="kaitor-unlimited-companions/src/KaiTOR_UnlimitedCompanions/bin/Release/net472"
           mkdir -p "$ROOT/bin/Win64_Shipping_Client"
           cp kaitor-unlimited-companions/Module/SubModule.xml "$ROOT/SubModule.xml"
-          cp kaitor-unlimited-companions/src/KaiTOR_UnlimitedCompanions/bin/Release/net472/KaiTOR_UnlimitedCompanions.dll "$ROOT/bin/Win64_Shipping_Client/KaiTOR_UnlimitedCompanions.dll"
+          cp "$BUILD/KaiTOR_UnlimitedCompanions.dll" "$ROOT/bin/Win64_Shipping_Client/KaiTOR_UnlimitedCompanions.dll"
+          cp "$BUILD/Bannerlord.UIExtenderEx.dll" "$ROOT/bin/Win64_Shipping_Client/Bannerlord.UIExtenderEx.dll"
           cd dist
-          zip -r "KaiTOR-UnlimitedCompanions-v1.3.15.05-Workshop.zip" KaiTOR_UnlimitedCompanions
-          sha256sum "KaiTOR-UnlimitedCompanions-v1.3.15.05-Workshop.zip" > "KaiTOR-UnlimitedCompanions-v1.3.15.05-Workshop.zip.sha256"
+          zip -r "KaiTOR-UnlimitedCompanions-v1.3.15.06-Workshop.zip" KaiTOR_UnlimitedCompanions
+          sha256sum "KaiTOR-UnlimitedCompanions-v1.3.15.06-Workshop.zip" > "KaiTOR-UnlimitedCompanions-v1.3.15.06-Workshop.zip.sha256"
 
       - name: Upload build
         uses: actions/upload-artifact@v4
         with:
-          name: KaiTOR-UnlimitedCompanions-v1.3.15.05-Workshop
+          name: KaiTOR-UnlimitedCompanions-v1.3.15.06-Workshop
           path: |
-            dist/KaiTOR-UnlimitedCompanions-v1.3.15.05-Workshop.zip
-            dist/KaiTOR-UnlimitedCompanions-v1.3.15.05-Workshop.zip.sha256
+            dist/KaiTOR-UnlimitedCompanions-v1.3.15.06-Workshop.zip
+            dist/KaiTOR-UnlimitedCompanions-v1.3.15.06-Workshop.zip.sha256
           if-no-files-found: error
