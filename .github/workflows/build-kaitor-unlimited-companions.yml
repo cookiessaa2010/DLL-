@@ -50,6 +50,7 @@ jobs:
           grep -q 'IsMainClanMemberAvailableForRecall' "$SRC/CompanionBulkRecallUI.cs"
           grep -q 'KaiTORBulkRecallButton' "$SRC/CompanionBulkRecallUI.cs"
           grep -q '3809043415' "kaitor-unlimited-companions/full-test/INSTALL_FULL_TEST.ps1"
+          grep -q 'NonInteractive' "kaitor-unlimited-companions/full-test/INSTALL_FULL_TEST.ps1"
           echo "v1.3.15.09 contracts: PASS"
 
       - name: Package Kai TOR module
@@ -70,7 +71,9 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p deps/uiex
-          curl -L --fail --retry 3             "https://github.com/BUTR/Bannerlord.UIExtenderEx/releases/download/v2.13.3/Bannerlord.UIExtenderEx.7z"             -o deps/Bannerlord.UIExtenderEx.7z
+          curl -L --fail --retry 3 \
+            "https://github.com/BUTR/Bannerlord.UIExtenderEx/releases/download/v2.13.3/Bannerlord.UIExtenderEx.7z" \
+            -o deps/Bannerlord.UIExtenderEx.7z
           echo "9748fff9d4f6944a62cf00144bab369e563e4cfe00e710364b069343e14cfe2d  deps/Bannerlord.UIExtenderEx.7z" | sha256sum -c -
           7z x -y deps/Bannerlord.UIExtenderEx.7z -odeps/uiex >/dev/null
           UI_XML=$(grep -rl '<Id value="Bannerlord.UIExtenderEx"' deps/uiex --include='SubModule.xml' | head -n 1)
@@ -78,6 +81,11 @@ jobs:
           UI_DIR=$(dirname "$UI_XML")
           echo "UI_DIR=$UI_DIR" >> "$GITHUB_ENV"
           grep -q 'v2.13.3' "$UI_XML"
+
+          curl -L --fail --retry 3 \
+            "https://raw.githubusercontent.com/BUTR/Bannerlord.UIExtenderEx/v2.13.3/LICENSE" \
+            -o deps/UIExtenderEx-LICENSE.txt
+          grep -q 'GNU LESSER GENERAL PUBLIC LICENSE' deps/UIExtenderEx-LICENSE.txt
 
       - name: Assemble full live-test bundle
         shell: bash
@@ -90,13 +98,28 @@ jobs:
           cp -a dist/KaiTOR_UnlimitedCompanions/. "$FULL/Modules/KaiTOR_UnlimitedCompanions/"
           cp -a "$UI_DIR"/. "$FULL/Modules/Bannerlord.UIExtenderEx/"
 
+          # Runtime test package does not need debug symbols.
+          find "$FULL/Modules/Bannerlord.UIExtenderEx" -type f -iname '*.pdb' -delete
+
           cp kaitor-unlimited-companions/full-test/INSTALL_FULL_TEST.ps1 "$FULL/INSTALL_FULL_TEST.ps1"
           cp kaitor-unlimited-companions/full-test/INSTALL_FULL_TEST.bat "$FULL/INSTALL_FULL_TEST.bat"
           cp kaitor-unlimited-companions/full-test/README_RU.txt "$FULL/README_RU.txt"
+          cp deps/UIExtenderEx-LICENSE.txt "$FULL/UIExtenderEx-LICENSE.txt"
+
+          cat > "$FULL/THIRD_PARTY_NOTICES.txt" <<'EOF'
+          Bannerlord.UIExtenderEx v2.13.3
+          Copyright: BUTR / Bannerlord Unofficial Tools & Resources contributors
+          Source: https://github.com/BUTR/Bannerlord.UIExtenderEx
+          License: GNU Lesser General Public License v3.0 (LGPL-3.0)
+          Included unmodified from the official v2.13.3 release.
+          The full license text is included as UIExtenderEx-LICENSE.txt.
+          EOF
 
           test -f "$FULL/Modules/KaiTOR_UnlimitedCompanions/SubModule.xml"
           test -f "$FULL/Modules/KaiTOR_UnlimitedCompanions/bin/Win64_Shipping_Client/KaiTOR_UnlimitedCompanions.dll"
           test -f "$FULL/Modules/Bannerlord.UIExtenderEx/SubModule.xml"
+          test -f "$FULL/UIExtenderEx-LICENSE.txt"
+          ! find "$FULL" -type f -iname '*.pdb' | grep -q .
           grep -q 'v1.3.15.09' "$FULL/Modules/KaiTOR_UnlimitedCompanions/SubModule.xml"
           grep -q 'v2.13.3' "$FULL/Modules/Bannerlord.UIExtenderEx/SubModule.xml"
 
@@ -114,3 +137,69 @@ jobs:
             full/KaiTOR-UnlimitedCompanions-v1.3.15.09-FULL-LIVE-TEST.zip
             full/KaiTOR-UnlimitedCompanions-v1.3.15.09-FULL-LIVE-TEST.zip.sha256
           if-no-files-found: error
+
+  installer-test:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build mock test layout
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = Join-Path $env:RUNNER_TEMP 'KaiTORInstallerTest'
+          $package = Join-Path $root 'Package'
+          $game = Join-Path $root 'Steam\steamapps\common\Mount & Blade II Bannerlord'
+          $workshop = Join-Path $root 'Steam\steamapps\workshop\content\261550\3809043415'
+
+          New-Item -ItemType Directory -Path (Join-Path $game 'bin\Win64_Shipping_Client') -Force | Out-Null
+          New-Item -ItemType File -Path (Join-Path $game 'bin\Win64_Shipping_Client\Bannerlord.exe') -Force | Out-Null
+
+          New-Item -ItemType Directory -Path (Join-Path $package 'Modules\KaiTOR_UnlimitedCompanions\bin\Win64_Shipping_Client') -Force | Out-Null
+          Copy-Item 'kaitor-unlimited-companions/Module/SubModule.xml' (Join-Path $package 'Modules\KaiTOR_UnlimitedCompanions\SubModule.xml')
+          New-Item -ItemType File -Path (Join-Path $package 'Modules\KaiTOR_UnlimitedCompanions\bin\Win64_Shipping_Client\KaiTOR_UnlimitedCompanions.dll') -Force | Out-Null
+
+          New-Item -ItemType Directory -Path (Join-Path $package 'Modules\Bannerlord.UIExtenderEx\bin\Win64_Shipping_Client') -Force | Out-Null
+          @'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <Module>
+            <Id value="Bannerlord.UIExtenderEx" />
+            <Name value="UIExtenderEx" />
+            <Version value="v2.13.3" />
+          </Module>
+          '@ | Set-Content -Encoding UTF8 (Join-Path $package 'Modules\Bannerlord.UIExtenderEx\SubModule.xml')
+          New-Item -ItemType File -Path (Join-Path $package 'Modules\Bannerlord.UIExtenderEx\bin\Win64_Shipping_Client\Bannerlord.UIExtenderEx.dll') -Force | Out-Null
+
+          Copy-Item 'kaitor-unlimited-companions/full-test/INSTALL_FULL_TEST.ps1' (Join-Path $package 'INSTALL_FULL_TEST.ps1')
+
+          New-Item -ItemType Directory -Path (Join-Path $game 'Modules\KaiTOR_UnlimitedCompanions') -Force | Out-Null
+          @'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <Module><Version value="v1.3.15.08" /></Module>
+          '@ | Set-Content -Encoding UTF8 (Join-Path $game 'Modules\KaiTOR_UnlimitedCompanions\SubModule.xml')
+
+          New-Item -ItemType Directory -Path $workshop -Force | Out-Null
+          @'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <Module><Version value="v1.3.15.05" /></Module>
+          '@ | Set-Content -Encoding UTF8 (Join-Path $workshop 'SubModule.xml')
+
+          & (Join-Path $package 'INSTALL_FULL_TEST.ps1') -GameDir $game -NonInteractive
+
+          if (Test-Path (Join-Path $game 'Modules\KaiTOR_UnlimitedCompanions')) {
+            throw 'Local duplicate was not removed.'
+          }
+
+          [xml]$installedKai = Get-Content (Join-Path $workshop 'SubModule.xml') -Raw
+          if ($installedKai.Module.Version.value -ne 'v1.3.15.09') {
+            throw "Wrong installed Kai version: $($installedKai.Module.Version.value)"
+          }
+
+          [xml]$installedUi = Get-Content (Join-Path $game 'Modules\Bannerlord.UIExtenderEx\SubModule.xml') -Raw
+          if ($installedUi.Module.Version.value -ne 'v2.13.3') {
+            throw "Wrong installed UIExtenderEx version: $($installedUi.Module.Version.value)"
+          }
+
+          Write-Host 'Full installer mock test: PASS'
+
