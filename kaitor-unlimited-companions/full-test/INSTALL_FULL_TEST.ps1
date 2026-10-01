@@ -1,5 +1,6 @@
 param(
-    [string]$GameDir
+    [string]$GameDir,
+    [switch]$NonInteractive
 )
 
 $ErrorActionPreference = "Stop"
@@ -167,4 +168,6 @@ Write-Host ""
 Write-Host "Ожидаемая версия Kai TOR в лаунчере: v1.3.15.9"
 Write-Host "Резервные копии старых папок: $backupRoot"
 Write-Host ""
-Read-Host "Нажми Enter для выхода"
+if (-not $NonInteractive) {
+    Read-Host "Нажми Enter для выхода"
+}
