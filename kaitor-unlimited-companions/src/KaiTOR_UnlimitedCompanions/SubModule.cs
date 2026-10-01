@@ -18,7 +18,7 @@ namespace KaiTOR.UnlimitedCompanions
             base.OnSubModuleLoad();
 
             HarmonyInstance.PatchAll(Assembly.GetExecutingAssembly());
-            DiagnosticLog.Write("LOAD|v1.3.15.08|reserve=200|patch=Clan.CompanionLimit");
+            DiagnosticLog.Write("LOAD|v1.3.15.09|reserve=200|patch=Clan.CompanionLimit");
 
             try
             {
