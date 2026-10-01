@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Reflection;
+using Bannerlord.UIExtenderEx;
 using HarmonyLib;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.MountAndBlade;
@@ -10,12 +11,27 @@ namespace KaiTOR.UnlimitedCompanions
     public sealed class SubModule : MBSubModuleBase
     {
         private static readonly Harmony HarmonyInstance = new Harmony("kaitor.unlimitedcompanions");
+        private UIExtender _uiExtender;
 
         protected override void OnSubModuleLoad()
         {
             base.OnSubModuleLoad();
+
             HarmonyInstance.PatchAll(Assembly.GetExecutingAssembly());
-            DiagnosticLog.Write("LOAD|v1.3.15.05|reserve=200|patch=Clan.CompanionLimit");
+            DiagnosticLog.Write("LOAD|v1.3.15.06|reserve=200|patch=Clan.CompanionLimit");
+
+            try
+            {
+                _uiExtender = UIExtender.Create("KaiTOR_UnlimitedCompanions");
+                _uiExtender.Register(Assembly.GetExecutingAssembly());
+                _uiExtender.Enable();
+                DiagnosticLog.Write("UI|bulk_recall=ready|ui_extender=enabled");
+            }
+            catch (Exception ex)
+            {
+                // The companion-limit patch must remain usable even if the optional UI fails.
+                DiagnosticLog.Write("UI_ERROR|" + ex.GetType().FullName + "|" + ex.Message);
+            }
         }
     }
 
