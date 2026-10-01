@@ -28,7 +28,7 @@ jobs:
       - name: Build
         run: dotnet build kaitor-unlimited-companions/src/KaiTOR_UnlimitedCompanions/KaiTOR_UnlimitedCompanions.csproj -c Release --no-restore
 
-      - name: Validate v1.3.15.06 contracts
+      - name: Validate v1.3.15.07 contracts
         shell: bash
         run: |
           set -euo pipefail
@@ -39,7 +39,7 @@ jobs:
 
           test -f "$DLL"
           test -f "$UIX"
-          grep -q 'v1.3.15.06' "$MODULE"
+          grep -q 'v1.3.15.07' "$MODULE"
           grep -q 'ReserveSlots = 200' "$SRC/SubModule.cs"
           grep -q 'Clan.CompanionLimit' "$SRC/SubModule.cs"
           grep -q 'CompanionBulkRecallMixin' "$SRC/CompanionBulkRecallUI.cs"
@@ -49,7 +49,7 @@ jobs:
           grep -q 'hero.GovernorOf != null' "$SRC/CompanionBulkRecallUI.cs"
           grep -q 'IsMainClanMemberAvailableForRecall' "$SRC/CompanionBulkRecallUI.cs"
           grep -q 'KaiTORBulkRecallButton' "$SRC/CompanionBulkRecallUI.cs"
-          echo "v1.3.15.06 contracts: PASS"
+          echo "v1.3.15.07 contracts: PASS"
 
       - name: Package module
         shell: bash
@@ -62,14 +62,14 @@ jobs:
           cp "$BUILD/KaiTOR_UnlimitedCompanions.dll" "$ROOT/bin/Win64_Shipping_Client/KaiTOR_UnlimitedCompanions.dll"
           cp "$BUILD/Bannerlord.UIExtenderEx.dll" "$ROOT/bin/Win64_Shipping_Client/Bannerlord.UIExtenderEx.dll"
           cd dist
-          zip -r "KaiTOR-UnlimitedCompanions-v1.3.15.06-Workshop.zip" KaiTOR_UnlimitedCompanions
-          sha256sum "KaiTOR-UnlimitedCompanions-v1.3.15.06-Workshop.zip" > "KaiTOR-UnlimitedCompanions-v1.3.15.06-Workshop.zip.sha256"
+          zip -r "KaiTOR-UnlimitedCompanions-v1.3.15.07-Workshop.zip" KaiTOR_UnlimitedCompanions
+          sha256sum "KaiTOR-UnlimitedCompanions-v1.3.15.07-Workshop.zip" > "KaiTOR-UnlimitedCompanions-v1.3.15.07-Workshop.zip.sha256"
 
       - name: Upload build
         uses: actions/upload-artifact@v4
         with:
-          name: KaiTOR-UnlimitedCompanions-v1.3.15.06-Workshop
+          name: KaiTOR-UnlimitedCompanions-v1.3.15.07-Workshop
           path: |
-            dist/KaiTOR-UnlimitedCompanions-v1.3.15.06-Workshop.zip
-            dist/KaiTOR-UnlimitedCompanions-v1.3.15.06-Workshop.zip.sha256
+            dist/KaiTOR-UnlimitedCompanions-v1.3.15.07-Workshop.zip
+            dist/KaiTOR-UnlimitedCompanions-v1.3.15.07-Workshop.zip.sha256
           if-no-files-found: error
