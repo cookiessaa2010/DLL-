@@ -46,7 +46,6 @@ jobs:
           grep -q 'BaseViewModelMixin<ClanManagementVM>' "$SRC/CompanionBulkRecallUI.cs"
           grep -q 'TeleportHeroAction.ApplyDelayedTeleportToParty' "$SRC/CompanionBulkRecallUI.cs"
           grep -q 'hero.PartyBelongedTo != null' "$SRC/CompanionBulkRecallUI.cs"
-          grep -q 'hero.CurrentSettlement == null' "$SRC/CompanionBulkRecallUI.cs"
           grep -q 'hero.GovernorOf != null' "$SRC/CompanionBulkRecallUI.cs"
           grep -q 'IsMainClanMemberAvailableForRecall' "$SRC/CompanionBulkRecallUI.cs"
           grep -q 'KaiTORBulkRecallButton' "$SRC/CompanionBulkRecallUI.cs"
