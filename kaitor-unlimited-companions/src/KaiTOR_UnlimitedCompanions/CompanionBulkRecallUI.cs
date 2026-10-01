@@ -10,7 +10,7 @@ using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
 using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.CampaignSystem.ViewModelCollection;
-using TaleWorlds.CampaignSystem.ViewModelCollection.ClanManagement;
+using TaleWorlds.CampaignSystem.ViewModelCollection.ClanManagement.Categories;
 using TaleWorlds.Core;
 using TaleWorlds.Core.ViewModelCollection.Information;
 using TaleWorlds.Library;
@@ -21,7 +21,7 @@ namespace KaiTOR.UnlimitedCompanions
 {
     [PrefabExtension(
         "ClanMembers",
-        "descendant::ListPanel[@Id='LastSeenLocationParent']/Children")]
+        "descendant::Widget[@Id='ClanMembersWidget']/Children")]
     internal sealed class CompanionBulkRecallPrefabExtension : PrefabExtensionInsertPatch
     {
         public override InsertType Type => InsertType.Append;
@@ -36,10 +36,12 @@ namespace KaiTOR.UnlimitedCompanions
                 " DoNotPassEventsToChildren=\"true\"" +
                 " WidthSizePolicy=\"Fixed\"" +
                 " HeightSizePolicy=\"Fixed\"" +
-                " SuggestedWidth=\"170\"" +
-                " SuggestedHeight=\"40\"" +
-                " VerticalAlignment=\"Center\"" +
-                " MarginLeft=\"10\"" +
+                " SuggestedWidth=\"300\"" +
+                " SuggestedHeight=\"46\"" +
+                " HorizontalAlignment=\"Right\"" +
+                " VerticalAlignment=\"Bottom\"" +
+                " MarginRight=\"310\"" +
+                " MarginBottom=\"12\"" +
                 " Brush=\"ButtonBrush2\"" +
                 " UpdateChildrenStates=\"true\"" +
                 " Command.Click=\"ExecuteBulkRecall\"" +
@@ -63,20 +65,22 @@ namespace KaiTOR.UnlimitedCompanions
         }
     }
 
-    [ViewModelMixin(nameof(ClanLordItemVM.RefreshValues))]
-    internal sealed class CompanionBulkRecallMixin : BaseViewModelMixin<ClanLordItemVM>
+    [ViewModelMixin(nameof(ClanMembersVM.RefreshValues))]
+    internal sealed class CompanionBulkRecallMixin : BaseViewModelMixin<ClanMembersVM>
     {
         private bool _isBulkRecallVisible;
         private bool _isBulkRecallEnabled;
         private string _bulkRecallButtonText;
         private HintViewModel _bulkRecallHint;
 
-        public CompanionBulkRecallMixin(ClanLordItemVM viewModel)
+        public CompanionBulkRecallMixin(ClanMembersVM viewModel)
             : base(viewModel)
         {
             _bulkRecallButtonText = Translate("Призвать всех (0)", "Recall all (0)");
             _bulkRecallHint = new HintViewModel(new TextObject(
                 Translate("Нет свободных спутников для призыва.", "No idle companions are available to recall.")));
+
+            RefreshState();
         }
 
         public override void OnRefresh()
@@ -348,6 +352,7 @@ namespace KaiTOR.UnlimitedCompanions
 
             try
             {
+                ViewModel?.RefreshMembersList();
                 ViewModel?.RefreshValues();
                 RefreshState();
             }
