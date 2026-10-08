@@ -18,10 +18,11 @@ namespace KaiTOR.UnlimitedCompanions
             base.OnSubModuleLoad();
 
             HarmonyInstance.PatchAll(Assembly.GetExecutingAssembly());
-            DiagnosticLog.Write("LOAD|v1.3.15.10|reserve=200|patch=Clan.CompanionLimit");
+            DiagnosticLog.Write("LOAD|v1.3.15.11|reserve=200|patch=Clan.CompanionLimit");
 
             try
             {
+                PrepareEmbeddedUiExtender();
                 _uiExtender = UIExtender.Create("KaiTOR_UnlimitedCompanions");
                 _uiExtender.Register(Assembly.GetExecutingAssembly());
                 _uiExtender.Enable();
@@ -32,6 +33,24 @@ namespace KaiTOR.UnlimitedCompanions
                 // The companion-limit patch must remain usable even if the optional UI fails.
                 DiagnosticLog.Write("UI_ERROR|" + ex.GetType().FullName + "|" + ex.Message);
             }
+        }
+
+        private static void PrepareEmbeddedUiExtender()
+        {
+            // UIExtenderEx normally sets this in its own SubModule static constructor.
+            // Because we ship the runtime DLL inside this one-module package, reproduce
+            // that bootstrap before UIExtender's static patches are initialized.
+            var gauntletAssembly = Assembly.Load("TaleWorlds.Engine.GauntletUI");
+            var uiConfigType = gauntletAssembly.GetType("TaleWorlds.Engine.GauntletUI.UIConfig", true);
+            var property = uiConfigType.GetProperty(
+                "DoNotUseGeneratedPrefabs",
+                BindingFlags.Public | BindingFlags.Static);
+
+            if (property == null || !property.CanWrite)
+                throw new MissingMemberException("TaleWorlds.Engine.GauntletUI.UIConfig.DoNotUseGeneratedPrefabs");
+
+            property.SetValue(null, true, null);
+            DiagnosticLog.Write("UI_BOOTSTRAP|DoNotUseGeneratedPrefabs=true");
         }
     }
 
