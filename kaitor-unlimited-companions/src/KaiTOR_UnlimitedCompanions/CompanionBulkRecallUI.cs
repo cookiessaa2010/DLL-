@@ -21,10 +21,12 @@ namespace KaiTOR.UnlimitedCompanions
 {
     [PrefabExtension(
         "ClanScreen",
-        "descendant::ClanScreenWidget/Children")]
+        "descendant::ClanScreenWidget[@Id='ClanScreenWidget']/Children")]
     internal sealed class CompanionBulkRecallPrefabExtension : PrefabExtensionInsertPatch
     {
-        public override InsertType Type => InsertType.Append;
+        public override InsertType Type => InsertType.Child;
+
+        public override int Index => int.MaxValue;
 
         [PrefabExtensionXmlDocument]
         public XmlDocument GetDocument()
@@ -45,7 +47,7 @@ namespace KaiTOR.UnlimitedCompanions
                 " Brush=\"ButtonBrush2\"" +
                 " UpdateChildrenStates=\"true\"" +
                 " Command.Click=\"ExecuteBulkRecall\"" +
-                " IsVisible=\"@IsBulkRecallVisible\"" +
+                " IsVisible=\"@IsMembersSelected\"" +
                 " IsEnabled=\"@IsBulkRecallEnabled\">" +
                 "<Children>" +
                 "<TextWidget" +
