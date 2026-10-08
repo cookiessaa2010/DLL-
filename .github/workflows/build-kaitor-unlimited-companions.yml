@@ -28,7 +28,7 @@ jobs:
       - name: Build
         run: dotnet build kaitor-unlimited-companions/src/KaiTOR_UnlimitedCompanions/KaiTOR_UnlimitedCompanions.csproj -c Release --no-restore
 
-      - name: Validate v1.3.15.10 contracts
+      - name: Validate v1.3.15.11 contracts
         shell: bash
         run: |
           set -euo pipefail
@@ -39,7 +39,7 @@ jobs:
           test -f "$BUILD/KaiTOR_UnlimitedCompanions.dll"
           test -f "$BUILD/Bannerlord.UIExtenderEx.dll"
 
-          grep -q 'v1.3.15.10' "$MODULE"
+          grep -q 'v1.3.15.11' "$MODULE"
           if grep -q 'DependedModule Id="Bannerlord.UIExtenderEx"' "$MODULE"; then
             echo "External UIExtenderEx dependency must not be present in single-module build."
             exit 1
@@ -48,13 +48,17 @@ jobs:
           grep -q 'ReserveSlots = 200' "$SRC/SubModule.cs"
           grep -q 'Clan.CompanionLimit' "$SRC/SubModule.cs"
           grep -q 'UIExtender.Create("KaiTOR_UnlimitedCompanions")' "$SRC/SubModule.cs"
+          grep -q 'DoNotUseGeneratedPrefabs' "$SRC/SubModule.cs"
           grep -q 'CompanionBulkRecallMixin' "$SRC/CompanionBulkRecallUI.cs"
+          grep -q 'InsertType.Child' "$SRC/CompanionBulkRecallUI.cs"
+          grep -q 'Index => int.MaxValue' "$SRC/CompanionBulkRecallUI.cs"
+          grep -q 'IsVisible=\\\"@IsMembersSelected\\\"' "$SRC/CompanionBulkRecallUI.cs"
           grep -q 'BaseViewModelMixin<ClanManagementVM>' "$SRC/CompanionBulkRecallUI.cs"
           grep -q 'TeleportHeroAction.ApplyDelayedTeleportToParty' "$SRC/CompanionBulkRecallUI.cs"
           grep -q 'IsMainClanMemberAvailableForRecall' "$SRC/CompanionBulkRecallUI.cs"
           grep -q 'KaiTORBulkRecallButton' "$SRC/CompanionBulkRecallUI.cs"
 
-          echo "v1.3.15.10 single-module contracts: PASS"
+          echo "v1.3.15.11 single-module contracts: PASS"
 
       - name: Fetch UIExtenderEx license
         shell: bash
@@ -98,25 +102,25 @@ jobs:
           fi
 
           cd dist
-          zip -r "KaiTOR-UnlimitedCompanions-v1.3.15.10-LIVE-TEST.zip" KaiTOR_UnlimitedCompanions
-          sha256sum "KaiTOR-UnlimitedCompanions-v1.3.15.10-LIVE-TEST.zip" > "KaiTOR-UnlimitedCompanions-v1.3.15.10-LIVE-TEST.zip.sha256"
+          zip -r "KaiTOR-UnlimitedCompanions-v1.3.15.11-LIVE-TEST.zip" KaiTOR_UnlimitedCompanions
+          sha256sum "KaiTOR-UnlimitedCompanions-v1.3.15.11-LIVE-TEST.zip" > "KaiTOR-UnlimitedCompanions-v1.3.15.11-LIVE-TEST.zip.sha256"
 
       - name: Verify archive layout
         shell: bash
         run: |
           set -euo pipefail
-          unzip -l dist/KaiTOR-UnlimitedCompanions-v1.3.15.10-LIVE-TEST.zip
-          COUNT=$(unzip -Z1 dist/KaiTOR-UnlimitedCompanions-v1.3.15.10-LIVE-TEST.zip | awk -F/ 'NF>1 {print $1}' | sort -u | wc -l)
+          unzip -l dist/KaiTOR-UnlimitedCompanions-v1.3.15.11-LIVE-TEST.zip
+          COUNT=$(unzip -Z1 dist/KaiTOR-UnlimitedCompanions-v1.3.15.11-LIVE-TEST.zip | awk -F/ 'NF>1 {print $1}' | sort -u | wc -l)
           test "$COUNT" -eq 1
-          unzip -Z1 dist/KaiTOR-UnlimitedCompanions-v1.3.15.10-LIVE-TEST.zip | grep -q '^KaiTOR_UnlimitedCompanions/SubModule.xml$'
-          unzip -Z1 dist/KaiTOR-UnlimitedCompanions-v1.3.15.10-LIVE-TEST.zip | grep -q '^KaiTOR_UnlimitedCompanions/bin/Win64_Shipping_Client/KaiTOR_UnlimitedCompanions.dll$'
-          unzip -Z1 dist/KaiTOR-UnlimitedCompanions-v1.3.15.10-LIVE-TEST.zip | grep -q '^KaiTOR_UnlimitedCompanions/bin/Win64_Shipping_Client/Bannerlord.UIExtenderEx.dll$'
+          unzip -Z1 dist/KaiTOR-UnlimitedCompanions-v1.3.15.11-LIVE-TEST.zip | grep -q '^KaiTOR_UnlimitedCompanions/SubModule.xml$'
+          unzip -Z1 dist/KaiTOR-UnlimitedCompanions-v1.3.15.11-LIVE-TEST.zip | grep -q '^KaiTOR_UnlimitedCompanions/bin/Win64_Shipping_Client/KaiTOR_UnlimitedCompanions.dll$'
+          unzip -Z1 dist/KaiTOR-UnlimitedCompanions-v1.3.15.11-LIVE-TEST.zip | grep -q '^KaiTOR_UnlimitedCompanions/bin/Win64_Shipping_Client/Bannerlord.UIExtenderEx.dll$'
 
       - name: Upload build
         uses: actions/upload-artifact@v4
         with:
-          name: KaiTOR-UnlimitedCompanions-v1.3.15.10-LIVE-TEST
+          name: KaiTOR-UnlimitedCompanions-v1.3.15.11-LIVE-TEST
           path: |
-            dist/KaiTOR-UnlimitedCompanions-v1.3.15.10-LIVE-TEST.zip
-            dist/KaiTOR-UnlimitedCompanions-v1.3.15.10-LIVE-TEST.zip.sha256
+            dist/KaiTOR-UnlimitedCompanions-v1.3.15.11-LIVE-TEST.zip
+            dist/KaiTOR-UnlimitedCompanions-v1.3.15.11-LIVE-TEST.zip.sha256
           if-no-files-found: error
