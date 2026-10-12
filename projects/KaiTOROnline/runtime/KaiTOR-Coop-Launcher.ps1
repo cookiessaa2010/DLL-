@@ -27,13 +27,15 @@ $EN = @{
     port='Port'
     players='Players'
     server='Server'
-    steam='Steam'
+    steam='Steam / Lobby'
     minimal='Minimal TOR + Co-op test'
     offline='OFFLINE'
     online='ONLINE'
-    steam_starting='STARTING'
-    steam_ready='LOBBY READY'
-    steam_error='ERROR'
+    steam_client_offline='CLIENT OFFLINE'
+    steam_idle='CLIENT OK / LOBBY OFF'
+    steam_starting='CLIENT OK / STARTING'
+    steam_ready='CLIENT OK / LOBBY READY'
+    steam_error='CLIENT OK / ERROR'
     preflight='Preflight'
     start='Start Server'
     stop='Stop Server'
@@ -54,7 +56,7 @@ $EN = @{
     save_required='Enter the campaign save name.'
     status='Status'
     unknown_players='- / 4'
-    footer='KaiTOR Co-op v1.3.15.13 | Bannerlord/TOR 1.3.15 | Steam Lobby / UDP 4200'
+    footer='KaiTOR Co-op v1.3.15.14 | Bannerlord/TOR 1.3.15 | Steam Lobby / UDP 4200'
 }
 $RU = @{
     title='KaiTOR Co-op — Панель сервера'
@@ -70,13 +72,15 @@ $RU = @{
     port='Порт'
     players='Игроки'
     server='Сервер'
-    steam='Steam'
+    steam='Steam / Лобби'
     minimal='Минимальный TOR + Co-op тест'
     offline='НЕ ЗАПУЩЕН'
     online='ЗАПУЩЕН'
-    steam_starting='ЗАПУСК'
-    steam_ready='ЛОББИ ГОТОВО'
-    steam_error='ОШИБКА'
+    steam_client_offline='КЛИЕНТ НЕ ЗАПУЩЕН'
+    steam_idle='КЛИЕНТ OK / ЛОББИ НЕТ'
+    steam_starting='КЛИЕНТ OK / ЗАПУСК'
+    steam_ready='КЛИЕНТ OK / ЛОББИ ГОТОВО'
+    steam_error='КЛИЕНТ OK / ОШИБКА'
     preflight='Проверить'
     start='Запустить сервер'
     stop='Остановить сервер'
@@ -97,7 +101,7 @@ $RU = @{
     save_required='Укажите имя сохранения кампании.'
     status='Статус'
     unknown_players='— / 4'
-    footer='KaiTOR Co-op v1.3.15.13 | Bannerlord/TOR 1.3.15 | Steam Lobby / UDP 4200'
+    footer='KaiTOR Co-op v1.3.15.14 | Bannerlord/TOR 1.3.15 | Steam Lobby / UDP 4200'
 }
 
 $script:Text = $RU
@@ -176,8 +180,13 @@ function Get-ConnectedPlayerText {
 }
 
 function Get-SteamLobbyState {
+    $steamRunning = @(Get-Process -Name 'steam' -ErrorAction SilentlyContinue).Count -gt 0
+    if (-not $steamRunning) {
+        return [pscustomobject]@{ Text = $script:Text.steam_client_offline; State = 'error' }
+    }
+
     if (@(Get-KaiTORServerProcesses).Count -eq 0) {
-        return [pscustomobject]@{ Text = $script:Text.offline; State = 'offline' }
+        return [pscustomobject]@{ Text = $script:Text.steam_idle; State = 'idle' }
     }
 
     $log = Get-ServerLog
@@ -516,6 +525,7 @@ $timer.Add_Tick({
         'ready' { [Drawing.Color]::FromArgb(129,190,111) }
         'error' { [Drawing.Color]::FromArgb(205,100,82) }
         'starting' { [Drawing.Color]::FromArgb(218,196,154) }
+        'idle' { [Drawing.Color]::FromArgb(129,190,111) }
         default { [Drawing.Color]::FromArgb(150,127,100) }
     }
 
