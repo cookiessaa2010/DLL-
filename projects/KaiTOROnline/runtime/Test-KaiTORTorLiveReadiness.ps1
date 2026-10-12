@@ -16,7 +16,9 @@ param(
 
     [switch]$SkipVersionCheck,
 
-    [switch]$RequireSteamHost
+    [switch]$RequireSteamHost,
+
+    [switch]$MinimalMode
 )
 
 $ErrorActionPreference = 'Stop'
@@ -104,6 +106,9 @@ if ($SkipVersionCheck) {
 if (-not [string]::IsNullOrWhiteSpace($WorkshopRoot)) {
     $launcherArgs.WorkshopRoot = $WorkshopRoot
 }
+if ($MinimalMode) {
+    $launcherArgs.MinimalMode = $true
+}
 
 # The TOR wrapper owns Workshop staging. This keeps normal Bannerlord Modules clean and
 # lets the same dry-run validate both compatibility and the base campaign launch contract.
@@ -128,6 +133,7 @@ Write-Output "  Package root:       $package"
 Write-Output "  Bannerlord root:    $bannerlord"
 Write-Output '  Installed payload:  exact SHA-256 match to validated package'
 Write-Output '  TOR compatibility:  PASS'
+Write-Output ("  Optional Kai mods:   " + $(if ($MinimalMode) { 'DISABLED (minimal mode)' } else { 'AUTO-DETECT enabled' }))
 Write-Output '  Launch preflight:   PASS'
 if ($RequireSteamHost) { Write-Output '  Steam host:         PASS (Steam running; local UDP 27315/27316 available)' }
 Write-Output '  Admission contract: 4 simultaneous players'
