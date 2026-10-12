@@ -421,7 +421,10 @@ jobs:
           Write-Host "Uploaded artifact passed contract, provenance, and redistribution checks for $env:GITHUB_SHA."
 
       - name: Publish v1.3.15.13 GitHub prerelease
-        if: github.ref == 'refs/heads/kaitor-online-ui-ru-en-v0.1'
+        # Public redistribution of the BannerlordCoop-derived build is gated until the
+        # repository has a verifiable written-permission record. Internal CI artifacts
+        # remain available for live testing regardless of this release-only gate.
+        if: github.ref == 'refs/heads/kaitor-online-ui-ru-en-v0.1' && vars.KAITOR_UPSTREAM_PERMISSION_VERIFIED == 'true'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
