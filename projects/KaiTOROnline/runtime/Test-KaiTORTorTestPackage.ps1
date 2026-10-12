@@ -205,6 +205,8 @@ foreach ($needle in @(
     'RequireSteamHost',
     'MinimalMode',
     'Minimal TOR + Co-op test',
+    'steam_idle',
+    'steam_client_offline',
     'steam_ready'
 )) {
     if ($launcherText -notlike "*$needle*") {
