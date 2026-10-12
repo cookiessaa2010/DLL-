@@ -173,7 +173,7 @@ if ($debugSymbols.Count -gt 0) {
 
 $readmeEn = Get-Content -LiteralPath (Join-Path $root 'README_EN.txt') -Raw -Encoding UTF8
 $readmeRu = Get-Content -LiteralPath (Join-Path $root 'README_RU.txt') -Raw -Encoding UTF8
-foreach ($needle in @('START_KAITOR_COOP.bat','coop.debug.kaitor.snapshot4p','D -> B -> A -> C','Minimal TOR + Co-op test')) {
+foreach ($needle in @('START_KAITOR_COOP.bat','coop.debug.kaitor.snapshot4p','D -> B -> A -> C')) {
     if ($readmeEn -notlike "*$needle*") { throw "English quick start missing: $needle" }
     if ($readmeRu -notlike "*$needle*") { throw "Russian quick start missing: $needle" }
 }
@@ -207,6 +207,17 @@ foreach ($needle in @(
 )) {
     if ($launcherText -notlike "*$needle*") {
         throw "KaiTOR server panel missing required RU/EN/runtime marker: $needle"
+    }
+}
+
+$torLauncherText = Get-Content -LiteralPath (Join-Path $root 'Runtime/Start-KaiTORTorCampaignServer.ps1') -Raw
+foreach ($needle in @(
+    '[switch]$MinimalMode',
+    'Kai optional integrations: DISABLED (minimal TOR+Coop mode).',
+    '(-not $MinimalMode) -and'
+)) {
+    if ($torLauncherText -notlike "*$needle*") {
+        throw "TOR launcher missing minimal-mode safety marker: $needle"
     }
 }
 
