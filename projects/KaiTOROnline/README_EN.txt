@@ -9,8 +9,8 @@ INSTALL
 2. Copy Modules\Coop from this package into <Bannerlord>\Modules\Coop.
    Replace the previous Coop folder when prompted.
 3. The Old Realms 1.3.15 must be installed. KaiTOR does not redistribute TOR or Bannerlord files.
-4. For the first live test, optional gameplay modules may be left disabled.
-5. Optional Steam modules supported by this build: KaiCleave v1.3.15.31, KaiTOR Stability v1.3.15.50, and KaiTOR Portrait Fix v1.3.15.60. Server and every client must use the same active module set and exact versions. Workshop copies are staged temporarily by the launcher.
+4. For the first live test, keep "Minimal TOR + Co-op test" enabled. In this mode the launcher deliberately does NOT stage KaiCleave, KaiTOR Stability, or KaiTOR Portrait Fix even if they are subscribed in Workshop.
+5. After the minimal run passes, disable that option to test the supported optional Steam modules separately: KaiCleave v1.3.15.31, KaiTOR Stability v1.3.15.50, and KaiTOR Portrait Fix v1.3.15.60. Server and every client must use the same active module set and exact versions. Workshop copies are staged temporarily by the launcher.
 
 START THE AUTHORITATIVE CAMPAIGN SERVER
 1. Run START_KAITOR_COOP.bat from the package root.
@@ -18,7 +18,7 @@ START THE AUTHORITATIVE CAMPAIGN SERVER
 3. Enter the exact campaign save name.
 4. Enter the server name. Default: KaiTOR Co-op | TOR RU Test.
 5. Choose visibility and an optional password. Use Public to appear in the global Steam list (the server panel now defaults to Public).
-6. Click Preflight. Do not start the server unless Preflight reports PASS.
+6. Keep "Minimal TOR + Co-op test" enabled for the first run, then click Preflight. Do not start the server unless Preflight reports PASS.
 7. Click Start Server.
 8. The panel should show ONLINE after Bannerlord.exe /singleplayer /server starts.
 

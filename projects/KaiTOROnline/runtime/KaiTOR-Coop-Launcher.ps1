@@ -28,6 +28,7 @@ $EN = @{
     players='Players'
     server='Server'
     steam='Steam'
+    minimal='Minimal TOR + Co-op test'
     offline='OFFLINE'
     online='ONLINE'
     steam_starting='STARTING'
@@ -70,6 +71,7 @@ $RU = @{
     players='Игроки'
     server='Сервер'
     steam='Steam'
+    minimal='Минимальный TOR + Co-op тест'
     offline='НЕ ЗАПУЩЕН'
     online='ЗАПУЩЕН'
     steam_starting='ЗАПУСК'
@@ -302,6 +304,13 @@ $lblSteam = New-Label 630 270 160 28
 $lblSteam.Font = [Drawing.Font]::new('Segoe UI Semibold',10,[Drawing.FontStyle]::Bold)
 $form.Controls.Add($lblSteam)
 
+$chkMinimal = [Windows.Forms.CheckBox]::new()
+$chkMinimal.SetBounds(550,300,240,24)
+$chkMinimal.Checked = $true
+$chkMinimal.ForeColor = [Drawing.Color]::FromArgb(218,196,154)
+$chkMinimal.BackColor = [Drawing.Color]::Transparent
+$form.Controls.Add($chkMinimal)
+
 $panel = [Windows.Forms.Panel]::new()
 $panel.SetBounds(25,325,765,2)
 $panel.BackColor = [Drawing.Color]::FromArgb(115,54,38)
@@ -346,6 +355,7 @@ function Refresh-Texts {
     $lblPlayersCaption.Text = $script:Text.players
     $lblServerCaption.Text = $script:Text.server
     $lblSteamCaption.Text = $script:Text.steam
+    $chkMinimal.Text = $script:Text.minimal
     $lblStatusCaption.Text = $script:Text.status
     $btnPreflight.Text = $script:Text.preflight
     $btnStart.Text = $script:Text.start
@@ -403,6 +413,9 @@ $btnPreflight.Add_Click({
         if ($cmbVisibility.SelectedIndex -gt 0) {
             $readinessArgs.RequireSteamHost = $true
         }
+        if ($chkMinimal.Checked) {
+            $readinessArgs.MinimalMode = $true
+        }
         $output = & $Readiness @readinessArgs 3>&1 2>&1 | Out-String
         if ($output -notmatch 'KaiTOR TOR live readiness: PASS') {
             throw ($output.Trim())
@@ -447,6 +460,9 @@ $btnStart.Add_Click({
     )
     if ($txtPassword.Text.Length -gt 0) {
         $args += @('-Password',('"' + $txtPassword.Text.Replace('"','') + '"'))
+    }
+    if ($chkMinimal.Checked) {
+        $args += '-MinimalMode'
     }
 
     try {

@@ -201,10 +201,23 @@ foreach ($needle in @(
     'KaiTOR Co-op | TOR RU Test',
     'Steam Lobby / UDP 4200',
     'RequireSteamHost',
+    'MinimalMode',
+    'Minimal TOR + Co-op test',
     'steam_ready'
 )) {
     if ($launcherText -notlike "*$needle*") {
         throw "KaiTOR server panel missing required RU/EN/runtime marker: $needle"
+    }
+}
+
+$torLauncherText = Get-Content -LiteralPath (Join-Path $root 'Runtime/Start-KaiTORTorCampaignServer.ps1') -Raw
+foreach ($needle in @(
+    'MinimalMode',
+    'Kai optional integrations: DISABLED (minimal TOR+Coop mode).',
+    '(-not $MinimalMode) -and'
+)) {
+    if ($torLauncherText -notlike "*$needle*") {
+        throw "TOR launcher missing minimal-mode safety marker: $needle"
     }
 }
 
@@ -220,6 +233,7 @@ $contractChecks = @(
     'TOR_Armory -> TOR_Environment -> TOR_Core -> Coop',
     'Admission limit: 4 simultaneous players',
     'Bannerlord.exe /singleplayer /server',
+    'First-live diagnostic rule: MinimalMode',
     'KaiCleave v1.3.15.31',
     'KaiTOR_Stability v1.3.15.50',
     'KaiTOR_PortraitFix v1.3.15.60'
@@ -254,6 +268,7 @@ $runbookChecks = @(
     'activeAdmissionSlots = 4',
     'Test-KaiTORTorLiveReadiness.ps1',
     'Start-KaiTORTorCampaignServer.ps1',
+    '-MinimalMode',
     'TOR Workshop staging',
     'coop.debug.kaitor.snapshot4p',
     'Capture-KaiTORTorPostBattleLiveSession.ps1'
