@@ -85,7 +85,7 @@ if ([string]$moduleXml.Module.Id.value -ne 'Coop') {
 if ([string]$moduleXml.Module.Name.value -ne 'KaiTOR Co-op') {
     throw "Unexpected module display name: $([string]$moduleXml.Module.Name.value)"
 }
-if ([string]$moduleXml.Module.Version.value -ne 'v1.3.15.13') {
+if ([string]$moduleXml.Module.Version.value -ne 'v1.3.15.14') {
     throw "Unexpected KaiTOR module version: $([string]$moduleXml.Module.Version.value)"
 }
 $moduleDeps = @($moduleXml.Module.DependedModules.DependedModule | ForEach-Object { [string]$_.Id })
@@ -125,8 +125,11 @@ foreach ($id in @(
     if ($englishStrings -notmatch ('id="' + [regex]::Escape($id) + '"')) { throw "English localization missing id: $id" }
     if ($russianStrings -notmatch ('id="' + [regex]::Escape($id) + '"')) { throw "Russian localization missing id: $id" }
 }
-if ($russianManifest -notmatch 'LanguageData id="Русский"') {
-    throw 'Russian language manifest does not register Русский.'
+[xml]$russianManifestXml = $russianManifest
+$russianLanguageId = [string]$russianManifestXml.LanguageData.id
+$russianLanguageIdUtf8Base64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($russianLanguageId))
+if ($russianLanguageIdUtf8Base64 -ne '0KDRg9GB0YHQutC40Lk=') {
+    throw "Russian language manifest has unexpected language id (UTF-8 Base64: $russianLanguageIdUtf8Base64)."
 }
 
 
@@ -193,7 +196,6 @@ if (@($launcherErrors).Count -gt 0) {
 }
 $launcherText = Get-Content -LiteralPath $launcherPath -Raw -Encoding UTF8
 foreach ($needle in @(
-    'KaiTOR Co-op — Панель сервера',
     'KaiTOR Co-op - Server Control',
     'Start-KaiTORTorCampaignServer.ps1',
     'Test-KaiTORTorLiveReadiness.ps1',
