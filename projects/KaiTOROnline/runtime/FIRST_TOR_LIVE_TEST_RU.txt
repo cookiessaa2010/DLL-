@@ -19,7 +19,7 @@ KaiTOR Online — первый реальный TOR live-test
 1) Распакуйте artifact KaiTOR в отдельную папку.
 2) Скопируйте папку Modules/Coop из artifact в корень установленного Bannerlord, сохранив структуру Modules/Coop/...
 3) Убедитесь, что установлены TOR_Armory, TOR_Environment и TOR_Core версии 1.3.15.
-4) Не используйте дополнительные gameplay-моды в первом прогоне. Клиенты должны иметь одинаковый набор модулей.
+4) Первый прогон выполняйте в MinimalMode: только TOR_Armory -> TOR_Environment -> TOR_Core -> Coop. В серверной панели флажок «Минимальный TOR + Co-op тест» включён по умолчанию. Клиенты должны иметь одинаковый набор модулей.
 
 Если TOR установлен через Steam Workshop, не копируйте гигабайты TOR вручную и не создавайте постоянные ссылки. Для безопасной проверки discovery из папки artifact выполните:
 
@@ -36,7 +36,7 @@ KaiTOR Online — первый реальный TOR live-test
 
 TOR Workshop staging выполняется только Start-KaiTORTorCampaignServer.ps1: перед server/preflight он временно создаёт нужные junction для TOR_Armory, TOR_Environment и TOR_Core, а в finally удаляет их. Поэтому обычный Steam-запуск Bannerlord остаётся с чистой папкой Modules. При Workshop staging серверный launcher держит PowerShell открытым до завершения Bannerlord, чтобы гарантировать cleanup.
 
-Тот же launcher теперь автоматически ищет наши Steam-модули по Module.Id и временно подключает их из Workshop: KaiCleave v1.3.15.31, KaiTOR_Stability v1.3.15.50 и KaiTOR_PortraitFix v1.3.15.60. Для Cleave/Portrait Fix также требуется Bannerlord.Harmony v2.4.2.248; если он установлен только через Workshop, launcher временно подключит и его. На сервере и всех клиентах должен быть одинаковый активный набор и точные версии.
+При включённом MinimalMode launcher намеренно не подключает наши дополнительные Steam-модули. После успешного минимального прогона MinimalMode можно выключить: тогда launcher ищет по Module.Id и временно подключает из Workshop KaiCleave v1.3.15.31, KaiTOR_Stability v1.3.15.50 и KaiTOR_PortraitFix v1.3.15.60. Для Cleave/Portrait Fix также требуется Bannerlord.Harmony v2.4.2.248; если он установлен только через Workshop, launcher временно подключит и его. На сервере и всех клиентах должен быть одинаковый активный набор и точные версии.
 
 Если PowerShell был аварийно завершён и в Bannerlord\Modules остались TOR_* reparse-point, KaiTOR откажется запускаться. Удалите только эти ссылки командой cmd /c rmdir и повторите запуск; оригинальные файлы Workshop при этом не удаляются.
 
@@ -46,7 +46,8 @@ TOR Workshop staging выполняется только Start-KaiTORTorCampaign
   .\Runtime\Test-KaiTORTorLiveReadiness.ps1 `
     -PackageRoot . `
     -BannerlordRoot "C:\PATH\TO\Mount & Blade II Bannerlord" `
-    -SaveName "KaiTOR-TOR-Live-01"
+    -SaveName "KaiTOR-TOR-Live-01" `
+    -MinimalMode
 
 Если Workshop находится не в той же Steam-библиотеке, добавьте:
   -WorkshopRoot "D:\steam\steamapps\workshop\content\261550"
@@ -68,7 +69,8 @@ Preflight должен подтвердить:
 
   .\Runtime\Start-KaiTORTorCampaignServer.ps1 `
     -BannerlordRoot "C:\PATH\TO\Mount & Blade II Bannerlord" `
-    -SaveName "KaiTOR-TOR-Live-01"
+    -SaveName "KaiTOR-TOR-Live-01" `
+    -MinimalMode
 
 Если Workshop находится не в той же Steam-библиотеке, добавьте -WorkshopRoot явно.
 При Workshop TOR не закрывайте PowerShell принудительно во время работы сервера: launcher ждёт завершения Bannerlord и затем удаляет временные junction.
