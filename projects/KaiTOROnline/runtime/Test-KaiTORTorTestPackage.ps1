@@ -173,7 +173,7 @@ if ($debugSymbols.Count -gt 0) {
 
 $readmeEn = Get-Content -LiteralPath (Join-Path $root 'README_EN.txt') -Raw -Encoding UTF8
 $readmeRu = Get-Content -LiteralPath (Join-Path $root 'README_RU.txt') -Raw -Encoding UTF8
-foreach ($needle in @('START_KAITOR_COOP.bat','coop.debug.kaitor.snapshot4p','D -> B -> A -> C')) {
+foreach ($needle in @('START_KAITOR_COOP.bat','coop.debug.kaitor.snapshot4p','D -> B -> A -> C','Minimal TOR + Co-op test')) {
     if ($readmeEn -notlike "*$needle*") { throw "English quick start missing: $needle" }
     if ($readmeRu -notlike "*$needle*") { throw "Russian quick start missing: $needle" }
 }
@@ -201,6 +201,8 @@ foreach ($needle in @(
     'KaiTOR Co-op | TOR RU Test',
     'Steam Lobby / UDP 4200',
     'RequireSteamHost',
+    'MinimalMode',
+    'Minimal TOR + Co-op test',
     'steam_ready'
 )) {
     if ($launcherText -notlike "*$needle*") {
@@ -220,6 +222,7 @@ $contractChecks = @(
     'TOR_Armory -> TOR_Environment -> TOR_Core -> Coop',
     'Admission limit: 4 simultaneous players',
     'Bannerlord.exe /singleplayer /server',
+    'First-live diagnostic rule: MinimalMode',
     'KaiCleave v1.3.15.31',
     'KaiTOR_Stability v1.3.15.50',
     'KaiTOR_PortraitFix v1.3.15.60'
@@ -254,6 +257,7 @@ $runbookChecks = @(
     'activeAdmissionSlots = 4',
     'Test-KaiTORTorLiveReadiness.ps1',
     'Start-KaiTORTorCampaignServer.ps1',
+    '-MinimalMode',
     'TOR Workshop staging',
     'coop.debug.kaitor.snapshot4p',
     'Capture-KaiTORTorPostBattleLiveSession.ps1'
