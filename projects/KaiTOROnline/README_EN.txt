@@ -32,7 +32,7 @@ JOIN FROM A CLIENT
 
 STEAM / VPN
 - Before a Public/Friends launch, Preflight verifies that Steam is running and local UDP 27315/27316 are free. These ports do NOT need router forwarding for the Steam P2P/Relay path; they only need to be available on the host PC.
-- "Server: ONLINE" means the Bannerlord process is alive. The separate "Steam: LOBBY READY" state means the Steam game-server logged on, the lobby was created, and the P2P tunnel is listening.
+- The panel now distinguishes the Steam client from the server lobby. Before Bannerlord starts, a running Steam client is shown as "Steam / Lobby: CLIENT OK / LOBBY OFF". After successful server registration it becomes "CLIENT OK / LOBBY READY". "Server: ONLINE" separately means only that the Bannerlord process is alive.
 - Compatibility is bound to the exact CI build: BuildVersion contains the commit SHA. Matching module numbers alone are not enough if the DLLs came from a different commit.
 - Normal Steam Lobby joining uses the Steam P2P/relay tunnel, so players do not need to type the host's public IP.
 - This is the preferred path for a host using a VPN or sitting behind NAT/CGNAT, provided Steam and Steam Networking work through that VPN.
