@@ -212,7 +212,7 @@ foreach ($needle in @(
 
 $torLauncherText = Get-Content -LiteralPath (Join-Path $root 'Runtime/Start-KaiTORTorCampaignServer.ps1') -Raw
 foreach ($needle in @(
-    '[switch]$MinimalMode',
+    'MinimalMode',
     'Kai optional integrations: DISABLED (minimal TOR+Coop mode).',
     '(-not $MinimalMode) -and'
 )) {
