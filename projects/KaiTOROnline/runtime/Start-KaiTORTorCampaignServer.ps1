@@ -26,7 +26,9 @@ param(
 
     [switch]$DryRun,
 
-    [switch]$Wait
+    [switch]$Wait,
+
+    [switch]$MinimalMode
 )
 
 $ErrorActionPreference = 'Stop'
@@ -114,11 +116,20 @@ try {
         $resolvedWorkshopRoot = $null
     }
 
+    # First live acceptance must be reducible to the smallest supported runtime:
+    # Bannerlord + TOR + Coop only. Optional Kai modules are opt-in because silently
+    # enabling Workshop subscriptions would invalidate a controlled A/B diagnostic run.
     $optionalSpecs = @(
-        [pscustomobject]@{ Id = 'KaiCleave'; Version = 'v1.3.15.31' },
-        [pscustomobject]@{ Id = 'KaiTOR_Stability'; Version = 'v1.3.15.50' },
-        [pscustomobject]@{ Id = 'KaiTOR_PortraitFix'; Version = 'v1.3.15.60' }
+        if (-not $MinimalMode) {
+            [pscustomobject]@{ Id = 'KaiCleave'; Version = 'v1.3.15.31' }
+            [pscustomobject]@{ Id = 'KaiTOR_Stability'; Version = 'v1.3.15.50' }
+            [pscustomobject]@{ Id = 'KaiTOR_PortraitFix'; Version = 'v1.3.15.60' }
+        }
     )
+
+    if ($MinimalMode) {
+        Write-Output 'Kai optional integrations: DISABLED (minimal TOR+Coop mode).'
+    }
 
     foreach ($spec in $optionalSpecs) {
         $metadata = Join-Path $root ("Modules\{0}\SubModule.xml" -f $spec.Id)
@@ -141,9 +152,9 @@ try {
     $cleaveMetadata = Join-Path $root 'Modules\KaiCleave\SubModule.xml'
     $stabilityMetadata = Join-Path $root 'Modules\KaiTOR_Stability\SubModule.xml'
     $portraitMetadata = Join-Path $root 'Modules\KaiTOR_PortraitFix\SubModule.xml'
-    $cleaveInstalled = Test-Path -LiteralPath $cleaveMetadata -PathType Leaf
-    $stabilityInstalled = Test-Path -LiteralPath $stabilityMetadata -PathType Leaf
-    $portraitInstalled = Test-Path -LiteralPath $portraitMetadata -PathType Leaf
+    $cleaveInstalled = (-not $MinimalMode) -and (Test-Path -LiteralPath $cleaveMetadata -PathType Leaf)
+    $stabilityInstalled = (-not $MinimalMode) -and (Test-Path -LiteralPath $stabilityMetadata -PathType Leaf)
+    $portraitInstalled = (-not $MinimalMode) -and (Test-Path -LiteralPath $portraitMetadata -PathType Leaf)
     $needsHarmony = $cleaveInstalled -or $portraitInstalled
 
     # Cleave and Portrait Fix both depend on Bannerlord.Harmony. Stage the exact supported
